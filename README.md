@@ -1,2 +1,2 @@
-# sisyphus
-Shahlab workflow automation and data management
+# Sisyphus
+Shahlab workflow and data management automation
