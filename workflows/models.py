@@ -6,8 +6,7 @@ import re
 import collections
 import yaml
 
-from automate_me.utils import dlp
-from automate_me.utils.tantalus import TantalusApi
+from datamanagement.utils import dlp
 import dbclients.tantalus
 
 import generate_inputs

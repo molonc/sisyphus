@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import collections
-from utils.utils import get_lanes_str
+from datamanagement.utils.utils import get_lanes_str
 
 
 def fastq_paired_end_check(file_info):

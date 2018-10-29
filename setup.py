@@ -1,9 +1,9 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
-	name='dbclient',
-	description='Clients for shahlab databases',
+	name='sisyphus',
+	description='Shahlab workflow and data management automation',
 	author='Andrew McPherson',
-	packages=['dbclients'],
+        packages=find_packages(),
 	zip_safe=False,
 )
