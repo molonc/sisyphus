@@ -17,6 +17,35 @@ from dbclients.basicclient import BasicAPIClient
 TANTALUS_API_URL = "http://tantalus.bcgsc.ca/api/"
 
 
+class BlobStorageClient(object):
+    def __init__(self, storage):
+        self.storage_account = storage['storage_account']
+        self.storage_container = storage['storage_container']
+        self.storage_key = storage['credentials']['storage_key']
+        self.blob_service = azure.storage.blob.BlockBlobService(
+            account_name=self.storage_account,
+            account_key=self.storage_key)
+    def get_size(blobname):
+        properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
+        blobsize = properties.properties.content_length
+        return blobsize
+    def get_created_time(blobname):
+        properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
+        created_time = properties.properties.last_modified.isoformat()
+        return created_time
+
+
+class ServerStorageClient(object):
+    def __init__(self, storage):
+        self.storage_directory = storage['storage_directory']
+    def get_size(filename):
+        filename = os.path.join(self.storage_directory, filename)
+        return os.path.getsize(filename)
+    def get_created_time(filename):
+        filename = os.path.join(self.storage_directory, filename)
+        return pd.Timestamp(time.ctime(os.path.getmtime(filename)), tz="Canada/Pacific")
+
+
 class TantalusApi(BasicAPIClient):
     """Tantalus API class."""
 
@@ -36,6 +65,9 @@ class TantalusApi(BasicAPIClient):
             username=os.environ.get("TANTALUS_API_USERNAME"),
             password=os.environ.get("TANTALUS_API_PASSWORD"),
         )
+
+        self.cached_storages = {}
+        self.cached_storage_clients = {}
 
     def get_list_pagination_initial_params(self, params):
         """Get initial pagination parameters specific to this API.
@@ -57,6 +89,106 @@ class TantalusApi(BasicAPIClient):
             params: A dict which is changed in place.
         """
         params["offset"] += params["limit"]
+
+    def get_file_resource_filename(self, storage_name, filepath):
+        """ Strip the storage directory from a filepath to create a tantalus filename.
+
+        Args:
+            storage_name: storage in which the file resides
+            filepath: abs path of the file
+        
+        Returns:
+            filename: relative filename of the file
+        """
+        storage = self.get_storage(storage_name)
+
+        if not filepath.startswith(storage['prefix']):
+            raise ValueError('file {} not in storage {} with prefix {}'.format(
+                filepath, storage['name'], storage['prefix']))
+
+        filename = filepath[len(storage['prefix']):]
+        filename = filename.lstrip('/')
+
+        return filename
+
+    def get_storage(self, storage_name):
+        """ Retrieve a storage object with caching.
+
+        Args:
+            storage_name: storage in which the file resides
+
+        Returns:
+            storage details (dict)
+        """
+        if storage_name in self.cached_storages:
+            return self.cached_storages[storage_name]
+
+        storage = self.get('storage', name=storage_name)
+
+        self.cached_storages[storage_name] = storage
+
+        return storage
+
+    def get_storage_client(self, storage_name):
+        """ Retrieve a client for the given storage
+
+        Args:
+            storage_name: storage in which the file resides
+
+        Returns:
+            storage client object
+        """
+        if storage_name in self.cached_storage_clients:
+            return self.cached_storage_clients[storage_name]
+
+        storage = self.get_storage(storage_name)
+
+        if storage['storage_type'] == 'blob':
+            storage['credentials'] = self.get(
+                'storage_azure_blob_credentials',
+                id=storage['credentials'])
+            client = BlobStorageClient(storage)
+        elif storage['storage_type'] == 'server':
+            client = ServerStorageClient(storage)
+        else:
+            return ValueError('unsupported storage type {}'.format(storage['storage_type']))
+
+        self.cached_storage_clients[storage_name] = client
+
+        return client
+
+    def add_file(self, storage_name, filepath, file_type, **args):
+        """ Create a file resource and file instance in the give storage.
+
+        Args:
+            storage_name: storage for file instance
+            filepath: full path to file
+            file_type: type for file_resource
+        
+        Kwargs:
+            additional fields for file_resource
+
+        Returns:
+            file_resource, file_instance
+        """
+        storage = self.get_storage(storage_name)
+        storage_client = self.get_storage_client(storage_name)
+
+        file_resource = self.get_or_create(
+            'file_resource',
+            filename=self.get_file_resource_filename(storage_name, filepath),
+            created=storage_client.get_created_time(filepath),
+            size=storage_client.get_size(filepath),
+            **args
+        )
+
+        file_instance = self.get_or_create(
+            'file_instance',
+            file_resource=file_resource['id'],
+            storage=storage['id'],
+        )
+
+        return file_resource, file_instance
 
     @staticmethod
     def join_urls(*pieces):
@@ -97,3 +229,5 @@ class TantalusApi(BasicAPIClient):
             ).format(url=endpoint_url, status_code=r.status_code, content=r.text)
 
             raise RuntimeError(msg)
+
+

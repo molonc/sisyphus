@@ -305,15 +305,11 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                         read_type=read_type,
                     )
                 ],
-                size=os.path.getsize(fastq_path),
-                created=pd.Timestamp(
-                    time.ctime(os.path.getmtime(fastq_path)), tz="Canada/Pacific"
-                ),
                 file_type="FQ",
                 read_end=read_end,
                 index_sequence=index_sequence,
                 compression=compression,
-                filename=tantalus_filename,
+                filepath=tantalus_path,
             )
         )
 

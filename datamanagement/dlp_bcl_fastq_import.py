@@ -14,6 +14,9 @@ from utils.constants import LOGGING_FORMAT
 from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 from utils.runtime_args import parse_runtime_args
 from utils.tantalus import TantalusApi
+from utils.filecopy import rsync_file
+from query_gsc_for_dlp_fastqs import dlp_fastq_template
+
 
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
@@ -43,25 +46,12 @@ def query_colossus_dlp_cell_info(library_id):
 
 def load_brc_fastqs(
     flowcell_id,
+    output_dir,
     storage_name,
     storage_directory,
-    output_dir,
     tantalus_api,
     tag_name=None,
 ):
-    # Check for .. in file path
-    if ".." in output_dir:
-        raise Exception("Invalid path for output_dir. '..' detected")
-
-    # Check that output_dir is actually in storage
-    if not output_dir.startswith(storage_directory):
-        raise Exception(
-            "Invalid path for output_dir. {} doesn't seem to be in the specified storage".format(
-                output_dir
-            )
-        )
-
-    # Check that path is valid.
     if not os.path.isdir(output_dir):
         raise Exception("output directory {} not a directory".format(output_dir))
 
@@ -116,7 +106,7 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
 
         filename_fields = match.groups()
 
-        # primary_sample_id = filename_fields[0]
+        primary_sample_id = filename_fields[0]
         library_id = filename_fields[1]
         row = int(filename_fields[2])
         column = int(filename_fields[3])
@@ -129,21 +119,29 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
             cell_info[library_id] = query_colossus_dlp_cell_info(library_id)
 
         index_sequence = cell_info[library_id][row, column]["index_sequence"]
-        sample_id = cell_info[library_id][row, column]["sample_id"]
+        cell_sample_id = cell_info[library_id][row, column]["sample_id"]
 
         fastq_path = os.path.join(output_dir, filename)
 
-        if not fastq_path.startswith(storage_directory):
-            raise Exception(
-                "file {} expected in directory {}".format(fastq_path, storage_directory)
-            )
-        fastq_filename = fastq_path.replace(storage_directory, "")
-        fastq_filename = filename.lstrip("/")
+        tantalus_filename = dlp_fastq_template.format(
+            primary_sample_id=primary_sample_id,
+            dlp_library_id=library_id,
+            flowcell_id=flowcell_id,
+            lane_number=lane_number,
+            cell_sample_id=cell_sample_id,
+            index_sequence=index_sequence,
+            read_end=read_end,
+            extension=extension,
+        )
+
+        tantalus_path = os.path.join(storage["storage_directory"], tantalus_filename)
+
+        rsync_file(fastq_path, tantalus_path)
 
         fastq_file_info.append(
             dict(
                 dataset_type="FQ",
-                sample_id=sample_id,
+                sample_id=cell_sample_id,
                 library_id=library_id,
                 library_type=BRC_LIBRARY_TYPE,
                 index_format=BRC_INDEX_FORMAT,
@@ -156,15 +154,11 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
                         read_type=BRC_READ_TYPE,
                     )
                 ],
-                size=os.path.getsize(fastq_path),
-                created=pd.Timestamp(
-                    time.ctime(os.path.getmtime(fastq_path)), tz="Canada/Pacific"
-                ),
                 file_type="FQ",
                 read_end=read_end,
                 index_sequence=index_sequence,
                 compression="GZIP",
-                filename=fastq_filename,
+                filepath=tantalus_path,
             )
         )
 
@@ -179,6 +173,8 @@ if __name__ == "__main__":
     # variables defined)
     tantalus_api = TantalusApi()
 
+    storage = tantalus_api.get("storage_server", name=args["storage_name"])
+
     # Get the tag name if it was passed in
     try:
         tag_name = args["tag_name"]
@@ -188,9 +184,9 @@ if __name__ == "__main__":
     # Import fastqs
     load_brc_fastqs(
         args["flowcell_id"],
-        args["storage_name"],
-        args["storage_directory"],
-        args["output_dir"],
+        args["temp_dir"],
+        storage["storage_name"],
+        storage["storage_directory"],
         tantalus_api,
         tag_name=tag_name,
     )

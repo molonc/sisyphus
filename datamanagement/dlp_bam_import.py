@@ -109,26 +109,6 @@ def get_bam_header_info(header):
     }
 
 
-def get_size_file(filename):
-    return os.path.getsize(filename)
-
-
-def get_created_time_file(filename):
-    return pd.Timestamp(time.ctime(os.path.getmtime(filename)), tz="Canada/Pacific")
-
-
-def get_size_blob(blob_service, container, blobname):
-    properties = blob_service.get_blob_properties(container, blobname)
-    blobsize = properties.properties.content_length
-    return blobsize
-
-
-def get_created_time_blob(blob_service, container, blobname):
-    properties = blob_service.get_blob_properties(container, blobname)
-    created_time = properties.properties.last_modified.isoformat()
-    return created_time
-
-
 def import_dlp_realign_bams(
     storage_name,
     storage_type,
@@ -166,41 +146,21 @@ def import_dlp_realign_bams(
     )
 
 
-def import_dlp_realign_bam_blob(bam_filename, container_name):
-    storage_account = os.environ["AZURE_STORAGE_ACCOUNT"]
-
-    # Assumption: bam filename is prefixed by either
-    # storage_account/container/, container/, or is not prefixed
-
-    bam_filename = bam_filename.strip("/")
-
-    container_prefix = container_name + "/"
-    storage_account_prefix = storage_account + "/" + container_prefix
-
-    if bam_filename.startswith(storage_account_prefix):
-        bam_filename = bam_filename[len(storage_account_prefix) :]
-    elif bam_filename.startswith(container_prefix):
-        bam_filename = bam_filename[len(container_prefix) :]
-
-    bai_filename = bam_filename + ".bai"
-
+def import_dlp_realign_bam_blob(bam_filepath, container_name):
     blob_service = azure.storage.blob.BlockBlobService(
-        account_name=storage_account, account_key=os.environ["AZURE_STORAGE_KEY"]
+        account_name=os.environ["AZURE_STORAGE_ACCOUNT"],
+        account_key=os.environ["AZURE_STORAGE_KEY"]
     )
 
-    bam_header = get_bam_header_blob(blob_service, container_name, bam_filename)
+    bam_header = get_bam_header_blob(blob_service, container_name, bam_filepath)
 
     bam_info = {
-        "filename": bam_filename,
-        "size": get_size_blob(blob_service, container_name, bam_filename),
-        "created": get_created_time_blob(blob_service, container_name, bam_filename),
+        "filepath": bam_filepath,
         "file_type": "BAM",
     }
 
     bai_info = {
-        "filename": bai_filename,
-        "size": get_size_blob(blob_service, container_name, bai_filename),
-        "created": get_created_time_blob(blob_service, container_name, bai_filename),
+        "filepath": bam_filepath + ".bai",
         "file_type": "BAI",
     }
 
@@ -211,26 +171,15 @@ def import_dlp_realign_bam_blob(bam_filename, container_name):
 
 
 def import_dlp_realign_bam_server(bam_filepath, storage_directory):
-    if not bam_filepath.startswith(storage_directory):
-        raise ValueError(
-            "{} not in storage directory {}".format(bam_filepath, storage_directory)
-        )
-
-    bam_filename = bam_filepath.replace(storage_directory, "").lstrip("/")
-
     bam_header = get_bam_header_file(bam_filepath)
 
     bam_info = {
-        "filename": bam_filename,
-        "size": get_size_file(bam_filepath),
-        "created": get_created_time_file(bam_filepath),
+        "filepath": bam_filepath,
         "file_type": "BAM",
     }
 
     bai_info = {
-        "filename": bam_filename + ".bai",
-        "size": get_size_file(bam_filepath + ".bai"),
-        "created": get_created_time_file(bam_filepath + ".bai"),
+        "filepath": bam_filepath + ".bai",
         "file_type": "BAI",
     }
 
@@ -255,11 +204,9 @@ def create_file_metadata(file_info, bam_header):
         ref_genome=ref_genome,
         aligner_name=aligner_name,
         file_type=file_info["file_type"],
-        size=file_info["size"],
-        created=file_info["created"],
         index_sequence=bam_header_info["index_sequence"],
         compression="UNCOMPRESSED",
-        filename=file_info["filename"],
+        filepath=file_info["filepath"],
     )
 
 

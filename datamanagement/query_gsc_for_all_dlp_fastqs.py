@@ -9,12 +9,10 @@ import time
 import pandas as pd
 from query_gsc_for_dlp_fastqs import import_gsc_dlp_paired_fastqs
 from utils.constants import LOGGING_FORMAT
-from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
-from utils.filecopy import rsync_file
-from utils.gsc import get_sequencing_instrument, GSCAPI
 from utils.runtime_args import parse_runtime_args
 from utils.colossus import ColossusApi
 from utils.tantalus import TantalusApi
+
 
 if __name__ == "__main__":
     # Set up the root logger

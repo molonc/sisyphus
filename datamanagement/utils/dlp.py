@@ -136,13 +136,11 @@ def create_sequence_dataset_models(
             if "read_end" in info:
                 sequence_file_info["read_end"] = info["read_end"]
 
-            file_resource = tantalus_api.get_or_create(
-                "file_resource",
-                size=info["size"],
-                created=info["created"],
-                file_type=info["file_type"],
+            file_resource, file_instance = tantalus_api.add_file(
+                storage_name,
+                info["filepath"],
+                info["file_type"],
                 compression=info["compression"],
-                filename=info["filename"],
             )
 
             sequence_file_info = tantalus_api.get_or_create(
@@ -152,12 +150,5 @@ def create_sequence_dataset_models(
             )
 
             sequence_dataset["file_resources"].append(file_resource["id"])
-
-            file_instance = dict(storage=storage_pk, file_resource=file_resource["id"])
-
-            if "filename_override" in info:
-                file_instance["filename_override"] = info["filename_override"]
-
-            tantalus_api.get_or_create("file_instance", **file_instance)
 
         tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
