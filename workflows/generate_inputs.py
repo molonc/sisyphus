@@ -7,7 +7,6 @@ import logging
 import os
 
 import templates
-from tantalus_client import tantalus
 import dbclients.colossus
 from utils import tantalus_utils, colossus_utils
 

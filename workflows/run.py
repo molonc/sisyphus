@@ -18,7 +18,6 @@ from utils import (colossus_utils, tantalus_utils, saltant_utils,
 from utils.log_utils import sentinel
 from models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, Results
 
-from tantalus_client import tantalus
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
@@ -29,6 +28,8 @@ log.addHandler(stream_handler)
 log.propagate = False
 
 
+# TODO: remove
+'''
 def run_bcl2fastq_and_send_to_tantalus(flowcell_id, path_to_archive, run_id, library_id, shahlab_run=False):
     """
     Runs BCL2FASTQ on BCL files from the BRC and pushes them to Tantalus.
@@ -76,6 +77,7 @@ def run_bcl2fastq_and_send_to_tantalus(flowcell_id, path_to_archive, run_id, lib
         {flowcell_id: fastq_directory},
         'shahlab',
     )
+'''
 
 
 def get_jobs(args):

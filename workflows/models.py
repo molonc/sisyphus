@@ -13,7 +13,6 @@ from dbclients.basicclient import NotFoundError
 import generate_inputs
 import templates
 from utils import colossus_utils, tantalus_utils, file_utils
-from tantalus_client import tantalus_analysis, tantalus_results
 
 from azure.storage.blob import BlockBlobService
 
@@ -177,7 +176,7 @@ class Analysis(object):
         except NotFoundError:
             analysis = None
 
-        input_datasets = self.search_input_datasets()
+        self.input_datasets = self.search_input_datasets()
 
         if analysis is not None:
             log.info('Found existing analysis {}'.format(self.name))
@@ -194,15 +193,15 @@ class Analysis(object):
                     log.warning('Args for analysis {} have changed, previously {}, now {}'.format(
                         self.name, analysis['args'], self.args))
 
-            if set(analysis['input_datasets']) != set(input_datasets):
+            if set(analysis['input_datasets']) != set(self.input_datasets):
                 if update:
                     tantalus_api.update('analysis', id=analysis['id'], input_datasets=input_datasets)
                     updated = True
                     log.info('Input datasets for analysis {} changed, previously {}, now {}'.format(
-                        self.name, analysis['input_datasets'], input_datasets))
+                        self.name, analysis['input_datasets'], self.input_datasets))
                 else:
                     log.warning('Input datasets for analysis {} have changed, previously {}, now {}'.format(
-                        self.name, analysis['input_datasets'], input_datasets))
+                        self.name, analysis['input_datasets'], self.input_datasets))
 
             if updated:
                 analysis = tantalus_api.get('analysis', name=self.name, jira_ticket=self.jira)
@@ -248,9 +247,10 @@ class Analysis(object):
             return
 
         log.info('Adding inputs yaml file {} to {}'.format(inputs_yaml, self.name))
-        tantalus_analysis.analysis_update(
-            self.get_id(),
-            logs=[FileResource(inputs_yaml, inputs_yaml_storage).get_id()]
+        tantalus_api.update(
+            'analysis', 
+            id=self.get_id(), 
+            logs=[FileResource(inputs_yaml, inputs_yaml_storage).get_id()],
         )
 
     def get_dataset(self, dataset_id):
@@ -288,18 +288,15 @@ class Analysis(object):
         Update the run status of the analysis in Tantalus.
         """
         self.status = status
-        tantalus_analysis.analysis_update(self.get_id(), status=self.status)
+        tantalus_api.update('analysis', id=self.get_id(), status=self.status)
 
     def update_analysis(self, field):
         """
         Check to see if the field matches the current field that exists.
         """
         field_value = vars(self)[field]
-        if field == 'args':
-            field_value = json.dumps(field_value)
-
         if self.analysis[field] != field_value:
-            tantalus_analysis.analysis_update(self.get_id(), **{field: field_value})
+            tantalus_api.update('analysis', id=self.get_id(), **{field: field_value})
 
     def get_id(self):
         return self.analysis['id']
@@ -425,7 +422,7 @@ class AlignAnalysis(Analysis):
         return dataset_ids
 
     def check_inputs_yaml(self, inputs_yaml_filename):
-        lane_ids = self.get_lane_ids()
+        lane_ids = self.get_lanes().keys()
         inputs_dict = file_utils.load_yaml(inputs_yaml_filename)
         input_lane_ids = inputs_dict.values()[0]['fastqs'].keys()
 
@@ -510,7 +507,7 @@ class AlignAnalysis(Analysis):
                 'column':       int(row['column']),
                 'row':          int(row['row']),
                 'sample_type':  'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
-                'index_sequence': str(row['index_i7']) + '-' + str(row['index_i5']),
+                'index_sequence': str(row['primer_i7']) + '-' + str(row['primer_i5']),
                 'sequence_lanes': sequence_lanes,
                 'sample_id':    str(row['sample_id']),
             }
@@ -583,10 +580,10 @@ class AlignAnalysis(Analysis):
                 output_file_info.append(file_info)
 
         log.info('creating sequence dataset models for output bams')
-        tantalus_api = TantalusApi()
         self.output_datasets = dlp.create_sequence_dataset_models(
             file_info=output_file_info,
             storage_name=storage_name,
+            tag_name=None,  # TODO: tag?
             tantalus_api=tantalus_api,
             analysis_id=self.get_id(),
         )
@@ -771,6 +768,7 @@ class Results:
             storage_name,
             pipeline_dir,
             pipeline_version,
+            update=False,
         ):
         """
         Create a Results object in Tantalus.
@@ -785,20 +783,11 @@ class Results:
         self.pipeline_version = pipeline_version
         self.last_updated = datetime.datetime.now().isoformat()
 
-        self.result = tantalus_results.create_results(
-            {
-                'name':             self.name,
-                'results_type':     self.analysis_type,
-                'results_version':  self.pipeline_version,
-                'analysis':         self.analysis,
-                'file_resources':   self.file_resources,
-            }
-        )
+        self.result = get_or_create_results(update=update)
 
         self.update_results('last_updated') # TODO: not needed?
-        self.update_results('file_resources')
 
-    def get_or_create_results(self):
+    def get_or_create_results(self, update=False):
         log.info('Searching for existing results {}'.format(self.name))
 
         try:
@@ -814,11 +803,28 @@ class Results:
         self.file_resources = self.get_file_resources()
 
         if results is not None:
+
+            updated = False
+
             log.info('Found existing results {}'.format(self.name))
 
             if set(results['file_resources']) != set(self.file_resources):
-                log.warning('File resources for analysis {} have changed, previously {}, now {}'.format(
-                    self.name, results['file_resources'], self.file_resources))
+                if update:
+                    tantalus_api.update('results', id=results['id'], args=self.args)
+                    updated=True
+                    log.info('File resources for analysis {} have changed, previously {}, now {}'.format(
+                        self.name, results['file_resources'], self.file_resources))
+                else:
+                    log.warning('File resources for analysis {} have changed, previously {}, now {}'.format(
+                        self.name, results['file_resources'], self.file_resources))
+
+            if updated:
+                results = tantalus_api.get(
+                    'results', 
+                    name=self.name, 
+                    results_type=self.analysis_type, 
+                    analysis=self.analysis
+                )
         else:
             log.info('Creating results {}'.format(self.name))
 
@@ -838,7 +844,7 @@ class Results:
     def update_results(self, field):
         field_value = vars(self)[field]
         if self.results[field] != field_value:
-            tantalus_results.results_update(self.get_id(), **{field: field_value})
+            tantalus_api.update('results', id=self.get_id(), **{field: field_value})
 
     def get_analysis_results_dir(self):
         if self.analysis_type == 'align':
