@@ -182,19 +182,17 @@ class Analysis(object):
         if analysis is not None:
             log.info('Found existing analysis {}'.format(self.name))
 
-            json_args = json.dumps(self.args)
-
             updated = False
 
-            if analysis['args'] != json_args:
+            if analysis['args'] != self.args:
                 if update:
-                    tantalus_api.update('analysis', id=analysis['id'], args=json_args)
+                    tantalus_api.update('analysis', id=analysis['id'], args=self.args)
                     updated = True
                     log.info('Args for analysis {} changed, previously {}, now {}'.format(
-                        self.name, analysis['args'], json_args))
+                        self.name, analysis['args'], self.args))
                 else:
                     log.warning('Args for analysis {} have changed, previously {}, now {}'.format(
-                        self.name, analysis['args'], json_args))
+                        self.name, analysis['args'], self.args))
 
             if set(analysis['input_datasets']) != set(input_datasets):
                 if update:
@@ -215,7 +213,7 @@ class Analysis(object):
             data = {
                 'name':             self.name,
                 'jira_ticket':      self.jira,
-                'args':             json.dumps(self.args),
+                'args':             self.args,
                 'status':           self.status,
                 'input_datasets':   list(input_datasets),
             }
@@ -237,6 +235,7 @@ class Analysis(object):
 
         input_file_instances = []
         for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
             input_file_instances.extend(tantalus_utils.get_sequence_dataset_file_instances(dataset, storage_name))
         return input_file_instances
 
@@ -494,7 +493,7 @@ class AlignAnalysis(Analysis):
                 library_id=self.args['library_id'],
                 ref_genome=self.args['ref_genome'],
                 aligner_name=self.args['aligner'],
-                number_lanes=len(lane_ids),
+                number_lanes=len(sequence_lanes),
                 cell_id=row['cell_id'],
             )
 

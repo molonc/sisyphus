@@ -1,6 +1,6 @@
 import os
 from tantalus_client import tantalus, generic_tasks
-import workflows.templates
+import workflows.templates as templates
 
 
 def check_gsc_lane_id(lane_id):
