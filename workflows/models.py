@@ -8,6 +8,7 @@ import yaml
 
 from datamanagement.utils import dlp
 import dbclients.tantalus
+from dbclients.basicclient import NotFoundError
 
 import generate_inputs
 import templates
@@ -145,7 +146,7 @@ class Analysis(object):
     """
     A class representing an Analysis model in Tantalus.
     """
-    def __init__(self, analysis_type, args):
+    def __init__(self, analysis_type, args, update=False):
         """
         Create an Analysis object in Tantalus.
         """
@@ -157,15 +158,13 @@ class Analysis(object):
         self.status = 'idle'
         # TODO: do we need this? the tantalus field should autoupdate
         self.last_updated = datetime.datetime.now().isoformat()
-        self.analysis = self.get_or_create_analysis()
+        self.analysis = self.get_or_create_analysis(update=update)
         self.bams = []
 
         self.update_analysis('status')
         self.update_analysis('last_updated')
-        self.update_analysis('args')
-        self.update_analysis('input_datasets')
 
-    def get_or_create_analysis(self):
+    def get_or_create_analysis(self, update=False):
         """
         Get the analysis by querying Tantalus. Create the analysis
         if it doesn't exist. Set the input dataset ids.
@@ -185,13 +184,30 @@ class Analysis(object):
 
             json_args = json.dumps(self.args)
 
-            if dict(analysis['args']) != json_args:
-                log.warning('Args for analysis {} have changed, previously {}, now {}'.format(
-                    self.name, analysis['args'], json_args))
+            updated = False
+
+            if analysis['args'] != json_args:
+                if update:
+                    tantalus_api.update('analysis', id=analysis['id'], args=json_args)
+                    updated = True
+                    log.info('Args for analysis {} changed, previously {}, now {}'.format(
+                        self.name, analysis['args'], json_args))
+                else:
+                    log.warning('Args for analysis {} have changed, previously {}, now {}'.format(
+                        self.name, analysis['args'], json_args))
 
             if set(analysis['input_datasets']) != set(input_datasets):
-                log.warning('Input datasets for analysis {} have changed, previously {}, now {}'.format(
-                    self.name, analysis['input_datasets'], input_datasets))
+                if update:
+                    tantalus_api.update('analysis', id=analysis['id'], input_datasets=input_datasets)
+                    updated = True
+                    log.info('Input datasets for analysis {} changed, previously {}, now {}'.format(
+                        self.name, analysis['input_datasets'], input_datasets))
+                else:
+                    log.warning('Input datasets for analysis {} have changed, previously {}, now {}'.format(
+                        self.name, analysis['input_datasets'], input_datasets))
+
+            if updated:
+                analysis = tantalus_api.get('analysis', name=self.name, jira_ticket=self.jira)
 
         else:
             log.info('Creating analysis {}'.format(self.name))
@@ -367,8 +383,8 @@ class AlignAnalysis(Analysis):
     """
     A class representing an alignment analysis in Tantalus.
     """
-    def __init__(self, args):
-        super(AlignAnalysis, self).__init__('align', args)
+    def __init__(self, args, **kwargs):
+        super(AlignAnalysis, self).__init__('align', args, **kwargs)
 
     def search_input_datasets(self):
         """
@@ -581,7 +597,6 @@ class AlignAnalysis(Analysis):
         self.output_datasets = dlp.create_sequence_dataset_models(
             file_info=output_file_info, 
             storage_name=storage_name,
-            tag_name=None,
             tantalus_api=tantalus_api, 
             analysis_id=self.get_id(),
         )
@@ -593,9 +608,9 @@ class HmmcopyAnalysis(Analysis):
     """
     A class representing an hmmcopy analysis in Tantalus.
     """
-    def __init__(self, align_analysis, args):
+    def __init__(self, align_analysis, args, **kwargs):
         self.align_analysis = align_analysis
-        super(HmmcopyAnalysis, self).__init__('hmmcopy', args)
+        super(HmmcopyAnalysis, self).__init__('hmmcopy', args, **kwargs)
 
     def search_input_datasets(self):
         """
@@ -610,8 +625,8 @@ class PseudoBulkAnalysis(Analysis):
     """
     A class representing an pseudobulk analysis in Tantalus.
     """
-    def __init__(self, args):
-        super(PseudoBulkAnalysis, self).__init__('pseudobulk', args)
+    def __init__(self, args, **kwargs):
+        super(PseudoBulkAnalysis, self).__init__('pseudobulk', args, **kwargs)
 
     def search_input_datasets(self):
         """
@@ -621,9 +636,10 @@ class PseudoBulkAnalysis(Analysis):
 
         datasets = tantalus_api.list(
             'sequence_dataset',
-            tag_name=self.jira)
+            tags__name=self.jira)
+        dataset_ids = [dataset['id'] for dataset in datasets]
 
-        return [dataset['id'] for dataset in datasets]
+        return dataset_ids
 
     def generate_inputs_yaml(self, inputs_yaml_filename, storage_name):
         """ Generates a YAML file of input information
@@ -642,9 +658,6 @@ class PseudoBulkAnalysis(Analysis):
             library_id = dataset['library']['library_id']
             sample_id = dataset['sample']['sample_id']
 
-            sample_info = generate_inputs.generate_sample_info(library_id)
-            cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
-
             if sample_id == self.args['matched_normal_sample']:
                 for file_resource in dataset['file_resources']:
                     if not file_resource['file_type'] == 'BAM':
@@ -656,6 +669,9 @@ class PseudoBulkAnalysis(Analysis):
                     input_info['normal'] = {'bam': filepath}
 
             else:
+                sample_info = generate_inputs.generate_sample_info(library_id)
+                cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
+
                 for file_resource in dataset['file_resources']:
                     if not file_resource['file_type'] == 'BAM':
                         continue

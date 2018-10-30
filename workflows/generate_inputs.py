@@ -8,7 +8,10 @@ import os
 
 import templates
 from tantalus_client import tantalus
+import dbclients.colossus
 from utils import tantalus_utils, colossus_utils
+
+colossus_api = dbclients.colossus.ColossusApi()
 
 log = logging.getLogger('sisyphus')
 
@@ -21,7 +24,7 @@ def generate_sample_info(library_id):
         pandas DataFrame of sample information
     """
 
-    data = colossus_utils.query_colossus_library(library_id)
+    data = colossus_api.get('library', pool_id=library_id)
     pool_id = data['pool_id']
     sublibraries = colossus_utils.query_colossus_for_sublibraries(library_id)
     sample_ids = set()

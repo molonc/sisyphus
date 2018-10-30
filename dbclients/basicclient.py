@@ -155,6 +155,16 @@ class BasicAPIClient(object):
             # Set up for the next page
             self.get_list_pagination_next_page_params(get_params)
 
+    def create(self, table_name, **fields):
+        """ Create the resource and return it. """
+
+        for field_name, field_value in fields.iteritems():
+            fields[field_name] = eval(DjangoJSONEncoder().encode(field_value))
+
+        return self.coreapi_client.action(
+            self.coreapi_schema, [table_name, "create"], params=fields
+        )
+
     def get_or_create(self, table_name, **fields):
         """ Check if a resource exists in and if so return it.
         If it does not exist, create the resource and return it. """
@@ -187,7 +197,7 @@ class BasicAPIClient(object):
 
         payload = json.dumps(fields, cls=DjangoJSONEncoder)
 
-        r = self.session.put(
+        r = self.session.patch(
             endpoint_url,
             data=payload)
 
