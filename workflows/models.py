@@ -640,7 +640,7 @@ class PseudoBulkAnalysis(Analysis):
             storage_name: Which tantalus storage to look at
         """
 
-        input_info = {}
+        input_info = {'normal': {}, 'tumour': {}}
 
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
@@ -655,7 +655,7 @@ class PseudoBulkAnalysis(Analysis):
 
                     filepath = str(file_instance['filepath'])
 
-                    assert 'normal' not in input_info
+                    assert 'bam' not in input_info['normal']
                     input_info['normal'] = {'bam': filepath}
 
             else:
@@ -679,7 +679,7 @@ class PseudoBulkAnalysis(Analysis):
                     input_info['tumour'][sample_id][cell_id] = {'bam': filepath}
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
-            yaml.dump(input_info, inputs_yaml, default_flow_style=False)
+            yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
 
     def create_output_results(self, storage_name):
         """
