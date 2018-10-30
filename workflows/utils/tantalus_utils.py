@@ -153,6 +153,28 @@ def get_file_instance(file_resource, storage_name):
     ))
 
 
+def get_sequence_dataset_file_instances(dataset, storage_name):
+    """
+    Given a dataset get all file instances.
+    Args:
+        dataset (dict)
+        storage_name (str)
+    Returns:
+        file_instances (list)
+    """
+    file_instances = []
+
+    for file_resource in generic_tasks.tantalus_list('file_resource', sequencedataset__id=dataset['id']):
+
+        file_instance = get_file_instance(file_resource, storage_name)
+        file_instance['file_resource'] = file_resource
+        file_instance['sequence_dataset'] = dataset
+
+        file_instances.append(file_instance)
+
+    return file_instances
+
+
 def get_storage_prefix(storage):
     """
     Get the prefix for the storage.

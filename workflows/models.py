@@ -237,16 +237,7 @@ class Analysis(object):
 
         input_file_instances = []
         for dataset_id in self.analysis['input_datasets']:
-            dataset = self.get_dataset(dataset_id)
-
-            for file_resource in tantalus_api.list('file_resource', sequencedataset__id=dataset_id):
-
-                file_instance = tantalus_utils.get_file_instance(file_resource, storage_name)
-                file_instance['file_resource'] = file_resource
-                file_instance['sequence_dataset'] = dataset
-
-                input_file_instances.append(file_instance)
-
+            input_file_instances.extend(tantalus_utils.get_sequence_dataset_file_instances(dataset, storage_name))
         return input_file_instances
 
     def add_inputs_yaml(self, inputs_yaml, inputs_yaml_storage=None):
@@ -595,9 +586,9 @@ class AlignAnalysis(Analysis):
         log.info('creating sequence dataset models for output bams')
         tantalus_api = TantalusApi()
         self.output_datasets = dlp.create_sequence_dataset_models(
-            file_info=output_file_info, 
+            file_info=output_file_info,
             storage_name=storage_name,
-            tantalus_api=tantalus_api, 
+            tantalus_api=tantalus_api,
             analysis_id=self.get_id(),
         )
 
@@ -659,11 +650,11 @@ class PseudoBulkAnalysis(Analysis):
             sample_id = dataset['sample']['sample_id']
 
             if sample_id == self.args['matched_normal_sample']:
-                for file_resource in dataset['file_resources']:
-                    if not file_resource['file_type'] == 'BAM':
+                for file_instance in tantalus_utils.get_sequence_dataset_file_instances(dataset, storage_name):
+                    if not file_instance['file_resource']['file_type'] == 'BAM':
                         continue
 
-                    filepath = str(tantalus_utils.get_file_instance(file_resource, storage_name))
+                    filepath = str(file_instance['filepath'])
 
                     assert 'normal' not in input_info
                     input_info['normal'] = {'bam': filepath}
@@ -672,13 +663,13 @@ class PseudoBulkAnalysis(Analysis):
                 sample_info = generate_inputs.generate_sample_info(library_id)
                 cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
 
-                for file_resource in dataset['file_resources']:
-                    if not file_resource['file_type'] == 'BAM':
+                for file_instance in tantalus_utils.get_sequence_dataset_file_instances(dataset, storage_name):
+                    if not file_instance['file_resource']['file_type'] == 'BAM':
                         continue
 
                     index_sequence = str(file_resource['sequencefileinfo']['index_sequence'])
                     cell_id = str(cell_ids[index_sequence])
-                    filepath = str(tantalus_utils.get_file_instance(file_resource, storage_name))
+                    filepath = str(file_instance['filepath'])
 
                     input_info['tumour'][sample_id][cell_id] = {'bam': filepath}
 
@@ -808,8 +799,8 @@ class Results:
 
         try:
             results = tantalus_api.get(
-                'results', 
-                name=self.name, 
+                'results',
+                name=self.name,
                 results_type=self.analysis_type,
                 analysis=self.analysis,
             )
@@ -867,7 +858,7 @@ class Results:
 
     def _get_blob_info_yaml(self):
         """
-        Download the info.yaml from blob to the pipeline directory 
+        Download the info.yaml from blob to the pipeline directory
         for the analysis, then return the path
         """
         blob_name = os.path.join(
@@ -888,7 +879,7 @@ class Results:
 
     def get_results_info(self):
         """
-        Return a dictionary 
+        Return a dictionary
         """
         if self.storage_name == 'shahlab':
             info_yaml = self._get_server_info_yaml()
