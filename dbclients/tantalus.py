@@ -12,7 +12,7 @@ import json
 import os
 from django.core.serializers.json import DjangoJSONEncoder
 from dbclients.basicclient import BasicAPIClient
-
+import azure.storage.blob
 
 TANTALUS_API_URL = "http://tantalus.bcgsc.ca/api/"
 
@@ -22,14 +22,25 @@ class BlobStorageClient(object):
         self.storage_account = storage['storage_account']
         self.storage_container = storage['storage_container']
         self.storage_key = storage['credentials']['storage_key']
+        self.prefix = storage['prefix']
+
         self.blob_service = azure.storage.blob.BlockBlobService(
             account_name=self.storage_account,
             account_key=self.storage_key)
-    def get_size(blobname):
+
+    def get_blobname(self, filename):
+        return os.path.relpath(filename, self.prefix)
+
+    def get_size(self, filename):
+        blobname = self.get_blobname(filename)
+        print(blobname)
         properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
         blobsize = properties.properties.content_length
         return blobsize
-    def get_created_time(blobname):
+
+    def get_created_time(self, filename):
+        blobname = self.get_blobname(filename)
+        print(blobname)
         properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
         created_time = properties.properties.last_modified.isoformat()
         return created_time
@@ -38,10 +49,12 @@ class BlobStorageClient(object):
 class ServerStorageClient(object):
     def __init__(self, storage):
         self.storage_directory = storage['storage_directory']
-    def get_size(filename):
+
+    def get_size(self, filename):
         filename = os.path.join(self.storage_directory, filename)
         return os.path.getsize(filename)
-    def get_created_time(filename):
+
+    def get_created_time(self, filename):
         filename = os.path.join(self.storage_directory, filename)
         return pd.Timestamp(time.ctime(os.path.getmtime(filename)), tz="Canada/Pacific")
 

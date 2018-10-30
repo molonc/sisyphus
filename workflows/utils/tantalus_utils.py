@@ -1,6 +1,8 @@
 import os
-from tantalus_client import tantalus, generic_tasks
 import workflows.templates as templates
+import dbclients.tantalus
+
+tantalus_api = dbclients.tantalus.TantalusApi()
 
 
 def check_gsc_lane_id(lane_id):
@@ -19,7 +21,7 @@ def get_dlp_bams(library_id, analysis_id, lane_ids):
     sequence_datasets = set()
     file_resources = set()
 
-    datasets = generic_tasks.tantalus_list(
+    datasets = tantalus_api.list(
         'sequence_dataset',
         library__library_id=library_id,
         dataset_type='BAM',
@@ -30,11 +32,12 @@ def get_dlp_bams(library_id, analysis_id, lane_ids):
             continue
 
         if dataset['analysis'] is None:
-            generic_tasks.tantalus_update('sequence_dataset', dataset['id'], analysis=analysis_id)
+            log.info('setting analysis for dataset {} to {}'.format(dataset['id'], analysis_id))
+            tantalus_api.update('sequence_dataset', dataset['id'], analysis=analysis_id)
             dataset['analysis'] = analysis_id
 
         if dataset['analysis'] != analysis_id:
-            raise Exception('Sequence dataset {} is associated with analysis {} and not analysis'.format(
+            raise Exception('sequence dataset {} is associated with analysis {} and not analysis'.format(
                 dataset['id'], dataset['analysis'], analysis_id))
 
         sequence_datasets.add(dataset['id'])
@@ -164,7 +167,7 @@ def get_sequence_dataset_file_instances(dataset, storage_name):
     """
     file_instances = []
 
-    for file_resource in generic_tasks.tantalus_list('file_resource', sequencedataset__id=dataset['id']):
+    for file_resource in tantalus_api.list('file_resource', sequencedataset__id=dataset['id']):
 
         file_instance = get_file_instance(file_resource, storage_name)
         file_instance['file_resource'] = file_resource
