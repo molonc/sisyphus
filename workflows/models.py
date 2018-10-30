@@ -640,8 +640,7 @@ class PseudoBulkAnalysis(Analysis):
             storage_name: Which tantalus storage to look at
         """
 
-        nested_dict = lambda: collections.defaultdict(nested_dict)
-        input_info = nested_dict
+        input_info = {}
 
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
@@ -667,9 +666,15 @@ class PseudoBulkAnalysis(Analysis):
                     if not file_instance['file_resource']['file_type'] == 'BAM':
                         continue
 
-                    index_sequence = str(file_resource['sequencefileinfo']['index_sequence'])
+                    index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])
                     cell_id = str(cell_ids[index_sequence])
                     filepath = str(file_instance['filepath'])
+
+                    if sample_id not in input_info['tumour']:
+                        input_info['tumour'][sample_id] = {}
+
+                    if cell_id not in input_info['tumour'][sample_id]:
+                        input_info['tumour'][sample_id][cell_id] = {}
 
                     input_info['tumour'][sample_id][cell_id] = {'bam': filepath}
 
