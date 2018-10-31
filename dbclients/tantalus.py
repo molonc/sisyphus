@@ -10,6 +10,8 @@ from __future__ import division
 from __future__ import print_function
 import json
 import os
+import time
+import pandas as pd
 from django.core.serializers.json import DjangoJSONEncoder
 from dbclients.basicclient import BasicAPIClient
 import azure.storage.blob
@@ -190,6 +192,7 @@ class TantalusApi(BasicAPIClient):
         file_resource = self.get_or_create(
             'file_resource',
             filename=self.get_file_resource_filename(storage_name, filepath),
+            file_type=file_type,
             created=storage_client.get_created_time(filepath),
             size=storage_client.get_size(filepath),
             **args
