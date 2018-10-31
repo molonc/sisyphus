@@ -11,7 +11,7 @@ import dbclients.tantalus
 from dbclients.basicclient import NotFoundError
 
 import generate_inputs
-import templates
+import datamanagement.templates as templates
 from utils import colossus_utils, tantalus_utils, file_utils
 
 from azure.storage.blob import BlockBlobService
@@ -460,13 +460,6 @@ class AlignAnalysis(Analysis):
             index_sequence = file_instance['file_resource']['sequencefileinfo']['index_sequence']
             fastq_file_instances[(index_sequence, lane_id, read_end)] = file_instance
 
-        if storage_name == 'shahlab':
-            bam_template = templates.SHAHLAB_BAM_TEMPLATE
-        elif storage_name == 'singlecellblob':
-            bam_template = templates.AZURE_BAM_TEMPLATE
-        else:
-            raise ValueError()
-
         input_info = {}
         for idx, row in sample_info.iterrows():
             lane_fastqs = collections.defaultdict(dict)
@@ -486,7 +479,7 @@ class AlignAnalysis(Analysis):
                 raise Exception('No fastqs for cell_id {}, index_sequence {}'.format(
                     row['cell_id'], row['index_sequence']))
 
-            bam_filename = bam_template.format(
+            bam_filename = templates.SC_WGS_BAM_TEMPLATE.format(
                 library_id=self.args['library_id'],
                 ref_genome=self.args['ref_genome'],
                 aligner_name=self.args['aligner'],
@@ -494,9 +487,11 @@ class AlignAnalysis(Analysis):
                 cell_id=row['cell_id'],
             )
 
+            bam_filepath = tantalus_api.get_filepath(storage_name, bam_filename)
+
             input_info[str(row['cell_id'])] = {
                 'fastqs':       dict(lane_fastqs),
-                'bam':          bam_filename,
+                'bam':          bam_filepath,
                 'pick_met':     str(row['pick_met']),
                 'condition':    str(row['condition']),
                 'primer_i5':    str(row['primer_i5']),

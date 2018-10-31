@@ -7,7 +7,7 @@ import logging
 from distutils.version import StrictVersion
 
 from utils import log_utils
-import templates
+import datamanagement.templates as templates
 
 log = logging.getLogger('sisyphus')
 

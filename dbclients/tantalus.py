@@ -126,6 +126,23 @@ class TantalusApi(BasicAPIClient):
 
         return filename
 
+    def get_filepath(self, storage_name, filename):
+        """ Prefix the filename with the storage prefix to create a full filepath.
+
+        Args:
+            storage_name: storage in which the file resides
+            filename: relative filename of the file
+        
+        Returns:
+            filepath: abs path of the file
+        """
+        storage = self.get_storage(storage_name)
+        
+        if filename.startswith('/') or '..' in filename:
+            raise ValueError('expected relative path got {}'.format(filename))
+
+        return os.path.join(storage['prefix'], filename)
+
     def get_storage(self, storage_name):
         """ Retrieve a storage object with caching.
 

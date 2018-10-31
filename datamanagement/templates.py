@@ -48,7 +48,7 @@ ALIGNMENT_METRICS = os.path.join(
 	'{library_id}_alignment_metrics.h5'
 )
 
-BAM_TEMPLATE = os.path.join(
+SC_WGS_BAM_TEMPLATE = os.path.join(
 	'single_cell_indexing',
 	'bam',
 	'{library_id}',
@@ -58,5 +58,6 @@ BAM_TEMPLATE = os.path.join(
 	'{cell_id}.bam'
 )
 
-SHAHLAB_BAM_TEMPLATE = os.path.join(SHAHLAB_ARCHIVE, BAM_TEMPLATE)
-AZURE_BAM_TEMPLATE = os.path.join('singlecelldata', 'data', BAM_TEMPLATE)
+WGS_BAM_NAME_TEMPLATE = "BAM-{sample_id}-{library_type}-{library_id} (lanes {lanes_hash})"
+
+SC_WGS_BAM_NAME_TEMPLATE = "{dataset_type}-{sample_id}-{library_type}-{library_id} (lanes {lanes_hash})"

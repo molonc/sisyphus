@@ -1,5 +1,5 @@
 import os
-import workflows.templates as templates
+import datamanagement.templates as templates
 import dbclients.tantalus
 
 tantalus_api = dbclients.tantalus.TantalusApi()

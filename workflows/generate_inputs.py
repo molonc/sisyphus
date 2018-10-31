@@ -6,7 +6,7 @@ from collections import defaultdict
 import logging
 import os
 
-import templates
+import datamanagement.templates as templates
 import dbclients.colossus
 from utils import tantalus_utils, colossus_utils
 

@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 import collections
 from datamanagement.utils.utils import get_lanes_str
+import datamanagement.templates as templates
 
 
 def fastq_paired_end_check(file_info):
@@ -51,12 +52,12 @@ def create_sequence_dataset_models(
     # Sort files by dataset
     dataset_info = collections.defaultdict(list)
     for info in file_info:
-        dataset_name = "{}-{}-{}-{} (lanes {})".format(
-            info["dataset_type"],
-            info["sample_id"],
-            info["library_type"],
-            info["library_id"],
-            get_lanes_str(info["sequence_lanes"]),
+        dataset_name = templates.SC_WGS_BAM_NAME_TEMPLATE.format(
+            dataset_type=info["dataset_type"],
+            sample_id=info["sample_id"],
+            library_type=info["library_type"],
+            library_id=info["library_id"],
+            lanes_hash=get_lanes_str(info["sequence_lanes"]),
         )
         dataset_info[dataset_name].append(info)
 

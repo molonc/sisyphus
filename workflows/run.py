@@ -9,7 +9,7 @@ import traceback
 from itertools import chain
 
 import arguments
-import templates
+import datamanagement.templates as templates
 import launch_pipeline
 import generate_inputs
 
