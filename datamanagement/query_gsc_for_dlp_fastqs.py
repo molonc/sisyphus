@@ -182,7 +182,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     if len(library_infos) == 0:
         logging.error('no libraries with external_identifier {} in gsc api'.format(external_identifier))
-        return
+        return []
     elif len(library_infos) > 1:
         raise Exception(
             "multiple libraries with external_identifier {} in gsc api".format(
