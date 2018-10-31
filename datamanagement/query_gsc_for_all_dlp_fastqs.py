@@ -7,11 +7,11 @@ import string
 import sys
 import time
 import pandas as pd
-from query_gsc_for_dlp_fastqs import import_gsc_dlp_paired_fastqs
-from utils.constants import LOGGING_FORMAT
-from utils.runtime_args import parse_runtime_args
-from utils.colossus import ColossusApi
-from utils.tantalus import TantalusApi
+from datamanagement.query_gsc_for_dlp_fastqs import import_gsc_dlp_paired_fastqs
+from datamanagement.utils.constants import LOGGING_FORMAT
+from datamanagement.utils.runtime_args import parse_runtime_args
+from dbclients.colossus import ColossusApi
+from dbclients.tantalus import TantalusApi
 
 
 if __name__ == "__main__":

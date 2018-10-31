@@ -9,13 +9,13 @@ import string
 import sys
 import time
 import pandas as pd
-from utils.constants import LOGGING_FORMAT
-from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
+from datamanagement.utils.constants import LOGGING_FORMAT
+from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 from utils.filecopy import rsync_file
 from utils.gsc import get_sequencing_instrument, GSCAPI
 from utils.runtime_args import parse_runtime_args
-from utils.colossus import ColossusApi
-from utils.tantalus import TantalusApi
+from dbclients.colossus import ColossusApi
+from dbclients.tantalus import TantalusApi
 
 
 solexa_run_type_map = {"Paired": "P"}
@@ -314,6 +314,9 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         )
 
         flowcells_to_be_created.append(flowcell_id + '_' + str(lane_number))
+
+    if len(fastq_file_info) == 0:
+        return []
 
     fastq_paired_end_check(fastq_file_info)
 

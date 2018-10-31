@@ -35,5 +35,10 @@ def rsync_file(from_path, to_path):
         for line in iter(process.stdout.readline, b""):
             log.info(line)
 
+    exitcode = process.wait()
+
+    if exitcode != 0:
+        raise Exception("cmd '{}' returned {}".format(" ".join(subprocess_cmd), exitcode))
+
     if os.path.getsize(to_path) != os.path.getsize(from_path):
         log.error("copy failed for %s to %s", from_path, to_path)

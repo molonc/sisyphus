@@ -46,7 +46,7 @@ def create_sequence_dataset_models(
     storage_pk = tantalus_api.get("storage", name=storage_name)["id"]
 
     if tag_name is not None:
-        tag_pk = tantalus_api.get("sequence_dataset_tag", name=tag_name)["id"]
+        tag_pk = tantalus_api.get_or_create("tag", name=tag_name)["id"]
 
     # Sort files by dataset
     dataset_info = collections.defaultdict(list)
@@ -84,11 +84,6 @@ def create_sequence_dataset_models(
         # Add in the analysis id if it's provided
         if analysis_id is not None:
             sequence_dataset["analysis"] = analysis_id
-
-        # Unique set of lanes keyed by flowcell id, lane number
-        # TODO(mwiens91): What's this for? It's not used anywhere
-        # :thinking:
-        unique_sequence_lanes = {}
 
         # Add in BAM specific items
         if infos[0]["dataset_type"] == "BAM":
