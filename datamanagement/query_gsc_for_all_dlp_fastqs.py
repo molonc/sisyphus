@@ -26,7 +26,11 @@ if __name__ == "__main__":
     tantalus_api = TantalusApi()
 
     storage = tantalus_api.get("storage_server", name=args["storage_name"])
-    sequencing_list = list(colossus_api.list('sequencing', dlpsequencingdetail__lanes_requested=True))
+    sequencing_list = list(colossus_api.list(
+        'sequencing',
+        dlpsequencingdetail__lanes_requested=True,
+        dlpsequencingdetail__lanes_received=False,
+    ))
 
     for sequence in sequencing_list:
 
