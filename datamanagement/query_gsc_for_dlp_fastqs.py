@@ -11,6 +11,7 @@ import time
 import pandas as pd
 from datamanagement.utils.constants import LOGGING_FORMAT
 from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
+import datamanagement.templates as templates
 from utils.filecopy import rsync_file
 from utils.gsc import get_sequencing_instrument, GSCAPI
 from utils.runtime_args import parse_runtime_args
@@ -96,16 +97,6 @@ filename_pattern_map = {
     "_2_chastity_failed.fastq.gz": (2, False),
     "_2_*bp.concat.fastq.gz": (2, True),
 }
-
-
-dlp_fastq_template = os.path.join(
-    "single_cell_indexing",
-    "fastq",
-    "{primary_sample_id}",
-    "{dlp_library_id}",
-    "{flowcell_id}_{lane_number}",
-    "{cell_sample_id}_{dlp_library_id}_{index_sequence}_{read_end}.fastq{extension}",
-)
 
 
 def get_existing_fastq_data(tantalus_api, dlp_library_id):
@@ -273,7 +264,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         elif not fastq_path.endswith('.fastq'):
             raise ValueError('unknown extension for filename {}'.format(fastq_path))
 
-        tantalus_filename = dlp_fastq_template.format(
+        tantalus_filename = templates.SC_WGS_FQ_TEMPLATE.format(
             primary_sample_id=primary_sample_id,
             dlp_library_id=dlp_library_id,
             flowcell_id=flowcell_id,

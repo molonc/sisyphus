@@ -15,7 +15,7 @@ from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 from utils.runtime_args import parse_runtime_args
 from utils.tantalus import TantalusApi
 from utils.filecopy import rsync_file
-from query_gsc_for_dlp_fastqs import dlp_fastq_template
+import datamanagement.templates as templates
 
 
 # Set up the root logger
@@ -123,7 +123,7 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
 
         fastq_path = os.path.join(output_dir, filename)
 
-        tantalus_filename = dlp_fastq_template.format(
+        tantalus_filename = templates.SC_WGS_FQ_TEMPLATE.format(
             primary_sample_id=primary_sample_id,
             dlp_library_id=library_id,
             flowcell_id=flowcell_id,
