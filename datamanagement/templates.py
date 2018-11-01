@@ -69,4 +69,20 @@ SC_WGS_BAM_TEMPLATE = os.path.join(
 
 WGS_BAM_NAME_TEMPLATE = "BAM-{sample_id}-{library_type}-{library_id} (lanes {lanes_hash})"
 
-SC_WGS_BAM_NAME_TEMPLATE = "{dataset_type}-{sample_id}-{library_type}-{library_id} (lanes {lanes_hash})"
+SC_WGS_BAM_NAME_TEMPLATE = "-".join([
+    "{dataset_type}",
+    "{sample_id}",
+    "{library_type}",
+    "{library_id}",
+    "lanes_{lanes_hash}",
+    "{aligner}",
+    "{reference_genome}",
+])
+
+SC_WGS_FQ_NAME_TEMPLATE = "-".join([
+    "{dataset_type}",
+    "{sample_id}",
+    "{library_type}",
+    "{library_id}",
+    "{lane}",
+])
