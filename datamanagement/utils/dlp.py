@@ -53,7 +53,7 @@ def create_sequence_dataset_models(
     dataset_info = collections.defaultdict(list)
     for info in file_info:
         if info["dataset_type"] == 'BAM':
-            new_name = templates.SC_WGS_BAM_NAME_TEMPLATE.format(
+            dataset_name = templates.SC_WGS_BAM_NAME_TEMPLATE.format(
                 dataset_type=info["dataset_type"],
                 sample_id=info["sample_id"],
                 library_type=info["library_type"],
@@ -63,7 +63,7 @@ def create_sequence_dataset_models(
                 reference_genome=info["ref_genome"],
             )
         elif info["dataset_type"] == 'FQ':
-            new_name = templates.SC_WGS_FQ_NAME_TEMPLATE.format(
+            dataset_name = templates.SC_WGS_FQ_NAME_TEMPLATE.format(
                 dataset_type=info["dataset_type"],
                 sample_id=info["sample_id"],
                 library_type=info["library_type"],
