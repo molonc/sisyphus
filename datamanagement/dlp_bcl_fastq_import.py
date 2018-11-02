@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+#time python automate_me/dlp_bcl_fastq_import.py '{"samplesheet_dir": "/ssd/nvme0/oleg/prg/shahlab/archive/single_cell_indexing/NextSeq/bcl/r004", "temp_dir": "/ssd/nvme0/oleg/prg/tmp", "flowcell_id": "AHHC32AFXX", "storage_name": "shahlab", "storage_dir": "/genesis/extscratch/shahlab/single_cell_nextseq/bcl//161018_NS500668_0130_AHHC32AFXX/"}' 2>&1 |& tee ./04.log 
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -8,6 +10,7 @@ import os
 import re
 import sys
 import time
+import subprocess
 import pandas as pd
 from utils.colossus import get_colossus_sublibraries_from_library_id
 from utils.constants import LOGGING_FORMAT
@@ -78,7 +81,8 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
     filenames = os.listdir(output_dir)
 
     # Filter for gzipped fastq files
-    filenames = filter(lambda x: ".fastq.gz" in x, filenames)
+    extension = ".gz"
+    filenames = filter(lambda x: ".fastq{}".format(extension) in x, filenames)
 
     # Remove undetermined fastqs
     filenames = filter(lambda x: "Undetermined" not in x, filenames)
@@ -99,6 +103,14 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
             filename,
         )
 
+        #if match is None:
+        #    print("{}; --------------".format(filename))
+        #else: 
+        #    print("{};".format(filename))
+        #    #raise Exception(
+        #    #    "unrecognized fastq filename structure for {}".format(filename)
+        #    #)
+        #continue
         if match is None:
             raise Exception(
                 "unrecognized fastq filename structure for {}".format(filename)
@@ -134,7 +146,7 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
             extension=extension,
         )
 
-        tantalus_path = os.path.join(storage["storage_directory"], tantalus_filename)
+        tantalus_path = os.path.join(storage_directory, tantalus_filename)
 
         rsync_file(fastq_path, tantalus_path)
 
@@ -165,6 +177,39 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
     return fastq_file_info
 
 
+def get_samplesheet(destination, lane_id):
+    colossus_url = dbclients.colossus.COLOSSUS_API_URL
+    sheet_url = '{colossus_url}/dlp/sequencing/samplesheet/query_download/{lane_id}'
+    sheet_url = sheet_url.format(
+        colossus_url=colossus_url,
+        lane_id=lane_id)
+
+    subprocess.check_call(["wget", "-O", dest, sheet_url])
+
+
+def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
+    """ Download sample sheet and run bcl2fastq
+    """
+
+    # TODO: Seach the output directory for files and raise an exception if not empty
+#    if (output_dir != samplesheet_dir and output_dir != bcl_dir):
+#        shutil.rmtree(output_dir)
+#        os.makedirs(output_dir)
+
+    dest = os.path.join(output_dir, "SampleSheet.csv")
+
+    colossus_utils.get_samplesheet(dest, flowcell_id)
+
+    cmd = [
+        bcl2fastq.get_path(),
+        '--runfolder-dir', bcl_dir,
+        '--sample-sheet', dest,
+        '--output-dir', output_dir]
+
+    print("running: {};".format(cmd))
+    subprocess.check_call(cmd)
+
+
 if __name__ == "__main__":
     # Parse the incoming arguments
     args = parse_runtime_args()
@@ -181,10 +226,22 @@ if __name__ == "__main__":
     except KeyError:
         tag_name = None
 
+    if "bcl_dir" in args:
+        bd = args["bcl_dir"]
+    else:
+        bd = args["storage_dir"]
+
+    # Run bcl to fastq
+    run_bcl2fastq(
+        args["flowcell_id"],
+        bd,
+        args["temp_dir"]
+    )
+
     # Import fastqs
     load_brc_fastqs(
         args["flowcell_id"],
-        args["temp_dir"],
+        args["temp_dir",
         storage["storage_name"],
         storage["storage_directory"],
         tantalus_api,
