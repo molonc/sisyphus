@@ -13,8 +13,7 @@ import sys
 import time
 import subprocess
 import pandas as pd
-
-from dbclients.colossus import get_colossus_sublibraries_from_library_id,COLOSSUS_API_URL
+from dbclients.colossus import get_colossus_sublibraries_from_library_id, COLOSSUS_API_URL
 from dbclients.tantalus import TantalusApi
 import workflows.utils.colossus_utils as colossus_utils 
 
@@ -197,30 +196,25 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
     """ Download sample sheet and run bcl2fastq
     """
 
-    #if (os.listdir(output_dir)):
-    #    raise Exception('temp_dir is not empty: %s;' % (output_dir))   
+    if len(os.listdir(output_dir)) > 0:
+        raise Exception('bcl2fastq output directory {} is not empty'.format(output_dir))
 
-    destination = os.path.join(output_dir, "SampleSheet.csv")
+    samplesheet_filename = os.path.join(output_dir, "SampleSheet.csv")
 
-    colossus_utils.get_samplesheet(destination, '', flowcell_id)
+    get_samplesheet(samplesheet_filename, flowcell_id)
 
     cmd = [
         'bcl2fastq',
         '--runfolder-dir', bcl_dir,
-        '--sample-sheet', destination,
+        '--sample-sheet', samplesheet_filename,
         '--output-dir', output_dir]
 
-    print("running: {};".format(cmd))
     subprocess.check_call(cmd)
 
 
 if __name__ == "__main__":
     # Parse the incoming arguments
     args = parse_runtime_args()
-
-    logdir = '/ssd/nvme0/oleg/prg/log'
-    log_utils.setup_sentinel(False, logdir)
-    log_utils.init_log_files(logdir) # Connect to the Tantalus API (this requires appropriate environment
 
     # variables defined)
     tantalus_api = TantalusApi()
@@ -233,15 +227,10 @@ if __name__ == "__main__":
     except KeyError:
         tag_name = None
 
-    if "bcl_dir" in args:
-        bcl_dir = args["bcl_dir"]
-    else:
-        bcl_dir = args["storage_dir"]
-
     # Run bcl to fastq
     run_bcl2fastq(
         args["flowcell_id"],
-        bcl_dir,
+        args["bcl_dir"],
         args["temp_dir"]
     )
 
@@ -254,3 +243,4 @@ if __name__ == "__main__":
         tantalus_api,
         tag_name=tag_name
     )
+
