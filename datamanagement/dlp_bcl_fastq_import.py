@@ -12,11 +12,11 @@ import sys
 import time
 import subprocess
 import pandas as pd
-from utils.colossus import get_colossus_sublibraries_from_library_id
+from dbclients.colossus import get_colossus_sublibraries_from_library_id,COLOSSUS_API_URL
+from dbclients.tantalus import TantalusApi
 from utils.constants import LOGGING_FORMAT
 from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 from utils.runtime_args import parse_runtime_args
-from utils.tantalus import TantalusApi
 from utils.filecopy import rsync_file
 import datamanagement.templates as templates
 
@@ -178,27 +178,25 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
 
 
 def get_samplesheet(destination, lane_id):
-    colossus_url = dbclients.colossus.COLOSSUS_API_URL
+    colossus_url = COLOSSUS_API_URL
     sheet_url = '{colossus_url}/dlp/sequencing/samplesheet/query_download/{lane_id}'
     sheet_url = sheet_url.format(
         colossus_url=colossus_url,
         lane_id=lane_id)
 
-    subprocess.check_call(["wget", "-O", dest, sheet_url])
+    subprocess.check_call(["wget", "-O", destination, sheet_url])
 
 
 def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
     """ Download sample sheet and run bcl2fastq
     """
 
-    # TODO: Seach the output directory for files and raise an exception if not empty
-#    if (output_dir != samplesheet_dir and output_dir != bcl_dir):
-#        shutil.rmtree(output_dir)
-#        os.makedirs(output_dir)
+    #if (os.listdir(output_dir)):
+    #    raise Exception('temp_dir is not empty: %s;' % (output_dir))   
 
-    dest = os.path.join(output_dir, "SampleSheet.csv")
+    destination = os.path.join(output_dir, "SampleSheet.csv")
 
-    colossus_utils.get_samplesheet(dest, flowcell_id)
+    get_samplesheet(destination, flowcell_id)
 
     cmd = [
         bcl2fastq.get_path(),
@@ -207,7 +205,7 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
         '--output-dir', output_dir]
 
     print("running: {};".format(cmd))
-    subprocess.check_call(cmd)
+    #subprocess.check_call(cmd)
 
 
 if __name__ == "__main__":
@@ -232,18 +230,18 @@ if __name__ == "__main__":
         bd = args["storage_dir"]
 
     # Run bcl to fastq
-    #run_bcl2fastq(
-    #    args["flowcell_id"],
-    #    bd,
-    #    args["temp_dir"]
-    #)
+    run_bcl2fastq(
+        args["flowcell_id"],
+        bd,
+        args["temp_dir"]
+    )
 
     # Import fastqs
-    load_brc_fastqs(
-        args["flowcell_id"],
-        args["temp_dir"],
-        storage["storage_name"],
-        storage["storage_directory"],
-        tantalus_api,
-        tag_name=tag_name
-    )
+    #load_brc_fastqs(
+    #    args["flowcell_id"],
+    #    args["temp_dir"],
+    #    args["storage_name"],
+    #    storage["storage_directory"],
+    #    tantalus_api,
+    #    tag_name=tag_name
+    #)

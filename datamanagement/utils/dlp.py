@@ -2,8 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import collections
-from datamanagement.utils.utils import get_lanes_hash, get_lane_str
-import datamanagement.templates as templates
+#from datamanagement.utils.utils import get_lanes_hash, get_lane_str
+#import datamanagement.templates as templates
 
 
 def fastq_paired_end_check(file_info):
