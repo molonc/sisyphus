@@ -8,12 +8,13 @@ import os
 import re
 import sys
 import time
+import subprocess
 import pandas as pd
-from utils.colossus import get_colossus_sublibraries_from_library_id
+from dbclients.colossus import get_colossus_sublibraries_from_library_id, COLOSSUS_API_URL
+from dbclients.tantalus import TantalusApi
 from utils.constants import LOGGING_FORMAT
 from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 from utils.runtime_args import parse_runtime_args
-from utils.tantalus import TantalusApi
 from utils.filecopy import rsync_file
 import datamanagement.templates as templates
 
@@ -78,7 +79,8 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
     filenames = os.listdir(output_dir)
 
     # Filter for gzipped fastq files
-    filenames = filter(lambda x: ".fastq.gz" in x, filenames)
+    extension = ".gz"
+    filenames = filter(lambda x: ".fastq{}".format(extension) in x, filenames)
 
     # Remove undetermined fastqs
     filenames = filter(lambda x: "Undetermined" not in x, filenames)
@@ -134,7 +136,7 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
             extension=extension,
         )
 
-        tantalus_path = os.path.join(storage["storage_directory"], tantalus_filename)
+        tantalus_path = os.path.join(storage_directory, tantalus_filename)
 
         rsync_file(fastq_path, tantalus_path)
 
@@ -165,11 +167,40 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
     return fastq_file_info
 
 
+def get_samplesheet(destination, lane_id):
+    colossus_url = COLOSSUS_API_URL
+    sheet_url = '{colossus_url}/dlp/sequencing/samplesheet/query_download/{lane_id}'
+    sheet_url = sheet_url.format(
+        colossus_url=colossus_url,
+        lane_id=lane_id)
+
+    subprocess.check_call(["wget", "-O", destination, sheet_url])
+
+
+def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
+    """ Download sample sheet and run bcl2fastq
+    """
+
+    if len(os.listdir(output_dir)) > 0:
+        raise Exception('bcl2fastq output directory {} is not empty'.format(output_dir))
+
+    samplesheet_filename = os.path.join(output_dir, "SampleSheet.csv")
+
+    get_samplesheet(samplesheet_filename, flowcell_id)
+
+    cmd = [
+        'bcl2fastq',
+        '--runfolder-dir', bcl_dir,
+        '--sample-sheet', samplesheet_filename,
+        '--output-dir', output_dir]
+
+    subprocess.check_call(cmd)
+
+
 if __name__ == "__main__":
     # Parse the incoming arguments
     args = parse_runtime_args()
 
-    # Connect to the Tantalus API (this requires appropriate environment
     # variables defined)
     tantalus_api = TantalusApi()
 
@@ -181,12 +212,20 @@ if __name__ == "__main__":
     except KeyError:
         tag_name = None
 
+    # Run bcl to fastq
+    run_bcl2fastq(
+        args["flowcell_id"],
+        args["bcl_dir"],
+        args["temp_dir"]
+    )
+
     # Import fastqs
     load_brc_fastqs(
         args["flowcell_id"],
         args["temp_dir"],
-        storage["storage_name"],
+        storage["name"],
         storage["storage_directory"],
         tantalus_api,
-        tag_name=tag_name,
+        tag_name=tag_name
     )
+

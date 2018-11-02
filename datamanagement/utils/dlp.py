@@ -76,12 +76,20 @@ def create_sequence_dataset_models(
     dataset_ids = set()
     for dataset_name, infos in dataset_info.iteritems():
         # Get library PK
-        library_id = infos[0]["library_id"]
-        library_pk = tantalus_api.get("dna_library", library_id=library_id)["id"]
+        library = tantalus_api.get_or_create(
+            "dna_library",
+            library_id=infos[0]["library_id"],
+            library_type=infos[0]["library_type"],
+            index_format=infos[0]["index_format"],
+        )
+        library_pk = library["id"]
 
         # Get sample PK
-        sample_id = infos[0]["sample_id"]
-        sample_pk = tantalus_api.get("sample", sample_id=sample_id)["id"]
+        sample = tantalus_api.get_or_create(
+            "sample",
+            sample_id=infos[0]["sample_id"],
+        )
+        sample_pk = sample["id"]
 
         # Build up sequence dataset attrs; we'll add to this as we
         # proceed throughout the function
