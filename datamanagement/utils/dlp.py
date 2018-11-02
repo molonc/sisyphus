@@ -73,6 +73,7 @@ def create_sequence_dataset_models(
         dataset_info[dataset_name].append(info)
 
     # Create datasets
+    dataset_ids = set()
     for dataset_name, infos in dataset_info.iteritems():
         # Get library PK
         library_id = infos[0]["library_id"]
@@ -158,4 +159,7 @@ def create_sequence_dataset_models(
 
             sequence_dataset["file_resources"].append(file_resource["id"])
 
-        tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
+        dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
+        dataset_ids.add(dataset['id'])
+
+    return dataset_ids

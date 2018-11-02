@@ -6,6 +6,5 @@
     "email":"sochan@bccrc.ca",
     "thost_task_queue":"sochan-thost-worker",
     "shahlab_task_queue":"sochan-shahlab-worker",
-    "container_version":"v0.0.2",
     "docker_env_file": "/home/sochan/set-docker-credentials.sh"
 }

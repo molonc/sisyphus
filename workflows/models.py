@@ -307,7 +307,7 @@ class Analysis(object):
         """
         raise NotImplementedError
 
-    def _get_blob_dir(self, dir_type, storage_name):
+    def _get_blob_dir(self, dir_type):
         if dir_type == 'results':
             template = templates.AZURE_RESULTS_DIR
         elif dir_type == 'tmp':
@@ -768,17 +768,17 @@ class Results:
         """
         Create a Results object in Tantalus.
         """
-        assert storage_name in ('singlecellblob', 'shahlab')
 
-        self.name = '{}_{}'.format(tantalus_analysis.jira, tantalus_analysis.analysis_type)
+        self.tantalus_analysis = tantalus_analysis
+        self.name = '{}_{}'.format(self.tantalus_analysis.jira, self.tantalus_analysis.analysis_type)
         self.storage_name = storage_name
-        self.analysis = tantalus_analysis.get_id()
+        self.analysis = self.tantalus_analysis.get_id()
         self.analysis_type = tantalus_analysis.analysis_type
         self.pipeline_dir = pipeline_dir
         self.pipeline_version = pipeline_version
         self.last_updated = datetime.datetime.now().isoformat()
 
-        self.result = get_or_create_results(update=update)
+        self.result = self.get_or_create_results(update=update)
 
         self.update_results('last_updated') # TODO: not needed?
 
@@ -849,7 +849,7 @@ class Results:
         else:
             raise Exception('unrecognized analysis type {}'.format(self.analysis_type))
 
-        return template.format(results_dir=tantalus_analysis.get_results_dir())
+        return template.format(results_dir=self.tantalus_analysis.get_results_dir())
 
     def _get_server_info_yaml(self):
         """
@@ -867,7 +867,8 @@ class Results:
         for the analysis, then return the path
         """
         blob_name = os.path.join(
-            os.path.relpath(self.get_analysis_results_dir(), 'singlecelldata/data'),
+            # TODO: get prefix from storage
+            os.path.relpath(self.get_analysis_results_dir(), 'singlecelldata/results'),  
             'info.yaml',
         )
 
@@ -876,7 +877,7 @@ class Results:
         if not blob_service.exists('results', blob_name=blob_name):
             raise Exception('{} not found in results container'.format(blob_name))
 
-        info_yaml = os.path.join(pipeline_dir, 'info.yaml')
+        info_yaml = os.path.join(self.pipeline_dir, 'info.yaml')
         log.info('downloading info.yaml to {}'.format(info_yaml))
         blob_service.get_blob_to_path('results', blob_name, info_yaml)
 
@@ -891,16 +892,28 @@ class Results:
         else:
             info_yaml = self._get_blob_info_yaml()
 
-        return file_utils.load_yaml(info_yaml)[self.analysis_type]['results'].values()
+        if self.analysis_type == "align":
+            analysis_type = "alignment"
+        else:
+            analysis_type = self.analysis_type
+
+        return file_utils.load_yaml(info_yaml)[analysis_type]['results'].values()
 
     def get_file_resources(self):
         """
         Create file resources for each results file and return their ids.
         """
         file_resource_ids = set()
-        for result in result_info:
-            file_resource = FileResource(result['filename'], self.storage_name, file_type=result['type'])
-            file_resource_ids.add(file_resource.get_id())
+        results_info = self.get_results_info()
+        for result in results_info:
+            file_resource, file_instance = tantalus_api.add_file(
+                self.storage_name,
+                result["filename"],
+                result["type"],
+                # TODO: need to pass compression
+            )
+
+            file_resource_ids.add(file_resource["id"])
 
         return file_resource_ids
 

@@ -100,7 +100,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
     else:
         location = 'singlecellblob'
         inputs_yaml_storage = None
-        results_storage = 'singlecellblob'
+        results_storage = 'singlecellblob_results'
         storage_type = 'blob'
 
     args['ref_genome'] = analysis_info.reference_genome
@@ -145,7 +145,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
                 tantalus_analysis,
                 analysis_type,
                 inputs_yaml,
-                container_version=config['container_version'],
+                container_version=args['container_version'],
                 docker_env_file=config['docker_env_file'],
                 config_override=config_override,
                 max_jobs=args['jobs'],

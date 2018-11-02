@@ -7,20 +7,22 @@ def get_args():
     '''
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        '--import_bams',
-        default=False,
-        action='store_true',
-    )
-
     # REQUIRED ARGUMENTS #
     parser.add_argument(
         'jira',
         help='The JIRA ticket id, e.g. SC-1300.'
     )
 
+
+    group = parser.add_mutually_exclusive_group()
+
+    group.add_argument(
+        'container_version',
+        help="The docker container version",
+    )
+
     # RUN ON SHAHLAB #
-    parser.add_argument(
+    group.add_argument(
         '--shahlab_run',
         default=False,
         action='store_true',

@@ -26,8 +26,8 @@ SFTP_RESULTS_DIR = os.path.join('/', 'projects', 'sftp', 'shahlab', 'singlecell'
 BLOB_RESULTS_DIR = os.path.join('{jira}')  # results container in the singlecelldata storage account
 MT_BAMS_DIR = os.path.join('single_cell_indexing', 'bam', '{chip_id}', '{ref_genome}', '{aligner}-MT')
 
-ALIGNMENT_RESULTS = os.path.join('{results_dir}', 'alignment')
-HMMCOPY_RESULTS = os.path.join('{results_dir}', 'hmmcopy_autoploidy')
+ALIGNMENT_RESULTS = os.path.join('{results_dir}', 'results', 'alignment')
+HMMCOPY_RESULTS = os.path.join('{results_dir}', 'results', 'hmmcopy_autoploidy')
 
 
 # Regular expressions
