@@ -8,7 +8,7 @@ import os
 
 import datamanagement.templates as templates
 import dbclients.colossus
-from utils import tantalus_utils, colossus_utils
+from utils import colossus_utils
 
 colossus_api = dbclients.colossus.ColossusApi()
 
@@ -62,51 +62,3 @@ def generate_sample_info(library_id):
 
     return sample_info
 
-
-def get_fastq_paths(sample_df, location, fastqs, lane_ids):
-    """ Queries Tantalus for fastq info
-    Args:
-        sample_df: DataFrame of sample information. Used in determining which fastq files to keep for a chip
-        fastqs: List of fastqs from Tantalus
-        location: Which tantalus storage to look at
-    Returns:
-        fastq_df: DataFrame of fastq information
-    """
-
-    cell_list = zip(sample_df.cell_id, sample_df.index_sequence)
-
-    rows = []
-
-    for cell_id, index_sequence in cell_list:
-        for lane_id in lane_ids:
-            try:
-                fastq_1 = fastqs[(lane_id, index_sequence, 1)]
-                fastq_2 = fastqs[(lane_id, index_sequence, 2)]
-            except KeyError:
-                log.debug('missing fastqs for lane {}, index sequence {}'.format(lane_id, index_sequence))
-
-            fastq_1_path = tantalus_utils.get_file_instance_path(fastq_1, location)
-            fastq_2_path = tantalus_utils.get_file_instance_path(fastq_2, location)
-
-            if not (fastq_1_path and fastq_2_path):
-                raise Exception('fastq_1 is {}, fastq_2 is {}'.format(fastq_1_path, fastq_2_path))
-
-            rows.append(
-                {
-                    'fastq_1':                  fastq_1_path,
-                    'fastq_2':                  fastq_2_path,
-                    'cell_id':                  cell_id,
-                    'lane_id':                  lane_id,
-                    'sequencing_center':        fastq_1['sequencing_centre'],
-                    'sequencing_instrument':    fastq_1['sequencing_instrument'],
-                }
-            )
-
-    fastq_df = pd.DataFrame(rows)
-    for idx in fastq_df.duplicated(['cell_id', 'lane_id']).nonzero()[0]:
-        raise Exception('duplicate fastqs for cell_id {} lane_id: {}'.format(
-            fastq_df.loc[idx, 'cell_id'], 
-            fastq_df.loc[idx, 'lane_id'])
-        )
-
-    return fastq_df

@@ -223,6 +223,52 @@ class TantalusApi(BasicAPIClient):
 
         return file_resource, file_instance
 
+    def get_file_instance(self, file_resource, storage_name):
+        """
+        Given a file resource and a storage name, return the matching file instance.
+
+        Args:
+            file_resource (dict)
+            storage_name (str)
+
+        Returns:
+            file_instance (dict)
+        """
+        for file_instance in file_resource['file_instances']:
+            if file_instance['storage']['name'] == storage_name:
+                return file_instance
+
+        raise Exception('no file instance in storage {} found for resource {}'.format(
+            storage_name,
+            file_resource['id'],
+        ))
+
+    def get_sequence_dataset_file_instances(self, dataset, storage_name):
+        """
+        Given a dataset get all file instances.
+
+        Note: file_resource and sequence_dataset are added as fields
+        to the file_instances
+
+        Args:
+            dataset (dict)
+            storage_name (str)
+
+        Returns:
+            file_instances (list)
+        """
+        file_instances = []
+
+        for file_resource in self.list('file_resource', sequencedataset__id=dataset['id']):
+
+            file_instance = self.get_file_instance(file_resource, storage_name)
+            file_instance['file_resource'] = file_resource
+            file_instance['sequence_dataset'] = dataset
+
+            file_instances.append(file_instance)
+
+        return file_instances
+
     @staticmethod
     def join_urls(*pieces):
         """Join pieces of an URL together safely."""

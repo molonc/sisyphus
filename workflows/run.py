@@ -13,7 +13,7 @@ import datamanagement.templates as templates
 import launch_pipeline
 import generate_inputs
 
-from utils import (colossus_utils, tantalus_utils, saltant_utils,
+from utils import (colossus_utils, saltant_utils,
                    file_utils, log_utils, file_transfers, bcl2fastq)
 from utils.log_utils import sentinel
 from models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, Results

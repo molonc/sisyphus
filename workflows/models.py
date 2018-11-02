@@ -235,7 +235,7 @@ class Analysis(object):
         input_file_instances = []
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
-            input_file_instances.extend(tantalus_utils.get_sequence_dataset_file_instances(dataset, storage_name))
+            input_file_instances.extend(tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name))
         return input_file_instances
 
     def add_inputs_yaml(self, inputs_yaml, inputs_yaml_storage=None):
@@ -640,7 +640,7 @@ class PseudoBulkAnalysis(Analysis):
             sample_id = dataset['sample']['sample_id']
 
             if sample_id == self.args['matched_normal_sample']:
-                for file_instance in tantalus_utils.get_sequence_dataset_file_instances(dataset, storage_name):
+                for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name):
                     if not file_instance['file_resource']['file_type'] == 'BAM':
                         continue
 
@@ -653,7 +653,7 @@ class PseudoBulkAnalysis(Analysis):
                 sample_info = generate_inputs.generate_sample_info(library_id)
                 cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
 
-                for file_instance in tantalus_utils.get_sequence_dataset_file_instances(dataset, storage_name):
+                for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name):
                     if not file_instance['file_resource']['file_type'] == 'BAM':
                         continue
 
@@ -684,7 +684,7 @@ class FileResource:
     Currently only supports the creation of a new FileResource during
     initialization.
     """
-    def __init__(self, source_file, storage_name, file_type=None):
+    def __init__(self, source_file, storage_name, file_type=None, compression=None):
         """
         Create a file resource object in Tantalus.
         """
@@ -703,8 +703,8 @@ class FileResource:
         )
 
         self.storage = tantalus_api.get('storage', name=storage_name)
-        self.file_resource = self.create_file_resource()
-        self.file_instance = self.create_file_instance()
+        self.file_resource, self.file_instance = tantalus_api.add_file(
+            storage_name, self.source_file, self.file_type, compression=compression)
 
     def get_file_type(self, filename):
         """
@@ -715,39 +715,6 @@ class FileResource:
             if filename.endswith(extension):
                 return file_type
         raise Exception('File type of {} not recognized. Add the file type to Tantalus.'.format(filename))
-
-    def get_filename(self, filename):
-        """
-        Determine the filename of the source file by stripping the storage prefix.
-        """
-        storage_prefix = tantalus_api.get_storage_prefix(self.storage)
-        if not filename.startswith(storage_prefix):
-            raise Exception('prefix {} should match filename {}'.format(storage_prefix, filename))
-        return os.path.relpath(filename, storage_prefix)
-
-    def create_file_resource(self):
-        """
-        Create the FileResource object in Tantalus.
-        """
-
-        file_resource = tantalus_api.create_file_resource(
-            filename=self.get_filename(self.source_file),
-            file_type=self.file_type,
-            source_file=self.source_file,
-        )
-
-        return file_resource
-
-    def create_file_instance(self):
-        """
-        Create a corresponding FileInstance object in Tantalus.
-        """
-        tantalus_api.get_or_create(
-            'file_instance',
-            file_resource=self.file_resource['id'],
-            storage=tantalus_api.get_storage_id(self.storage['name']),
-            owner=self.file_resource['owner'],
-        )
 
     def get_id(self):
         return self.file_resource['id']
