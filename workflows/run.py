@@ -189,6 +189,10 @@ def start_automation(args, config, pipeline_dir, analysis_info):
 def main():
     args = arguments.get_args()
 
+    # Check arguments
+    if not args["shahlab_run"] and args["container_version"] is None:
+        raise Exception("Set --container_version when running on Azure")
+
     if not templates.JIRA_ID_RE.match(args['jira']):
         raise Exception('Invalid SC ID:', jira)
 

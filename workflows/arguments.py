@@ -13,16 +13,14 @@ def get_args():
         help='The JIRA ticket id, e.g. SC-1300.'
     )
 
-
-    group = parser.add_mutually_exclusive_group()
-
-    group.add_argument(
-        'container_version',
+    parser.add_argument(
+        '--container_version',
         help="The docker container version",
+        default=None,
     )
 
     # RUN ON SHAHLAB #
-    group.add_argument(
+    parser.add_argument(
         '--shahlab_run',
         default=False,
         action='store_true',

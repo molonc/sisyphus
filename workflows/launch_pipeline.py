@@ -59,10 +59,10 @@ def get_config_string(config):
     return r"'{}'".format(config_string)
 
 
-def run_pipeline(*args, **kwargs):
+def run_pipeline2(*args, **kwargs):
     print args, kwargs
 
-def run_pipeline2(
+def run_pipeline(
         tantalus_analysis,
         analysis_type,
         inputs_yaml,
