@@ -12,7 +12,7 @@ import sys
 import time
 import subprocess
 import pandas as pd
-from dbclients.colossus import get_colossus_sublibraries_from_library_id,COLOSSUS_API_URL
+from dbclients.colossus import get_colossus_sublibraries_from_library_id, COLOSSUS_API_URL
 from dbclients.tantalus import TantalusApi
 from utils.constants import LOGGING_FORMAT
 from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
@@ -191,21 +191,20 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
     """ Download sample sheet and run bcl2fastq
     """
 
-    #if (os.listdir(output_dir)):
-    #    raise Exception('temp_dir is not empty: %s;' % (output_dir))   
+    if len(os.listdir(output_dir)) > 0:
+        raise Exception('bcl2fastq output directory {} is not empty'.format(output_dir))
 
-    destination = os.path.join(output_dir, "SampleSheet.csv")
+    samplesheet_filename = os.path.join(output_dir, "SampleSheet.csv")
 
-    get_samplesheet(destination, flowcell_id)
+    get_samplesheet(samplesheet_filename, flowcell_id)
 
     cmd = [
-        bcl2fastq.get_path(),
+        'bcl2fastq',
         '--runfolder-dir', bcl_dir,
-        '--sample-sheet', dest,
+        '--sample-sheet', samplesheet_filename,
         '--output-dir', output_dir]
 
-    print("running: {};".format(cmd))
-    #subprocess.check_call(cmd)
+    subprocess.check_call(cmd)
 
 
 if __name__ == "__main__":
@@ -224,24 +223,20 @@ if __name__ == "__main__":
     except KeyError:
         tag_name = None
 
-    if "bcl_dir" in args:
-        bd = args["bcl_dir"]
-    else:
-        bd = args["storage_dir"]
-
     # Run bcl to fastq
     run_bcl2fastq(
         args["flowcell_id"],
-        bd,
+        args["bcl_dir"],
         args["temp_dir"]
     )
 
     # Import fastqs
-    #load_brc_fastqs(
-    #    args["flowcell_id"],
-    #    args["temp_dir"],
-    #    args["storage_name"],
-    #    storage["storage_directory"],
-    #    tantalus_api,
-    #    tag_name=tag_name
-    #)
+    load_brc_fastqs(
+        args["flowcell_id"],
+        args["temp_dir"],
+        storage["name"],
+        storage["storage_directory"],
+        tantalus_api,
+        tag_name=tag_name
+    )
+
