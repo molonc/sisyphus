@@ -118,11 +118,9 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
         #    #)
         #continue
         if match is None:
-            print("unrecognized fastq filename structure for {}; --------------- ".format(filename))
-            continue
-            #raise Exception(
-            #    "unrecognized fastq filename structure for {}".format(filename)
-            #)
+            raise Exception(
+                "unrecognized fastq filename structure for {}".format(filename)
+            )
 
         filename_fields = match.groups()
 
