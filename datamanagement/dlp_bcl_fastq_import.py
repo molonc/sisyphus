@@ -232,18 +232,18 @@ if __name__ == "__main__":
         bd = args["storage_dir"]
 
     # Run bcl to fastq
-    run_bcl2fastq(
-        args["flowcell_id"],
-        bd,
-        args["temp_dir"]
-    )
+    #run_bcl2fastq(
+    #    args["flowcell_id"],
+    #    bd,
+    #    args["temp_dir"]
+    #)
 
     # Import fastqs
     load_brc_fastqs(
         args["flowcell_id"],
-        args["temp_dir",
+        args["temp_dir"],
         storage["storage_name"],
         storage["storage_directory"],
         tantalus_api,
-        tag_name=tag_name,
+        tag_name=tag_name
     )
