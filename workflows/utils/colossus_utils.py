@@ -2,6 +2,8 @@ import requests
 import os
 import logging
 
+import log_utils as utils
+
 COLOSSUS_API_USER = os.environ['COLOSSUS_API_USER']
 COLOSSUS_API_PASSWORD = os.environ['COLOSSUS_API_PASSWORD']
 COLOSSUS_API_URL = os.environ.get('COLOSSUS_API_URL', 'http://colossus.bcgsc.ca/api/')
@@ -117,4 +119,4 @@ def get_samplesheet(destination, chip_id, lane_id):
     )
 
     log.debug("Getting the sample sheet from {}".format(sheet_url))
-    utils.sync_call("Downloading the sample sheet", ["wget", "-O", dest, sheet_url])
+    utils.sync_call("Downloading the sample sheet", ["wget", "-O", destination, sheet_url])

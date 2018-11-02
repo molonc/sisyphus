@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+#export PATH=/gsc/software/linux-x86_64-centos6/bcl2fastq-2.16.0.10/bin:$PATH
 #time python automate_me/dlp_bcl_fastq_import.py '{"samplesheet_dir": "/ssd/nvme0/oleg/prg/shahlab/archive/single_cell_indexing/NextSeq/bcl/r004", "temp_dir": "/ssd/nvme0/oleg/prg/tmp", "flowcell_id": "AHHC32AFXX", "storage_name": "shahlab", "storage_dir": "/genesis/extscratch/shahlab/single_cell_nextseq/bcl//161018_NS500668_0130_AHHC32AFXX/"}' 2>&1 |& tee ./04.log 
 
 from __future__ import absolute_import
@@ -12,14 +13,19 @@ import sys
 import time
 import subprocess
 import pandas as pd
+
 from dbclients.colossus import get_colossus_sublibraries_from_library_id,COLOSSUS_API_URL
 from dbclients.tantalus import TantalusApi
+import workflows.utils.colossus_utils as colossus_utils 
+
 from utils.constants import LOGGING_FORMAT
 from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 from utils.runtime_args import parse_runtime_args
 from utils.filecopy import rsync_file
 import datamanagement.templates as templates
 
+import workflows.utils.log_utils as log_utils
+import workflows.utils.bcl2fastq as bcl2fastq
 
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
@@ -112,9 +118,11 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
         #    #)
         #continue
         if match is None:
-            raise Exception(
-                "unrecognized fastq filename structure for {}".format(filename)
-            )
+            print("unrecognized fastq filename structure for {}; --------------- ".format(filename))
+            continue
+            #raise Exception(
+            #    "unrecognized fastq filename structure for {}".format(filename)
+            #)
 
         filename_fields = match.groups()
 
@@ -196,23 +204,26 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
 
     destination = os.path.join(output_dir, "SampleSheet.csv")
 
-    get_samplesheet(destination, flowcell_id)
+    colossus_utils.get_samplesheet(destination, '', flowcell_id)
 
     cmd = [
-        bcl2fastq.get_path(),
+        'bcl2fastq',
         '--runfolder-dir', bcl_dir,
-        '--sample-sheet', dest,
+        '--sample-sheet', destination,
         '--output-dir', output_dir]
 
     print("running: {};".format(cmd))
-    #subprocess.check_call(cmd)
+    subprocess.check_call(cmd)
 
 
 if __name__ == "__main__":
     # Parse the incoming arguments
     args = parse_runtime_args()
 
-    # Connect to the Tantalus API (this requires appropriate environment
+    logdir = '/ssd/nvme0/oleg/prg/log'
+    log_utils.setup_sentinel(False, logdir)
+    log_utils.init_log_files(logdir) # Connect to the Tantalus API (this requires appropriate environment
+
     # variables defined)
     tantalus_api = TantalusApi()
 
@@ -225,23 +236,23 @@ if __name__ == "__main__":
         tag_name = None
 
     if "bcl_dir" in args:
-        bd = args["bcl_dir"]
+        bcl_dir = args["bcl_dir"]
     else:
-        bd = args["storage_dir"]
+        bcl_dir = args["storage_dir"]
 
     # Run bcl to fastq
     run_bcl2fastq(
         args["flowcell_id"],
-        bd,
+        bcl_dir,
         args["temp_dir"]
     )
 
     # Import fastqs
-    #load_brc_fastqs(
-    #    args["flowcell_id"],
-    #    args["temp_dir"],
-    #    args["storage_name"],
-    #    storage["storage_directory"],
-    #    tantalus_api,
-    #    tag_name=tag_name
-    #)
+    load_brc_fastqs(
+        args["flowcell_id"],
+        args["temp_dir"],
+        storage["name"],
+        storage["storage_directory"],
+        tantalus_api,
+        tag_name=tag_name
+    )
