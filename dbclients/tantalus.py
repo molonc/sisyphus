@@ -30,20 +30,17 @@ class BlobStorageClient(object):
             account_name=self.storage_account,
             account_key=self.storage_key)
 
-    def get_blobname(self, filename):
-        return os.path.relpath(filename, self.prefix)
-
     def get_size(self, filename):
-        blobname = self.get_blobname(filename)
-        print(blobname)
-        properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
+        if filename.startswith(self.prefix):
+            filename = os.path.relpath(filename, self.prefix) 
+        properties = self.blob_service.get_blob_properties(self.storage_container, filename)
         blobsize = properties.properties.content_length
         return blobsize
 
     def get_created_time(self, filename):
-        blobname = self.get_blobname(filename)
-        print(blobname)
-        properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
+        if filename.startswith(self.prefix):
+            filename = os.path.relpath(filename, self.prefix)
+        properties = self.blob_service.get_blob_properties(self.storage_container, filename)
         created_time = properties.properties.last_modified.isoformat()
         return created_time
 
