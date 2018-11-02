@@ -28,11 +28,11 @@ def get_args():
     )
 
     parser.add_argument(
-        '--archive_results',
-        default=False,
-        action='store_true',
-        help='Archive results to SFTP and singlecellblob.'
+        '--bams_tag',
+        default=None,
+        help='Optionally tag the bams produced by the single cell pipeline'
     )
+
 
     # CONFIGURATION FILES #
     parser.add_argument(

@@ -247,11 +247,14 @@ class Analysis(object):
             return
 
         log.info('Adding inputs yaml file {} to {}'.format(inputs_yaml, self.name))
-        tantalus_api.update(
-            'analysis', 
-            id=self.get_id(), 
-            logs=[FileResource(inputs_yaml, inputs_yaml_storage).get_id()],
-        )
+
+        file_resource, file_instance = tantalus_api.add_file(
+            storage_name=inputs_yaml_storage,
+            filepath=inputs_yaml,
+            file_type="YAML",
+         )
+
+        tantalus_api.update('analysis', id=self.get_id(), logs=[file_resource['id']])
 
     def get_dataset(self, dataset_id):
         """
@@ -472,8 +475,9 @@ class AlignAnalysis(Analysis):
                 lane_fastqs[lane_id]['sequencing_center'] = str(sequencing_centre)
                 lane_fastqs[lane_id]['sequencing_instrument'] = str(sequencing_instrument)
                 sequence_lanes.append(dict(
-                        flowcell_id=lane['flowcell_id'],
-                        lane_number=lane['lane_number']))
+                        flowcell_id=str(lane['flowcell_id']),
+                        lane_number=str(lane['lane_number'])))
+
 
             if len(lane_fastqs) == 0:
                 raise Exception('No fastqs for cell_id {}, index_sequence {}'.format(
@@ -487,7 +491,7 @@ class AlignAnalysis(Analysis):
                 cell_id=row['cell_id'],
             )
 
-            bam_filepath = tantalus_api.get_filepath(storage_name, bam_filename)
+            bam_filepath = str(tantalus_api.get_filepath(storage_name, bam_filename))
 
             input_info[str(row['cell_id'])] = {
                 'fastqs':       dict(lane_fastqs),
@@ -542,7 +546,7 @@ class AlignAnalysis(Analysis):
             raise Exception('no output bams found, regenerate or provide an existing inputs yaml')
         return self.bams
 
-    def create_output_datasets(self, storage_name):
+    def create_output_datasets(self, storage_name, tag_name=None):
         """
         """
         cell_metadata = self._generate_cell_metadata(storage_name)
@@ -578,7 +582,7 @@ class AlignAnalysis(Analysis):
         self.output_datasets = dlp.create_sequence_dataset_models(
             file_info=output_file_info,
             storage_name=storage_name,
-            tag_name=None,  # TODO: tag?
+            tag_name=tag_name,  # TODO: tag?
             tantalus_api=tantalus_api,
             analysis_id=self.get_id(),
         )
@@ -690,7 +694,7 @@ class FileResource:
         """
         self.source_file = source_file
 
-        if self.file_type is None:
+        if file_type is None:
             self.file_type = self.get_file_type(self.source_file)
         else:
             self.file_type = file_type
@@ -822,7 +826,8 @@ class Results:
         """
         Get the path to the info.yaml for the corresponding analysis
         """
-        info_yaml = os.path.join(self.get_analysis_results_dir(), 'info.yaml')
+        analysis_dir = self.get_analysis_results_dir()
+        info_yaml = os.path.join(analysis_dir, 'info.yaml')
         if not os.path.exists(info_yaml):
             raise Exception('no info.yaml found in {}'.format(analysis_dir))
 
@@ -844,6 +849,9 @@ class Results:
         if not blob_service.exists('results', blob_name=blob_name):
             raise Exception('{} not found in results container'.format(blob_name))
 
+
+
+
         info_yaml = os.path.join(self.pipeline_dir, 'info.yaml')
         log.info('downloading info.yaml to {}'.format(info_yaml))
         blob_service.get_blob_to_path('results', blob_name, info_yaml)
@@ -854,10 +862,11 @@ class Results:
         """
         Return a dictionary
         """
-        if self.storage_name == 'shahlab':
-            info_yaml = self._get_server_info_yaml()
-        else:
+
+        if self.storage_name == 'singlecellblob_results':
             info_yaml = self._get_blob_info_yaml()
+        else:
+            info_yaml = self._get_server_info_yaml()
 
         if self.analysis_type == "align":
             analysis_type = "alignment"
@@ -877,7 +886,7 @@ class Results:
                 self.storage_name,
                 result["filename"],
                 result["type"],
-                # TODO: need to pass compression
+                compression=None,
             )
 
             file_resource_ids.add(file_resource["id"])
