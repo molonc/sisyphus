@@ -9,8 +9,8 @@ import time
 import azure.storage.blob
 import pandas as pd
 import pysam
-from utils.runtime_args import parse_runtime_args
-from utils.tantalus import TantalusApi
+from datamanagement.utils.runtime_args import parse_runtime_args
+from dbclients.tantalus import TantalusApi
 
 
 def get_bam_ref_genome(bam_header):
@@ -164,8 +164,7 @@ def import_bam(
     )["id"]
 
     if tag_name is not None:
-        tag_pk = tantalus_api.get("sequence_dataset_tag", name=tag_name)["id"]
-
+        tag_pk = tantalus_api.get_or_create("tag", name=tag_name)["id"]
         tags = [tag_pk]
     else:
         tags = []
