@@ -30,17 +30,13 @@ class BlobStorageClient(object):
             account_name=self.storage_account,
             account_key=self.storage_key)
 
-    def get_size(self, filename):
-        if filename.startswith(self.prefix):
-            filename = os.path.relpath(filename, self.prefix) 
-        properties = self.blob_service.get_blob_properties(self.storage_container, filename)
+    def get_size(self, blobname):
+        properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
         blobsize = properties.properties.content_length
         return blobsize
 
-    def get_created_time(self, filename):
-        if filename.startswith(self.prefix):
-            filename = os.path.relpath(filename, self.prefix)
-        properties = self.blob_service.get_blob_properties(self.storage_container, filename)
+    def get_created_time(self, blobname):
+        properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
         created_time = properties.properties.last_modified.isoformat()
         return created_time
 
@@ -203,12 +199,14 @@ class TantalusApi(BasicAPIClient):
         storage = self.get_storage(storage_name)
         storage_client = self.get_storage_client(storage_name)
 
+        filename = self.get_file_resource_filename(storage_name, filepath)
+
         file_resource = self.get_or_create(
             'file_resource',
-            filename=self.get_file_resource_filename(storage_name, filepath),
+            filename=filename,
             file_type=file_type,
-            created=storage_client.get_created_time(filepath),
-            size=storage_client.get_size(filepath),
+            created=storage_client.get_created_time(filename),
+            size=storage_client.get_size(filename),
             **args
         )
 
