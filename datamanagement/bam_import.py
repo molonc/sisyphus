@@ -9,24 +9,16 @@ import time
 import azure.storage.blob
 import pandas as pd
 import pysam
+import datamanagement.utils.constants
 from datamanagement.utils.runtime_args import parse_runtime_args
+from datamanagement.utils.utils import get_lanes_hash, get_lane_str
+import datamanagement.templates as templates
 from dbclients.tantalus import TantalusApi
 
 
 def get_bam_ref_genome(bam_header):
-    # TODO(mwiens91): come up with a heuristic for determining this from
-    # bam headers
-    return "HG19"  # bam_header['SQ'][0]['AS']
-
-    # TODO(mwiens91): ummm. what's this code doing here...
-    for pg in bam_header["PG"]:
-        if "bwa" in pg["ID"]:
-            if "GRCh37-lite.fa" in pg["CL"]:
-                return "grch37"
-            if "mm10" in pg["CL"]:
-                return "mm10"
-
-    raise Exception("no ref genome found")
+    sq_as = bam_header["SQ"][0]["AS"]
+    return datamanagement.utils.constants.REF_GENOME_MAP[sq_as]
 
 
 def get_bam_aligner_name(bam_header):
@@ -36,36 +28,10 @@ def get_bam_aligner_name(bam_header):
                 return "bwa_aln"
             if "mem" in pg["CL"]:
                 return "bwa_mem"
-
     raise Exception("no aligner name found")
 
 
-def get_bam_header_file(filename):
-    return pysam.AlignmentFile(filename).header
-
-
-def get_bam_header_blob(blob_service, container_name, blob_name):
-    sas_token = blob_service.generate_blob_shared_access_signature(
-        container_name,
-        blob_name,
-        permission=azure.storage.blob.BlobPermissions.READ,
-        expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=1),
-    )
-
-    blob_url = blob_service.make_blob_url(
-        container_name=container_name,
-        blob_name=blob_name,
-        protocol="http",
-        sas_token=sas_token,
-    )
-
-    return pysam.AlignmentFile(blob_url).header
-
-
 def get_bam_header_info(header):
-    # TODO(mwiens91): What's this for? It isn't being used anywhere.
-    index_info = {}
-
     sample_ids = set()
     library_ids = set()
     index_sequences = set()
@@ -108,54 +74,23 @@ def get_bam_header_info(header):
     }
 
 
-def get_size_file(filename):
-    return os.path.getsize(filename)
-
-
-def get_created_time_file(filename):
-    return pd.Timestamp(time.ctime(os.path.getmtime(filename)), tz="Canada/Pacific")
-
-
-def get_size_blob(blob_service, container, blobname):
-    properties = blob_service.get_blob_properties(container, blobname)
-    blobsize = properties.properties.content_length
-    return blobsize
-
-
-def get_created_time_blob(blob_service, container, blobname):
-    properties = blob_service.get_blob_properties(container, blobname)
-    created_time = properties.properties.last_modified.isoformat()
-    return created_time
-
-
 def import_bam(
     tantalus_api,
     storage_name,
-    dataset_name,
+    library_type,
     bam_filename,
     read_type,
     sequencing_centre,
     tag_name=None,
 ):
-    storage = tantalus_api.get("storage", name=storage_name)
+    bam_resource, bam_instance = tantalus_api.add_file(storage_name, bam_filename, "BAM")
+    bai_resource, bai_instance = tantalus_api.add_file(storage_name, bam_filename + ".bai", "BAI")
 
-    # TODO(mwiens91): What's this for? It isn't being used anywhere.
-    metadata = []
-
-    if storage["storage_type"] == "blob":
-        bam_header, file_resources = import_bam_blob(
-            bam_filename, storage["storage_container"]
-        )
-    elif storage["storage_type"] == "server":
-        bam_header, file_resources = import_bam_server(
-            bam_filename, storage["storage_directory"]
-        )
-    else:
-        raise ValueError("unsupported storage type {}".format(storage["storage_type"]))
-
+    bam_url = tantalus_api.get_storage_client(storage_name).get_url(bam_resource['filename'])
+    bam_header = pysam.AlignmentFile(bam_url).header
+    bam_header_info = get_bam_header_info(bam_header)
     ref_genome = get_bam_ref_genome(bam_header)
     aligner_name = get_bam_aligner_name(bam_header)
-    bam_header_info = get_bam_header_info(bam_header)
 
     sample_pk = tantalus_api.get("sample", sample_id=bam_header_info["sample_id"])["id"]
 
@@ -169,36 +104,32 @@ def import_bam(
     else:
         tags = []
 
+    sequence_lanes = []
     sequence_lane_pks = []
 
     for lane in bam_header_info["sequence_lanes"]:
-        lane_pk = tantalus_api.get_or_create(
+        lane = tantalus_api.get_or_create(
             "sequencing_lane",
             flowcell_id=lane["flowcell_id"],
             dna_library=library_pk,
             read_type=read_type,
             lane_number=lane["lane_number"],
             sequencing_centre=sequencing_centre,
-        )["id"]
-        sequence_lane_pks.append(lane_pk)
-
-    file_resource_pks = []
-
-    for info in file_resources:
-        fr_pk = tantalus_api.get(
-            "file_resource",
-            size=info["size"],
-            created=info["created"],
-            file_type=info["file_type"],
-            compression="UNCOMPRESSED",
-            filename=info["filename"],
-        )["id"]
-
-        file_resource_pks.append(fr_pk)
-
-        tantalus_api.get_or_create(
-            "file_instance", storage=storage["id"], file_resource=fr_pk
         )
+        sequence_lanes.append(lane)
+        sequence_lane_pks.append(lane["id"])
+
+    file_resource_pks = [bam_resource["id"], bai_resource["id"]]
+
+    dataset_name = templates.SC_WGS_BAM_NAME_TEMPLATE.format(
+        dataset_type="BAM",
+        sample_id=bam_header_info["sample_id"],
+        library_type=library_type,
+        library_id=bam_header_info["library_id"],
+        lanes_hash=get_lanes_hash(sequence_lanes),
+        aligner=aligner_name,
+        reference_genome=ref_genome,
+    )
 
     sequence_dataset = tantalus_api.get_or_create(
         "sequence_dataset",
@@ -216,72 +147,6 @@ def import_bam(
     return sequence_dataset
 
 
-def import_bam_blob(bam_filename, container_name):
-    # Assumption: bam filename is prefixed by container name
-    bam_filename = bam_filename.strip("/")
-
-    if not bam_filename.startswith(container_name + "/"):
-        raise Exception(
-            "expected container name {} as prefix for bam filename {}".format(
-                container_name, bam_filename
-            )
-        )
-
-    bam_filename = bam_filename[len(container_name + "/") :]
-
-    bai_filename = bam_filename + ".bai"
-
-    blob_service = azure.storage.blob.BlockBlobService(
-        account_name=os.environ["AZURE_STORAGE_ACCOUNT"],
-        account_key=os.environ["AZURE_STORAGE_KEY"],
-    )
-
-    bam_header = get_bam_header_blob(blob_service, container_name, bam_filename)
-
-    bam_info = {
-        "filename": bam_filename,
-        "size": get_size_blob(blob_service, container_name, bam_filename),
-        "created": get_created_time_blob(blob_service, container_name, bam_filename),
-        "file_type": "BAM",
-    }
-
-    bai_info = {
-        "filename": bai_filename,
-        "size": get_size_blob(blob_service, container_name, bai_filename),
-        "created": get_created_time_blob(blob_service, container_name, bai_filename),
-        "file_type": "BAI",
-    }
-
-    return bam_header, [bam_info, bai_info]
-
-
-def import_bam_server(bam_filepath, storage_directory):
-    if not bam_filepath.startswith(storage_directory):
-        raise ValueError(
-            "{} not in storage directory {}".format(bam_filepath, storage_directory)
-        )
-
-    bam_filename = bam_filepath.replace(storage_directory, "").lstrip("/")
-
-    bam_header = get_bam_header_file(bam_filepath)
-
-    bam_info = {
-        "filename": bam_filename,
-        "size": get_size_file(bam_filepath),
-        "created": get_created_time_file(bam_filepath),
-        "file_type": "BAM",
-    }
-
-    bai_info = {
-        "filename": bam_filename + ".bai",
-        "size": get_size_file(bam_filepath + ".bai"),
-        "created": get_created_time_file(bam_filepath + ".bai"),
-        "file_type": "BAI",
-    }
-
-    return bam_header, [bam_info, bai_info]
-
-
 if __name__ == "__main__":
     # Get arguments
     args = parse_runtime_args()
@@ -294,7 +159,7 @@ if __name__ == "__main__":
     dataset = import_bam(
         tantalus_api,
         args["storage_name"],
-        args["dataset_name"],
+        args["library_type"],
         args["bam_filename"],
         args["read_type"],
         args["sequencing_centre"],
