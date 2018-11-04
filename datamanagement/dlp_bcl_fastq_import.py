@@ -10,12 +10,13 @@ import sys
 import time
 import subprocess
 import pandas as pd
-from dbclients.colossus import get_colossus_sublibraries_from_library_id, COLOSSUS_API_URL
+from dbclients.colossus import get_colossus_sublibraries_from_library_id
 from dbclients.tantalus import TantalusApi
 from utils.constants import LOGGING_FORMAT
 from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 from utils.runtime_args import parse_runtime_args
 from utils.filecopy import rsync_file
+from utils.utils import make_dirs
 import datamanagement.templates as templates
 
 
@@ -168,11 +169,8 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
 
 
 def get_samplesheet(destination, lane_id):
-    colossus_url = COLOSSUS_API_URL
-    sheet_url = '{colossus_url}/dlp/sequencing/samplesheet/query_download/{lane_id}'
-    sheet_url = sheet_url.format(
-        colossus_url=colossus_url,
-        lane_id=lane_id)
+    sheet_url = 'http://colossus.bcgsc.ca/dlp/sequencing/samplesheet/query_download/{lane_id}'
+    sheet_url = sheet_url.format(lane_id=lane_id)
 
     subprocess.check_call(["wget", "-O", destination, sheet_url])
 
@@ -211,6 +209,8 @@ if __name__ == "__main__":
         tag_name = args["tag_name"]
     except KeyError:
         tag_name = None
+
+    make_dirs(args["temp_dir"])
 
     # Run bcl to fastq
     run_bcl2fastq(
