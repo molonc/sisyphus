@@ -195,7 +195,7 @@ class Analysis(object):
 
             if set(analysis['input_datasets']) != set(self.input_datasets):
                 if update:
-                    tantalus_api.update('analysis', id=analysis['id'], input_datasets=input_datasets)
+                    tantalus_api.update('analysis', id=analysis['id'], input_datasets=self.input_datasets)
                     updated = True
                     log.info('Input datasets for analysis {} changed, previously {}, now {}'.format(
                         self.name, analysis['input_datasets'], self.input_datasets))
@@ -367,6 +367,17 @@ class Analysis(object):
         )
 
         return tantalus_results
+
+    def get_input_samples(self):
+        """
+        Get the primary keys for the samples associated with 
+        the input datasets.
+        """
+        input_samples = set()
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+            input_samples.add(dataset['sample']['id'])
+        return list(input_samples)
 
 
 class AlignAnalysis(Analysis):
@@ -579,7 +590,8 @@ class AlignAnalysis(Analysis):
                 output_file_info.append(file_info)
 
         log.info('creating sequence dataset models for output bams')
-        self.output_datasets = dlp.create_sequence_dataset_models(
+        
+        output_datasets = dlp.create_sequence_dataset_models(
             file_info=output_file_info,
             storage_name=storage_name,
             tag_name=tag_name,  # TODO: tag?
@@ -587,7 +599,16 @@ class AlignAnalysis(Analysis):
             analysis_id=self.get_id(),
         )
 
-        log.info("created sequence datasets {}".format(self.output_datasets))
+        log.info("created sequence datasets {}".format(output_datasets))
+
+    def get_output_datasets(self):
+        """
+        Query Tantalus for bams that match the associated analysis
+        by filtering based on the analysis id.
+        """
+
+        datasets = tantalus_api.list('sequence_dataset', analysis=self.get_id(), dataset_type='BAM')
+        return [dataset['id'] for dataset in datasets] 
 
 
 class HmmcopyAnalysis(Analysis):
@@ -600,11 +621,9 @@ class HmmcopyAnalysis(Analysis):
 
     def search_input_datasets(self):
         """
-        Query Tantalus for bams that match the associated
-        alignment analysis.
+        Get the input BAM datasets for this analysis.
         """
-
-        return align_analysis.output_datasets
+        return self.align_analysis.get_output_datasets()
 
 
 class PseudoBulkAnalysis(Analysis):
@@ -682,48 +701,6 @@ class PseudoBulkAnalysis(Analysis):
         pass
 
 
-class FileResource:
-    """
-    A class representing a FileResource model in Tantalus.
-    Currently only supports the creation of a new FileResource during
-    initialization.
-    """
-    def __init__(self, source_file, storage_name, file_type=None, compression=None):
-        """
-        Create a file resource object in Tantalus.
-        """
-        self.source_file = source_file
-
-        if file_type is None:
-            self.file_type = self.get_file_type(self.source_file)
-        else:
-            self.file_type = file_type
-
-        self.file_types = (
-            ('.h5', 'H5'),
-            ('.yaml', 'YAML'),
-            ('.pdf', 'PDF'),
-            ('.seg', 'SEG'),
-        )
-
-        self.storage = tantalus_api.get('storage', name=storage_name)
-        self.file_resource, self.file_instance = tantalus_api.add_file(
-            storage_name, self.source_file, self.file_type, compression=compression)
-
-    def get_file_type(self, filename):
-        """
-        Get the file type of a file given its filename.
-        """
-
-        for extension, file_type in self.file_types:
-            if filename.endswith(extension):
-                return file_type
-        raise Exception('File type of {} not recognized. Add the file type to Tantalus.'.format(filename))
-
-    def get_id(self):
-        return self.file_resource['id']
-
-
 class Results:
     """
     A class representing a Results model in Tantalus.
@@ -741,17 +718,16 @@ class Results:
         """
 
         self.tantalus_analysis = tantalus_analysis
-        self.name = '{}_{}'.format(self.tantalus_analysis.jira, self.tantalus_analysis.analysis_type)
         self.storage_name = storage_name
+        self.name = '{}_{}'.format(self.tantalus_analysis.jira, self.tantalus_analysis.analysis_type)
         self.analysis = self.tantalus_analysis.get_id()
-        self.analysis_type = tantalus_analysis.analysis_type
+        self.analysis_type = self.tantalus_analysis.analysis_type
+        self.samples = self.tantalus_analysis.get_input_samples()
         self.pipeline_dir = pipeline_dir
         self.pipeline_version = pipeline_version
         self.last_updated = datetime.datetime.now().isoformat()
 
-        self.result = self.get_or_create_results(update=update)
-
-        self.update_results('last_updated') # TODO: not needed?
+        self.results = self.get_or_create_results(update=update)
 
     def get_or_create_results(self, update=False):
         log.info('Searching for existing results {}'.format(self.name))
@@ -789,7 +765,7 @@ class Results:
                     'results', 
                     name=self.name, 
                     results_type=self.analysis_type, 
-                    analysis=self.analysis
+                    analysis=self.analysis,
                 )
         else:
             log.info('Creating results {}'.format(self.name))
@@ -799,7 +775,8 @@ class Results:
                 'results_type':     self.analysis_type,
                 'results_version':  self.pipeline_version,
                 'analysis':         self.analysis,
-                'file_resources':   list(self.file_resources),
+                'file_resources':   self.file_resources,
+                'samples':          self.samples,
             }
 
             # TODO: created timestamp for results
@@ -849,9 +826,6 @@ class Results:
         if not blob_service.exists('results', blob_name=blob_name):
             raise Exception('{} not found in results container'.format(blob_name))
 
-
-
-
         info_yaml = os.path.join(self.pipeline_dir, 'info.yaml')
         log.info('downloading info.yaml to {}'.format(info_yaml))
         blob_service.get_blob_to_path('results', blob_name, info_yaml)
@@ -882,16 +856,23 @@ class Results:
         file_resource_ids = set()
         results_info = self.get_results_info()
         for result in results_info:
+
+            if result["filename"].endswith(".gz"):
+                compression = "GZIP"
+            else:
+                compression = "UNCOMPRESSED"
+
             file_resource, file_instance = tantalus_api.add_file(
                 self.storage_name,
                 result["filename"],
-                result["type"],
-                compression=None,
+                result["type"].upper(),
+                compression=compression,
             )
 
             file_resource_ids.add(file_resource["id"])
 
-        return file_resource_ids
+
+        return list(file_resource_ids)
 
     def get_id(self):
         return self.results['id']
