@@ -158,9 +158,6 @@ class BasicAPIClient(object):
     def create(self, table_name, **fields):
         """ Create the resource and return it. """
 
-        for field_name, field_value in fields.iteritems():
-            fields[field_name] = eval(DjangoJSONEncoder().encode(field_value))
-
         return self.coreapi_client.action(
             self.coreapi_schema, [table_name, "create"], params=fields
         )
@@ -173,9 +170,6 @@ class BasicAPIClient(object):
             return self.get(table_name, **fields)
         except NotFoundError:
             pass
-
-        for field_name, field_value in fields.iteritems():
-            fields[field_name] = eval(DjangoJSONEncoder().encode(field_value))
 
         return self.coreapi_client.action(
             self.coreapi_schema, [table_name, "create"], params=fields

@@ -66,8 +66,9 @@ class ServerStorageClient(object):
 
     def get_created_time(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
-        return pd.Timestamp(time.ctime(os.path.getmtime(filepath)), tz="Canada/Pacific")
-    
+        # TODO: this is currently fixed at pacific time
+        return pd.Timestamp(time.ctime(os.path.getmtime(filepath)), tz="Canada/Pacific").isoformat()
+
     def get_url(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
         return filepath
