@@ -15,6 +15,7 @@ import pandas as pd
 from django.core.serializers.json import DjangoJSONEncoder
 from dbclients.basicclient import BasicAPIClient
 import azure.storage.blob
+import datetime
 
 TANTALUS_API_URL = "http://tantalus.bcgsc.ca/api/"
 
@@ -48,7 +49,7 @@ class BlobStorageClient(object):
             expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=1),
         )
         blob_url = self.blob_service.make_blob_url(
-            container_name=self.container_name,
+            container_name=self.storage_container,
             blob_name=blobname,
             protocol="http",
             sas_token=sas_token,
@@ -59,6 +60,7 @@ class BlobStorageClient(object):
 class ServerStorageClient(object):
     def __init__(self, storage):
         self.storage_directory = storage['storage_directory']
+        self.prefix = storage['prefix']
 
     def get_size(self, filename):
         filepath = os.path.join(self.storage_directory, filename)

@@ -135,7 +135,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
 
         align_analysis.check_inputs_yaml(inputs_yaml)
         tantalus_analysis.add_inputs_yaml(inputs_yaml, inputs_yaml_storage)
-        dataset_ids.update(tantalus_analysis.input_datasets)
+        dataset_ids.update(tantalus_analysis.analysis['input_datasets'])
 
         try:
             tantalus_analysis.set_run_status()
