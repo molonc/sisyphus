@@ -176,7 +176,7 @@ class Analysis(object):
         except NotFoundError:
             analysis = None
 
-        self.input_datasets = self.search_input_datasets()
+        input_datasets = self.search_input_datasets()
 
         if analysis is not None:
             log.info('Found existing analysis {}'.format(self.name))
@@ -193,15 +193,15 @@ class Analysis(object):
                     log.warning('Args for analysis {} have changed, previously {}, now {}'.format(
                         self.name, analysis['args'], self.args))
 
-            if set(analysis['input_datasets']) != set(self.input_datasets):
+            if set(analysis['input_datasets']) != set(input_datasets):
                 if update:
-                    tantalus_api.update('analysis', id=analysis['id'], input_datasets=self.input_datasets)
+                    tantalus_api.update('analysis', id=analysis['id'], input_datasets=input_datasets)
                     updated = True
                     log.info('Input datasets for analysis {} changed, previously {}, now {}'.format(
-                        self.name, analysis['input_datasets'], self.input_datasets))
+                        self.name, analysis['input_datasets'], input_datasets))
                 else:
                     log.warning('Input datasets for analysis {} have changed, previously {}, now {}'.format(
-                        self.name, analysis['input_datasets'], self.input_datasets))
+                        self.name, analysis['input_datasets'], input_datasets))
 
             if updated:
                 analysis = tantalus_api.get('analysis', name=self.name, jira_ticket=self.jira)
@@ -214,7 +214,7 @@ class Analysis(object):
                 'jira_ticket':      self.jira,
                 'args':             self.args,
                 'status':           self.status,
-                'input_datasets':   list(input_datasets),
+                'input_datasets':   input_datasets,
             }
 
             # TODO: created timestamp for analysis
@@ -433,7 +433,7 @@ class AlignAnalysis(Analysis):
 
             dataset_ids.add(dataset['id'])
 
-        return dataset_ids
+        return list(dataset_ids)
 
     def check_inputs_yaml(self, inputs_yaml_filename):
         lane_ids = self.get_lanes().keys()

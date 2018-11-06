@@ -141,7 +141,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
             tantalus_analysis.set_run_status()
             sentinel(
                 'Running single_cell {}'.format(analysis_type),
-                launch_pipeline.run_pipeline2,
+                launch_pipeline.run_pipeline,
                 tantalus_analysis,
                 analysis_type,
                 inputs_yaml,
