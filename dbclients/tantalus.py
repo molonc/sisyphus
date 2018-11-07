@@ -86,6 +86,9 @@ class ServerStorageClient(object):
     def delete(self, filename):
         os.remove(self.get_url(filename))
 
+    def open_file(self, filename):
+        return open(filename)
+
 
 class TantalusApi(BasicAPIClient):
     """Tantalus API class."""
