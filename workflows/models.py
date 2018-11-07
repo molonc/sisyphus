@@ -477,7 +477,6 @@ class AlignAnalysis(Analysis):
         input_info = {}
         for idx, row in sample_info.iterrows():
             lane_fastqs = collections.defaultdict(dict)
-            sequence_lanes = []
             for lane_id, lane in lanes.iteritems():
                 sequencing_centre = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_centre']
                 sequencing_instrument = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_instrument']
@@ -485,9 +484,6 @@ class AlignAnalysis(Analysis):
                 lane_fastqs[lane_id]['fastq_2'] = str(fastq_file_instances[(index_sequence, lane_id, 2)]['filepath'])
                 lane_fastqs[lane_id]['sequencing_center'] = str(sequencing_centre)
                 lane_fastqs[lane_id]['sequencing_instrument'] = str(sequencing_instrument)
-                sequence_lanes.append(dict(
-                        flowcell_id=str(lane['flowcell_id']),
-                        lane_number=str(lane['lane_number'])))
 
 
             if len(lane_fastqs) == 0:
@@ -498,7 +494,7 @@ class AlignAnalysis(Analysis):
                 library_id=self.args['library_id'],
                 ref_genome=self.args['ref_genome'],
                 aligner_name=self.args['aligner'],
-                number_lanes=len(sequence_lanes),
+                number_lanes=len(lanes),
                 cell_id=row['cell_id'],
             )
 
@@ -518,7 +514,6 @@ class AlignAnalysis(Analysis):
                 'row':          int(row['row']),
                 'sample_type':  'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
                 'index_sequence': str(row['primer_i7']) + '-' + str(row['primer_i5']),
-                'sequence_lanes': sequence_lanes,
                 'sample_id':    str(row['sample_id']),
             }
 
@@ -561,6 +556,12 @@ class AlignAnalysis(Analysis):
         """
         """
         cell_metadata = self._generate_cell_metadata(storage_name)
+        sequence_lanes = []
+
+        for lane_id, lane in self.get_lanes().iteritems():
+            sequence_lanes.append(dict(
+                flowcell_id=lane["flowcell_id"],
+                lane_number=lane["lane_number"]))
 
         output_file_info = []
         for cell_id, metadata in cell_metadata.iteritems():
@@ -578,7 +579,7 @@ class AlignAnalysis(Analysis):
                     library_id=self.args['library_id'],
                     library_type='SC_WGS',
                     index_format='D',
-                    sequence_lanes=metadata['sequence_lanes'],
+                    sequence_lanes=sequence_lanes,
                     ref_genome=self.args['ref_genome'],
                     aligner_name=self.args['aligner'],
                     file_type=file_type,
