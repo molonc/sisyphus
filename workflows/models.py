@@ -799,41 +799,6 @@ class Results:
 
         return template.format(results_dir=self.tantalus_analysis.get_results_dir())
 
-    '''
-    def _get_server_info_yaml(self):
-        """
-        Get the path to the info.yaml for the corresponding analysis
-        """
-        analysis_dir = self.get_analysis_results_dir()
-        info_yaml = os.path.join(analysis_dir, 'info.yaml')
-        if not os.path.exists(info_yaml):
-            raise Exception('no info.yaml found in {}'.format(analysis_dir))
-
-        return info_yaml
-
-    def _get_blob_info_yaml(self):
-        """
-        Download the info.yaml from blob to the pipeline directory
-        for the analysis, then return the path
-        """
-        blob_name = os.path.join(
-            # TODO: get prefix from storage
-            os.path.relpath(self.get_analysis_results_dir(), 'singlecelldata/results'),  
-            'info.yaml',
-        )
-
-        blob_service = BlockBlobService(account_name=AZURE_STORAGE_ACCOUNT, account_key=AZURE_STORAGE_KEY)
-
-        if not blob_service.exists('results', blob_name=blob_name):
-            raise Exception('{} not found in results container'.format(blob_name))
-
-        info_yaml = os.path.join(self.pipeline_dir, 'info.yaml')
-        log.info('downloading info.yaml to {}'.format(info_yaml))
-        blob_service.get_blob_to_path('results', blob_name, info_yaml)
-
-        return info_yaml
-    '''
-
 
     def get_results_info(self):
         """
