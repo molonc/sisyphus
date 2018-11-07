@@ -799,6 +799,7 @@ class Results:
 
         return template.format(results_dir=self.tantalus_analysis.get_results_dir())
 
+    '''
     def _get_server_info_yaml(self):
         """
         Get the path to the info.yaml for the corresponding analysis
@@ -831,23 +832,29 @@ class Results:
         blob_service.get_blob_to_path('results', blob_name, info_yaml)
 
         return info_yaml
+    '''
+
 
     def get_results_info(self):
         """
         Return a dictionary
         """
-
-        if self.storage_name == 'singlecellblob_results':
-            info_yaml = self._get_blob_info_yaml()
-        else:
-            info_yaml = self._get_server_info_yaml()
-
         if self.analysis_type == "align":
             analysis_type = "alignment"
         else:
             analysis_type = self.analysis_type
 
-        return file_utils.load_yaml(info_yaml)[analysis_type]['results'].values()
+        storage_client = tantalus_api.get_storage_client(self.storage_name)
+        info_yaml_filename = os.path.relpath(
+            os.path.join(self.get_analysis_results_dir(), 'info.yaml'), 
+            storage_client.prefix)
+
+        f = storage_client.open_file(info_yaml_filename)
+        results_info = yaml.load(f)[analysis_type]['results'].values()
+        f.close()
+
+        return results_info
+
 
     def get_file_resources(self):
         """

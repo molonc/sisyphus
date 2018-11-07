@@ -16,6 +16,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from dbclients.basicclient import BasicAPIClient
 import azure.storage.blob
 import datetime
+import urllib2
 
 TANTALUS_API_URL = "http://tantalus.bcgsc.ca/api/"
 
@@ -56,6 +57,13 @@ class BlobStorageClient(object):
         )
         return blob_url
 
+    def delete(self, blobname):
+        self.blob_service.delete_blob(self.storage_container, blob_name=blobname)
+
+    def open_file(self, blobname):
+        url = self.get_url(blobname)
+        return urllib2.urlopen(url)
+
 
 class ServerStorageClient(object):
     def __init__(self, storage):
@@ -74,6 +82,9 @@ class ServerStorageClient(object):
     def get_url(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
         return filepath
+
+    def delete(self, filename):
+        os.remove(self.get_url(filename))
 
 
 class TantalusApi(BasicAPIClient):
