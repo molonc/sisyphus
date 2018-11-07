@@ -118,7 +118,7 @@ def run_pipeline(
 
 
     has_classifier = StrictVersion(config_override['version']) >= StrictVersion('0.1.5')
-    if (analysis_type == 'hmmcopy') and (has_classifier) and (classifier):
+    if (analysis_type == 'hmmcopy') and (has_classifier):
         alignment_metrics = templates.ALIGNMENT_METRICS.format(
             results_dir=results_dir,
             library_id=args['library_id'],

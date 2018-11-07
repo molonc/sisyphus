@@ -14,11 +14,6 @@ import generate_inputs
 import datamanagement.templates as templates
 from utils import colossus_utils, tantalus_utils, file_utils
 
-from azure.storage.blob import BlockBlobService
-
-AZURE_STORAGE_ACCOUNT= os.environ['AZURE_STORAGE_ACCOUNT']
-AZURE_STORAGE_KEY=os.environ['AZURE_STORAGE_KEY']
-
 log = logging.getLogger('sisyphus')
 
 tantalus_api = dbclients.tantalus.TantalusApi()
