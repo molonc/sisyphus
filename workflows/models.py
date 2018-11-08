@@ -471,6 +471,7 @@ class AlignAnalysis(Analysis):
 
         input_info = {}
         for idx, row in sample_info.iterrows():
+            index_sequence = row['index_sequence']
             lane_fastqs = collections.defaultdict(dict)
             for lane_id, lane in lanes.iteritems():
                 sequencing_centre = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_centre']
