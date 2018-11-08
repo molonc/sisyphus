@@ -116,20 +116,6 @@ def get_args():
         help='Runs Sisyphus in interactive mode.'
     )
 
-    parser.add_argument(
-        '--no_data_import',
-        default=False,
-        action='store_true',
-        help='Skips import of data from BRC and GSC.'
-    )
-
-    parser.add_argument(
-        '--no_bcl2fastq',
-        default=False,
-        action='store_true',
-        help='Skip running of bcl2fastq on BRC lanes.'
-    )
-
 
     # SINGLE CELL PIPELINE OPTIONS #
     parser.add_argument(
@@ -151,13 +137,6 @@ def get_args():
         default=False,
         action='store_true',
         help='Skip hmmcopy step of single cell pipeline.'
-    )
-
-    parser.add_argument(
-        '--no_classifier',
-        default=False,
-        action='store_true',
-        help='Run hmmcopy without the classifier.'
     )
 
     parser.add_argument(

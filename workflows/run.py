@@ -28,15 +28,6 @@ log.addHandler(stream_handler)
 log.propagate = False
 
 
-def get_jobs(args):
-    jobs = []
-    if not args['no_align']:
-        jobs.append('align')
-    if not args['no_hmmcopy']:
-        jobs.append('hmmcopy')
-    return jobs
-
-
 def start_automation(args, config, pipeline_dir, analysis_info):
     start = time.time()
 
@@ -61,7 +52,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
     dataset_ids = set()
     result_ids = set()
 
-    for analysis_type in get_jobs(args):
+    for analysis_type in ('align', 'hmmcopy'):
         if analysis_type == 'align':
             align_analysis = AlignAnalysis(args)
             tantalus_analysis = align_analysis
@@ -96,6 +87,12 @@ def start_automation(args, config, pipeline_dir, analysis_info):
         align_analysis.check_inputs_yaml(inputs_yaml)
         tantalus_analysis.add_inputs_yaml(inputs_yaml, inputs_yaml_storage)
         dataset_ids.update(tantalus_analysis.analysis['input_datasets'])
+
+        if analysis_type == 'align' and args['no_align']:
+            continue
+
+        if analysis_type == 'hmmcopy' and args['no_hmmcopy']:
+            continue
 
         try:
             tantalus_analysis.set_run_status()
@@ -133,13 +130,23 @@ def start_automation(args, config, pipeline_dir, analysis_info):
 
     if args['shahlab_run']:
         sentinel(
-            'Transferring input datasets and results to blob',
+            'Transferring input datasets from shahlab to singlecellblob',
             file_transfers.transfer_files,
             args['jira'],
             config,
             'shahlab',
             'singlecellblob',
-            dataset_ids.union(result_ids),
+            dataset_ids,
+        )
+
+        sentinel(
+            'Transferring results from shahlab to singlecellblob',
+            file_transfers.transfer_files,
+            args['jira'],
+            config,
+            config['jobs_storage'],
+            'singlecellblob_results'.
+            result_ids,
         )
 
     analysis_info.set_finish_status()
@@ -190,7 +197,7 @@ def main():
     except Exception:
         traceback.print_exc()
         if args['shahlab_run']:
-            log_utils.send_logging_email(config['email'], '{} Error')
+            log_utils.send_logging_email(config['email'], '{} error'.format(args['jira']))
 
 
 if __name__ == '__main__':

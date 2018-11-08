@@ -419,7 +419,10 @@ def transfer_files(tag_name, from_storage_name, to_storage_name):
 
     f_transfer = get_file_transfer_function(from_storage, to_storage)
 
-    for dataset in tantalus_api.list("sequence_dataset", tags__name=tag_name):
+    datasets = tantalus_api.list("sequence_dataset", tags__name=tag_name)
+    results = tantalus_api.list("results", tags__name=tag_name)
+
+    for dataset in datasets + results:
         for file_resource_id in dataset["file_resources"]:
             # Get the file resource corresponding to the ID
             file_resource = tantalus_api.get("file_resource", id=file_resource_id)
