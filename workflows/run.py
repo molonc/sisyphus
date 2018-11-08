@@ -70,6 +70,18 @@ def start_automation(args, config, pipeline_dir, analysis_info):
         else:
             raise ValueError()
 
+        if not args['no_transfer']:
+            sentinel(
+                'Transferring FASTQ files from shahlab to singlecellblob',
+                file_transfers.transfer_files,
+                args['jira'],
+                config,
+                'shahlab',
+                'singlecellblob',
+                tantalus_analysis.search_input_datasets(),
+            )
+
+
         if args['inputs_yaml'] is None:
             inputs_yaml = os.path.join(pipeline_dir, 'inputs.yaml')
             sentinel(

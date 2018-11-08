@@ -4,51 +4,19 @@ import os
 import logging
 from azure.storage.blob import BlockBlobService
 
-from tantalus_client import tantalus
+import dbclients.tantalus
+from dbclients.basicclient import NotFoundError
 
 from utils import log_utils, saltant_utils
 from log_utils import sentinel
 
 
+tantalus_api = dbclients.tantalus.TantalusApi()
+
 log = logging.getLogger('sisyphus')
 
 AZURE_STORAGE_ACCOUNT = os.environ['AZURE_STORAGE_ACCOUNT']
 AZURE_STORAGE_KEY = os.environ['AZURE_STORAGE_KEY']
-
-
-def archive_sftp(filepaths, results_dir, sftp_dir, user):
-    """
-    Transfer the results to the SFTP server on thost.
-
-    Args:
-        filepaths (list): paths to results files relative to the results directory
-        results_dir (str)
-        sftp_dir (str)
-        user (str)
-    """
-    result_dirs = {os.path.dirname(os.path.join(sftp_dir, f)) for f in filepaths}
-
-    for dirname in result_dirs:
-        mkdir_cmd = [
-            'ssh',
-            '{user}@thost'.format(user=user),
-            'mkdir',
-            '-p',
-            dirname,
-        ]
-
-        log_utils.sync_call('Making {} on SFTP server'.format(dirname), mkdir_cmd)
-
-    for filepath in filepaths:
-        out_file = os.path.join(sftp_dir, filepath)
-        out_path = '{user}@thost:{out_file}'.format(user=user, out_file=out_file)
-        rsync_cmd = [
-            'rsync',
-            '-uvP',
-            os.path.join(results_dir, filepath),
-            out_path,
-        ]
-        log_utils.sync_call('Archiving {} to SFTP server'.format(filepath), rsync_cmd)
 
 
 def archive_blob(filepaths, results_dir, blob_dir, container_name):
@@ -85,19 +53,30 @@ def transfer_files(jira, config, from_storage, to_storage, dataset_ids, results=
     if results:
         tag_name += '_results'
 
-    sentinel(
-        'Tagging {} files'.format(from_storage),
-        tantalus.tag_datasets,
-        dataset_ids,
-        tag_name,
-    )
+    try:
+        dataset_tag = tantalus_api.get('sequence_dataset_tag', name=tag_name)
+    except NotFoundError:
+        dataset_tag = None
 
-    sentinel(
-        'Transferring files from {} to {}'.format(from_storage, to_storage),
-        saltant_utils.transfer_files,
-        jira,
-        config,
-        tag_name,
-        from_storage,
-        to_storage,
-    )
+    if dataset_tag is not None:
+        log.debug('found existing sequence dataset tag {}'.format(tag_name))
+        if set(dataset_tag['sequencedataset_set']) != set(dataset_ids):
+            log.warning('sequencedataset_set previously {} now {}'.format(
+                dataset_tag['sequencedataset_set'], dataset_ids))
+
+            tantalus_api.update(
+                'sequence_dataset_tag',
+                id=dataset_tag['id'],
+                sequencedataset_set=dataset_ids)
+
+            dataset_tag = tantalus_api.get('sequence_dataset_tag', name=tag_name)
+
+    else:
+        log.debug('creating sequence dataset tag {}'.format(tag_name))
+        tantalus_api.create('sequence_dataset_tag', name=tag_name, sequencedataset_set=dataset_ids)
+
+
+    # TODO: check if files already exist in the target storage before starting transfer
+    saltant_utils.transfer_files(jira, config, tag_name, from_storage, to_storage)
+    
+

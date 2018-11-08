@@ -28,6 +28,13 @@ def get_args():
     )
 
     parser.add_argument(
+        '--no_transfer',
+        default=False,
+        action='store_true',
+        help='Do not start transfer of files from shahlab to singlecellblob',
+    )
+
+    parser.add_argument(
         '--bams_tag',
         default=None,
         help='Optionally tag the bams produced by the single cell pipeline'
