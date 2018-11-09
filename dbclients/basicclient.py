@@ -3,16 +3,20 @@
 
 from __future__ import absolute_import
 from __future__ import division
-from __future__ import print_function
 import coreapi
 import json
 from coreapi.codecs import JSONCodec
 from django.core.serializers.json import DjangoJSONEncoder
 from openapi_codec import OpenAPICodec
 import requests
+import pandas as pd
 
 
 class NotFoundError(Exception):
+    pass
+
+
+class FieldMismatchError(Exception):
     pass
 
 
@@ -122,28 +126,44 @@ class BasicAPIClient(object):
                             "field {} not in {}".format(field_name, table_name)
                         )
 
+                    result_field = result[field_name]
+
+                    # Response has nested foreign key relationship
                     try:
                         result_field = result[field_name]["id"]
                     except TypeError:
-                        result_field = result[field_name]
+                        pass
 
-                    # Fields to exclude. Note that * to many
-                    # relationships are problems because filter for
-                    # exactly one related row will work even if there
-                    # are many related rows.
-                    # TODO(mwiens91): find a more elegant way of
-                    # achieving this effect
-                    exclude_fields = (
-                        "created",  # datetimes have different formats
-                        "sequence_lanes",  # in list is nested, but not in create
-                        "file_resources",  # *->many are issues
-                        "tags",  # *->many are issues
-                    )
+                    # Response has nested many to many
+                    many = False
+                    try:
+                        result_field = [a["id"] for a in result[field_name]]
+                        many = True
+                    except TypeError:
+                        pass
 
-                    if result_field != field_value and field_name not in exclude_fields:
-                        raise Exception(
-                            "field {} mismatches, set to {} not {}".format(
-                                field_name, result_field, field_value
+                    # Response is non nested many to many
+                    try:
+                        result_field = [a+0 for a in result[field_name]]
+                        many = True
+                    except TypeError:
+                        pass
+
+                    # Response is a timestamp
+                    try:
+                        result_field = pd.Timestamp(result[field_name])
+                        field_value = pd.Timestamp(field_value)
+                    except (ValueError, TypeError):
+                        pass
+
+                    if many:
+                        result_field = set(result_field)
+                        field_value = set(field_value)
+
+                    if result_field != field_value:
+                        raise FieldMismatchError(
+                            "field {} mismatches for model {}, set to {} not {}".format(
+                                field_name, result["id"], result_field, field_value
                             )
                         )
 

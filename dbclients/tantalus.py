@@ -13,7 +13,7 @@ import os
 import time
 import pandas as pd
 from django.core.serializers.json import DjangoJSONEncoder
-from dbclients.basicclient import BasicAPIClient
+from dbclients.basicclient import BasicAPIClient, FieldMismatchError
 import azure.storage.blob
 import datetime
 import urllib2
@@ -219,16 +219,17 @@ class TantalusApi(BasicAPIClient):
 
         return client
 
-    def add_file(self, storage_name, filepath, file_type, **args):
-        """ Create a file resource and file instance in the give storage.
+    def add_file(self, storage_name, filepath, file_type, fields, update=False):
+        """ Create a file resource and file instance in the given storage.
 
         Args:
             storage_name: storage for file instance
             filepath: full path to file
             file_type: type for file_resource
-        
+            fields: additional fields for file_resource
+
         Kwargs:
-            additional fields for file_resource
+            update: update the file if exists
 
         Returns:
             file_resource, file_instance
@@ -238,14 +239,48 @@ class TantalusApi(BasicAPIClient):
 
         filename = self.get_file_resource_filename(storage_name, filepath)
 
-        file_resource = self.get_or_create(
-            'file_resource',
-            filename=filename,
-            file_type=file_type,
-            created=storage_client.get_created_time(filename),
-            size=storage_client.get_size(filename),
-            **args
-        )
+        try:
+            file_resource = self.get_or_create(
+                'file_resource',
+                filename=filename,
+                file_type=file_type,
+                created=storage_client.get_created_time(filename),
+                size=storage_client.get_size(filename),
+                **fields
+            )
+        except FieldMismatchError as e:
+            if not update:
+                raise
+            file_resource = None
+
+        # File resource will be none if fields mismatched and
+        # we are given permission to update
+        if file_resource is None:
+            file_resource = self.get(
+                'file_resource',
+                filename=filename,
+            )
+
+            file_instances = self.list(
+                'file_instance',
+                file_resource=file_resource['id'],
+            )
+
+            # Cannot update if there are other instances
+            for file_instance in file_instances:
+                if file_instance['storage']['id'] != storage['id']:
+                    raise Exception('file {} also exists on {}, cannot update'.format(
+                        filename, file_instance['storage']))
+
+            file_resource = self.update(
+                'file_resource',
+                id=file_resource['id'],
+                filename=filename,
+                file_type=file_type,
+                created=storage_client.get_created_time(filename),
+                size=storage_client.get_size(filename),
+                **fields
+            )
 
         file_instance = self.get_or_create(
             'file_instance',

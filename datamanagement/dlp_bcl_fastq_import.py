@@ -212,6 +212,14 @@ if __name__ == "__main__":
 
     make_dirs(args["temp_dir"])
 
+    datasets = list(tantalus_api.list(
+        "sequence_dataset",
+        sequence_lanes__flowcell_id=args["flowcell_id"],
+        dataset_type="FQ"))
+
+    if len(datasets) > 0:
+        raise Exception("found dataset {}".format(','.join([str(d["id"]) for d in datasets])))
+
     # Run bcl to fastq
     run_bcl2fastq(
         args["flowcell_id"],

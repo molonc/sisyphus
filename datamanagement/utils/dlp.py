@@ -68,7 +68,8 @@ def create_sequence_dataset_models(
     standardize_metadata(file_info)
 
     # Get storage and tag PKs
-    storage_pk = tantalus_api.get("storage", name=storage_name)["id"]
+    storage = tantalus_api.get("storage", name=storage_name)
+    storage_pk = storage["id"]
 
     if tag_name is not None:
         tag_pk = tantalus_api.get_or_create("tag", name=tag_name)["id"]
@@ -172,7 +173,8 @@ def create_sequence_dataset_models(
                 storage_name,
                 info["filepath"],
                 info["file_type"],
-                compression=info["compression"],
+                {'compression': info["compression"]},
+                update=False,
             )
 
             sequence_file_info = tantalus_api.get_or_create(
