@@ -119,6 +119,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
                 tag_name=args['bams_tag'],
             )
 
+        
         tantalus_results = tantalus_analysis.create_output_results(
             results_storage, 
             pipeline_dir, 
@@ -127,6 +128,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
 
         result_ids.add(tantalus_results.get_id())
         tantalus_analysis.set_complete_status()
+        
 
     if args['shahlab_run']:
         sentinel(
@@ -136,7 +138,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
             config,
             'shahlab',
             'singlecellblob',
-            dataset_ids,
+            list(dataset_ids),
         )
 
         sentinel(

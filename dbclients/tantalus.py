@@ -87,7 +87,8 @@ class ServerStorageClient(object):
         os.remove(self.get_url(filename))
 
     def open_file(self, filename):
-        return open(filename)
+        filepath = os.path.join(self.storage_directory, filename)
+        return open(filepath)
 
 
 class TantalusApi(BasicAPIClient):
@@ -237,7 +238,6 @@ class TantalusApi(BasicAPIClient):
 
         filename = self.get_file_resource_filename(storage_name, filepath)
 
-        
         file_resource = self.get_or_create(
             'file_resource',
             filename=filename,
