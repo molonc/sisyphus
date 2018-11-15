@@ -143,6 +143,9 @@ class AzureTransfer(object):
             raise FileDoesNotExist(error_message)
 
         if os.path.isfile(local_filepath):
+            if self._check_file_same_blob(file_resource, cloud_container, cloud_blobname):
+                return
+
             error_message = "target file {filepath} already exists on {storage}".format(
                 filepath=local_filepath, storage=to_storage["name"]
             )
