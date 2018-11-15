@@ -4,7 +4,7 @@ from __future__ import print_function
 import logging
 import os
 from subprocess import Popen, PIPE, STDOUT
-from utils.utils import make_dirs
+from datamanagement.utils.utils import make_dirs
 
 # Setup logger
 log = logging.getLogger(__name__)
