@@ -5,6 +5,7 @@ import contextlib
 
 from saltant.client import Client
 from saltant.constants import SUCCESSFUL, FAILED
+from utils import tantalus_utils
 
 SALTANT_API_URL = os.environ.get('SALTANT_API_URL', 'https://shahlabjobs.ca/api/')
 SALTANT_API_TOKEN = os.environ['SALTANT_API_TOKEN']
@@ -141,14 +142,13 @@ def transfer_files(jira, config, tag_name, from_storage, to_storage):
     """
     Transfer datasets tagged with tag_name.
     """
-    user = config['user']
-    if from_storage == 'shahlab':
-        queue_name = config['shahlab_task_queue']
-    elif from_storage == 'gsc':
+    storage_type = tantalus_utils.get_storage_type(from_storage)
+    if from_storage == 'gsc':
         queue_name = config['thost_task_queue']
+    elif storage_type == 'server':
+        queue_name = config['shahlab_task_queue']
     else:
         raise Exception('Set up worker on {} for file transfer'.format(from_storage))
-
 
     name = '{}_transfer'.format(tag_name)
     args = {

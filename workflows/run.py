@@ -85,7 +85,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
             inputs_yaml = args['inputs_yaml']
 
         align_analysis.check_inputs_yaml(inputs_yaml)
-        tantalus_analysis.add_inputs_yaml(inputs_yaml, inputs_yaml_storage)
+        #tantalus_analysis.add_inputs_yaml(inputs_yaml, inputs_yaml_storage)
         dataset_ids.update(tantalus_analysis.analysis['input_datasets'])
 
         if analysis_type == 'align' and args['no_align']:
@@ -127,8 +127,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
         )
 
         result_ids.add(tantalus_results.get_id())
-        tantalus_analysis.set_complete_status()
-        
+        tantalus_analysis.set_complete_status()        
 
     if args['shahlab_run']:
         sentinel(
@@ -147,13 +146,14 @@ def start_automation(args, config, pipeline_dir, analysis_info):
             args['jira'],
             config,
             config['jobs_storage'],
-            'singlecellblob_results'.
-            result_ids,
+            'singlecellblob_results',
+            list(result_ids),
         )
-
+    
     analysis_info.set_finish_status()
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
+    
 
 
 def main():

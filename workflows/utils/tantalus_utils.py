@@ -82,3 +82,19 @@ def get_sequencing_instrument_from_dataset(dataset):
     return list(sequencing_instruments).pop()
 
 
+def get_storage_type(storage_name):
+    """
+    Return the storage type of a storage with a given name
+    Args:
+        storage_name (string)
+    Returns:
+        storage_type (string)
+    """
+
+    storage = tantalus_api.get_storage(storage_name)
+    
+    return storage['storage_type']
+
+
+
+
