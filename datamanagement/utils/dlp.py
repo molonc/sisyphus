@@ -39,10 +39,34 @@ def fastq_paired_end_check(file_info):
                 )
 
 
+ref_genome_map = {
+    'grch36': 'grch36',
+    'hg18': 'grch36',
+    'grch37': 'grch37',
+    'hg19': 'grch36',
+}
+
+
+aligner_name_map = {
+    'bwa_aln': 'bwa_aln',
+    'bwa_mem': 'bwa_mem',
+}
+
+
+def standardize_metadata(file_info):
+    """ Standardize the metadata of the files """
+    for info in file_info:
+        info['ref_genome'] = ref_genome_map[info['ref_genome'].lower()]
+        info['aligner_name'] = aligner_name_map[info['aligner_name'].lower()]
+
+
 def create_sequence_dataset_models(
     file_info, storage_name, tag_name, tantalus_api, analysis_id=None
 ):
     """Create tantalus sequence models for a list of files."""
+
+    standardize_metadata(file_info)
+
     # Get storage and tag PKs
     storage_pk = tantalus_api.get("storage", name=storage_name)["id"]
 
@@ -109,15 +133,7 @@ def create_sequence_dataset_models(
         # Add in BAM specific items
         if infos[0]["dataset_type"] == "BAM":
             sequence_dataset["aligner"] = infos[0]["aligner_name"]
-            ref_genome = infos[0]["ref_genome"]
-
-            # Stick with one naming scheme
-            if ref_genome.lower() == "grch36":
-                ref_genome = "HG18"
-            elif ref_genome.lower() == "grch37":
-                ref_genome = "HG19"
-
-            sequence_dataset["reference_genome"] = ref_genome
+            sequence_dataset["reference_genome"] = infos[0]["ref_genome"]
 
         # Add in the tag if we have one
         if tag_name is not None:
