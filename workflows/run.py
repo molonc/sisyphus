@@ -148,6 +148,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
             config['jobs_storage'],
             'singlecellblob_results',
             list(result_ids),
+            results=True,
         )
     
     analysis_info.set_finish_status()
