@@ -52,7 +52,6 @@ class AnalysisInfo:
 
         # Set the chip ID (= DLP library ID) from the sequencings associated with the analysis object from Colossus
         self.chip_id = self.get_chip_id()
-        self.paths_to_archives = self.get_paths_to_archives()
 
     def get_reference_genome(self):
         reference_genome = self.analysis_info['reference_genome']['reference_genome']
@@ -109,31 +108,6 @@ class AnalysisInfo:
         }
 
         colossus_utils.update_analysis_run(self.analysis_run, data)
-
-    def get_paths_to_archives(self):
-        """
-        For each sequencing associated with the analysis information object,
-        we need to find the flowcell id and corresponding path to archive for each flowcell.
-        When BCL2FASTQ is run on BCL files, we get 4 lanes for each flowcell id.
-
-        Set paths_to_archives for the analysis information object.
-        """
-        paths_to_archives = {}
-
-        for sequencing_id in self.sequencing_ids:
-            sequencing = colossus_utils.get_sequencing(sequencing_id)
-            sequencing_center = sequencing['dlpsequencingdetail']['sequencing_center']
-
-            for lane in sequencing['dlplane_set']:
-                if 'brc' not in sequencing_center.lower():
-                    continue
-
-                if not lane['path_to_archive'].strip():
-                    raise Exception('no path to archive specified for sequencing {}'.format(sequencing_id))
-
-                paths_to_archives[lane['flow_cell_id']] = lane['path_to_archive']
-
-        return paths_to_archives
 
 
 class Analysis(object):
