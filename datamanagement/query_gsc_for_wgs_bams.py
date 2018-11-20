@@ -11,8 +11,8 @@ from utils.constants import LOGGING_FORMAT
 from utils.filecopy import rsync_file
 from utils.gsc import get_sequencing_instrument, GSCAPI
 from utils.runtime_args import parse_runtime_args
-from utils.tantalus import TantalusApi
-from utils.utils import get_lanes_str
+from dbclients.tantalus import TantalusApi
+from datamanagement.utils.utils import get_lanes_hash
 import datamanagement.templates as templates
 
 
@@ -126,7 +126,7 @@ tantalus_bam_filename_template = os.path.join(
 
 
 def get_tantalus_bam_filename(sample, library, lane_infos):
-    lanes_str = get_lanes_str(lane_infos)
+    lanes_str = get_lanes_hash(lane_infos)
 
     bam_path = tantalus_bam_filename_template.format(
         sample_id=sample["sample_id"],
@@ -206,7 +206,7 @@ def add_gsc_wgs_bam_dataset(
         sample_id=sample["sample_id"],
         library_type=library["library_type"],
         library_id=library["library_id"],
-        lanes_hash=get_lanes_str(lane_infos),
+        lanes_hash=get_lanes_hash(lane_infos),
     )
 
     # If the bam file is compressed, store the file under the BamFile's
