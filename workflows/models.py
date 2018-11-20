@@ -542,7 +542,7 @@ class AlignAnalysis(Analysis):
             raise Exception('no output bams found, regenerate or provide an existing inputs yaml')
         return self.bams
 
-    def create_output_datasets(self, storage_name, tag_name=None):
+    def create_output_datasets(self, storage_name, tag_name=None, update=False):
         """
         """
         cell_metadata = self._generate_cell_metadata(storage_name)
@@ -588,6 +588,7 @@ class AlignAnalysis(Analysis):
             tag_name=tag_name,  # TODO: tag?
             tantalus_api=tantalus_api,
             analysis_id=self.get_id(),
+            update=update,
         )
 
         log.info("created sequence datasets {}".format(output_datasets))
@@ -732,7 +733,7 @@ class Results:
         except NotFoundError:
             results = None
 
-        self.file_resources = self.get_file_resources()
+        self.file_resources = self.get_file_resources(update=update)
 
         if results is not None:
 
@@ -811,7 +812,7 @@ class Results:
         return results_info
 
 
-    def get_file_resources(self):
+    def get_file_resources(self, update=False):
         """
         Create file resources for each results file and return their ids.
         """
@@ -829,6 +830,7 @@ class Results:
                 result["filename"],
                 result["type"].upper(),
                 {'compression': compression},
+                update=update,
             )
 
             file_resource_ids.add(file_resource["id"])
