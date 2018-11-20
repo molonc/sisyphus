@@ -316,7 +316,7 @@ for cell_id in tumour_fastq_paths:
         print filename
         file_resource, file_instance = tantalus_api.add_file(
             storage_name,
-            filename,
+            tantalus_path,
             'BAM',
             compression="GZIP",
         )
@@ -326,7 +326,7 @@ for cell_id in tumour_fastq_paths:
         sequence_file_info = tantalus_api.get_or_create(
             "sequence_file_info",
             file_resource=file_resource["id"],
-            index_sequence=orig_file_resource["index_sequence"],
+            index_sequence=index_sequence,
             genome_region=" ".join(regions),
         )
 
