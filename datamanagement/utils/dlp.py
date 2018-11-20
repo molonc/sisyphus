@@ -61,7 +61,7 @@ def standardize_metadata(file_info):
 
 
 def create_sequence_dataset_models(
-    file_info, storage_name, tag_name, tantalus_api, analysis_id=None
+    file_info, storage_name, tag_name, tantalus_api, analysis_id=None, update=False
 ):
     """Create tantalus sequence models for a list of files."""
 
@@ -174,7 +174,7 @@ def create_sequence_dataset_models(
                 info["filepath"],
                 info["file_type"],
                 {'compression': info["compression"]},
-                update=False,
+                update=update,
             )
 
             sequence_file_info = tantalus_api.get_or_create(
