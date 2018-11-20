@@ -17,6 +17,9 @@ from dbclients.basicclient import BasicAPIClient, FieldMismatchError
 import azure.storage.blob
 import datetime
 import urllib2
+import logging
+
+log = logging.getLogger('sisyphus')
 
 TANTALUS_API_URL = "http://tantalus.bcgsc.ca/api/"
 
@@ -248,6 +251,8 @@ class TantalusApi(BasicAPIClient):
                 size=storage_client.get_size(filename),
                 **fields
             )
+
+            log.info('file resource has id {}'.format(file_resource['id']))
         except FieldMismatchError as e:
             if not update:
                 raise
@@ -256,6 +261,8 @@ class TantalusApi(BasicAPIClient):
         # File resource will be none if fields mismatched and
         # we are given permission to update
         if file_resource is None:
+            log.warning('updating existing file resource with filename {}'.format(filename))
+
             file_resource = self.get(
                 'file_resource',
                 filename=filename,

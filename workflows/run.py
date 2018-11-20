@@ -111,7 +111,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
                 align_analysis.create_output_datasets,
                 location,
                 tag_name=args['bams_tag'],
-                update=True,
+                update=False,
             )
 
         
