@@ -48,8 +48,8 @@ ref_genome_map = {
 
 
 aligner_name_map = {
-    'bwa_aln': 'bwa_aln',
-    'bwa_mem': 'bwa_mem',
+    'bwa-aln': 'bwa-aln',
+    'bwa-mem': 'bwa-mem',
 }
 
 
