@@ -158,6 +158,10 @@ def add_gsc_wgs_bam_dataset(
 
     json_list = []
 
+    #TODO: instead of rsyncing spec files, we need to call spec2bam and output to tantalus path
+    # To do this, refer to:
+    # https://github.com/shahcompbio/tantalus/blob/ab709471958719f695b1fd2888a682f01807d837/tantalus/backend/generic_task_scripts/convert_shahlab_specs_to_bams.py
+    # pull the relevant parts of that script into a submodule that you then import here and call for specs.
     rsync_file(bam_path, tantalus_bam_path)
     rsync_file(bai_path, tantalus_bai_path)
 
@@ -551,6 +555,10 @@ if __name__ == "__main__":
         tag_name = args["tag_name"]
     except KeyError:
         tag_name = None
+
+    # TODO: this endpoint needs to be removed and not used anymore, refer to bam_import for how to do this without using
+    # the massive sequence_dataset_add endpoint.`
+    # If possible, refactor the bam_import.py function import_bam to be called here. 
 
     # Post data to Tantalus
     tantalus_api.sequence_dataset_add(
