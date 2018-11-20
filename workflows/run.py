@@ -82,7 +82,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
             inputs_yaml = args['inputs_yaml']
 
         align_analysis.check_inputs_yaml(inputs_yaml)
-        tantalus_analysis.add_inputs_yaml(inputs_yaml, inputs_yaml_storage)
+        tantalus_analysis.add_inputs_yaml(inputs_yaml, inputs_yaml_storage, update=False)
         dataset_ids.update(tantalus_analysis.analysis['input_datasets'])
 
         if analysis_type == 'align' and args['no_align']:

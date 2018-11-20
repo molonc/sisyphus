@@ -220,7 +220,7 @@ class Analysis(object):
             input_file_instances.extend(tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name))
         return input_file_instances
 
-    def add_inputs_yaml(self, inputs_yaml, inputs_yaml_storage=None):
+    def add_inputs_yaml(self, inputs_yaml, inputs_yaml_storage=None, update=False):
         """
         Add the inputs yaml to the logs field of the analysis.
         """
@@ -234,6 +234,7 @@ class Analysis(object):
             storage_name=inputs_yaml_storage,
             filepath=inputs_yaml,
             file_type="YAML",
+            update=update,
          )
 
         tantalus_api.update('analysis', id=self.get_id(), logs=[file_resource['id']])
