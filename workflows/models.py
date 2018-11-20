@@ -60,7 +60,12 @@ class AnalysisInfo:
         return reference_genome
 
     def get_pipeline_version(self):
-        return self.analysis_info['version']
+        version_str = self.analysis_info['version']
+
+        if version_str.startswith('Single Cell Pipeline'):
+            version_str = version_str.replace('Single Cell Pipeline', '').replace('_', '.') 
+
+        return version_str
 
     def get_aligner(self):
         if 'aligner' in self.analysis_info:
@@ -195,7 +200,7 @@ class Analysis(object):
                 'args':             self.args,
                 'status':           self.status,
                 'input_datasets':   input_datasets,
-                'pipeline_version': self.pipeline_version,
+                'version':          self.pipeline_version,
             }
 
             # TODO: created timestamp for analysis
