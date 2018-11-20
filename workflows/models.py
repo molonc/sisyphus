@@ -60,10 +60,7 @@ class AnalysisInfo:
         return reference_genome
 
     def get_pipeline_version(self):
-        version_str = self.analysis_info['version']['version']
-        if not version_str.startswith('Single Cell Pipeline '):
-            raise Exception('Unrecognized version string {}'.format(version_str))
-        return version_str.replace('Single Cell Pipeline v', '').replace('_', '.')
+        return self.analysis_info['version']
 
     def get_aligner(self):
         if 'aligner' in self.analysis_info:
@@ -124,11 +121,12 @@ class Analysis(object):
         self.jira = self.args['jira']
         self.name = '{}_{}'.format(self.jira, analysis_type)
         self.status = 'idle'
+        self.pipeline_version = self.args['version']
         # TODO: do we need this? the tantalus field should autoupdate
         self.last_updated = datetime.datetime.now().isoformat()
         self.analysis = self.get_or_create_analysis(update=update)
         self.bams = []
-
+        
         self.update_analysis('status')
         self.update_analysis('last_updated')
 
@@ -172,8 +170,21 @@ class Analysis(object):
                     log.warning('Input datasets for analysis {} have changed, previously {}, now {}'.format(
                         self.name, analysis['input_datasets'], input_datasets))
 
+            if self.pipeline_version != analysis['version']:
+                if update:
+                    tantalus_api.update('analysis', id=analysis['id'], version=self.pipeline_version)
+                    updated = True
+                    log.info('Pipeline version for analysis {} changed, previously {}, now {}'.format(
+                        self.name, analysis['version'], self.pipeline_version))
+                else:
+                    log.warning('Pipeline version for analysis {} have changed, previously {}, now {}'.format(
+                        self.name, analysis['version'], self.pipeline_version))
+
             if updated:
                 analysis = tantalus_api.get('analysis', name=self.name, jira_ticket=self.jira)
+
+
+
 
         else:
             log.info('Creating analysis {}'.format(self.name))
@@ -184,6 +195,7 @@ class Analysis(object):
                 'args':             self.args,
                 'status':           self.status,
                 'input_datasets':   input_datasets,
+                'pipeline_version': self.pipeline_version,
             }
 
             # TODO: created timestamp for analysis
