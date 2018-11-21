@@ -5,7 +5,7 @@ import contextlib
 
 from saltant.client import Client
 from saltant.constants import SUCCESSFUL, FAILED
-from utils import tantalus_utils
+from workflows.utils import tantalus_utils
 
 SALTANT_API_URL = os.environ.get('SALTANT_API_URL', 'https://shahlabjobs.ca/api/')
 SALTANT_API_TOKEN = os.environ['SALTANT_API_TOKEN']

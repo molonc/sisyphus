@@ -46,7 +46,6 @@ def start_automation(args, config, pipeline_dir, analysis_info):
     args['aligner'] = analysis_info.aligner
     args['library_id'] = analysis_info.chip_id
     args['jobs_dir'] = config['jobs_dir']
-    args['version'] = analysis_info.pipeline_version
 
     config_override = launch_pipeline.get_config_override(analysis_info, args['shahlab_run'])
 
@@ -188,6 +187,7 @@ def main():
         args['jira'],
         log_file,
         args,
+        update=True,
     )
 
     # TODO: kind of redundant
