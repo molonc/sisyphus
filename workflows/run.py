@@ -93,9 +93,15 @@ def start_automation(args, config, pipeline_dir, analysis_info):
 
         try:
             tantalus_analysis.set_run_status()
+
+            if args["testing"]:
+                run_pipeline = launch_pipeline.run_pipeline2
+            else:
+                run_pipeline = launch_pipeline.run_pipeline
+
             sentinel(
                 'Running single_cell {}'.format(analysis_type),
-                launch_pipeline.run_pipeline,
+                run_pipeline,
                 tantalus_analysis,
                 analysis_info,
                 inputs_yaml,
