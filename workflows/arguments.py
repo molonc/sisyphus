@@ -16,6 +16,11 @@ def get_args():
     parser.add_argument(
         'version',
         help="The single cell pipeline version",
+
+    parser.add_argument(
+        "--testing",
+        default=False,
+        action="store_true"
     )
 
     parser.add_argument(
