@@ -17,14 +17,14 @@ from utils import colossus_utils, tantalus_utils, file_utils
 log = logging.getLogger('sisyphus')
 
 tantalus_api = dbclients.tantalus.TantalusApi()
-
+colossus_api = dbclients.colossus.ColossusApi()
 
 class AnalysisInfo:
     """
     A class representing an analysis information object in Colossus,
     containing settings for the analysis run.
     """
-    def __init__(self, jira, log_file, args):
+    def __init__(self, jira, log_file, args, update=False):
         self.jira = jira
         self.status = 'idle'
 
@@ -39,11 +39,11 @@ class AnalysisInfo:
         }
 
         self.analysis_info = colossus_utils.get_analysis_info(jira)
-
+        self.args = args
         self.aligner = self.get_aligner()
         self.smoothing = self.get_smoothing()
         self.reference_genome = self.get_reference_genome()
-        self.pipeline_version = self.get_pipeline_version()
+        self.pipeline_version = self.get_pipeline_version(update=update)
 
         self.id = self.analysis_info['id']
         self.analysis_run = self.analysis_info['analysis_run']['id']
@@ -59,13 +59,24 @@ class AnalysisInfo:
             raise Exception('Unrecognized reference genome {}'.format(reference_genome))
         return reference_genome
 
-    def get_pipeline_version(self):
+    def get_pipeline_version(self, update=False):
         version_str = self.analysis_info['version']
-
         if version_str.startswith('Single Cell Pipeline'):
-            version_str = version_str.replace('Single Cell Pipeline', '').replace('_', '.') 
+            version_str = version_str.replace('Single Cell Pipeline', '').replace('_', '.')
 
-        return version_str
+        # If the pipeline version doesn't match what's passed in, then update
+        if version_str != self.args['container_version']:
+            log.warning('Version for Analysis Information {} changed, previously {} now {}'.format(
+                self.analysis_info['id'], version_str, self.args['container_version']))
+
+            if update:
+                colossus_api.update(
+                    'analysis_information', 
+                    id=self.analysis_info['id'], 
+                    version=self.args['container_version'])
+                analysis_info = colossus_api.get('analysis_information', id=self.analysis_info['id'])
+
+        return self.args['container_version']
 
     def get_aligner(self):
         if 'aligner' in self.analysis_info:
@@ -126,7 +137,7 @@ class Analysis(object):
         self.jira = self.args['jira']
         self.name = '{}_{}'.format(self.jira, analysis_type)
         self.status = 'idle'
-        self.pipeline_version = self.args['version']
+        self.pipeline_version = self.args['container_version']
         # TODO: do we need this? the tantalus field should autoupdate
         self.last_updated = datetime.datetime.now().isoformat()
         self.analysis = self.get_or_create_analysis(update=update)
@@ -182,7 +193,7 @@ class Analysis(object):
                     log.info('Pipeline version for analysis {} changed, previously {}, now {}'.format(
                         self.name, analysis['version'], self.pipeline_version))
                 else:
-                    log.warning('Pipeline version for analysis {} have changed, previously {}, now {}'.format(
+                    log.warning('Pipeline version for analysis {} changed, previously {}, now {}'.format(
                         self.name, analysis['version'], self.pipeline_version))
 
             if updated:
@@ -826,7 +837,7 @@ class Results:
                 self.storage_name,
                 result["filename"],
                 result["type"].upper(),
-                compression=compression,
+                {'compression': compression},
             )
 
             file_resource_ids.add(file_resource["id"])
