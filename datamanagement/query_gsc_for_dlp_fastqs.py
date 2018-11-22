@@ -139,7 +139,7 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
     return set(existing_data.keys())
 
 
-def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, tag_name=None):
+def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, tag_name=None, update=False):
     ''' Import dlp fastq data from the GSC.
     
     Args:
@@ -220,13 +220,6 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         primer_info = gsc_api.query("primer/{}".format(primer_id))
         raw_index_sequence = primer_info["adapter_index_sequence"]
 
-        logging.info(
-            "loading fastq %s, index %s, %s",
-            fastq_info["id"],
-            raw_index_sequence,
-            fastq_path,
-        )
-
         flowcell_lane = flowcell_id
         if lane_number is not None:
             flowcell_lane = flowcell_lane + "_" + str(lane_number)
@@ -240,14 +233,18 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         filename_pattern = fastq_info["file_type"]["filename_pattern"]
         read_end, passed = filename_pattern_map.get(filename_pattern, (None, None))
 
+        logging.info(
+            "loading fastq %s, raw index %s, index %s, %s",
+            fastq_info["id"],
+            raw_index_sequence,
+            index_sequence,
+            fastq_path,
+        )
+
         if read_end is None:
             raise Exception("Unrecognized file type: {}".format(filename_pattern))
 
         if not passed:
-            continue
-
-        if (flowcell_id, str(lane_number), index_sequence, read_end) in existing_data:
-            logging.info('skipping file {} that has already been imported'.format(fastq_info['data_path']))
             continue
 
         try:
@@ -277,8 +274,6 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
         tantalus_path = os.path.join(storage["storage_directory"], tantalus_filename)
 
-        rsync_file(fastq_path, tantalus_path)
-
         fastq_file_info.append(
             dict(
                 dataset_type="FQ",
@@ -306,13 +301,20 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
         flowcells_to_be_created.append(flowcell_id + '_' + str(lane_number))
 
+        if (flowcell_id, str(lane_number), index_sequence, read_end) in existing_data:
+            logging.info('skipping transfer of file {} that has already been imported'.format(fastq_info['data_path']))
+            if not os.path.exists(tantalus_path):
+                raise Exception('file {} already imported but does not exist at {}'.format(fastq_info['data_path'], tantalus_path))
+        else:
+            rsync_file(fastq_path, tantalus_path)
+
     if len(fastq_file_info) == 0:
         return []
 
     fastq_paired_end_check(fastq_file_info)
 
     create_sequence_dataset_models(
-        fastq_file_info, storage["name"], tag_name, tantalus_api
+        fastq_file_info, storage["name"], tag_name, tantalus_api, update=update
     )
 
     logging.info('import succeeded')
@@ -344,5 +346,6 @@ if __name__ == "__main__":
         tantalus_api,
         args["dlp_library_id"],
         storage,
-        tag_name)
+        tag_name,
+        update=args.get("update", False))
 
