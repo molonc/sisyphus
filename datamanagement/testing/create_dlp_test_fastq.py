@@ -11,7 +11,8 @@ import dbclients.colossus
 import dbclients.tantalus
 import datamanagement.templates as templates
 from datamanagement.utils.filecopy import rsync_file
-
+import argparse
+import pickle
 
 tantalus_api = dbclients.tantalus.TantalusApi()
 
@@ -73,15 +74,15 @@ cell_ids = [
     'SA1090-A96213A-R28-C39'
 ]
 
-library_id = 'A96213A'
-tumour_dataset_name = 'BAM-SA1090-SC_WGS-A96213A-lanes_341dd558-bwa_aln-grch37'
-normal_dataset_name = 'BAM-DAH370N-WGS-A41086 (lanes 52f27595)'
-storage_name = 'shahlab'
-data_dir = '/ssd/nvme0/amcpherson/pseudobulk/test_dataset/data2'
-
+LIBRARY_ID = 'A96213A'
+LANE_PK = 6551
+TUMOUR_DATASET_NAME = 'BAM-SA1090-SC_WGS-A96213A-lanes_341dd558-bwa_aln-grch37'
+NORMAL_DATASET_NAME = 'BAM-DAH370N-WGS-A41086 (lanes 52f27595)'
+STORAGE_NAME = 'shahlab'
+# data_dir = '/ssd/nvme0/amcpherson/pseudobulk/test_dataset/data2'
 
 selected_indices = {}
-for sublib in dbclients.colossus.get_colossus_sublibraries_from_library_id(library_id):
+for sublib in dbclients.colossus.get_colossus_sublibraries_from_library_id(LIBRARY_ID):
     cell_id = '{}-{}-R{}-C{}'.format(
         sublib['sample_id']['sample_id'],
         sublib['library']['pool_id'],
@@ -93,56 +94,21 @@ for sublib in dbclients.colossus.get_colossus_sublibraries_from_library_id(libra
     index_sequence = sublib['primer_i7'] + '-' + sublib['primer_i5']
     selected_indices[index_sequence] = cell_id
 
-# data = dbclients.colossus.get_colossus_sublibraries_from_library_id(library_id)[0]
+def gzip_file(uncompressed):
+    cmd = [
+        'gzip',
+        uncompressed,
+    ]
 
-storage = tantalus_api.get('storage', name=storage_name)
-tumour_dataset = tantalus_api.get('sequence_dataset', name=tumour_dataset_name)
+    print ' '.join(cmd)
+    subprocess.check_call(cmd)
 
-sample_id = str(tumour_dataset['sample']['sample_id'])
-
-file_instances = tantalus_api.get_sequence_dataset_file_instances(
-    tumour_dataset, storage_name)
-
-tumour_bam_paths = {}
-tumour_file_resources = {}
-
-for file_instance in file_instances:
-    file_resource = file_instance['file_resource']
-
-    if not file_resource['file_type'] in ('BAM', 'BAI'):
-        raise Exception('expected bams, found {}'.format(file_resource['file_type']))
-
-    if not file_resource['file_type'] == 'BAM':
-        continue
-
-    index_sequence = str(file_resource['sequencefileinfo']['index_sequence'])
-
-    if index_sequence not in selected_indices:
-        continue
-
-    tumour_bam_paths[index_sequence] = {'bam': file_instance['filepath']}
-    tumour_file_resources[index_sequence] = file_instance['file_resource']
-
-
-normal_dataset = tantalus_api.get('sequence_dataset', name=normal_dataset_name)
-file_instances = tantalus_api.get_sequence_dataset_file_instances(
-    normal_dataset, storage_name)
-
-for file_instance in file_instances:
-    file_resource = file_instance['file_resource']
-
-    if not file_resource['file_type'] in ('BAM', 'BAI'):
-        raise Exception('expected bams, found {}'.format(file_resource['file_type']))
-
-    if not file_resource['file_type'] == 'BAM':
-        continue
-
-    normal_filepath = file_instance['filepath']
-
-
-normal_filtered_bam = os.path.join(data_dir, 'DAH370N_filtered.bam')
 
 def run_filter_cmd(filtered_bam, source_bam):
+    if os.path.exists(filtered_bam):
+        print('filtered bam {} already exists, skipping'.format(filtered_bam))
+        return
+
     cmd = [
         'samtools',
         'view',
@@ -173,6 +139,10 @@ def run_filter_cmd(filtered_bam, source_bam):
 
 
 def run_bam_fastq(end_1_fastq, end_2_fastq, source_bam):
+    if os.path.exists(end_1_fastq) and os.path.exists(end_2_fastq):
+        print('fastqs for {} exist, skipping'.format(source_bam))
+        return
+
     cmd = [
         'samtools',
         'sort',
@@ -198,143 +168,236 @@ def run_bam_fastq(end_1_fastq, end_2_fastq, source_bam):
 
     print ' '.join(cmd)
     subprocess.check_call(cmd)
-
-
-def gzip_file(uncompressed):
-    cmd = [
-        'gzip',
-        uncompressed,
-    ]
-
-    print ' '.join(cmd)
     subprocess.check_call(cmd)
 
 
-run_filter_cmd(normal_filtered_bam, normal_filepath)
+def get_tumour_bams():
+    storage = tantalus_api.get('storage', name=STORAGE_NAME)
+    tumour_dataset = tantalus_api.get('sequence_dataset', name=TUMOUR_DATASET_NAME)
+
+    sample_id = str(tumour_dataset['sample']['sample_id'])
+
+    file_instances = tantalus_api.get_sequence_dataset_file_instances(
+        tumour_dataset, STORAGE_NAME)
+
+    tumour_bam_paths = {}
+    tumour_file_resources = {}
+
+    for file_instance in file_instances:
+        file_resource = file_instance['file_resource']
+
+        if not file_resource['file_type'] in ('BAM', 'BAI'):
+            raise Exception('expected bams, found {}'.format(file_resource['file_type']))
+
+        if not file_resource['file_type'] == 'BAM':
+            continue
+
+        index_sequence = str(file_resource['sequencefileinfo']['index_sequence'])
+
+        if index_sequence not in selected_indices:
+            continue
+
+        tumour_bam_paths[index_sequence] = {'bam': str(file_instance['filepath'])}
+        tumour_file_resources[index_sequence] = file_instance['file_resource']
+
+    return tumour_bam_paths, tumour_file_resources
 
 
-tumour_fastq_paths = {}
-for index_sequence in tumour_bam_paths:
-    bam_path = tumour_bam_paths[index_sequence]['bam']
-    cell_id = selected_indices[index_sequence]
-    
-    cell_filtered_bam = os.path.join(data_dir, '{cell_id}.bam'.format(cell_id=cell_id))
-    cell_end_1_fastq = os.path.join(data_dir, '{cell_id}_1.fastq'.format(cell_id=cell_id))
-    cell_end_2_fastq = os.path.join(data_dir, '{cell_id}_2.fastq'.format(cell_id=cell_id))
-    cell_end_1_fastq_gz = os.path.join(data_dir, '{cell_id}_1.fastq.gz'.format(cell_id=cell_id))
-    cell_end_2_fastq_gz = os.path.join(data_dir, '{cell_id}_2.fastq.gz'.format(cell_id=cell_id))
-    
-    run_filter_cmd(cell_filtered_bam, bam_path)
-    run_bam_fastq(cell_end_1_fastq, cell_end_2_fastq, cell_filtered_bam)
-    gzip_file(cell_end_1_fastq)
-    gzip_file(cell_end_2_fastq)
+def get_normal_bam():
+    normal_dataset = tantalus_api.get('sequence_dataset', name=NORMAL_DATASET_NAME)
+    file_instances = tantalus_api.get_sequence_dataset_file_instances(
+        normal_dataset, STORAGE_NAME)
 
-    tumour_fastq_paths[cell_id] = {
-        'fastq_1': cell_end_1_fastq_gz,
-        'fastq_2': cell_end_2_fastq_gz,
-        'index_sequence': index_sequence,
+    for file_instance in file_instances:
+        file_resource = file_instance['file_resource']
+
+        if not file_resource['file_type'] in ('BAM', 'BAI'):
+            raise Exception('expected bams, found {}'.format(file_resource['file_type']))
+
+        if not file_resource['file_type'] == 'BAM':
+            continue
+
+        normal_filepath = file_instance['filepath']
+
+        return normal_filepath
+
+
+def create_fastqs(data_dir):
+    tumour_fastq_paths_pk = os.path.join(data_dir, "tumour_fastq_paths.pk")
+    if os.path.exists(tumour_fastq_paths_pk):
+        with open(tumour_fastq_paths_pk, "rb") as handle:
+            return pickle.load(handle)
+
+
+    tumour_bam_paths = get_tumour_bams()[0]
+    normal_filepath = get_normal_bam()
+    normal_filtered_bam = os.path.join(data_dir, 'DAH370N_filtered.bam')
+    run_filter_cmd(normal_filtered_bam, normal_filepath)
+
+    bam_dir = os.path.join(data_dir, "bam")
+    fastq_dir = os.path.join(data_dir, "fastq")
+
+    tumour_fastq_paths = {}
+    for index_sequence in tumour_bam_paths:
+        bam_path = tumour_bam_paths[index_sequence]['bam']
+        print('creating paired end fastqs for bam {}'.format(bam_path))
+        cell_id = selected_indices[index_sequence]
+        
+
+        cell_filtered_bam = os.path.join(bam_dir, '{cell_id}.bam'.format(cell_id=cell_id))
+
+        cell_end_1_fastq = os.path.join(fastq_dir, '{cell_id}_1.fastq'.format(cell_id=cell_id))
+        cell_end_2_fastq = os.path.join(fastq_dir, '{cell_id}_2.fastq'.format(cell_id=cell_id))
+        cell_end_1_fastq_gz = os.path.join(fastq_dir, '{cell_id}_1.fastq.gz'.format(cell_id=cell_id))
+        cell_end_2_fastq_gz = os.path.join(fastq_dir, '{cell_id}_2.fastq.gz'.format(cell_id=cell_id))
+        
+        run_filter_cmd(cell_filtered_bam, bam_path)
+        run_bam_fastq(cell_end_1_fastq, cell_end_2_fastq, cell_filtered_bam)
+
+        if os.path.exists(cell_end_1_fastq_gz) and os.path.exists(cell_end_2_fastq_gz):
+            print('gzipped fastqs exist for {}, skipping'.format(cell_id))
+        else:
+            gzip_file(cell_end_1_fastq)
+            gzip_file(cell_end_2_fastq)
+
+        tumour_fastq_paths[cell_id] = {
+            'fastq_1': str(cell_end_1_fastq_gz),
+            'fastq_2': str(cell_end_2_fastq_gz),
+            'index_sequence': index_sequence,
+        }
+
+    inputs_data = {
+        'tumour': tumour_bam_paths,
+        'normal': {'bam': normal_filtered_bam},
     }
 
+    inputs_yaml = os.path.join(data_dir, "inputs.yaml")
+    with open(inputs_yaml, 'w') as f:
+        yaml.dump(inputs_data, f, default_flow_style=False)
+
+    with open(tumour_fastq_paths_pk, "wb") as handle:
+        pickle.dump(tumour_fastq_paths, handle)
+
+    return tumour_fastq_paths
 
 
+def create_sequence_dataset(inputs_data):
+    """
+    Create a sequence dataset for the test dataset in Tantalus, along with 
+    the corresponding library, sample, and sequence lane.
+    """
+    tumour_dataset = tantalus_api.get('sequence_dataset', name=TUMOUR_DATASET_NAME)
+    storage = tantalus_api.get("storage", name=STORAGE_NAME)
+
+    test_sample_id = tumour_dataset["sample"]["sample_id"] + 'TEST'
+    test_library_id = tumour_dataset["library"]["library_id"] + 'TEST'
+
+    lane = tantalus_api.get("sequencing_lane", id=LANE_PK)
+
+    test_lane = tantalus_api.get_or_create(
+        "sequencing_lane",
+        flowcell_id=lane["flowcell_id"] + "TEST",
+        lane_number=lane["lane_number"],
+        sequencing_centre=lane["sequencing_centre"],
+        sequencing_instrument=lane["sequencing_instrument"],
+        read_type=lane["read_type"],
+        dna_library=lane["dna_library"],
+    )
+    
+    test_lanes_str = test_lane["flowcell_id"] + "_" + test_lane["lane_number"]
+
+    test_dataset_name = templates.SC_WGS_FQ_NAME_TEMPLATE.format(
+        sample_id=test_sample_id,
+        library_id=test_library_id,
+        dataset_type="FQ",
+        library_type=tumour_dataset["library"]["library_type"],
+        lane=test_lanes_str,
+    )
+
+    print(test_dataset_name)
+
+    test_sample = tantalus_api.get_or_create(
+        "sample",
+        sample_id=test_sample_id,
+    )
+
+    sample_pk = test_sample["id"]
+    print("test sample has id {}".format(sample_pk))
+
+    test_library = tantalus_api.get_or_create(
+        "dna_library",
+        library_id=test_library_id,
+        library_type=tumour_dataset["library"]["library_type"],
+        index_format=tumour_dataset["library"]["index_format"],
+    )
+    library_pk = test_library["id"]
+    print("test library has id {}".format(library_pk))
+
+    # Create a sequence dataset
+    sequence_dataset = dict(
+        name=test_dataset_name,
+        dataset_type="FQ",
+        sample=sample_pk,
+        library=library_pk,
+        sequence_lanes=[LANE_PK],
+        file_resources=[],
+    )
+
+    for cell_id in tumour_fastq_paths:
+        for read_end in ('1', '2'):
+            key = 'fastq_' + read_end
+            fastq_path = tumour_fastq_paths[cell_id][key]
+            index_sequence = tumour_fastq_paths[cell_id]['index_sequence']
+
+            tantalus_filename = templates.SC_WGS_FQ_TEMPLATE.format(
+                primary_sample_id=test_sample_id,
+                dlp_library_id=test_library_id,
+                flowcell_id=test_lanes_str,
+                lane_number='N',
+                cell_sample_id=test_sample_id,
+                index_sequence=index_sequence,
+                read_end=read_end,
+                extension='.gz',
+            )
+
+            tantalus_path = os.path.join(storage["storage_directory"], tantalus_filename)
+
+            rsync_file(fastq_path, tantalus_path)  
+
+            print("adding {} to Tantalus".format(tantalus_path))
+            file_resource, file_instance = tantalus_api.add_file(
+                STORAGE_NAME,
+                tantalus_path,
+                'FQ',
+                compression="GZIP",
+            )
+
+            sequence_dataset["file_resources"].append(file_resource["id"])
+
+            sequence_file_info = tantalus_api.get_or_create(
+                "sequence_file_info",
+                file_resource=file_resource["id"],
+                index_sequence=index_sequence,
+                genome_region=" ".join(regions),
+                read_end=read_end,
+            )
+
+            tantalus_api.get_or_create(
+                "file_instance",
+                storage=storage["id"],
+                file_resource=file_resource["id"],
+            )
+
+    tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
 
 
-print 'normal: ', normal_filtered_bam
-
-inputs_yaml = 'inputs2.yaml'
-
-inputs_data = {
-    'tumour': tumour_bam_paths,
-    'normal': {'bam': normal_filtered_bam},
-}
-
-with open(inputs_yaml, 'w') as f:
-    yaml.dump(inputs_data, f, default_flow_style=False)
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data_dir")  # Where to put the test dataset 
+    return dict(vars(parser.parse_args()))
 
 
-###
-###
-
-test_sample_id = tumour_dataset["sample"]["sample_id"] + 'TEST'
-test_library_id = tumour_dataset["library"]["library_id"] + 'TEST'
-test_lanes_str = 'lanes_341dd558'
-
-test_dataset_name = templates.SC_WGS_FQ_NAME_TEMPLATE.format(
-    sample_id=test_sample_id,
-    library_id=test_library_id,
-    dataset_type=tumour_dataset["dataset_type"],
-    library_type=tumour_dataset["library"]["library_type"],
-    lane=test_lanes_str,
-)
-
-# Get library PK
-library = tantalus_api.get_or_create(
-    "dna_library",
-    library_id=test_library_id,
-    library_type=tumour_dataset["library"]["library_type"],
-    index_format=tumour_dataset["library"]["index_format"],
-)
-library_pk = library["id"]
-
-# Get sample PK
-sample = tantalus_api.get_or_create(
-    "sample",
-    sample_id=test_sample_id,
-)
-sample_pk = sample["id"]
-
-sequence_dataset = dict(
-    name=test_dataset_name,
-    dataset_type=tumour_dataset["dataset_type"],
-    sample=sample_pk,
-    library=library_pk,
-    sequence_lanes=[a["id"] for a in tumour_dataset["sequence_lanes"]],
-    file_resources=[],
-)
-
-for cell_id in tumour_fastq_paths:
-    for read_end in ('1', '2'):
-        key = 'fastq_' + read_end
-        fastq_path = tumour_fastq_paths[cell_id][key]
-        index_sequence = tumour_fastq_paths[cell_id]['index_sequence']
-
-        tantalus_filename = templates.SC_WGS_FQ_TEMPLATE.format(
-            primary_sample_id=test_sample_id,
-            dlp_library_id=test_library_id,
-            flowcell_id=test_lanes_str,
-            lane_number='N',
-            cell_sample_id=test_sample_id,
-            index_sequence=index_sequence,
-            read_end=read_end,
-            extension='.gz',
-        )
-
-        tantalus_path = os.path.join(storage["storage_directory"], tantalus_filename)
-
-        rsync_file(fastq_path, tantalus_path)
-
-        print filename
-        file_resource, file_instance = tantalus_api.add_file(
-            storage_name,
-            tantalus_path,
-            'BAM',
-            compression="GZIP",
-        )
-
-        sequence_dataset["file_resources"].append(file_resource["id"])
-
-        sequence_file_info = tantalus_api.get_or_create(
-            "sequence_file_info",
-            file_resource=file_resource["id"],
-            index_sequence=index_sequence,
-            genome_region=" ".join(regions),
-        )
-
-        tantalus_api.get_or_create(
-            "file_instance",
-            storage=storage["id"],
-            file_resource=file_resource["id"],
-        )
-
-tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
-
+if __name__ == '__main__':
+    args = parse_args()
+    tumour_fastq_paths = create_fastqs(args["data_dir"])
+    create_sequence_dataset(tumour_fastq_paths)
