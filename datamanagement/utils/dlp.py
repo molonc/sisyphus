@@ -2,8 +2,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import collections
+
 from datamanagement.utils.utils import get_lanes_hash, get_lane_str
 import datamanagement.templates as templates
+from dbclients.basicclient import NotFoundError
 
 
 def fastq_paired_end_check(file_info):
@@ -185,7 +187,17 @@ def create_sequence_dataset_models(
 
             sequence_dataset["file_resources"].append(file_resource["id"])
 
-        dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
+        try:
+            dataset_id = tantalus_api.get("sequence_dataset", name=sequence_dataset["name"])["id"]
+        except NotFoundError:
+            dataset_id = None
+
+        if update and dataset_id:
+            dataset = tantalus_api.update("sequence_dataset", id=dataset_id, **sequence_dataset)
+
+        else:
+            dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
+
         dataset_ids.add(dataset['id'])
 
     return dataset_ids

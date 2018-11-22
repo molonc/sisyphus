@@ -15,6 +15,8 @@ def rsync_file(from_path, to_path):
 
     subprocess_cmd = [
         "rsync",
+        "--verbose",
+        "--itemize-changes",
         "--progress",
         "--chmod=D555",
         "--chmod=F444",
