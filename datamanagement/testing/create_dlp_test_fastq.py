@@ -75,7 +75,7 @@ cell_ids = [
 ]
 
 LIBRARY_ID = 'A96213A'
-LANE_PK = 6551
+TEST_LANE_PK = 6551
 TUMOUR_DATASET_NAME = 'BAM-SA1090-SC_WGS-A96213A-lanes_341dd558-bwa_aln-grch37'
 NORMAL_DATASET_NAME = 'BAM-DAH370N-WGS-A41086 (lanes 52f27595)'
 STORAGE_NAME = 'shahlab'
@@ -292,7 +292,7 @@ def create_sequence_dataset(inputs_data):
     test_sample_id = tumour_dataset["sample"]["sample_id"] + 'TEST'
     test_library_id = tumour_dataset["library"]["library_id"] + 'TEST'
 
-    lane = tantalus_api.get("sequencing_lane", id=LANE_PK)
+    lane = tantalus_api.get("sequencing_lane", id=TEST_LANE_PK)
 
     test_lane = tantalus_api.get_or_create(
         "sequencing_lane",
@@ -339,7 +339,7 @@ def create_sequence_dataset(inputs_data):
         dataset_type="FQ",
         sample=sample_pk,
         library=library_pk,
-        sequence_lanes=[LANE_PK],
+        sequence_lanes=[TEST_LANE_PK],
         file_resources=[],
     )
 

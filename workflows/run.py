@@ -47,6 +47,12 @@ def start_automation(args, config, pipeline_dir, analysis_info):
     args['library_id'] = analysis_info.chip_id
     args['jobs_dir'] = config['jobs_dir']
 
+
+    if args["integrationtest"]:
+        args['library_id'] = "A96213ATEST"
+    else:
+        args["library_id"] = analysis_info.chip_id
+
     dataset_ids = set()
     result_ids = set()
 
