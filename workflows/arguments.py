@@ -45,6 +45,13 @@ def get_args():
     )
 
     parser.add_argument(
+        '--integrationtest',
+        default=False,
+        action='store_true',
+        help='Run pipeline on shahlab15, rather than on Azure.'
+    )
+
+    parser.add_argument(
         '--bams_tag',
         default=None,
         help='Optionally tag the bams produced by the single cell pipeline'
