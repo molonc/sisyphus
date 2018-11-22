@@ -313,6 +313,22 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     fastq_paired_end_check(fastq_file_info)
 
+    # Check that all index sequences have fastq files
+    cell_index_sequences = set(cell_samples.key())
+
+    fastq_lane_index_sequences = collections.defautldict(set)
+    for info in fastq_file_info:
+        flowcell_lane = (
+            info['sequence_lanes'][0]['flowcell_id'],
+            info['sequence_lanes'][0]['lane_number'])
+        fastq_lane_index_sequences[info].add(info['index_sequence'])
+
+    for flowcell_lane in fastq_lane_index_sequences:
+        for index_sequence in cell_index_sequences:
+            if index_sequence not in fastq_lane_index_sequences[flowcell_lane]:
+                raise Exception('no fastq found for index sequence {}, flowcell {}, lane {}'.format(
+                    index_sequence, flowcell_lane[0], flowcell_lane[1]))
+
     create_sequence_dataset_models(
         fastq_file_info, storage["name"], tag_name, tantalus_api, update=update
     )
