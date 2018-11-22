@@ -392,6 +392,9 @@ class AlignAnalysis(Analysis):
             dataset_type='FQ',
         )
 
+        if self.args['integrationtest']:
+            return [dataset["id"] for dataset in datasets]
+
         if not datasets:
             raise Exception('no sequence datasets matching library_id {}'.format(self.args['library_id']))
 
@@ -454,7 +457,7 @@ class AlignAnalysis(Analysis):
             storage_name: Which tantalus storage to look at
         """
 
-        sample_info = generate_inputs.generate_sample_info(self.args['library_id'])
+        sample_info = generate_inputs.generate_sample_info(self.args["library_id"].strip("TEST"))
 
         if sample_info['index_sequence'].duplicated().any():
             raise Exception('Duplicate index sequences in sample info.')
@@ -479,9 +482,11 @@ class AlignAnalysis(Analysis):
             fastq_file_instances[(index_sequence, lane_id, read_end)] = file_instance
 
         input_info = {}
+
         for idx, row in sample_info.iterrows():
             index_sequence = row['index_sequence']
             colossus_index_sequences.add(index_sequence)
+            
             lane_fastqs = collections.defaultdict(dict)
             for lane_id, lane in lanes.iteritems():
                 sequencing_centre = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_centre']
@@ -546,6 +551,7 @@ class AlignAnalysis(Analysis):
         """
         lanes = dict()
         for dataset_id in self.analysis['input_datasets']:
+            print("dataset_id in get_lanes: {}".format(dataset_id))
             dataset = self.get_dataset(dataset_id)
             for lane in dataset['sequence_lanes']:
                 lane_id = tantalus_utils.get_flowcell_lane(lane)
@@ -568,6 +574,10 @@ class AlignAnalysis(Analysis):
         sequence_lanes = []
 
         for lane_id, lane in self.get_lanes().iteritems():
+
+            if self.args["integrationtest"]:
+                lane["flowcell_id"] += "TEST"
+
             sequence_lanes.append(dict(
                 flowcell_id=lane["flowcell_id"],
                 lane_number=lane["lane_number"]))
