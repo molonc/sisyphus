@@ -199,9 +199,6 @@ class Analysis(object):
             if updated:
                 analysis = tantalus_api.get('analysis', name=self.name, jira_ticket=self.jira)
 
-
-
-
         else:
             log.info('Creating analysis {}'.format(self.name))
 
@@ -465,15 +462,20 @@ class AlignAnalysis(Analysis):
         # Sort by index_sequence, lane id, read end
         fastq_file_instances = dict()
 
+        tantalus_index_sequences = set()
+        colossus_index_sequences = set()
+
         for file_instance in file_instances:
             lane_id = tantalus_utils.get_flowcell_lane(file_instance['sequence_dataset']['sequence_lanes'][0])
             read_end = file_instance['file_resource']['sequencefileinfo']['read_end']
             index_sequence = file_instance['file_resource']['sequencefileinfo']['index_sequence']
+            tantalus_index_sequences.add(index_sequence)
             fastq_file_instances[(index_sequence, lane_id, read_end)] = file_instance
 
         input_info = {}
         for idx, row in sample_info.iterrows():
             index_sequence = row['index_sequence']
+            colossus_index_sequences.add(index_sequence)
             lane_fastqs = collections.defaultdict(dict)
             for lane_id, lane in lanes.iteritems():
                 sequencing_centre = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_centre']
@@ -514,6 +516,9 @@ class AlignAnalysis(Analysis):
                 'index_sequence': str(row['primer_i7']) + '-' + str(row['primer_i5']),
                 'sample_id':    str(row['sample_id']),
             }
+
+        if colossus_index_sequences != tantalus_index_sequences:
+            raise Exception("index sequences in Colossus and Tantalus do not match")
 
         return input_info
 
