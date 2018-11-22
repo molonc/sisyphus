@@ -151,8 +151,9 @@ class BasicAPIClient(object):
 
                     # Response is a timestamp
                     try:
-                        result_field = pd.Timestamp(result[field_name])
-                        field_value = pd.Timestamp(field_value)
+                        if isinstance(result[field_name], basestring):
+                            result_field = pd.Timestamp(result[field_name])
+                            field_value = pd.Timestamp(field_value)
                     except (ValueError, TypeError):
                         pass
 
