@@ -64,19 +64,18 @@ class AnalysisInfo:
         if version_str.startswith('Single Cell Pipeline'):
             version_str = version_str.replace('Single Cell Pipeline', '').replace('_', '.')
 
-        # If the pipeline version doesn't match what's passed in, then update
-        if version_str != self.args['container_version']:
+        if version_str != self.args['version']:
             log.warning('Version for Analysis Information {} changed, previously {} now {}'.format(
-                self.analysis_info['id'], version_str, self.args['container_version']))
+                self.analysis_info['id'], version_str, self.args['version']))
 
             if update:
                 colossus_api.update(
                     'analysis_information', 
                     id=self.analysis_info['id'], 
-                    version=self.args['container_version'])
+                    version=self.args['version'])
                 analysis_info = colossus_api.get('analysis_information', id=self.analysis_info['id'])
 
-        return self.args['container_version']
+        return self.args['version']
 
     def get_aligner(self):
         if 'aligner' in self.analysis_info:
@@ -137,12 +136,12 @@ class Analysis(object):
         self.jira = self.args['jira']
         self.name = '{}_{}'.format(self.jira, analysis_type)
         self.status = 'idle'
-        self.pipeline_version = self.args['container_version']
+        self.version = self.args['version']
         # TODO: do we need this? the tantalus field should autoupdate
         self.last_updated = datetime.datetime.now().isoformat()
         self.analysis = self.get_or_create_analysis(update=update)
         self.bams = []
-        
+
         self.update_analysis('status')
         self.update_analysis('last_updated')
 
@@ -166,15 +165,14 @@ class Analysis(object):
 
             updated = False
 
-            if analysis['args'] != self.args:
-                if update:
-                    tantalus_api.update('analysis', id=analysis['id'], args=self.args)
-                    updated = True
-                    log.info('Args for analysis {} changed, previously {}, now {}'.format(
-                        self.name, analysis['args'], self.args))
-                else:
-                    log.warning('Args for analysis {} have changed, previously {}, now {}'.format(
-                        self.name, analysis['args'], self.args))
+            for field in ('args', 'version'):
+                if analysis[field] != getattr(self, field):
+                    if update:
+                        tantalus_api.update('analysis', id=analysis['id'], args=getattr(self, field))
+                        updated = True
+                    else:
+                        log.info('field {} for analysis {} changed, previously {} now {}'.format(
+                            field, self.name, analysis[field], getattr(self, field)))
 
             if set(analysis['input_datasets']) != set(input_datasets):
                 if update:
@@ -185,16 +183,6 @@ class Analysis(object):
                 else:
                     log.warning('Input datasets for analysis {} have changed, previously {}, now {}'.format(
                         self.name, analysis['input_datasets'], input_datasets))
-
-            if self.pipeline_version != analysis['version']:
-                if update:
-                    tantalus_api.update('analysis', id=analysis['id'], version=self.pipeline_version)
-                    updated = True
-                    log.info('Pipeline version for analysis {} changed, previously {}, now {}'.format(
-                        self.name, analysis['version'], self.pipeline_version))
-                else:
-                    log.warning('Pipeline version for analysis {} changed, previously {}, now {}'.format(
-                        self.name, analysis['version'], self.pipeline_version))
 
             if updated:
                 analysis = tantalus_api.get('analysis', name=self.name, jira_ticket=self.jira)
@@ -208,7 +196,7 @@ class Analysis(object):
                 'args':             self.args,
                 'status':           self.status,
                 'input_datasets':   input_datasets,
-                'version':          self.pipeline_version,
+                'version':          self.version,
             }
 
             # TODO: created timestamp for analysis
@@ -349,7 +337,7 @@ class Analysis(object):
         """
         raise NotImplementedError
 
-    def create_output_results(self, results_storage, pipeline_dir, pipeline_version):
+    def create_output_results(self, results_storage, pipeline_dir):
         """
         Create the set of output results produced by this analysis.
         """
@@ -357,7 +345,6 @@ class Analysis(object):
             self,
             results_storage,
             pipeline_dir,
-            pipeline_version,
         )
 
         return tantalus_results
@@ -714,7 +701,6 @@ class Results:
             tantalus_analysis,
             storage_name,
             pipeline_dir,
-            pipeline_version,
             update=False,
         ):
         """
@@ -728,7 +714,7 @@ class Results:
         self.analysis_type = self.tantalus_analysis.analysis_type
         self.samples = self.tantalus_analysis.get_input_samples()
         self.pipeline_dir = pipeline_dir
-        self.pipeline_version = pipeline_version
+        self.pipeline_version = self.tantalus_analysis.version
         self.last_updated = datetime.datetime.now().isoformat()
 
         self.results = self.get_or_create_results(update=update)

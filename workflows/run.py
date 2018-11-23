@@ -47,8 +47,6 @@ def start_automation(args, config, pipeline_dir, analysis_info):
     args['library_id'] = analysis_info.chip_id
     args['jobs_dir'] = config['jobs_dir']
 
-    config_override = launch_pipeline.get_config_override(analysis_info, args['shahlab_run'])
-
     dataset_ids = set()
     result_ids = set()
 
@@ -61,7 +59,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
         else:
             raise ValueError()
 
-        if not args['no_transfer']:
+        if not args['no_transfer'] and not args['shahlab_run']:
             sentinel(
                 'Transferring FASTQ files from shahlab to singlecellblob',
                 file_transfers.transfer_files,
@@ -71,7 +69,6 @@ def start_automation(args, config, pipeline_dir, analysis_info):
                 'singlecellblob',
                 tantalus_analysis.search_input_datasets(),
             )
-
 
         if args['inputs_yaml'] is None:
             inputs_yaml = os.path.join(pipeline_dir, 'inputs.yaml')
@@ -85,7 +82,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
             inputs_yaml = args['inputs_yaml']
 
         align_analysis.check_inputs_yaml(inputs_yaml)
-        tantalus_analysis.add_inputs_yaml(inputs_yaml, inputs_yaml_storage)
+        # tantalus_analysis.add_inputs_yaml(inputs_yaml, inputs_yaml_storage)
         dataset_ids.update(tantalus_analysis.analysis['input_datasets'])
 
         if analysis_type == 'align' and args['no_align']:
@@ -100,12 +97,9 @@ def start_automation(args, config, pipeline_dir, analysis_info):
                 'Running single_cell {}'.format(analysis_type),
                 launch_pipeline.run_pipeline,
                 tantalus_analysis,
-                analysis_type,
+                analysis_info,
                 inputs_yaml,
-                container_version=args['container_version'],
                 docker_env_file=config['docker_env_file'],
-                config_override=config_override,
-                max_jobs=args['jobs'],
             )
         except Exception:
             tantalus_analysis.set_error_status()
@@ -123,7 +117,6 @@ def start_automation(args, config, pipeline_dir, analysis_info):
         tantalus_results = tantalus_analysis.create_output_results(
             results_storage, 
             pipeline_dir, 
-            config_override['version'],
         )
 
         result_ids.add(tantalus_results.get_id())
@@ -159,10 +152,6 @@ def start_automation(args, config, pipeline_dir, analysis_info):
 
 def main():
     args = arguments.get_args()
-
-    # Check arguments
-    if not args["shahlab_run"] and args["container_version"] is None:
-        raise Exception("Set --container_version when running on Azure")
 
     if not templates.JIRA_ID_RE.match(args['jira']):
         raise Exception('Invalid SC ID:', jira)

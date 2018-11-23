@@ -14,12 +14,10 @@ def get_args():
     )
 
     parser.add_argument(
-        '--container_version',
-        help="The docker container version",
-        default=None,
+        'version',
+        help="The single cell pipeline version",
     )
 
-    # RUN ON SHAHLAB #
     parser.add_argument(
         '--shahlab_run',
         default=False,
@@ -60,13 +58,6 @@ def get_args():
     )
 
     # SELECT A SUBSET OF DATA TO ANALYZE #
-    parser.add_argument(
-        '--lanes',
-        default=None,
-        nargs='*',
-        help='GSC and/or BRC lane IDs to run. Overrides the database.'
-    )
-
     parser.add_argument(
         '--gsc_lanes',
         default=None,
@@ -118,13 +109,6 @@ def get_args():
 
 
     # SINGLE CELL PIPELINE OPTIONS #
-    parser.add_argument(
-        '--rerun',
-        default=False,
-        action='store_true',
-        help='Rerun the single cell pipeline, regardless of existing results.'
-    )
-
     parser.add_argument(
         '--no_align',
         default=False,
