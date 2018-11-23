@@ -255,6 +255,7 @@ class TantalusApi(BasicAPIClient):
             log.info('file resource has id {}'.format(file_resource['id']))
         except FieldMismatchError as e:
             if not update:
+                log.info('file resource has different fields, not updating')
                 raise
             file_resource = None
 

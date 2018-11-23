@@ -52,10 +52,10 @@ def start_automation(args, config, pipeline_dir, analysis_info):
 
     for analysis_type in ('align', 'hmmcopy'):
         if analysis_type == 'align':
-            align_analysis = AlignAnalysis(args)
+            align_analysis = AlignAnalysis(args, update=args['update'])
             tantalus_analysis = align_analysis
         elif analysis_type == 'hmmcopy':
-            tantalus_analysis = HmmcopyAnalysis(align_analysis, args)
+            tantalus_analysis = HmmcopyAnalysis(align_analysis, args, update=args['update'])
         else:
             raise ValueError()
 
@@ -82,7 +82,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
             inputs_yaml = args['inputs_yaml']
 
         align_analysis.check_inputs_yaml(inputs_yaml)
-        tantalus_analysis.add_inputs_yaml(inputs_yaml, inputs_yaml_storage, update=False)
+        tantalus_analysis.add_inputs_yaml(inputs_yaml, inputs_yaml_storage, update=args['update'])
         dataset_ids.update(tantalus_analysis.analysis['input_datasets'])
 
         if analysis_type == 'align' and args['no_align']:
@@ -117,13 +117,14 @@ def start_automation(args, config, pipeline_dir, analysis_info):
                 align_analysis.create_output_datasets,
                 location,
                 tag_name=args['bams_tag'],
-                update=False,
+                update=args['update'],
             )
 
         
         tantalus_results = tantalus_analysis.create_output_results(
             results_storage, 
-            pipeline_dir, 
+            pipeline_dir,             
+            update=args['update'],
         )
 
         result_ids.add(tantalus_results.get_id())
@@ -183,7 +184,7 @@ def main():
         args['jira'],
         log_file,
         args,
-        update=True,
+        update=args['update'],
     )
 
     # TODO: kind of redundant
