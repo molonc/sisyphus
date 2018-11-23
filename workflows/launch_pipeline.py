@@ -74,10 +74,10 @@ def run_pipeline(
 
     if args['shahlab_run']:
         import single_cell
-        env_version = single_cell.__version__.split("+")[0]
-        if env_version != args['version'].strip('v'):
+        env_version = 'v' + single_cell.__version__.split("+")[0]
+        if env_version != args['version']:
             raise Exception("version in args is {} but single_cell version is {}".format(
-                args['version'], 'v'+env_version))
+                args['version'], env_version))
 
     run_cmd = [
         'single_cell',          tantalus_analysis.analysis_type,
