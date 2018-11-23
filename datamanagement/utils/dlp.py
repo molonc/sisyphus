@@ -6,6 +6,9 @@ import collections
 from datamanagement.utils.utils import get_lanes_hash, get_lane_str
 import datamanagement.templates as templates
 from dbclients.basicclient import NotFoundError
+import logging
+
+log = logging.getLogger('sisyphus')
 
 
 def fastq_paired_end_check(file_info):
@@ -192,10 +195,12 @@ def create_sequence_dataset_models(
         except NotFoundError:
             dataset_id = None
 
-        if update and dataset_id:
+        if update and dataset_id is not None:
+            log.warning("sequence dataset {} has changed, updating".format(sequence_dataset["name"]))
             dataset = tantalus_api.update("sequence_dataset", id=dataset_id, **sequence_dataset)
 
         else:
+            log.info("creating sequence dataset {}".format(sequence_dataset["name"]))
             dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
 
         dataset_ids.add(dataset['id'])

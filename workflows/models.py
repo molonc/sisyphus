@@ -338,7 +338,7 @@ class Analysis(object):
         """
         raise NotImplementedError
 
-    def create_output_results(self, results_storage, pipeline_dir):
+    def create_output_results(self, results_storage, pipeline_dir, update=False):
         """
         Create the set of output results produced by this analysis.
         """
@@ -346,6 +346,7 @@ class Analysis(object):
             self,
             results_storage,
             pipeline_dir,
+            update=update,
         )
 
         return tantalus_results
