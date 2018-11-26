@@ -49,6 +49,7 @@ ref_genome_map = {
     'hg18': 'grch36',
     'grch37': 'grch37',
     'hg19': 'grch36',
+    'mm10': 'mm10',
 }
 
 
