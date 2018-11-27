@@ -745,7 +745,7 @@ class Results:
 
             if set(results['file_resources']) != set(self.file_resources):
                 if update:
-                    tantalus_api.update('results', id=results['id'], args=self.args)
+                    tantalus_api.update('results', id=results['id'], file_resources=self.file_resources)
                     updated=True
                     log.info('File resources for analysis {} have changed, previously {}, now {}'.format(
                         self.name, results['file_resources'], self.file_resources))
