@@ -93,7 +93,10 @@ def run_pipeline(
         '--pipelinedir',        scpipeline_dir,
     ]
 
-    if args['shahlab_run']:
+    if args['integrationtest']:
+        run_cmd += ['--submit', 'local']
+
+    elif args['shahlab_run']:
         run_cmd += [
             '--submit',         'asyncqsub',
             '--nativespec',     "' -hard -q shahlab.q -V -l h_vmem=20G -pe ncpus {ncpus}'",

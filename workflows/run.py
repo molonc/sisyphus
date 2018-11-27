@@ -31,7 +31,10 @@ log.propagate = False
 def start_automation(args, config, pipeline_dir, analysis_info):
     start = time.time()
 
-    if args['shahlab_run']:
+    if args['integrationtest']:
+        location = inputs_yaml_storage = results_storage = config['test_storage']
+        storage_type = 'server'
+    elif args['shahlab_run']:
         location = 'shahlab'
         inputs_yaml_storage = config['jobs_storage']
         results_storage = config['jobs_storage']
@@ -174,7 +177,10 @@ def main():
 
     template_args = {'jira': args['jira'], 'tag': args['tag']}
 
-    if args['shahlab_run']:
+    if args['integrationtest']:
+        test_storage = tantalus_api.get("storage", name=config["test_storage"])
+        template = os.path.join(test_storage["prefix"], "{jira}{tag}")
+    elif args['shahlab_run']:
         template = templates.SHAHLAB_PIPELINE_DIR
         template_args['jobs_dir'] = config['jobs_dir']
     else:
