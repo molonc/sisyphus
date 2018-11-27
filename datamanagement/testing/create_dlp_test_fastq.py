@@ -79,7 +79,6 @@ TEST_LANE_PK = 6551
 TUMOUR_DATASET_NAME = 'BAM-SA1090-SC_WGS-A96213A-lanes_341dd558-bwa_aln-grch37'
 NORMAL_DATASET_NAME = 'BAM-DAH370N-WGS-A41086 (lanes 52f27595)'
 STORAGE_NAME = 'shahlab'
-# data_dir = '/ssd/nvme0/amcpherson/pseudobulk/test_dataset/data2'
 
 selected_indices = {}
 for sublib in dbclients.colossus.get_colossus_sublibraries_from_library_id(LIBRARY_ID):
@@ -393,7 +392,7 @@ def create_sequence_dataset(inputs_data):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("data_dir")  # Where to put the test dataset 
+    parser.add_argument("--data_dir", required=True)  # Where to put the test dataset 
     return dict(vars(parser.parse_args()))
 
 
