@@ -11,10 +11,11 @@ import sys
 import time
 import traceback
 from azure.storage.blob import BlockBlobService, ContainerPermissions
-from utils.constants import LOGGING_FORMAT
-from utils.runtime_args import parse_runtime_args
+from datamanagement.utils.constants import LOGGING_FORMAT
+from datamanagement.utils.runtime_args import parse_runtime_args
 from dbclients.tantalus import TantalusApi
-from utils.utils import make_dirs
+from datamanagement.utils.utils import make_dirs
+
 
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
