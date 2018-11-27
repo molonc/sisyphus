@@ -165,7 +165,7 @@ class Analysis(object):
 
             updated = False
 
-            for field in ('args', 'version'):
+            for field in ["args", "version"]:
                 if analysis[field] != getattr(self, field):
                     if update:
                         tantalus_api.update('analysis', id=analysis['id'], args=getattr(self, field))
@@ -234,6 +234,7 @@ class Analysis(object):
             storage_name=inputs_yaml_storage,
             filepath=inputs_yaml,
             file_type="YAML",
+            {"compression": "UNCOMPRESSED"},
             update=update,
          )
 
