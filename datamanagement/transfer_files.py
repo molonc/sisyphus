@@ -13,7 +13,7 @@ import traceback
 from azure.storage.blob import BlockBlobService, ContainerPermissions
 from utils.constants import LOGGING_FORMAT
 from utils.runtime_args import parse_runtime_args
-from utils.tantalus import TantalusApi
+from dbclients.tantalus import TantalusApi
 from utils.utils import make_dirs
 
 # Set up the root logger
@@ -419,11 +419,22 @@ def transfer_files(tag_name, from_storage_name, to_storage_name):
 
     f_transfer = get_file_transfer_function(from_storage, to_storage)
 
-    datasets = tantalus_api.list("sequence_dataset", tags__name=tag_name)
-    results = tantalus_api.list("results", tags__name=tag_name)
+    datasets = tantalus_api.list("tag", name=tag_name)
 
-    for dataset in list(datasets) + list(results):
-        for file_resource_id in dataset["file_resources"]:
+    for dataset in datasets:
+        sequencedataset_id = dataset['sequencedataset_set']
+        resultsdataset_id = dataset['resultsdataset_set']
+        file_resource_ids = []
+
+        for dataset_id in sequencedataset_id:
+            sequence_dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
+            file_resource_ids += sequence_dataset['file_resources']
+
+        for dataset_id in resultsdataset_id:
+            results_dataset = tantalus_api.get('results', id=dataset_id)
+            file_resource_ids += results_dataset['file_resources']
+
+        for file_resource_id in file_resource_ids:
             # Get the file resource corresponding to the ID
             file_resource = tantalus_api.get("file_resource", id=file_resource_id)
 
