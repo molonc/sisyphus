@@ -231,10 +231,10 @@ class Analysis(object):
         log.info('Adding inputs yaml file {} to {}'.format(inputs_yaml, self.name))
 
         file_resource, file_instance = tantalus_api.add_file(
+            {"compression": "UNCOMPRESSED"},
             storage_name=inputs_yaml_storage,
             filepath=inputs_yaml,
             file_type="YAML",
-            {"compression": "UNCOMPRESSED"},
             update=update,
          )
 
