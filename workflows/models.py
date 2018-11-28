@@ -420,12 +420,29 @@ class AlignAnalysis(Analysis):
         return list(dataset_ids)
 
     def check_inputs_yaml(self, inputs_yaml_filename):
-        lane_ids = self.get_lanes().keys()
         inputs_dict = file_utils.load_yaml(inputs_yaml_filename)
-        input_lane_ids = inputs_dict.values()[0]['fastqs'].keys()
 
-        if set(lane_ids) != set(input_lane_ids):
-            raise Exception('lanes in input datasets: {}\nlanes in input yaml: {}'.format(
+        lanes = self.get_lanes().keys()
+        input_lanes = inputs_dict.values()[0]['fastqs'].keys()
+
+        num_cells = len(inputs_dict)
+        fastq_1_set = set()
+        fastq_2_set = set()
+
+        input_lanes = inputs_dict.values()[0]
+        for cell_id, cell_info in input_dict.iteritems():
+            fastq_1 = cell_info["fastqs"].values()[0]["fastq_1"]
+            fastq_2 = cell_info["fastqs"].values()[0]["fastq_2"]
+
+            fastq_1_set.add(fastq_1)
+            fastq_2_set.add(fastq_2)
+
+        if not (num_cells == len(fastq_1_set) == len(fastq_2_set)):
+            raise Exception("number of cells is {} but found {} unique fastq_1 and {} unique fastq_2 in inputs yaml".format(
+                num_cells, len(fastq_1_set), len(fastq_2_set)))
+
+        if set(lanes) != set(input_lanes):
+            raise Exception('lanes in input datasets: {}\nlanes in inputs yaml: {}'.format(
                 lane_ids, input_lane_ids
             ))
 
