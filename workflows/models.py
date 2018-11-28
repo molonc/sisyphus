@@ -167,7 +167,6 @@ class Analysis(object):
     @property
     def version(self):
         return self.analysis['version']
-    
 
     def get_or_create_analysis(self, args, update=False):
         """
@@ -637,10 +636,9 @@ class AlignAnalysis(Analysis):
 
         log.info("created sequence datasets {}".format(output_datasets))
 
-    @staticmethod
-    def get_results_filenames(args):
+    def get_results_filenames(self):
         results_prefix = os.path.join(
-            args["job_subdir"],
+            self.args["job_subdir"],
             "results",
             "results",
             "alignment")
@@ -669,10 +667,9 @@ class HmmcopyAnalysis(Analysis):
         datasets = tantalus_api.list('sequence_dataset', analysis=args["align_analysis"], dataset_type='BAM')
         return [dataset['id'] for dataset in datasets]
 
-    @staticmethod
-    def get_results_filenames(args):
+    def get_results_filenames(self):
         results_prefix = os.path.join(
-            args["job_subdir"],
+            self.args["job_subdir"],
             "results",
             "results",
             "hmmcopy_autoploidy")
@@ -766,10 +763,32 @@ class PseudoBulkAnalysis(Analysis):
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
 
-    def create_output_results(self):
+    def get_results_filenames(self):
+        """ Get list of results produced by pseudobulk pipeline.
         """
-        """
-        pass
+        results_prefix = os.path.join(
+            self.args["job_subdir"],
+            "results")
+
+        # TODO: get sample ids helper
+        sample_ids = set()
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+            sample_ids.add(dataset['sample']['sample_id'])
+
+        filenames = []
+        filenames.append('haplotypes.tsv')
+        for sample_id in sample_ids:
+            filenames.append('{}_allele_counts.csv'.format(sample_id))
+            filenames.append('{}_snv_annotations.h5'.format(sample_id))
+            filenames.append('{}_snv_counts.h5'.format(sample_id))
+            filenames.append('{}_destruct.h5'.format(sample_id))
+            for snv_caller in ('museq', 'strelka'):
+                filenames.append('{}_{}.vcf.gz'.format(sample_id, snv_caller))
+                filenames.append('{}_{}.vcf.gz.csi'.format(sample_id, snv_caller))
+                filenames.append('{}_{}.vcf.gz.tbi'.format(sample_id, snv_caller))
+
+        return [os.path.join(results_prefix, filename.format(**args)) for filename in filenames]
 
 
 class CNCloneAnalysis(Analysis):
@@ -920,8 +939,7 @@ class Results:
         file_resource_ids = set()
 
         storage_client = tantalus_api.get_storage_client(self.storage_name)
-        results_filenames = self.tantalus_analysis.get_results_filenames(
-            self.tantalus_analysis.args)
+        results_filenames = self.tantalus_analysis.get_results_filenames()
 
         for result_filename in results_filenames:  # Exclude metrics files
             result_filepath = os.path.join(storage_client.prefix, result_filename)
