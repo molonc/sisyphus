@@ -8,15 +8,18 @@ import yaml
 
 from datamanagement.utils import dlp
 import dbclients.tantalus
+import dbclients.colossus
 from dbclients.basicclient import NotFoundError
 
 import generate_inputs
 import datamanagement.templates as templates
-from utils import colossus_utils, tantalus_utils, file_utils
+from utils import tantalus_utils, file_utils
+
 log = logging.getLogger('sisyphus')
 
 tantalus_api = dbclients.tantalus.TantalusApi()
 colossus_api = dbclients.colossus.ColossusApi()
+
 
 class AnalysisInfo:
     """
@@ -37,8 +40,8 @@ class AnalysisInfo:
             'L':    'loess',
         }
 
-        self.analysis_info = colossus_utils.get_analysis_info(jira)
-        self.args = args
+        self.analysis_info = colossus_api.get('analysis_information', analysis_jira_ticket=jira)
+
         self.aligner = self.get_aligner()
         self.smoothing = self.get_smoothing()
         self.reference_genome = self.get_reference_genome()
@@ -88,8 +91,8 @@ class AnalysisInfo:
 
     def get_chip_id(self):
         chip_ids = set()
-        for seq in self.sequencing_ids:
-            chip_ids.add(colossus_utils.get_chip_id_from_sequencing(seq))
+        for sequencing_id in self.sequencing_ids:
+            chip_ids.add(colossus_api.get('sequencing', id=sequencing_id)['library'])
         return chip_ids.pop()
 
     def set_run_status(self, analysis_type):
@@ -109,8 +112,7 @@ class AnalysisInfo:
             'run_status' :  status,
             'last_updated': datetime.datetime.now().isoformat(),
         }
-
-        colossus_utils.update_analysis_run(self.analysis_run, data)
+        colossus_api.update('analysis_run', id=self.analysis_run, **data)
 
     def update_results_path(self, path_type, path):
         data = {
@@ -118,7 +120,8 @@ class AnalysisInfo:
             'last_updated': datetime.datetime.now().isoformat(),
         }
 
-        colossus_utils.update_analysis_run(self.analysis_run, data)
+        colossus_api.update('analysis_run', id=self.analysis_run, **data)
+
 
 
 class Analysis(object):
@@ -130,72 +133,86 @@ class Analysis(object):
         Create an Analysis object in Tantalus.
         """
 
-        self.args = args
         self.analysis_type = analysis_type
-        self.jira = self.args['jira']
-        self.name = '{}_{}'.format(self.jira, analysis_type)
-        self.status = 'idle'
-        self.version = self.args['version']
-        # TODO: do we need this? the tantalus field should autoupdate
-        self.last_updated = datetime.datetime.now().isoformat()
-        self.analysis = self.get_or_create_analysis(update=update)
+
+        self.analysis = self.get_or_create_analysis(args, update=update)
+
+        # TODO: remove self.bams
         self.bams = []
 
-        self.update_analysis('status')
-        self.update_analysis('last_updated')
+    @property
+    def name(self):
+        return self.analysis['name']
 
-    def get_or_create_analysis(self, update=False):
+    @property
+    def args(self):
+        return self.analysis['args']
+
+    @property
+    def jira(self):
+        return self.args['jira']
+
+    @property
+    def status(self):
+        return self.analysis['status']
+
+    def get_or_create_analysis(self, args, update=False):
         """
         Get the analysis by querying Tantalus. Create the analysis
         if it doesn't exist. Set the input dataset ids.
         """
 
-        log.info('Searching for existing analysis {}'.format(self.name))
+        jira = args['jira']
+        name = '{}_{}'.format(jira, self.analysis_type)
+        version = args['version']
+
+        log.info('Searching for existing analysis {}'.format(name))
 
         try:
-            analysis = tantalus_api.get('analysis', name=self.name, jira_ticket=self.jira)
+            analysis = tantalus_api.get('analysis', name=name, jira_ticket=jira)
         except NotFoundError:
             analysis = None
 
-        input_datasets = self.search_input_datasets()
+        input_datasets = self.search_input_datasets(args)
+        input_results = self.search_input_results(args)
 
         if analysis is not None:
-            log.info('Found existing analysis {}'.format(self.name))
+            log.info('Found existing analysis {}'.format(name))
 
             updated = False
 
-            for field in ["args", "version"]:
-                if analysis[field] != getattr(self, field):
-                    if update:
-                        tantalus_api.update('analysis', id=analysis['id'], args=getattr(self, field))
-                        updated = True
-                    else:
-                        log.info('field {} for analysis {} changed, previously {} now {}'.format(
-                            field, self.name, analysis[field], getattr(self, field)))
+            fields_to_check = {
+                'args': (args, lambda a, b: a != b),
+                'version': (args, lambda a, b: a != b),
+                'input_datasets': (input_datasets, lambda a, b: set(a) != set(b)),
+                'input_results': (input_results, lambda a, b: set(a) != set(b)),
+            }
 
-            if set(analysis['input_datasets']) != set(input_datasets):
-                if update:
-                    tantalus_api.update('analysis', id=analysis['id'], input_datasets=input_datasets)
-                    updated = True
-                    log.info('Input datasets for analysis {} changed, previously {}, now {}'.format(
-                        self.name, analysis['input_datasets'], input_datasets))
-                else:
-                    log.warning('Input datasets for analysis {} have changed, previously {}, now {}'.format(
-                        self.name, analysis['input_datasets'], input_datasets))
+            for field_name, (new_data, f_check) in fields_to_check.iteritems():
+                if f_check(analysis[field_name], new_data):
+                    if update:
+                        tantalus_api.update('analysis', id=analysis['id'], **{field_name: new_data})
+                        updated = True
+                        log.info('{} for analysis {} changed, previously {}, now {}'.format(
+                            field_name, name, analysis[field_name], new_data))
+                    else:
+                        log.warning('{} for analysis {} have changed, previously {}, now {}'.format(
+                            field_name, name, analysis[field_name], new_data))
 
             if updated:
-                analysis = tantalus_api.get('analysis', name=self.name, jira_ticket=self.jira)
+                analysis = tantalus_api.get('analysis', name=name, jira_ticket=jira)
 
         else:
-            log.info('Creating analysis {}'.format(self.name))
+            log.info('Creating analysis {}'.format(name))
 
             data = {
-                'name':             self.name,
-                'jira_ticket':      self.jira,
-                'args':             self.args,
-                'status':           self.status,
+                'name':             name,
+                'jira_ticket':      jira,
+                'args':             args,
+                'status':           'idle',
                 'input_datasets':   input_datasets,
-                'version':          self.version,
+                'input_results':    input_results,
+                'version':          version,
             }
 
             # TODO: created timestamp for analysis
@@ -245,53 +262,70 @@ class Analysis(object):
         """
         return tantalus_api.get('sequence_dataset', id=dataset_id)
 
+    def get_results(self, results_id):
+        """
+        Get a results by id.
+        """
+        return tantalus_api.get('results', id=results_id)
+
     def set_run_status(self):
         """
         Set run status of analysis to running.
         """
         self.update_status('running')
+        self.update_last_updated()
 
     def set_archive_status(self):
         """
         Set run status of analysis to archiving.
         """
         self.update_status('archiving')
+        self.update_last_updated()
 
     def set_complete_status(self):
         """
         Set run status of analysis to complete.
         """
         self.update_status('complete')
+        self.update_last_updated()
 
     def set_error_status(self):
         """
         Set run status to error.
         """
         self.update_status('error')
+        self.update_last_updated()
 
     def update_status(self, status):
         """
         Update the run status of the analysis in Tantalus.
         """
-        self.status = status
-        tantalus_api.update('analysis', id=self.get_id(), status=self.status)
+        self.analysis = tantalus_api.update('analysis', id=self.get_id(), status=status)
 
-    def update_analysis(self, field):
+    def update_last_updated(self, last_updated=None):
         """
-        Check to see if the field matches the current field that exists.
+        Update the last updated field of the analysis in Tantalus.
         """
-        field_value = vars(self)[field]
-        if self.analysis[field] != field_value:
-            tantalus_api.update('analysis', id=self.get_id(), **{field: field_value})
+        if last_updated is None:
+            last_updated = datetime.datetime.now().isoformat()
+        self.analysis = tantalus_api.update('analysis', id=self.get_id(), last_updated=last_updated)
 
     def get_id(self):
         return self.analysis['id']
 
-    def search_input_datasets(self):
+    @staticmethod
+    def search_input_datasets(args):
         """
         Get the list of input datasets required to run this analysis.
         """
-        raise NotImplementedError
+        return []
+
+    @staticmethod
+    def search_input_results(args):
+        """
+        Get the list of input results required to run this analysis.
+        """
+        return []
 
     def _get_blob_dir(self, dir_type):
         if dir_type == 'results':
@@ -370,7 +404,8 @@ class AlignAnalysis(Analysis):
     def __init__(self, args, **kwargs):
         super(AlignAnalysis, self).__init__('align', args, **kwargs)
 
-    def search_input_datasets(self):
+    @staticmethod
+    def search_input_datasets(args):
         """
         Query Tantalus for paired-end fastq datasets given library id and sample id.
 
@@ -379,15 +414,15 @@ class AlignAnalysis(Analysis):
         """
 
         filter_lanes = []
-        if self.args['gsc_lanes'] is not None:
-            filter_lanes += self.args['gsc_lanes']
-        if self.args['brc_flowcell_ids'] is not None:
+        if args['gsc_lanes'] is not None:
+            filter_lanes += args['gsc_lanes']
+        if args['brc_flowcell_ids'] is not None:
             # Each BRC flowcell has 4 lanes
             filter_lanes += ['{}_{}'.format(flowcell_id, i+1) for i in range(4)]
 
         datasets = tantalus_api.list(
             'sequence_dataset',
-            library__library_id=self.args['library_id'],
+            library__library_id=args['library_id'],
             dataset_type='FQ',
         )
 
@@ -397,7 +432,7 @@ class AlignAnalysis(Analysis):
             return [dataset["id"] for dataset in datasets]
 
         if not datasets:
-            raise Exception('no sequence datasets matching library_id {}'.format(self.args['library_id']))
+            raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
 
         dataset_ids = set()
 
@@ -655,7 +690,8 @@ class HmmcopyAnalysis(Analysis):
         self.align_analysis = align_analysis
         super(HmmcopyAnalysis, self).__init__('hmmcopy', args, **kwargs)
 
-    def search_input_datasets(self):
+    @staticmethod
+    def search_input_datasets(args):
         """
         Get the input BAM datasets for this analysis.
         """
@@ -669,15 +705,19 @@ class PseudoBulkAnalysis(Analysis):
     def __init__(self, args, **kwargs):
         super(PseudoBulkAnalysis, self).__init__('pseudobulk', args, **kwargs)
 
-    def search_input_datasets(self):
+    @staticmethod
+    def search_input_datasets(args):
         """
         Query Tantalus for bams that match the associated
         pseudobulk analysis.
         """
 
+        jira = args['jira']
+
         datasets = tantalus_api.list(
             'sequence_dataset',
-            tags__name=self.jira)
+            tags__name=jira)
+
         dataset_ids = [dataset['id'] for dataset in datasets]
 
         return dataset_ids
@@ -735,6 +775,60 @@ class PseudoBulkAnalysis(Analysis):
         """
         """
         pass
+
+
+class CNCloneAnalysis(Analysis):
+    """
+    A class representing an copy number clone analysis in Tantalus.
+    """
+    def __init__(self, args, **kwargs):
+        super(CNCloneAnalysis, self).__init__('cnclone', args, **kwargs)
+
+    @staticmethod
+    def search_input_results(args):
+        """
+        Query Tantalus for hmmcopy inputs that match the associated
+        cnclone analysis.
+        """
+
+        jira = args['jira']
+
+        input_results = tantalus_api.list(
+            'results',
+            tags__name=jira)
+
+        for results in input_results:
+            if results["results_type"] != "hmmcopy":
+                raise ValueError("Expected hmmcopy results, got {}".format(results["results_type"]))
+
+        results_ids = [results['id'] for results in input_results]
+
+        return results_ids
+
+    def generate_inputs_yaml(self, inputs_yaml_filename, storage_name):
+        """ Generates a YAML file of input information
+
+        Args:
+            inputs_yaml_filename: the directory to which the YAML file should be saved
+            storage_name: Which tantalus storage to look at
+        """
+
+        input_info = {
+            "samples": self.args["samples"],
+            "hmmcopy": [],
+        }
+
+        for results_id in self.analysis['input_results']:
+            results = self.get_results(results_id)
+
+            # TODO: check samples
+
+            for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name):
+                if file_instance["file_resource"]["filename"].endswith("_hmmcopy.h5"):
+                    input_info["hmmcopy"].append(file_instance["filepath"])
+
+        with open(inputs_yaml_filename, 'w') as inputs_yaml:
+            yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
 
 
 class Results:
