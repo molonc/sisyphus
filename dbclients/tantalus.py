@@ -67,6 +67,9 @@ class BlobStorageClient(object):
         url = self.get_url(blobname)
         return urllib2.urlopen(url)
 
+    def exists(self, blobname):
+        return self.blob_service.exists(self.storage_container, blob_name=blobname)
+
 
 class ServerStorageClient(object):
     def __init__(self, storage):
@@ -92,6 +95,10 @@ class ServerStorageClient(object):
     def open_file(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
         return open(filepath)
+
+    def exists(self, filename):
+        filepath = os.path.join(self.storage_directory, filename)
+        return os.path.exists(filepath)
 
 
 class TantalusApi(BasicAPIClient):
