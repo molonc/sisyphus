@@ -20,7 +20,7 @@ from datamanagement.transfer_files import transfer_files
 from dbclients.basicclient import NotFoundError
 
 from utils.log_utils import sentinel
-from models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, Results
+from models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, PseudoBulkAnalysis, Results
 
 
 log = logging.getLogger('sisyphus')
@@ -61,6 +61,8 @@ def start_automation(
         elif analysis_type == 'hmmcopy':
             args["align_analysis"] = align_analysis.get_id()
             tantalus_analysis = HmmcopyAnalysis(args, storages=storages, update=args['update'])
+        elif analysis_type == 'pseudobulk':
+            tantalus_analysis = PseudoBulkAnalysis(args, update=args['update'])
         else:
             raise ValueError()
 
