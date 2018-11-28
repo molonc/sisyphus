@@ -137,12 +137,14 @@ def check_results():
 	for analysis_type in ("align", "hmmcopy"):
 		if analysis_type == "align":
 			dirname = "alignment"
+			yaml_field = "alignment"
 		else:
 			dirname = "hmmcopy_autoploidy"
+			yaml_field = "hmmcopy"
 
 		info_yaml_path = os.path.join(JIRA_TICKET, "results", "results", dirname, "info.yaml")
 		f = results_client.open_file(info_yaml_path)
-		results_infos = ["results"].values()
+		results_infos = yaml.load(f)[yaml_field]['results'].values()
 		f.close()
 
 		result_paths = [result_info["filename"] for result_info in result_infos]
