@@ -14,8 +14,8 @@ import launch_pipeline
 import generate_inputs
 from dbclients.tantalus import TantalusApi
 
-from utils import (colossus_utils, saltant_utils,
-                   file_utils, log_utils, file_transfers, bcl2fastq)
+from utils import (saltant_utils,
+                   file_utils, log_utils, file_transfers)
 from utils.log_utils import sentinel
 from models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, Results
 
