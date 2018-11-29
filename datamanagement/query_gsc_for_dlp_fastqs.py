@@ -8,6 +8,7 @@ import os
 import string
 import sys
 import time
+import collections
 import pandas as pd
 from datamanagement.utils.constants import LOGGING_FORMAT
 from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
@@ -314,7 +315,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     fastq_paired_end_check(fastq_file_info)
 
     # Check that all index sequences have fastq files
-    cell_index_sequences = set(cell_samples.key())
+    cell_index_sequences = set(cell_samples.keys())
 
     fastq_lane_index_sequences = collections.defaultdict(set)
     for info in fastq_file_info:
