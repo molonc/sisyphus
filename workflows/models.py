@@ -429,8 +429,7 @@ class AlignAnalysis(Analysis):
         fastq_1_set = set()
         fastq_2_set = set()
 
-        input_lanes = inputs_dict.values()[0]
-        for cell_id, cell_info in input_dict.iteritems():
+        for cell_id, cell_info in inputs_dict.iteritems():
             fastq_1 = cell_info["fastqs"].values()[0]["fastq_1"]
             fastq_2 = cell_info["fastqs"].values()[0]["fastq_2"]
 
@@ -443,7 +442,7 @@ class AlignAnalysis(Analysis):
 
         if set(lanes) != set(input_lanes):
             raise Exception('lanes in input datasets: {}\nlanes in inputs yaml: {}'.format(
-                lane_ids, input_lane_ids
+                lanes, input_lanes
             ))
 
         self.bams = [cell_info['bam'] for _, cell_info in inputs_dict.items()]
