@@ -485,6 +485,10 @@ class AlignAnalysis(Analysis):
 
         for idx, row in sample_info.iterrows():
             index_sequence = row['index_sequence']
+
+            if self.args["integrationtest"] and (index_sequence not in tantalus_index_sequences):
+                continue
+
             colossus_index_sequences.add(index_sequence)
             
             lane_fastqs = collections.defaultdict(dict)

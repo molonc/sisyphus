@@ -6,6 +6,8 @@ import getpass
 import workflows
 import subprocess
 import yaml
+import os
+import json
 
 tantalus_api = TantalusApi()
 
@@ -46,7 +48,7 @@ def download_data(storage_name, storage_dir, queue_name, tag_name):
 		queue_name)
 
 
-def run_pipeline(pipeline_version, storage_name):
+def run_pipeline(pipeline_version, storage_name, local_run=False):
 	"""
 	Create a test user configuration file and use it to 
 	run the pipeline using Sisyphus.
@@ -56,7 +58,7 @@ def run_pipeline(pipeline_version, storage_name):
 	test_config = file_utils.load_json(os.path.join(config_dir, "normal_config.json"))
 	test_config["test_storage"] = storage_name
 
-	with open(test_config_path) as outfile:
+	with open(test_config_path, "w") as outfile:
 		json.dump(test_config, outfile)
 
 	script = os.path.join(os.path.dirname(workflows.__file__), "run.py")
@@ -71,7 +73,14 @@ def run_pipeline(pipeline_version, storage_name):
 		"--integrationtest",
 		"--update"]
 
-	subprocess.check_call(run_cmd)
+	if local_run:
+		run_cmd.append("--local_run")
+
+	print(' '.join(run_cmd))
+
+	returncode = subprocess.check_call(run_cmd)
+	if returncode != 0:
+		raise Exception("single cell pipeline did not complete")
 
 
 def check_outputs(file_paths, storage_name):
@@ -107,7 +116,7 @@ def check_outputs(file_paths, storage_name):
 	return file_resources
 
 
-def check_bams(align_analysis, hmmcopy_analysis):
+def check_bams():
 	align_analysis = tantalus_api.get("analysis", name=JIRA_TICKET + "_align")
 	hmmcopy_analysis = tantalus_api.get("analysis", name=JIRA_TICKET + "_hmmcopy")
 
@@ -166,6 +175,7 @@ def parse_args():
 	parser.add_argument("--storage_dir", required=True)
 	parser.add_argument("--queue_name", required=True)
 	parser.add_argument("--pipeline_version", required=True)
+	parser.add_argument("--local", default=False, action="store_true")
 	return dict(vars(parser.parse_args()))
 
 
@@ -173,6 +183,6 @@ if __name__ == '__main__':
 	args = parse_args()
 	tag_name = "IntegrationTestFastqs"
 	download_data(args["storage_name"], args["storage_dir"], args["queue_name"], tag_name)
-	run_pipeline(args["pipeline_version"], args["storage_name"])
+	run_pipeline(args["pipeline_version"], args["storage_name"], local_run=args["local"])
 	check_bams()
 	check_results()

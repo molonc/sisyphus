@@ -93,9 +93,8 @@ def run_pipeline(
         '--pipelinedir',        scpipeline_dir,
     ]
 
-    if args['integrationtest']:
-        run_cmd += ['--submit', 'local']
-
+    if args['local_run']:
+        run_cmd += ["--submit", "local"]
     elif args['shahlab_run']:
         run_cmd += [
             '--submit',         'asyncqsub',
