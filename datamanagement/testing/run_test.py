@@ -8,7 +8,9 @@ import subprocess
 import yaml
 import os
 import json
+import logging
 
+log = logging.getLogger('sisyphus')
 tantalus_api = TantalusApi()
 
 JIRA_TICKET = "SC-1678"
@@ -187,9 +189,11 @@ def cleanup_bams(storage_name):
 	storage_client = tantalus_api.get_storage_client(storage_name)
 
 	for file_resource_pk in bam_dataset["file_resources"]:
+		log.info("deleting file_resource {}".format(file_resource_pk))
 		filename = tantalus_api.get("file_resource", id=file_resource_pk)["filename"]
 		storage_client.delete(filename)
 
+	log.info("deleting sequence dataset {}".format(bam_dataset["name"]))
 	tantalus_api.delete("sequence_dataset", bam_dataset["id"])
 
 
@@ -199,13 +203,17 @@ def cleanup_results(storage_name):
 	for analysis_type in ("align", "hmmcopy"):
 		results = tantalus_api.get("results", name=JIRA_TICKET + "_" + analysis_type)
 		for file_resource_pk in results["file_resources"]:
+			log.info("deleting file_resource {}".format(file_resource_pk))
 			filename = tantalus_api.get("file_resource", id=file_resource_pk)["filename"]
 			storage_client.delete(filename)
 
+		log.info("deleting result {}".format(results["name"]))
 		tantalus_api.delete("results", results["id"])
 
-		analysis_pk = tantalus_api.get("analysis", name=JIRA_TICKET + "_" + analysis_type)
-		tantalus_api.delete("analysis", analysis_pk)
+
+		analysis = tantalus_api.get("analysis", name=JIRA_TICKET + "_" + analysis_type)
+		log.info("deleting analysis {}".format(analysis["name"]))
+		tantalus_api.delete("analysis", analysis["id"])
 
 
 def check_metrics_file(analysis_type, filepath, storage_client):
@@ -215,10 +223,10 @@ def check_metrics_file(analysis_type, filepath, storage_client):
 
 def parse_args():
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--storage_name", required=True)
-	parser.add_argument("--storage_dir", required=True)
-	parser.add_argument("--queue_name", required=True)
-	parser.add_argument("--pipeline_version", required=True)
+	parser.add_argument("--storage_name")
+	parser.add_argument("--storage_dir")
+	parser.add_argument("--queue_name")
+	parser.add_argument("--pipeline_version")
 	parser.add_argument("--local", default=False, action="store_true")
 	return dict(vars(parser.parse_args()))
 
