@@ -115,6 +115,7 @@ class AzureTransfer(object):
             account_key=storage["credentials"]["storage_key"],
         )
         self.block_blob_service.MAX_BLOCK_SIZE = 64 * 1024 * 1024
+        self.from_storage = storage
 
     def download_from_blob(self, file_instance, to_storage, tantalus_api):
         """ Transfer a file from blob to a server.
@@ -123,8 +124,12 @@ class AzureTransfer(object):
         """
 
         cloud_filepath = file_instance["filepath"]
-        cloud_container, cloud_blobname = cloud_filepath.split("/", 1)
-        assert cloud_container == file_instance["storage"]["storage_container"]
+        if not cloud_filepath.startswith(self.from_storage["prefix"]):
+            raise Exception("{} does not have storage prefix {}".format(
+                cloud_filepath, self.from_storage["prefix"]))
+
+        cloud_blobname = tantalus_api.get_file_resource_filename(self.from_storage["name"], cloud_filepath)
+        cloud_container = self.from_storage["storage_container"]
 
         # Get the file resource associated with the file instance
         file_resource = tantalus_api.get(
@@ -182,8 +187,12 @@ class AzureTransfer(object):
         )
 
         cloud_filepath = get_new_filepath(to_storage, file_resource)
-        cloud_container, cloud_blobname = cloud_filepath.split("/", 1)
-        assert cloud_container == to_storage["storage_container"]
+        if not cloud_filepath.startswith(to_storage["prefix"]):
+            raise Exception("{} does not have storage prefix {}".format(
+                cloud_filepath, to_storage["prefix"]))
+
+        cloud_blobname = tantalus_api.get_file_resource_filename(to_storage["name"], cloud_filepath)
+        cloud_container = to_storage["storage_container"]
 
         if not os.path.isfile(local_filepath):
             error_message = "source file {filepath} does not exist on {storage} for file instance with pk: {pk}".format(
