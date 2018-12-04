@@ -14,7 +14,7 @@ tantalus_api = TantalusApi()
 JIRA_TICKET = "SC-1678"
 LIBRARY_ID = "A96213ATEST"
 
-test_dataset = tantalus_api.get("sequence_dataset", library__library_id=LIBRARY_ID)
+test_dataset = tantalus_api.get("sequence_dataset", dataset_type="FQ", library__library_id=LIBRARY_ID)
 
 
 def download_data(storage_name, storage_dir, queue_name, tag_name):
@@ -83,16 +83,15 @@ def run_pipeline(pipeline_version, storage_name, local_run=False):
 		raise Exception("single cell pipeline did not complete")
 
 
-def check_outputs(file_paths, storage_name):
+def check_output_files(filepaths, storage_name, storage_client):
 	"""
 	Check to see whether the filepaths exist at storage_name and 
 	have been added to Tantalus.
 	"""
 	file_resources = set()
-
-	storage_client = tantalus_api.get_storage_client(storage_name)
-	for file_path in file_paths:
-		filename = os.path.relpath(file_path, storage_client.prefix)
+	for filepath in filepaths:
+		filename = tantalus_api.get_file_resource_filename(storage_name, filepath)
+		filename = os.path.relpath(filepath, storage_client.prefix)
 
 		if not client.exists(filename):
 			raise Exception("filename {} could not be found in storage {}".format(filename, storage_name))
@@ -116,11 +115,14 @@ def check_outputs(file_paths, storage_name):
 	return file_resources
 
 
-def check_bams():
+def check_bams(storage_name):
 	align_analysis = tantalus_api.get("analysis", name=JIRA_TICKET + "_align")
 	hmmcopy_analysis = tantalus_api.get("analysis", name=JIRA_TICKET + "_hmmcopy")
 
-	# TODO: determine storage client based on whether we're running on Azure or on Shahlab
+	bam_datasets = tantalus_api.list("sequence_dataset", analysis__jira_ticket=JIRA_TICKET, dataset_type="BAM")
+	if set(bam_datasets) !=  set(hmmcopy_analysis["input_datasets"]):
+		raise Exception("bam datasets associated with analysis jira ticket do not match",
+			" those in hmmcopy input datasets")
 
 	# Get bam paths from the inputs yaml
 	headnode_client = tantalus_api.get_storage_client("headnode")
@@ -132,7 +134,9 @@ def check_bams():
 		bam_paths.append(info["bam"])
 	f.close()
 
-	bam_file_resources = check_outputs(bam_paths, "singlecellblob")
+	storage_client = tantalus_api.get_storage_client(storage_name)
+
+	bam_file_resources = check_output_files(bam_paths, storage_name, storage_client)
 	dataset_file_resources = set()
 	for dataset_id in hmmcopy_analysis["input_datasets"]:
 		dataset = tantalus_api.get("sequence_dataset", id=dataset_id)
@@ -142,7 +146,9 @@ def check_bams():
 		raise Exception("file resources for output bams do not match hmmcopy input datasets")
 
 
-def check_results():
+def check_results(storage_name):
+	storage_client = tantalus_api.get_storage_client(storage_name)
+
 	for analysis_type in ("align", "hmmcopy"):
 		if analysis_type == "align":
 			dirname = "alignment"
@@ -153,20 +159,54 @@ def check_results():
 
 		info_yaml_path = os.path.join(JIRA_TICKET, "results", "results", dirname, "info.yaml")
 		f = results_client.open_file(info_yaml_path)
-		results_infos = yaml.load(f)[yaml_field]['results'].values()
+		results_infos = yaml.load(f)[yaml_field]['results']
 		f.close()
 
+		result_paths = []
+		for result_name, result_info in result_infos.iteritems():
+			filename = result_info["filename"]
+
+			result_paths.append(filename)
+
+			if result_name == "{}_metrics".format(yaml_field):
+				check_metrics_file(analysis_type, result_info["filename"], storage_client)
+
 		result_paths = [result_info["filename"] for result_info in result_infos]
-		result_file_resources = check_outputs(result_paths, "singlecellblob_results")
+		results_filenames.extend(results_paths)
+		result_file_resources = check_output_files(result_paths, storage_name, storage_client)
 
 		result = tantalus_api.get("results", name=JIRA_TICKET + "_" + analysis_type)
 		if result_file_resources != set(result["file_resources"]):
 			raise Exception("file resources for result files do not match those in {}".format(result["name"]))
 
 
-def cleanup():
-	# TODO: delete bam & results datasets in Tantalus and in Azure
-	pass
+def cleanup_bams(storage_name):
+	storage_client = tantalus_api.get_storage_client(storage_name)
+
+	bam_dataset = tantalus_api.get("sequence_dataset", analysis__jira_ticket=JIRA_TICKET, dataset_type="BAM")
+
+	storage_client = tantalus_api.get_storage_client(storage_name)
+
+	for file_resource_pk in bam_dataset["file_resources"]:
+		filename = tantalus_api.get("file_resource", id=file_resource_pk)["filename"]
+		storage_client.delete(filename)
+
+	tantalus_api.delete("sequence_dataset", bam_dataset["id"])
+
+
+def cleanup_results(storage_name):
+	storage_client = tantalus_api.get_storage_client(storage_name)
+
+	for analysis_type in ("align", "hmmcopy"):
+		results = tantalus_api.get("results", name=JIRA_TICKET + "_" + analysis_type)
+		for file_resource_pk in results["file_resources"]:
+			filename = tantalus_api.get("file_resource", id=file_resource_pk)["filename"]
+			storage_client.delete(filename)
+
+		tantalus_api.delete("results", results["id"])
+
+		analysis_pk = tantalus_api.get("analysis", name=JIRA_TICKET + "_" + analysis_type)
+		tantalus_api.delete("analysis", analysis_pk)
 
 
 def parse_args():
@@ -184,5 +224,12 @@ if __name__ == '__main__':
 	tag_name = "IntegrationTestFastqs"
 	download_data(args["storage_name"], args["storage_dir"], args["queue_name"], tag_name)
 	run_pipeline(args["pipeline_version"], args["storage_name"], local_run=args["local"])
-	check_bams()
-	check_results()
+
+	bams_storage = "singlecellblob"
+	results_storage = "singlecellblob_results"
+
+	check_bams(bams_storage)
+	check_results(results_storage)
+	cleanup_bams(bams_storage)
+	cleanup_results(results_storage)
+
