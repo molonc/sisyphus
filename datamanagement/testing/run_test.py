@@ -91,7 +91,6 @@ def check_output_files(filepaths, storage_name, storage_client):
 	file_resources = set()
 	for filepath in filepaths:
 		filename = tantalus_api.get_file_resource_filename(storage_name, filepath)
-		filename = os.path.relpath(filepath, storage_client.prefix)
 
 		if not client.exists(filename):
 			raise Exception("filename {} could not be found in storage {}".format(filename, storage_name))
@@ -207,6 +206,11 @@ def cleanup_results(storage_name):
 
 		analysis_pk = tantalus_api.get("analysis", name=JIRA_TICKET + "_" + analysis_type)
 		tantalus_api.delete("analysis", analysis_pk)
+
+
+def check_metrics_file(analysis_type, filepath, storage_client):
+	# TODO
+	pass
 
 
 def parse_args():
