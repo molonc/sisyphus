@@ -221,3 +221,17 @@ class BasicAPIClient(object):
                 r.reason, r.text))
 
         return r.json()
+
+    def delete(self, table_name, id=None):
+        if id is None:
+            raise ValueError('must specify id of existing model')
+
+        endpoint_url = self.join_urls(self.base_api_url, table_name, str(id))
+
+        r = self.session.delete(
+            endpoint_url)
+
+        if not r.ok:
+            raise Exception('failed with error: "{}", reason: "{}"'.format(
+                r.reason, r.text))
+
