@@ -13,7 +13,6 @@ from dbclients.basicclient import NotFoundError
 import generate_inputs
 import datamanagement.templates as templates
 from utils import colossus_utils, tantalus_utils, file_utils
-
 log = logging.getLogger('sisyphus')
 
 tantalus_api = dbclients.tantalus.TantalusApi()
@@ -515,6 +514,10 @@ class AlignAnalysis(Analysis):
 
             bam_filepath = str(tantalus_api.get_filepath(storage_name, bam_filename))
 
+            sample_id = row['sample_id']
+            if self.args['integrationtest']:
+                sample_id += "TEST"
+
             input_info[str(row['cell_id'])] = {
                 'fastqs':       dict(lane_fastqs),
                 'bam':          bam_filepath,
@@ -529,7 +532,7 @@ class AlignAnalysis(Analysis):
                 'row':          int(row['row']),
                 'sample_type':  'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
                 'index_sequence': str(row['primer_i7']) + '-' + str(row['primer_i5']),
-                'sample_id':    str(row['sample_id']),
+                'sample_id':    str(sample_id),
             }
 
         if colossus_index_sequences != tantalus_index_sequences:
