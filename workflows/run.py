@@ -33,7 +33,7 @@ tantalus_api = TantalusApi()
 def start_automation(args, config, pipeline_dir, analysis_info, inputs_storage):
     start = time.time()
 
-    storage = tantalus_api.get_storage("storage", storage_name=inputs_storage)
+    storage = tantalus_api.get("storage", name=inputs_storage)
     if storage["storage_type"] == "blob":
         inputs_yaml_storage = None
         results_storage = "singlecellblob_results"
@@ -119,7 +119,7 @@ def start_automation(args, config, pipeline_dir, analysis_info, inputs_storage):
             sentinel(
                 'Creating output bam datasets',
                 align_analysis.create_output_datasets,
-                location,
+                inputs_storage,
                 tag_name=args['bams_tag'],
                 update=args['update'],
             )
@@ -175,7 +175,7 @@ def main():
     if args['integrationtest']:
         test_storage = tantalus_api.get("storage", name=config["jobs_storage"])
         template = os.path.join(test_storage["prefix"], "{jira}{tag}")
-        inputs_storage = config["jobs_storage"]
+        inputs_storage = config["jobs_storage"] if args["local_run"] else "singlecellblob"
     elif args['shahlab_run']:
         template = templates.SHAHLAB_PIPELINE_DIR
         template_args['jobs_dir'] = config['jobs_dir']

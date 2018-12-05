@@ -26,9 +26,10 @@ def get_args():
 
     parser.add_argument(
         "--local_run",
-        defaul=False,
+        default=False,
         action="store_true",
-        help="Run the single cell pipeline locally.")
+        help="Run the single cell pipeline locally."
+    )
 
     parser.add_argument(
         '--update',
