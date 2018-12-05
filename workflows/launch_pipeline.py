@@ -106,6 +106,7 @@ def run_pipeline(
             '--storage',        'azureblob',
         ]
 
+    if not args["shahlab_run"]:
         # Append docker command to the beginning
         docker_cmd = [
             'docker', 'run', '-w', '$PWD',

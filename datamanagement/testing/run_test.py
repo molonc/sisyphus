@@ -18,6 +18,7 @@ LIBRARY_ID = "A96213ATEST"
 
 test_dataset = tantalus_api.get("sequence_dataset", dataset_type="FQ", library__library_id=LIBRARY_ID)
 
+# TODO: check more fields in datasets
 
 def download_data(storage_name, storage_dir, queue_name, tag_name):
 	"""
@@ -25,7 +26,7 @@ def download_data(storage_name, storage_dir, queue_name, tag_name):
 	already exist) and download input fastqs tagged with tag_name from 
 	singlecellblob to storage storage_name using Saltant.
 	Args:
-		storage_name: name of storage to download files to
+		storage_name: name of Tantalus storage to download files to
 		storage_dir: directory corresponding to storage_name
 		queue_name: celery queue to use
 		tag_name: tag in Tantalus that identifies the input fastqs
@@ -50,15 +51,19 @@ def download_data(storage_name, storage_dir, queue_name, tag_name):
 		queue_name)
 
 
-def run_pipeline(pipeline_version, storage_name, local_run=False):
+def run_pipeline(pipeline_version, storage_name, extra_args=None):
 	"""
 	Create a test user configuration file and use it to 
 	run the pipeline using Sisyphus.
+	Args:
+		pipeline_version: single cell pipeline version, for example v0.2.3
+		storage_name: name of Tantalus storage containing input files
+		local_run: if True, run the single cell pipeline locally
 	"""
 	config_dir = os.path.join(os.path.dirname(workflows.__file__), "config")
 	test_config_path = os.path.join(config_dir, "test_config.json")
 	test_config = file_utils.load_json(os.path.join(config_dir, "normal_config.json"))
-	test_config["test_storage"] = storage_name
+	test_config["jobs_storage"] = storage_name
 
 	with open(test_config_path, "w") as outfile:
 		json.dump(test_config, outfile)
@@ -75,8 +80,8 @@ def run_pipeline(pipeline_version, storage_name, local_run=False):
 		"--integrationtest",
 		"--update"]
 
-	if local_run:
-		run_cmd.append("--local_run")
+	if extra_args is not None:
+		run_cmd.extend(["--" + arg for arg in extra_args])
 
 	print(' '.join(run_cmd))
 
@@ -87,14 +92,15 @@ def run_pipeline(pipeline_version, storage_name, local_run=False):
 
 def check_output_files(filepaths, storage_name, storage_client):
 	"""
-	Check to see whether the filepaths exist at storage_name and 
-	have been added to Tantalus.
+	Check to see whether a given list of file paths exist at storage_name and 
+	whether the correct Tantalus models (file resource and file instance) 
+	have been created.
 	"""
 	file_resources = set()
 	for filepath in filepaths:
 		filename = tantalus_api.get_file_resource_filename(storage_name, filepath)
 
-		if not client.exists(filename):
+		if not storage_client.exists(filename):
 			raise Exception("filename {} could not be found in storage {}".format(filename, storage_name))
 
 		try:
@@ -121,24 +127,28 @@ def check_bams(storage_name):
 	hmmcopy_analysis = tantalus_api.get("analysis", name=JIRA_TICKET + "_hmmcopy")
 
 	bam_datasets = tantalus_api.list("sequence_dataset", analysis__jira_ticket=JIRA_TICKET, dataset_type="BAM")
-	if set(bam_datasets) !=  set(hmmcopy_analysis["input_datasets"]):
+	bam_dataset_pks = [bam_dataset["id"] for bam_dataset in bam_datasets]
+
+	if set(bam_dataset_pks) !=  set(hmmcopy_analysis["input_datasets"]):
 		raise Exception("bam datasets associated with analysis jira ticket do not match",
 			" those in hmmcopy input datasets")
 
 	# Get bam paths from the inputs yaml
 	headnode_client = tantalus_api.get_storage_client("headnode")
 	assert len(align_analysis["logs"]) == 1
-	inputs_yaml_pk = analysis["logs"][0]
+	inputs_yaml_pk = align_analysis["logs"][0]
 	f = headnode_client.open_file(tantalus_api.get("file_resource", id=inputs_yaml_pk)["filename"])
 	bam_paths = []
 	for info in yaml.load(f).itervalues():
 		bam_paths.append(info["bam"])
+		bam_paths.append(info["bam"] + ".bai")
 	f.close()
 
 	storage_client = tantalus_api.get_storage_client(storage_name)
 
 	bam_file_resources = check_output_files(bam_paths, storage_name, storage_client)
 	dataset_file_resources = set()
+	print(hmmcopy_analysis["input_datasets"])
 	for dataset_id in hmmcopy_analysis["input_datasets"]:
 		dataset = tantalus_api.get("sequence_dataset", id=dataset_id)
 		dataset_file_resources.update(dataset["file_resources"])
@@ -158,9 +168,10 @@ def check_results(storage_name):
 			dirname = "hmmcopy_autoploidy"
 			yaml_field = "hmmcopy"
 
+		# TODO: move to datamanagement.templates
 		info_yaml_path = os.path.join(JIRA_TICKET, "results", "results", dirname, "info.yaml")
-		f = results_client.open_file(info_yaml_path)
-		results_infos = yaml.load(f)[yaml_field]['results']
+		f = storage_client.open_file(info_yaml_path)
+		result_infos = yaml.load(f)[yaml_field]['results']
 		f.close()
 
 		result_paths = []
@@ -172,8 +183,6 @@ def check_results(storage_name):
 			if result_name == "{}_metrics".format(yaml_field):
 				check_metrics_file(analysis_type, result_info["filename"], storage_client)
 
-		result_paths = [result_info["filename"] for result_info in result_infos]
-		results_filenames.extend(results_paths)
 		result_file_resources = check_output_files(result_paths, storage_name, storage_client)
 
 		result = tantalus_api.get("results", name=JIRA_TICKET + "_" + analysis_type)
@@ -184,13 +193,18 @@ def check_results(storage_name):
 def cleanup_bams(storage_name):
 	storage_client = tantalus_api.get_storage_client(storage_name)
 
-	bam_dataset = tantalus_api.get("sequence_dataset", analysis__jira_ticket=JIRA_TICKET, dataset_type="BAM")
+	try:
+		bam_dataset = tantalus_api.get("sequence_dataset", analysis__jira_ticket=JIRA_TICKET, dataset_type="BAM")
+	except NotFoundError:
+		return
 
 	storage_client = tantalus_api.get_storage_client(storage_name)
 
 	for file_resource_pk in bam_dataset["file_resources"]:
 		log.info("deleting file_resource {}".format(file_resource_pk))
 		filename = tantalus_api.get("file_resource", id=file_resource_pk)["filename"]
+		if not storage_client.exists(filename):
+			continue
 		storage_client.delete(filename)
 
 	log.info("deleting sequence dataset {}".format(bam_dataset["name"]))
@@ -201,18 +215,23 @@ def cleanup_results(storage_name):
 	storage_client = tantalus_api.get_storage_client(storage_name)
 
 	for analysis_type in ("align", "hmmcopy"):
-		results = tantalus_api.get("results", name=JIRA_TICKET + "_" + analysis_type)
+		try:
+			results = tantalus_api.get("results", name=JIRA_TICKET + "_" + analysis_type)
+		except NotFoundError:
+			continue
+
 		for file_resource_pk in results["file_resources"]:
 			log.info("deleting file_resource {}".format(file_resource_pk))
 			filename = tantalus_api.get("file_resource", id=file_resource_pk)["filename"]
+			if not storage_client.exists(filename):
+				continue
 			storage_client.delete(filename)
 
 		log.info("deleting result {}".format(results["name"]))
 		tantalus_api.delete("results", results["id"])
 
-
-		analysis = tantalus_api.get("analysis", name=JIRA_TICKET + "_" + analysis_type)
 		log.info("deleting analysis {}".format(analysis["name"]))
+		analysis = tantalus_api.get("analysis", name=JIRA_TICKET + "_" + analysis_type)
 		tantalus_api.delete("analysis", analysis["id"])
 
 
@@ -227,7 +246,7 @@ def parse_args():
 	parser.add_argument("--storage_dir")
 	parser.add_argument("--queue_name")
 	parser.add_argument("--pipeline_version")
-	parser.add_argument("--local", default=False, action="store_true")
+	parser.add_argument("--extra_args", nargs='*')  # arguments to pass to Sisyphus, but with the "--" stripped from the start
 	return dict(vars(parser.parse_args()))
 
 
@@ -235,7 +254,7 @@ if __name__ == '__main__':
 	args = parse_args()
 	tag_name = "IntegrationTestFastqs"
 	download_data(args["storage_name"], args["storage_dir"], args["queue_name"], tag_name)
-	run_pipeline(args["pipeline_version"], args["storage_name"], local_run=args["local"])
+	run_pipeline(args["pipeline_version"], args["storage_name"], extra_args=args['extra_args'])
 
 	bams_storage = "singlecellblob"
 	results_storage = "singlecellblob_results"
