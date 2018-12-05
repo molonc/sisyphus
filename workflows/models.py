@@ -392,6 +392,8 @@ class AlignAnalysis(Analysis):
         )
 
         if self.args['integrationtest']:
+            # Skip checking of lanes and just return the dataset ids at this point,
+            # since we're only considering a subset of lanes for testing
             return [dataset["id"] for dataset in datasets]
 
         if not datasets:
@@ -455,8 +457,11 @@ class AlignAnalysis(Analysis):
         Args:
             storage_name: Which tantalus storage to look at
         """
+        library_id = self.args["library_id"]
+        if self.args["integrationtest"]:
+            library_id = library_id.strip("TEST")
 
-        sample_info = generate_inputs.generate_sample_info(self.args["library_id"].strip("TEST"))
+        sample_info = generate_inputs.generate_sample_info(library_id)
 
         if sample_info['index_sequence'].duplicated().any():
             raise Exception('Duplicate index sequences in sample info.')
@@ -486,6 +491,9 @@ class AlignAnalysis(Analysis):
             index_sequence = row['index_sequence']
 
             if self.args["integrationtest"] and (index_sequence not in tantalus_index_sequences):
+                # Skip index sequences that are not found in the Tantalus dataset, since
+                # we need to refer to the original library in Colossus for metadata, but
+                # we don't want to iterate through all the cells present in that library
                 continue
 
             colossus_index_sequences.add(index_sequence)
