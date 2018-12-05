@@ -1,2 +1,4 @@
+azure-storage-blob
 coreapi
 openapi_codec
+saltant-py
