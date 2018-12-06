@@ -88,21 +88,6 @@ class TransferProgress(object):
         )
 
 
-def get_new_filepath(storage, file_resource):
-    """Emulate Tantalus' get_filepath method logic."""
-    if storage["storage_type"] == "server":
-        return os.path.join(
-            storage["storage_directory"], file_resource["filename"].strip("/")
-        )
-    elif storage["storage_type"] == "blob":
-        return "/".join(
-            [storage["storage_container"], file_resource["filename"].strip("/")]
-        )
-    else:
-        # Storage type not supported!
-        raise NotImplementedError
-
-
 class AzureTransfer(object):
     """A class useful for server-blob interactions.
 
@@ -136,7 +121,7 @@ class AzureTransfer(object):
             "file_resource", id=file_instance["file_resource"]
         )
 
-        local_filepath = get_new_filepath(to_storage, file_resource)
+        local_filepath = os.path.join(to_storage["prefix"], file_resource["filename"])
 
         make_dirs(os.path.dirname(local_filepath))
 
@@ -186,7 +171,7 @@ class AzureTransfer(object):
             "file_resource", id=file_instance["file_resource"]
         )
 
-        cloud_filepath = get_new_filepath(to_storage, file_resource)
+        cloud_filepath = os.path.join(to_storage["prefix"], file_resource["filename"])
         if not cloud_filepath.startswith(to_storage["prefix"]):
             raise Exception("{} does not have storage prefix {}".format(
                 cloud_filepath, to_storage["prefix"]))
@@ -329,7 +314,7 @@ def rsync_file(file_instance, to_storage, tantalus_api):
     # Get the file resource associated with the file instance
     file_resource = tantalus_api.get("file_resource", id=file_instance["file_resource"])
 
-    local_filepath = get_new_filepath(to_storage, file_resource)
+    local_filepath = os.path.join(to_storage["prefix"], file_resource["filename"])
 
     remote_filepath = file_instance["filepath"]
 
