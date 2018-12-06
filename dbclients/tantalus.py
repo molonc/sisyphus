@@ -351,6 +351,37 @@ class TantalusApi(BasicAPIClient):
 
         return file_instances
 
+    def tag(self, name, sequencedataset_set=(), resultsdataset_set=()):
+        """
+        Tag datasets.
+
+        Args:
+            tag_name (str)
+            sequencedataset_set (list)
+            resultsdataset_set (list)
+
+        Returns:
+            tag (dict)
+        """
+        endpoint_url = self.join_urls(self.base_api_url, 'tag')
+
+	fields = {
+            'name': name,
+            'sequencedataset_set': sequencedataset_set,
+            'resultsdataset_set': resultsdataset_set,
+        }
+        payload = json.dumps(fields, cls=DjangoJSONEncoder)
+
+        r = self.session.post(
+            endpoint_url,
+            data=payload)
+
+        if not r.ok:
+            raise Exception('failed with error: "{}", reason: "{}"'.format(
+                r.reason, r.text))
+
+        return r.json()
+
     @staticmethod
     def join_urls(*pieces):
         """Join pieces of an URL together safely."""
