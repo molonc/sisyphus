@@ -8,7 +8,7 @@ import json
 import __main__
 
 
-def parse_runtime_args(name=__main__.__file__):
+def parse_runtime_args(name=None):
     """Parse runtime args using argparse.
 
     Args:
