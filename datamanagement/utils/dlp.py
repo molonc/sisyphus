@@ -78,7 +78,7 @@ def create_sequence_dataset_models(
     storage = tantalus_api.get("storage", name=storage_name)
     storage_pk = storage["id"]
 
-    # if tag_name is not None:
+    if tag_name is not None:
         tag_pk = tantalus_api.get_or_create("tag", name=tag_name)["id"]
 
     # Sort files by dataset
