@@ -67,6 +67,9 @@ class BlobStorageClient(object):
         url = self.get_url(blobname)
         return urllib2.urlopen(url)
 
+    def exists(self, blobname):
+        return self.blob_service.exists(self.storage_container, blob_name=blobname)
+
 
 class ServerStorageClient(object):
     def __init__(self, storage):
@@ -92,6 +95,10 @@ class ServerStorageClient(object):
     def open_file(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
         return open(filepath)
+
+    def exists(self, filename):
+        filepath = os.path.join(self.storage_directory, filename)
+        return os.path.exists(filepath)
 
 
 class TantalusApi(BasicAPIClient):
@@ -343,6 +350,37 @@ class TantalusApi(BasicAPIClient):
             file_instances.append(file_instance)
 
         return file_instances
+
+    def tag(self, name, sequencedataset_set=(), resultsdataset_set=()):
+        """
+        Tag datasets.
+
+        Args:
+            tag_name (str)
+            sequencedataset_set (list)
+            resultsdataset_set (list)
+
+        Returns:
+            tag (dict)
+        """
+        endpoint_url = self.join_urls(self.base_api_url, 'tag')
+
+	fields = {
+            'name': name,
+            'sequencedataset_set': sequencedataset_set,
+            'resultsdataset_set': resultsdataset_set,
+        }
+        payload = json.dumps(fields, cls=DjangoJSONEncoder)
+
+        r = self.session.post(
+            endpoint_url,
+            data=payload)
+
+        if not r.ok:
+            raise Exception('failed with error: "{}", reason: "{}"'.format(
+                r.reason, r.text))
+
+        return r.json()
 
     @staticmethod
     def join_urls(*pieces):

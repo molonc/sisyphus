@@ -51,7 +51,7 @@ def init_pl_dir(pipeline_dir, clean):
     """
     log.debug("Cleaning working directory: " + str(clean))
 
-    if clean:
+    if clean and os.path.exists(pipeline_dir):
         shutil.rmtree(pipeline_dir)
 
     if not os.path.exists(pipeline_dir):
