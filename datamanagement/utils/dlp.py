@@ -206,5 +206,4 @@ def create_sequence_dataset_models(
 
         dataset_ids.add(dataset['id'])
 
-
     return dataset_ids
