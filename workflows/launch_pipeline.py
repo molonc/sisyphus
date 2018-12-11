@@ -93,7 +93,9 @@ def run_pipeline(
         '--pipelinedir',        scpipeline_dir,
     ]
 
-    if args['shahlab_run']:
+    if args['local_run']:
+        run_cmd += ["--submit", "local"]
+    elif args['shahlab_run']:
         run_cmd += [
             '--submit',         'asyncqsub',
             '--nativespec',     "' -hard -q shahlab.q -V -l h_vmem=20G -pe ncpus {ncpus}'",
@@ -104,6 +106,7 @@ def run_pipeline(
             '--storage',        'azureblob',
         ]
 
+    if not args["shahlab_run"]:
         # Append docker command to the beginning
         docker_cmd = [
             'docker', 'run', '-w', '$PWD',

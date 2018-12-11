@@ -13,7 +13,7 @@ import pandas as pd
 from datamanagement.utils.constants import LOGGING_FORMAT
 from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 import datamanagement.templates as templates
-from utils.filecopy import rsync_file
+from utils.filecopy import rsync_file, try_gzip
 from utils.gsc import get_sequencing_instrument, GSCAPI
 from utils.runtime_args import parse_runtime_args
 from dbclients.colossus import ColossusApi
@@ -194,6 +194,8 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     for fastq_info in fastq_infos:
         fastq_path = fastq_info["data_path"]
+        
+        try_gzip(fastq_path)
 
         if fastq_info["status"] != "production":
             logging.info(

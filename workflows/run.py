@@ -12,6 +12,7 @@ import arguments
 import datamanagement.templates as templates
 import launch_pipeline
 import generate_inputs
+from dbclients.tantalus import TantalusApi
 
 from utils import (colossus_utils, saltant_utils,
                    file_utils, log_utils, file_transfers, bcl2fastq)
@@ -27,25 +28,28 @@ stream_handler.setFormatter(formatter)
 log.addHandler(stream_handler)
 log.propagate = False
 
+tantalus_api = TantalusApi()
 
-def start_automation(args, config, pipeline_dir, analysis_info):
+def start_automation(args, config, pipeline_dir, analysis_info, inputs_storage):
     start = time.time()
 
-    if args['shahlab_run']:
-        location = 'shahlab'
-        inputs_yaml_storage = config['jobs_storage']
-        results_storage = config['jobs_storage']
-        storage_type = 'server'
-    else:
-        location = 'singlecellblob'
+    storage = tantalus_api.get("storage", name=inputs_storage)
+    if storage["storage_type"] == "blob":
         inputs_yaml_storage = None
-        results_storage = 'singlecellblob_results'
-        storage_type = 'blob'
+        results_storage = "singlecellblob_results"
+    elif storage["storage_type"] == "server":
+        inputs_yaml_storage = results_storage = config["jobs_storage"]
+    else:
+        raise Exception("unrecognized storage type {}".format(storage["storage_type"]))
+
+    library_id = analysis_info.chip_id
+    if args["integrationtest"]:
+        library_id += "TEST"
 
     args['ref_genome'] = analysis_info.reference_genome
     args['aligner'] = analysis_info.aligner
-    args['library_id'] = analysis_info.chip_id
     args['jobs_dir'] = config['jobs_dir']
+    args["library_id"] = library_id
 
     dataset_ids = set()
     result_ids = set()
@@ -76,7 +80,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
                 'Generating inputs yaml',
                 align_analysis.generate_inputs_yaml,
                 inputs_yaml,
-                location,
+                inputs_storage,
             )
         else:
             inputs_yaml = args['inputs_yaml']
@@ -115,7 +119,7 @@ def start_automation(args, config, pipeline_dir, analysis_info):
             sentinel(
                 'Creating output bam datasets',
                 align_analysis.create_output_datasets,
-                location,
+                inputs_storage,
                 tag_name=args['bams_tag'],
                 update=args['update'],
             )
@@ -168,11 +172,17 @@ def main():
 
     template_args = {'jira': args['jira'], 'tag': args['tag']}
 
-    if args['shahlab_run']:
+    if args['integrationtest']:
+        test_storage = tantalus_api.get("storage", name=config["jobs_storage"])
+        template = os.path.join(test_storage["prefix"], "{jira}{tag}")
+        inputs_storage = config["jobs_storage"] if args["local_run"] else "singlecellblob"
+    elif args['shahlab_run']:
         template = templates.SHAHLAB_PIPELINE_DIR
         template_args['jobs_dir'] = config['jobs_dir']
+        inputs_storage = "shahlab"
     else:
         template = templates.AZURE_PIPELINE_DIR
+        inputs_storage = "singlecellblob"
 
     pipeline_dir = template.format(**template_args)
 
@@ -194,7 +204,7 @@ def main():
     log.info('Library ID: {}'.format(analysis_info.chip_id))
 
     try:
-        start_automation(args, config, pipeline_dir, analysis_info)
+        start_automation(args, config, pipeline_dir, analysis_info, inputs_storage)
     except Exception:
         traceback.print_exc()
         if args['shahlab_run']:

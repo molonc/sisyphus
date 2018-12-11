@@ -88,21 +88,6 @@ class TransferProgress(object):
         )
 
 
-def get_new_filepath(storage, file_resource):
-    """Emulate Tantalus' get_filepath method logic."""
-    if storage["storage_type"] == "server":
-        return os.path.join(
-            storage["storage_directory"], file_resource["filename"].strip("/")
-        )
-    elif storage["storage_type"] == "blob":
-        return "/".join(
-            [storage["storage_container"], file_resource["filename"].strip("/")]
-        )
-    else:
-        # Storage type not supported!
-        raise NotImplementedError
-
-
 class AzureTransfer(object):
     """A class useful for server-blob interactions.
 
@@ -115,6 +100,7 @@ class AzureTransfer(object):
             account_key=storage["credentials"]["storage_key"],
         )
         self.block_blob_service.MAX_BLOCK_SIZE = 64 * 1024 * 1024
+        self.from_storage = storage
 
     def download_from_blob(self, file_instance, to_storage, tantalus_api):
         """ Transfer a file from blob to a server.
@@ -123,15 +109,19 @@ class AzureTransfer(object):
         """
 
         cloud_filepath = file_instance["filepath"]
-        cloud_container, cloud_blobname = cloud_filepath.split("/", 1)
-        assert cloud_container == file_instance["storage"]["storage_container"]
+        if not cloud_filepath.startswith(self.from_storage["prefix"]):
+            raise Exception("{} does not have storage prefix {}".format(
+                cloud_filepath, self.from_storage["prefix"]))
+
+        cloud_blobname = tantalus_api.get_file_resource_filename(self.from_storage["name"], cloud_filepath)
+        cloud_container = self.from_storage["storage_container"]
 
         # Get the file resource associated with the file instance
         file_resource = tantalus_api.get(
             "file_resource", id=file_instance["file_resource"]
         )
 
-        local_filepath = get_new_filepath(to_storage, file_resource)
+        local_filepath = os.path.join(to_storage["prefix"], file_resource["filename"])
 
         make_dirs(os.path.dirname(local_filepath))
 
@@ -181,9 +171,13 @@ class AzureTransfer(object):
             "file_resource", id=file_instance["file_resource"]
         )
 
-        cloud_filepath = get_new_filepath(to_storage, file_resource)
-        cloud_container, cloud_blobname = cloud_filepath.split("/", 1)
-        assert cloud_container == to_storage["storage_container"]
+        cloud_filepath = os.path.join(to_storage["prefix"], file_resource["filename"])
+        if not cloud_filepath.startswith(to_storage["prefix"]):
+            raise Exception("{} does not have storage prefix {}".format(
+                cloud_filepath, to_storage["prefix"]))
+
+        cloud_blobname = tantalus_api.get_file_resource_filename(to_storage["name"], cloud_filepath)
+        cloud_container = to_storage["storage_container"]
 
         if not os.path.isfile(local_filepath):
             error_message = "source file {filepath} does not exist on {storage} for file instance with pk: {pk}".format(
@@ -320,7 +314,7 @@ def rsync_file(file_instance, to_storage, tantalus_api):
     # Get the file resource associated with the file instance
     file_resource = tantalus_api.get("file_resource", id=file_instance["file_resource"])
 
-    local_filepath = get_new_filepath(to_storage, file_resource)
+    local_filepath = os.path.join(to_storage["prefix"], file_resource["filename"])
 
     remote_filepath = file_instance["filepath"]
 

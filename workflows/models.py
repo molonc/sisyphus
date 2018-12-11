@@ -13,7 +13,6 @@ from dbclients.basicclient import NotFoundError
 import generate_inputs
 import datamanagement.templates as templates
 from utils import colossus_utils, tantalus_utils, file_utils
-
 log = logging.getLogger('sisyphus')
 
 tantalus_api = dbclients.tantalus.TantalusApi()
@@ -392,6 +391,11 @@ class AlignAnalysis(Analysis):
             dataset_type='FQ',
         )
 
+        if self.args['integrationtest']:
+            # Skip checking of lanes and just return the dataset ids at this point,
+            # since we're only considering a subset of lanes for testing
+            return [dataset["id"] for dataset in datasets]
+
         if not datasets:
             raise Exception('no sequence datasets matching library_id {}'.format(self.args['library_id']))
 
@@ -453,8 +457,11 @@ class AlignAnalysis(Analysis):
         Args:
             storage_name: Which tantalus storage to look at
         """
+        library_id = self.args["library_id"]
+        if self.args["integrationtest"]:
+            library_id = library_id.strip("TEST")
 
-        sample_info = generate_inputs.generate_sample_info(self.args['library_id'])
+        sample_info = generate_inputs.generate_sample_info(library_id)
 
         if sample_info['index_sequence'].duplicated().any():
             raise Exception('Duplicate index sequences in sample info.')
@@ -479,9 +486,18 @@ class AlignAnalysis(Analysis):
             fastq_file_instances[(index_sequence, lane_id, read_end)] = file_instance
 
         input_info = {}
+
         for idx, row in sample_info.iterrows():
             index_sequence = row['index_sequence']
+
+            if self.args["integrationtest"] and (index_sequence not in tantalus_index_sequences):
+                # Skip index sequences that are not found in the Tantalus dataset, since
+                # we need to refer to the original library in Colossus for metadata, but
+                # we don't want to iterate through all the cells present in that library
+                continue
+
             colossus_index_sequences.add(index_sequence)
+            
             lane_fastqs = collections.defaultdict(dict)
             for lane_id, lane in lanes.iteritems():
                 sequencing_centre = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_centre']
@@ -506,6 +522,10 @@ class AlignAnalysis(Analysis):
 
             bam_filepath = str(tantalus_api.get_filepath(storage_name, bam_filename))
 
+            sample_id = row['sample_id']
+            if self.args['integrationtest']:
+                sample_id += "TEST"
+
             input_info[str(row['cell_id'])] = {
                 'fastqs':       dict(lane_fastqs),
                 'bam':          bam_filepath,
@@ -520,7 +540,7 @@ class AlignAnalysis(Analysis):
                 'row':          int(row['row']),
                 'sample_type':  'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
                 'index_sequence': str(row['primer_i7']) + '-' + str(row['primer_i5']),
-                'sample_id':    str(row['sample_id']),
+                'sample_id':    str(sample_id),
             }
 
         if colossus_index_sequences != tantalus_index_sequences:
@@ -546,6 +566,7 @@ class AlignAnalysis(Analysis):
         """
         lanes = dict()
         for dataset_id in self.analysis['input_datasets']:
+            print("dataset_id in get_lanes: {}".format(dataset_id))
             dataset = self.get_dataset(dataset_id)
             for lane in dataset['sequence_lanes']:
                 lane_id = tantalus_utils.get_flowcell_lane(lane)
@@ -568,6 +589,10 @@ class AlignAnalysis(Analysis):
         sequence_lanes = []
 
         for lane_id, lane in self.get_lanes().iteritems():
+
+            if self.args["integrationtest"]:
+                lane["flowcell_id"] += "TEST"
+
             sequence_lanes.append(dict(
                 flowcell_id=lane["flowcell_id"],
                 lane_number=lane["lane_number"]))

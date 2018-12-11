@@ -25,6 +25,13 @@ def get_args():
     )
 
     parser.add_argument(
+        "--local_run",
+        default=False,
+        action="store_true",
+        help="Run the single cell pipeline locally."
+    )
+
+    parser.add_argument(
         '--update',
         default=False,
         action='store_true',
@@ -42,6 +49,13 @@ def get_args():
         default=False,
         action='store_true',
         help='Do not start transfer of files from shahlab to singlecellblob',
+    )
+
+    parser.add_argument(
+        '--integrationtest',
+        default=False,
+        action='store_true',
+        help='Run pipeline on shahlab15, rather than on Azure.'
     )
 
     parser.add_argument(
