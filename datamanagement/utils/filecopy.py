@@ -43,7 +43,7 @@ def rsync_file(from_path, to_path):
         raise Exception("cmd '{}' returned {}".format(" ".join(subprocess_cmd), exitcode))
 
     if os.path.getsize(to_path) != os.path.getsize(from_path):
-        log.error("copy failed for %s to %s", from_path, to_path)
+        raise Exception("copy failed for %s to %s", from_path, to_path)
 
 
 def try_gzip(path):
