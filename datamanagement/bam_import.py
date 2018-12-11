@@ -81,10 +81,25 @@ def import_bam(
     bam_filename,
     read_type,
     sequencing_centre,
+    index_format,
+    update=False,
+    lane_info=None,
     tag_name=None,
 ):
-    bam_resource, bam_instance = tantalus_api.add_file(storage_name, bam_filename, "BAM")
-    bai_resource, bai_instance = tantalus_api.add_file(storage_name, bam_filename + ".bai", "BAI")
+    bam_resource, bam_instance = tantalus_api.add_file(
+        storage_name, 
+        bam_filename, 
+        "BAM",
+        fields={"compression":"UNCOMPRESSED"},
+        update=update
+    )
+    bai_resource, bai_instance = tantalus_api.add_file(
+        storage_name, 
+        bam_filename + ".bai", 
+        "BAI",
+        fields={"compression":"UNCOMPRESSED"},
+        update=update
+    )
 
     bam_url = tantalus_api.get_storage_client(storage_name).get_url(bam_resource['filename'])
     bam_header = pysam.AlignmentFile(bam_url).header
@@ -92,10 +107,13 @@ def import_bam(
     ref_genome = get_bam_ref_genome(bam_header)
     aligner_name = get_bam_aligner_name(bam_header)
 
-    sample_pk = tantalus_api.get("sample", sample_id=bam_header_info["sample_id"])["id"]
+    sample_pk = tantalus_api.get_or_create("sample", sample_id=bam_header_info["sample_id"])["id"]
 
-    library_pk = tantalus_api.get(
-        "dna_library", library_id=bam_header_info["library_id"]
+    library_pk = tantalus_api.get_or_create(
+        "dna_library", 
+        library_id=bam_header_info["library_id"],
+        library_type=library_type,
+        index_format=index_format,
     )["id"]
 
     if tag_name is not None:
@@ -107,17 +125,31 @@ def import_bam(
     sequence_lanes = []
     sequence_lane_pks = []
 
-    for lane in bam_header_info["sequence_lanes"]:
-        lane = tantalus_api.get_or_create(
-            "sequencing_lane",
-            flowcell_id=lane["flowcell_id"],
-            dna_library=library_pk,
-            read_type=read_type,
-            lane_number=lane["lane_number"],
-            sequencing_centre=sequencing_centre,
-        )
-        sequence_lanes.append(lane)
-        sequence_lane_pks.append(lane["id"])
+    if not lane_info:
+        for lane in bam_header_info["sequence_lanes"]:
+            lane = tantalus_api.get_or_create(
+                "sequencing_lane",
+                flowcell_id=lane["flowcell_id"],
+                dna_library=library_pk,
+                read_type=read_type,
+                lane_number=str(lane["lane_number"]),
+                sequencing_centre=sequencing_centre,
+            )
+            sequence_lanes.append(lane)
+            sequence_lane_pks.append(lane["id"])
+    else:
+        for lane in lane_info:
+            lane = tantalus_api.get_or_create(
+                "sequencing_lane",
+                flowcell_id=lane["flowcell_id"],
+                dna_library=library_pk,
+                read_type=read_type, 
+                lane_number=str(lane["lane_number"]),
+                sequencing_centre=sequencing_centre,
+                sequencing_instrument=lane["sequencing_instrument"],
+            )
+            sequence_lanes.append(lane)
+            sequence_lane_pks.append(lane["id"])
 
     file_resource_pks = [bam_resource["id"], bai_resource["id"]]
 
@@ -163,7 +195,8 @@ if __name__ == "__main__":
         args["bam_filename"],
         args["read_type"],
         args["sequencing_centre"],
-        tag_name=args.get("tag_name"),
+        args["index_format"],
+        tag_name=args["tag_name"],
     )
 
     print("dataset {}".format(dataset["id"]))
