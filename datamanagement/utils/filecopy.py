@@ -65,7 +65,6 @@ def try_gzip(path):
             log.info(line)
 
     exitcode = process.wait()
-    print(exitcode)
 
     if exitcode != 0:
         raise Exception("cmd '{}' returned {}".format(" ".join(subprocess_cmd), exitcode))
