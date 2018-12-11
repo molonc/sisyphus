@@ -201,7 +201,6 @@ def create_sequence_dataset_models(
 
         # Add tag and post dataset to tag endpoint
         if tag_name is not None:
-            tag_pk = tantalus_api.get_or_create("tag", name=tag_name)["id"]
             tantalus_api.tag(tag_name, dataset['id']) 
 
         dataset_ids.add(dataset['id'])
