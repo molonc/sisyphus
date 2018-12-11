@@ -49,7 +49,7 @@ if __name__ == "__main__":
             tag_name)
 
         for flowcell in flowcells_to_be_created:
-            colossus_api.get_or_create("lane", sequencing=sequence['id'], flow_cell_id=flowcell, path_to_archive="")
+            colossus_api.get_or_create("lane", sequencing=sequence['id'], flow_cell_id=flowcell)
 
         colossus_api.update('sequencingdetails', sequence['dlpsequencingdetail']['id'], lanes_received=True)
 

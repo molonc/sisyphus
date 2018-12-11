@@ -78,8 +78,6 @@ def create_sequence_dataset_models(
     storage = tantalus_api.get("storage", name=storage_name)
     storage_pk = storage["id"]
 
-    if tag_name is not None:
-        tag_pk = tantalus_api.get_or_create("tag", name=tag_name)["id"]
 
     # Sort files by dataset
     dataset_info = collections.defaultdict(list)
@@ -143,10 +141,6 @@ def create_sequence_dataset_models(
             sequence_dataset["aligner"] = infos[0]["aligner_name"]
             sequence_dataset["reference_genome"] = infos[0]["ref_genome"]
 
-        # Add in the tag if we have one
-        if tag_name is not None:
-            sequence_dataset["tags"] = [tag_pk]
-
         for info in infos:
             # Check consistency for fields used for dataset
             check_fields = (
@@ -204,6 +198,9 @@ def create_sequence_dataset_models(
         else:
             log.info("creating sequence dataset {}".format(sequence_dataset["name"]))
             dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
+
+        if tag_name is not None:
+            tantalus_api.tag(tag_name, dataset['id']) 
 
         dataset_ids.add(dataset['id'])
 
