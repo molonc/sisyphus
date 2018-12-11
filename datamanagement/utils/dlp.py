@@ -78,8 +78,6 @@ def create_sequence_dataset_models(
     storage = tantalus_api.get("storage", name=storage_name)
     storage_pk = storage["id"]
 
-    if tag_name is not None:
-        tag_pk = tantalus_api.get_or_create("tag", name=tag_name)["id"]
 
     # Sort files by dataset
     dataset_info = collections.defaultdict(list)
@@ -201,8 +199,11 @@ def create_sequence_dataset_models(
             log.info("creating sequence dataset {}".format(sequence_dataset["name"]))
             dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
 
+        # Add tag and post dataset to tag endpoint
         if tag_name is not None:
+            tag_pk = tantalus_api.get_or_create("tag", name=tag_name)["id"]
             sequence_dataset["tags"] = [tag_pk]
+            tantalus_api.tag(tag_name, dataset['id']) 
 
         dataset_ids.add(dataset['id'])
 
