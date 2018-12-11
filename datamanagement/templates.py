@@ -67,7 +67,29 @@ SC_WGS_BAM_TEMPLATE = os.path.join(
 	'{cell_id}.bam'
 )
 
-WGS_BAM_NAME_TEMPLATE = "BAM-{sample_id}-{library_type}-{library_id} (lanes {lanes_hash})"
+WGS_BAM_NAME_TEMPLATE = os.path.join(
+    "{sample_id}",
+    "bam",
+    "{library_type}",
+    "{library_id}",
+    "lanes_{lanes_str}",
+    "{sample_id}_{library_id}_{lanes_str}.bam",
+)
+
+MERGE_BAM_PATH_TEMPLATE = {
+    "WGS": "{data_path}/{library_name}_{num_lanes}_lane{lane_pluralize}_dupsFlagged.bam",
+    "EXOME": "{data_path}/{library_name}_{num_lanes}_lane{lane_pluralize}_dupsFlagged.bam",
+}
+
+LANE_BAM_PATH_TEMPLATE = {
+    "WGS": "{data_path}/{flowcell_id}_{lane_number}.bam",
+    "RNASEQ": "{data_path}/{flowcell_id}_{lane_number}_withJunctionsOnGenome_dupsFlagged.bam",
+}
+
+MULTIPLEXED_LANE_BAM_PATH_TEMPLATE = {
+    "WGS": "{data_path}/{flowcell_id}_{lane_number}_{adapter_index_sequence}.bam",
+    "RNASEQ": "{data_path}/{flowcell_id}_{lane_number}_{adapter_index_sequence}_withJunctionsOnGenome_dupsFlagged.bam",
+}
 
 SC_WGS_BAM_NAME_TEMPLATE = "-".join([
     "{dataset_type}",
