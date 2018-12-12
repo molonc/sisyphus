@@ -64,7 +64,8 @@ def run_pipeline(
         analysis_info,
         inputs_yaml,
         docker_env_file,
-        max_jobs='400'):
+        max_jobs='400',
+        dirs=()):
 
     args = tantalus_analysis.args
     config_override_string = get_config_string(analysis_info, shahlab_run=args['shahlab_run'])
@@ -110,14 +111,21 @@ def run_pipeline(
         # Append docker command to the beginning
         docker_cmd = [
             'docker', 'run', '-w', '$PWD',
-            '-v',   '/home:/home',
-            '-v',   '/datadrive:/datadrive',
-            '-v',   '/results:/results', '--rm',
-            '-v',   '/var/run/docker.sock:/var/run/docker.sock',
-            '-v',   '/usr/bin/docker:/usr/bin/docker',
+            '-v', '$PWD:$PWD',
+            '-v', '/var/run/docker.sock:/var/run/docker.sock',
+            '-v', '/usr/bin/docker:/usr/bin/docker',
+            '--rm',
             '--env-file', docker_env_file,
-            'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(args['version']),
         ]
+
+        for d in dirs:
+            docker_cmd.extend([
+                '-v', '{d}:{d}'.format(d=d),
+            ])
+
+        docker_cmd.append(
+            'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(args['version'])
+        )
 
         run_cmd = docker_cmd + run_cmd
 

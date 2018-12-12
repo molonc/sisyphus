@@ -20,15 +20,15 @@ from datamanagement.utils.utils import make_dirs
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
 
-# Configure the azure.storage logger. TODO(mwiens91): is this code
-# necessary? Apparently some Microsoft people asked us to put it in, but
-# so far I've seen zero output from it, even as we were having errors.
+# Configure the azure.storage logger.
+# For more verbose output as required by microsoft set loglevel
+# to DEBUG
 logger = logging.getLogger("azure.storage")
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(asctime)s %(name)-20s %(levelname)-5s %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.ERROR)
 
 
 class DataCorruptionError(Exception):

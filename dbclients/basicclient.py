@@ -217,8 +217,8 @@ class BasicAPIClient(object):
             data=payload)
 
         if not r.ok:
-            raise Exception('failed with error: "{}", reason: "{}"'.format(
-                r.reason, r.text))
+            raise Exception('failed with error: "{}", reason: "{}", data: "{}"'.format(
+                r.reason, r.text, payload))
 
         return r.json()
 

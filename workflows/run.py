@@ -30,17 +30,15 @@ log.propagate = False
 
 tantalus_api = TantalusApi()
 
-def start_automation(args, config, pipeline_dir, analysis_info, inputs_storage):
+def start_automation(
+        args,
+        config,
+        pipeline_dir,
+        analysis_info,
+        storages,
+        job_subdir,
+):
     start = time.time()
-
-    storage = tantalus_api.get("storage", name=inputs_storage)
-    if storage["storage_type"] == "blob":
-        inputs_yaml_storage = None
-        results_storage = "singlecellblob_results"
-    elif storage["storage_type"] == "server":
-        inputs_yaml_storage = results_storage = config["jobs_storage"]
-    else:
-        raise Exception("unrecognized storage type {}".format(storage["storage_type"]))
 
     library_id = analysis_info.chip_id
     if args["integrationtest"]:
@@ -69,24 +67,25 @@ def start_automation(args, config, pipeline_dir, analysis_info, inputs_storage):
                 file_transfers.transfer_files,
                 args['jira'],
                 config,
-                'shahlab',
-                'singlecellblob',
+                storages['local_inputs'],
+                storages['remote_inputs'],
                 tantalus_analysis.search_input_datasets(),
             )
 
         if args['inputs_yaml'] is None:
-            inputs_yaml = os.path.join(pipeline_dir, 'inputs.yaml')
+            local_results_storage = tantalus_api.get('storage', name=config['storages']['local_results'])['storage_directory']
+            inputs_yaml = os.path.join(local_results_storage, job_subdir, 'inputs.yaml')
             sentinel(
                 'Generating inputs yaml',
                 align_analysis.generate_inputs_yaml,
                 inputs_yaml,
-                inputs_storage,
+                storages['working_inputs'],
             )
         else:
             inputs_yaml = args['inputs_yaml']
 
         align_analysis.check_inputs_yaml(inputs_yaml)
-        tantalus_analysis.add_inputs_yaml(inputs_yaml, inputs_yaml_storage, update=args['update'])
+        tantalus_analysis.add_inputs_yaml(inputs_yaml, storages['local_results'], update=args['update'])
         dataset_ids.update(tantalus_analysis.analysis['input_datasets'])
 
         if analysis_type == 'align' and args['no_align']:
@@ -97,6 +96,9 @@ def start_automation(args, config, pipeline_dir, analysis_info, inputs_storage):
 
         try:
             tantalus_analysis.set_run_status()
+
+            local_inputs_storage = tantalus_api.get('storage', name=config['storages']['local_inputs'])['storage_directory']
+            local_results_storage = tantalus_api.get('storage', name=config['storages']['local_results'])['storage_directory']
 
             if args["testing"]:
                 run_pipeline = launch_pipeline.run_pipeline2
@@ -110,6 +112,11 @@ def start_automation(args, config, pipeline_dir, analysis_info, inputs_storage):
                 analysis_info,
                 inputs_yaml,
                 docker_env_file=config['docker_env_file'],
+                dirs=[
+                    pipeline_dir,
+                    local_inputs_storage,
+                    local_results_storage,
+                ],
             )
         except Exception:
             tantalus_analysis.set_error_status()
@@ -119,20 +126,19 @@ def start_automation(args, config, pipeline_dir, analysis_info, inputs_storage):
             sentinel(
                 'Creating output bam datasets',
                 align_analysis.create_output_datasets,
-                inputs_storage,
+                storages['working_inputs'],
                 tag_name=args['bams_tag'],
                 update=args['update'],
             )
 
-        
         tantalus_results = tantalus_analysis.create_output_results(
-            results_storage, 
-            pipeline_dir,             
+            storages['working_results'],
+            pipeline_dir,
             update=args['update'],
         )
 
         result_ids.add(tantalus_results.get_id())
-        tantalus_analysis.set_complete_status()        
+        tantalus_analysis.set_complete_status()
 
     if args['shahlab_run']:
         sentinel(
@@ -140,8 +146,8 @@ def start_automation(args, config, pipeline_dir, analysis_info, inputs_storage):
             file_transfers.transfer_files,
             args['jira'],
             config,
-            'shahlab',
-            'singlecellblob',
+            storages['working_inputs'],
+            storages['remote_inputs'],
             list(dataset_ids),
         )
 
@@ -150,8 +156,8 @@ def start_automation(args, config, pipeline_dir, analysis_info, inputs_storage):
             file_transfers.transfer_files,
             args['jira'],
             config,
-            config['jobs_storage'],
-            'singlecellblob_results',
+            storages['working_results'],
+            storages['remote_results'],
             list(result_ids),
             results=True,
         )
@@ -170,21 +176,25 @@ def main():
 
     config = file_utils.load_json(args['config'])
 
-    template_args = {'jira': args['jira'], 'tag': args['tag']}
+    job_subdir = args['jira'] + args['tag']
 
-    if args['integrationtest']:
-        test_storage = tantalus_api.get("storage", name=config["jobs_storage"])
-        template = os.path.join(test_storage["prefix"], "{jira}{tag}")
-        inputs_storage = config["jobs_storage"] if args["local_run"] else "singlecellblob"
-    elif args['shahlab_run']:
-        template = templates.SHAHLAB_PIPELINE_DIR
-        template_args['jobs_dir'] = config['jobs_dir']
-        inputs_storage = "shahlab"
-    else:
-        template = templates.AZURE_PIPELINE_DIR
-        inputs_storage = "singlecellblob"
+    pipeline_dir = os.path.join(
+        config['jobs_dir'], job_subdir)
 
-    pipeline_dir = template.format(**template_args)
+    # TODO: At this stage i want to specify:
+    # results_subdir: the subdirectory in tantalus storage for the results for this ticket, based on jira ticket
+    # results_storage: storage on the vm or local system for storing the results
+    # inputs_storage: storage on the local system for storing the input datasets
+    # pipeline_dir: location of temporary files for pypeliner
+    
+    # Shahlab
+    # - local: shahlab
+    # - working: shahlab
+    # - remote: singlecellblob
+    # Blob
+    # - local: headnode
+    # - working: singlecellblob
+    # - remote: singlecellblob
 
     log_utils.init_pl_dir(pipeline_dir, args['clean'])
 
@@ -197,18 +207,15 @@ def main():
         update=args['update'],
     )
 
-    # TODO: kind of redundant
-    blob_path = templates.BLOB_RESULTS_DIR.format(**template_args)
-    analysis_info.update_results_path('blob_path', blob_path)
-
     log.info('Library ID: {}'.format(analysis_info.chip_id))
 
     try:
-        start_automation(args, config, pipeline_dir, analysis_info, inputs_storage)
+        start_automation(args, config, pipeline_dir, analysis_info, config['storages'], job_subdir)
     except Exception:
         traceback.print_exc()
         if args['shahlab_run']:
             log_utils.send_logging_email(config['email'], '{} error'.format(args['jira']))
+        raise Exception('pipeline failed')
 
 
 if __name__ == '__main__':
