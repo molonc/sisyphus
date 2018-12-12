@@ -1,6 +1,7 @@
 from dbclients.tantalus import TantalusApi
 from dbclients.basicclient import NotFoundError
 from workflows.utils import saltant_utils, file_utils
+from datamanagement.transfer_files import transfer_files
 import argparse
 import getpass
 import workflows
@@ -11,6 +12,10 @@ import json
 import logging
 
 log = logging.getLogger('sisyphus')
+
+if 'TANTALUS_API_URL' not in os.environ:
+    os.environ['TANTALUS_API_URL'] = 'http://127.0.0.1:8000/api/'
+
 tantalus_api = TantalusApi()
 
 JIRA_TICKET = "SC-1678"
@@ -20,7 +25,7 @@ test_dataset = tantalus_api.get("sequence_dataset", dataset_type="FQ", library__
 
 # TODO: check more fields in datasets
 
-def download_data(storage_name, storage_dir, queue_name, tag_name):
+def download_data(storage_name, storage_dir, tag_name):
 	"""
 	Get the storage storage_name from Tantalus (create it if it doesn't 
 	already exist) and download input fastqs tagged with tag_name from 
@@ -28,7 +33,6 @@ def download_data(storage_name, storage_dir, queue_name, tag_name):
 	Args:
 		storage_name: name of Tantalus storage to download files to
 		storage_dir: directory corresponding to storage_name
-		queue_name: celery queue to use
 		tag_name: tag in Tantalus that identifies the input fastqs
 	"""
 	tantalus_api.get_or_create(
@@ -36,49 +40,37 @@ def download_data(storage_name, storage_dir, queue_name, tag_name):
 		storage_type="server", 
 		name=storage_name,
 		storage_directory=storage_dir,
-		queue_prefix=storage_name)
+	)
 
-	file_transfer_args = dict(
-		tag_name=tag_name,
-		from_storage="singlecellblob",
-		to_storage=storage_name)
-
-	saltant_utils.get_or_create_task_instance(
-		"IntegrationTestTransfer_" + storage_name, 
-		getpass.getuser(), 
-		file_transfer_args,
-		saltant_utils.get_task_type_id("File transfer"), 
-		queue_name)
+	transfer_files(
+		tag_name,
+		"singlecellblob",
+		storage_name,
+	)
 
 
-def run_pipeline(pipeline_version, storage_name, extra_args=None):
+def run_pipeline(pipeline_version, config_json, extra_args=None):
 	"""
 	Create a test user configuration file and use it to 
 	run the pipeline using Sisyphus.
 	Args:
 		pipeline_version: single cell pipeline version, for example v0.2.3
-		storage_name: name of Tantalus storage containing input files
+		config_json: configuration file for pipeline
 		local_run: if True, run the single cell pipeline locally
 	"""
-	config_dir = os.path.join(os.path.dirname(workflows.__file__), "config")
-	test_config_path = os.path.join(config_dir, "test_config.json")
-	test_config = file_utils.load_json(os.path.join(config_dir, "normal_config.json"))
-	test_config["jobs_storage"] = storage_name
-
-	with open(test_config_path, "w") as outfile:
-		json.dump(test_config, outfile)
 
 	script = os.path.join(os.path.dirname(workflows.__file__), "run.py")
 	run_cmd = [
-		"python", 
-		script, 
+		"python",
+		script,
 		JIRA_TICKET,
 		pipeline_version,
 		"--clean",  # removes the pipeline directory
-		"--config", test_config_path,
+		"--config", config_json,
 		"--no_transfer",
 		"--integrationtest",
-		"--update"]
+		"--update",
+		"--local_run"]
 
 	if extra_args is not None:
 		run_cmd.extend(["--" + arg for arg in extra_args])
@@ -242,10 +234,8 @@ def check_metrics_file(analysis_type, filepath, storage_client):
 
 def parse_args():
 	parser = argparse.ArgumentParser()
-	parser.add_argument("--storage_name")
-	parser.add_argument("--storage_dir")
-	parser.add_argument("--queue_name")
-	parser.add_argument("--pipeline_version")
+	parser.add_argument("--config_json", required=True)
+	parser.add_argument("--pipeline_version", required=True)
 	parser.add_argument("--extra_args", nargs='*')  # arguments to pass to Sisyphus, but with the "--" stripped from the start
 	return dict(vars(parser.parse_args()))
 
@@ -253,8 +243,7 @@ def parse_args():
 if __name__ == '__main__':
 	args = parse_args()
 	tag_name = "IntegrationTestFastqs"
-	download_data(args["storage_name"], args["storage_dir"], args["queue_name"], tag_name)
-	run_pipeline(args["pipeline_version"], args["storage_name"], extra_args=args['extra_args'])
+	run_pipeline(args["pipeline_version"], args["config_json"], extra_args=args['extra_args'])
 
 	bams_storage = "singlecellblob"
 	results_storage = "singlecellblob_results"

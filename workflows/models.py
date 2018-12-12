@@ -41,6 +41,7 @@ class AnalysisInfo:
         }
 
         self.analysis_info = colossus_api.get('analysis_information', analysis_jira_ticket=jira)
+        self.args = args
 
         self.aligner = self.get_aligner()
         self.smoothing = self.get_smoothing()
@@ -156,6 +157,10 @@ class Analysis(object):
     def status(self):
         return self.analysis['status']
 
+    @property
+    def version(self):
+        return self.analysis['version']
+
     def get_or_create_analysis(self, args, update=False):
         """
         Get the analysis by querying Tantalus. Create the analysis
@@ -183,7 +188,7 @@ class Analysis(object):
 
             fields_to_check = {
                 'args': (args, lambda a, b: a != b),
-                'version': (args, lambda a, b: a != b),
+                'version': (version, lambda a, b: a != b),
                 'input_datasets': (input_datasets, lambda a, b: set(a) != set(b)),
                 'input_results': (input_results, lambda a, b: set(a) != set(b)),
             }
@@ -426,7 +431,7 @@ class AlignAnalysis(Analysis):
             dataset_type='FQ',
         )
 
-        if self.args['integrationtest']:
+        if args['integrationtest']:
             # Skip checking of lanes and just return the dataset ids at this point,
             # since we're only considering a subset of lanes for testing
             return [dataset["id"] for dataset in datasets]
@@ -660,7 +665,7 @@ class AlignAnalysis(Analysis):
                 output_file_info.append(file_info)
 
         log.info('creating sequence dataset models for output bams')
-        
+
         output_datasets = dlp.create_sequence_dataset_models(
             file_info=output_file_info,
             storage_name=storage_name,
@@ -938,6 +943,9 @@ class Results:
         else:
             analysis_type = self.analysis_type
 
+        # TODO: here we need a more prescriptive method to path management
+        # we should be specifying storages to the system, and then creating 
+        # filepaths for files we are interested in storing, and results etc
         storage_client = tantalus_api.get_storage_client(self.storage_name)
         info_yaml_filename = os.path.relpath(
             os.path.join(self.get_analysis_results_dir(), 'info.yaml'), 
