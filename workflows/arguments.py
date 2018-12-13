@@ -1,7 +1,8 @@
 import argparse
 import os
 
-def get_args():
+
+def get_args(arglist=None):
     '''
     Acquire arguments for running Sisyphus and the Single Cell Pipeline.
     '''
@@ -162,6 +163,7 @@ def get_args():
         help='Specifies the number of jobs to submit to the queue on shahlab15.'
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(arglist)
 
     return dict(vars(args))
+

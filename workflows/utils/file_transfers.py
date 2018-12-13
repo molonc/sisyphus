@@ -1,13 +1,12 @@
 import sys
-sys.path.append('..')
 import os
 import logging
 
 import dbclients.tantalus
 from dbclients.basicclient import NotFoundError
 
-from utils import log_utils, saltant_utils
-from log_utils import sentinel
+from workflows.utils import log_utils, saltant_utils
+from workflows.utils.log_utils import sentinel
 
 tantalus_api = dbclients.tantalus.TantalusApi()
 
