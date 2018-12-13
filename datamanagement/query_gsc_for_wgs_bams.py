@@ -538,7 +538,7 @@ def main(
                     )
                     logging.info("Successfully added sequence dataset with ID {} to tantalus".format(dataset["id"]))
                 
-                elif args["skip_file_import"]:
+                elif skip_file_import:
                     #Only add lanes, libraries, and samples to tantalus
                     for lane in instance["lane_info"]:
                         logging.info("Importing lanes for library {} to tantalus".format(instance["library_id"]))
