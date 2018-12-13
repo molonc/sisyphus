@@ -10,6 +10,7 @@ from datamanagement.utils import dlp
 import dbclients.tantalus
 import dbclients.colossus
 from dbclients.basicclient import NotFoundError
+from datamanagement.utils.utils import make_dirs
 
 import generate_inputs
 import datamanagement.templates as templates
@@ -595,6 +596,8 @@ class AlignAnalysis(Analysis):
             inputs_yaml_filename: the directory to which the YAML file should be saved
             storage_name: Which tantalus storage to look at
         """
+        make_dirs(os.path.dirname(inputs_yaml_filename))
+
         input_info = self._generate_cell_metadata(storage_name)
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
@@ -734,6 +737,7 @@ class PseudoBulkAnalysis(Analysis):
             inputs_yaml_filename: the directory to which the YAML file should be saved
             storage_name: Which tantalus storage to look at
         """
+        make_dirs(os.path.dirname(inputs_yaml_filename))
 
         input_info = {'normal': {}, 'tumour': {}}
 

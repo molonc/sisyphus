@@ -14,8 +14,10 @@ import launch_pipeline
 import generate_inputs
 from dbclients.tantalus import TantalusApi
 
-from utils import (saltant_utils,
-                   file_utils, log_utils, file_transfers)
+from workflows.utils import saltant_utils
+from workflows.utils import file_utils
+from workflows.utils import log_utils
+from workflows.utils import file_transfers
 from utils.log_utils import sentinel
 from models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, Results
 
@@ -72,7 +74,7 @@ def start_automation(
                 tantalus_analysis.search_input_datasets(),
             )
 
-        if args['inputs_yaml'] is None:
+        if args.get('inputs_yaml') is None:
             local_results_storage = tantalus_api.get('storage', name=config['storages']['local_results'])['storage_directory']
             inputs_yaml = os.path.join(local_results_storage, job_subdir, 'inputs.yaml')
             sentinel(
@@ -161,16 +163,13 @@ def start_automation(
             list(result_ids),
             results=True,
         )
-    
+
     analysis_info.set_finish_status()
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
-    
 
 
-def main():
-    args = arguments.get_args()
-
+def main(args):
     if not templates.JIRA_ID_RE.match(args['jira']):
         raise Exception('Invalid SC ID:', jira)
 
@@ -219,4 +218,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    args = arguments.get_args()
+    main(args)
+
