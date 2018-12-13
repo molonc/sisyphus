@@ -97,7 +97,7 @@ def import_bam(
         storage_name, 
         bam_filename + ".bai", 
         "BAI",
-        fields={"compression":"UCOMPRESSED"},
+        fields={"compression":"UNCOMPRESSED"},
         update=update
     )
 
