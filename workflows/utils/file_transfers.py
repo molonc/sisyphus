@@ -36,9 +36,8 @@ def transfer_files(jira, config, from_storage, to_storage, dataset_ids, results=
             log.warning('{} previously {} now {}'.format(
                 dataset_type, dataset_tag[dataset_type], dataset_ids))
 
-            tantalus_api.update(
-                "tag",
-                id=dataset_tag['id'],
+            tantalus_api.tag(
+                tag_name,
                 **data)
 
             dataset_tag = tantalus_api.get("tag", name=tag_name)
