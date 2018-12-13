@@ -519,8 +519,6 @@ def main(
 
             #Add dataset to tantalus
             for instance in detail:
-                if break_now:
-                    break
                 if not skip_file_import and instance["transferred"]:
                     logging.info("Importing {} to tantalus".format(instance["bam_filepath"]))
 
