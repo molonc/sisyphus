@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import subprocess
+import click
 import pandas as pd
 from datetime import datetime
 from utils.constants import LOGGING_FORMAT
@@ -23,7 +24,6 @@ from templates import  (WGS_BAM_NAME_TEMPLATE,
                         LANE_BAM_PATH_TEMPLATE, 
                         MULTIPLEXED_LANE_BAM_PATH_TEMPLATE,
                         )
-
 
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
@@ -146,6 +146,7 @@ def add_gsc_wgs_bam_dataset(
                             bam_path, 
                             lane_infos[0]['reference_genome'], 
                             tantalus_bam_path)
+        transferred=True                  
 
         if not os.path.isfile(tantalus_bai_path) and os.path.isfile(bai_path):
             rsync_file(bai_path, tantalus_bai_path)
@@ -467,97 +468,99 @@ def valid_date(s):
         raise ValueError("Not a valid date: '{0}'.".format(s))
 
 
-def main():
-    # Parse the incoming arguments
-    args = parse_runtime_args()
+@click.command()
+@click.argument('ids', nargs=-1)
+@click.argument('storage', nargs=1)
+@click.option('--id_type', type=click.Choice(['sample', 'library']))
+@click.option('--skip_older_than')
+@click.option('--tag_name')
+@click.option('--update', is_flag=True)
+@click.option('--skip_file_import', is_flag=True)
+@click.option('--query_only', is_flag=True)
+def main(
+    ids,
+    storage,
+    id_type,
+    skip_older_than,
+    tag_name, 
+    update,
+    skip_file_import,
+    query_only,
+):
 
     # Convert the date to the format we want
-    if "skip_older_than" in args:
-        args["skip_older_than"] = valid_date(args["skip_older_than"])
+    if skip_older_than:
+        skip_older_than = valid_date(skip_older_than)
 
     # Connect to the Tantalus API (this requires appropriate environment
     # variables defined)
     tantalus_api = TantalusApi()
-    storage = tantalus_api.get("storage_server", name=args["storage_name"])  
+    storage = tantalus_api.get("storage_server", name=storage)  
 
-    # Get the tag name if it was passed in
-    try:
-        tag_name = args['tag_name']
-    except KeyError:
-        tag_name = None
-    
-    #Check if library IDs were passed in
-    try:
-        library_df = pd.DataFrame({
-                'ids': args['library_ids'],
-                'id_type': 'library'
-            })
-    except KeyError:
-        library_df = None
-   
-   #Check if sample IDs were passed in 
-    try:
-        sample_df = pd.DataFrame({
-            'ids': args['sample_ids'],
-            'id_type': 'sample'
-            })
-    except KeyError:
-        sample_df = None
-
-    ids_df = pd.concat([library_df, sample_df], axis=0)
+    if not id_type:
+        raise Exception("Please specify an ID type (sample or library)")
 
     details = []
-    if ids_df['ids'].all():
-        for index, row in ids_df.iterrows():
-            #Query GSC for library information
-            infos = query_gsc(row['ids'], row['id_type'])
-            if not infos:
-                logging.info("No results for {} {}".format(row['id_type'], row['ids']))
-            else:
-                detail = get_gsc_details(
-                                infos, 
-                                storage, 
-                                skip_file_import=args.get('skip_file_import'),
-                                skip_older_than=args.get('skip_older_than'))
+    for identifier in ids:
+        infos = query_gsc(identifier, id_type)
+
+        if not infos:
+            logging.info("No results for {} {}".format(id_type, identifier))
+        else:
+            logging.info("{} {} exists on the GSC".format(id_type, identifier))
+            if query_only:
+                break
+
+            detail = get_gsc_details(
+                infos, 
+                storage, 
+                skip_file_import=skip_file_import,
+                skip_older_than=skip_older_than)
+
+            #Add dataset to tantalus
+            for instance in detail:
+                if break_now:
+                    break
+                if not skip_file_import and instance["transferred"]:
+                    logging.info("Importing {} to tantalus".format(instance["bam_filepath"]))
+
+                    logging.info("bam_filepath {}".format(instance["bam_filepath"]))
+
+                    dataset = import_bam(
+                        tantalus_api=tantalus_api,
+                        storage_name=instance["storage_name"],
+                        library_type=instance["library_type"],
+                        bam_filename=instance["bam_filepath"],
+                        read_type=instance["read_type"],
+                        sequencing_centre=instance["sequencing_centre"],
+                        index_format="N",
+                        lane_info=instance["lane_info"],
+                        tag_name=tag_name,
+                        update=update
+                    )
+                    logging.info("Successfully added sequence dataset with ID {} to tantalus".format(dataset["id"]))
                 
-                #Add dataset to tantalus
-                for instance in detail:
-                    if not args["skip_file_import"] and instance["transferred"]:
-                        logging.info("Importing {} to tantalus".format(instance["bam_filepath"]))
+                elif args["skip_file_import"]:
+                    #Only add lanes, libraries, and samples to tantalus
+                    for lane in instance["lane_info"]:
+                        logging.info("Importing lanes for library {} to tantalus".format(instance["library_id"]))
                         
-                        dataset = import_bam(
-                            tantalus_api=tantalus_api,
-                            storage_name=instance["storage_name"],
-                            library_type=instance["library_type"],
-                            bam_filename=instance["bam_filepath"],
-                            read_type=instance["read_type"],
+                        library_pk = tantalus_api.get_or_create(
+                                "dna_library",
+                                library_id=instance["library_id"],
+                                library_type=instance["library_type"],
+                                index_format="N")["id"]
+                        
+                        lane = tantalus_api.get_or_create(
+                            "sequencing_lane",
+                            flowcell_id=lane["flowcell_id"],
+                            dna_library=library_pk,
+                            read_type=lane["read_type"],
+                            lane_number=lane["lane_number"],
                             sequencing_centre=instance["sequencing_centre"],
-                            index_format="N",
-                            lane_info=instance["lane_info"],
-                            tag_name=tag_name
-                        )
-                        logging.info("Successfully added sequence dataset with ID {} to tantalus".format(dataset["id"]))
-                    
-                    elif args["skip_file_import"]:
-                        #Only add lanes, libraries, and samples to tantalus
-                        for lane in instance["lane_info"]:
-                            logging.info("Importing lanes for library {} to tantalus".format(instance["library_id"]))
-                            
-                            library_pk = tantalus_api.get_or_create(
-                                                    "dna_library",
-                                                    library_id=instance["library_id"],
-                                                    library_type=instance["library_type"],
-                                                    index_format="N")["id"]
-                            lane = tantalus_api.get_or_create(
-                                "sequencing_lane",
-                                flowcell_id=lane["flowcell_id"],
-                                dna_library=library_pk,
-                                read_type=lane["read_type"],
-                                lane_number=lane["lane_number"],
-                                sequencing_centre=instance["sequencing_centre"],
-                                sequencing_instrument=lane["sequencing_instrument"])
-                            logging.info("Successfully created lane {} in tantalus".format(lane["id"]))
-                    
+                            sequencing_instrument=lane["sequencing_instrument"])
+                        logging.info("Successfully created lane {} in tantalus".format(lane["id"]))
+   
 
 
 if __name__ == "__main__":
