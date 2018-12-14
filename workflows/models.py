@@ -130,14 +130,18 @@ class Analysis(object):
     """
     A class representing an Analysis model in Tantalus.
     """
-    def __init__(self, analysis_type, args, update=False):
+    def __init__(self, analysis_type, args, storages=None, update=False):
         """
         Create an Analysis object in Tantalus.
         """
+        if storages is None:
+            raise Exception("no storages specified for Analysis")
 
         self.analysis_type = analysis_type
 
         self.analysis = self.get_or_create_analysis(args, update=update)
+
+        self.storages = storages
 
         # TODO: remove self.bams
         self.bams = []
@@ -242,18 +246,15 @@ class Analysis(object):
             input_file_instances.extend(tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name))
         return input_file_instances
 
-    def add_inputs_yaml(self, inputs_yaml, inputs_yaml_storage=None, update=False):
+    def add_inputs_yaml(self, inputs_yaml, update=False):
         """
         Add the inputs yaml to the logs field of the analysis.
         """
-        if inputs_yaml_storage is None:
-            log.debug('No storage for inputs yaml {} exists yet, not adding to analysis'.format(inputs_yaml))
-            return
 
         log.info('Adding inputs yaml file {} to {}'.format(inputs_yaml, self.name))
 
         file_resource, file_instance = tantalus_api.add_file(
-            storage_name=inputs_yaml_storage,
+            storage_name=self.storages['local_results'],
             filepath=inputs_yaml,
             file_type="YAML",
             fields={"compression": "UNCOMPRESSED"},
@@ -378,13 +379,13 @@ class Analysis(object):
         """
         raise NotImplementedError
 
-    def create_output_results(self, results_storage, pipeline_dir, update=False):
+    def create_output_results(self, pipeline_dir, update=False):
         """
         Create the set of output results produced by this analysis.
         """
         tantalus_results = Results(
             self,
-            results_storage,
+            self.storages['working_results'],
             pipeline_dir,
             update=update,
         )
@@ -565,7 +566,7 @@ class AlignAnalysis(Analysis):
 
             sample_id = row['sample_id']
             if self.args['integrationtest']:
-                sample_id += "TEST"
+               sample_id += "TEST"
 
             input_info[str(row['cell_id'])] = {
                 'fastqs':       dict(lane_fastqs),
@@ -589,16 +590,15 @@ class AlignAnalysis(Analysis):
 
         return input_info
 
-    def generate_inputs_yaml(self, inputs_yaml_filename, storage_name):
+    def generate_inputs_yaml(self, inputs_yaml_filename):
         """ Generates a YAML file of input information
 
         Args:
             inputs_yaml_filename: the directory to which the YAML file should be saved
             storage_name: Which tantalus storage to look at
         """
-        make_dirs(os.path.dirname(inputs_yaml_filename))
 
-        input_info = self._generate_cell_metadata(storage_name)
+        input_info = self._generate_cell_metadata(self.storages['working_inputs'])
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.dump(input_info, inputs_yaml, default_flow_style=False)
@@ -625,10 +625,10 @@ class AlignAnalysis(Analysis):
             raise Exception('no output bams found, regenerate or provide an existing inputs yaml')
         return self.bams
 
-    def create_output_datasets(self, storage_name, tag_name=None, update=False):
+    def create_output_datasets(self, tag_name=None, update=False):
         """
         """
-        cell_metadata = self._generate_cell_metadata(storage_name)
+        cell_metadata = self._generate_cell_metadata(self.args['working_inputs'])
         sequence_lanes = []
 
         for lane_id, lane in self.get_lanes().iteritems():
@@ -780,7 +780,7 @@ class PseudoBulkAnalysis(Analysis):
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
 
-    def create_output_results(self, storage_name):
+    def create_output_results(self):
         """
         """
         pass
