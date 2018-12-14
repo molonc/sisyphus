@@ -132,7 +132,7 @@ def import_bam(
                 flowcell_id=lane["flowcell_id"],
                 dna_library=library_pk,
                 read_type=read_type,
-                lane_number=lane["lane_number"],
+                lane_number=str(lane["lane_number"]),
                 sequencing_centre=sequencing_centre,
             )
             sequence_lanes.append(lane)
@@ -144,7 +144,7 @@ def import_bam(
                 flowcell_id=lane["flowcell_id"],
                 dna_library=library_pk,
                 read_type=read_type, 
-                lane_number=lane["lane_number"],
+                lane_number=str(lane["lane_number"]),
                 sequencing_centre=sequencing_centre,
                 sequencing_instrument=lane["sequencing_instrument"],
             )
