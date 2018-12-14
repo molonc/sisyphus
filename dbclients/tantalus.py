@@ -13,7 +13,7 @@ import os
 import time
 import pandas as pd
 from django.core.serializers.json import DjangoJSONEncoder
-from dbclients.basicclient import BasicAPIClient, FieldMismatchError
+from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
 import azure.storage.blob
 import datetime
 import urllib2
@@ -320,10 +320,7 @@ class TantalusApi(BasicAPIClient):
             if file_instance['storage']['name'] == storage_name:
                 return file_instance
 
-        raise Exception('no file instance in storage {} found for resource {}'.format(
-            storage_name,
-            file_resource['id'],
-        ))
+        raise NotFoundError
 
     def get_sequence_dataset_file_instances(self, dataset, storage_name):
         """
