@@ -48,7 +48,7 @@ def start_automation(
 
     args['ref_genome'] = analysis_info.reference_genome
     args['aligner'] = analysis_info.aligner
-    args['jobs_dir'] = config['jobs_dir']
+    args['job_subdir'] = job_subdir
     args["library_id"] = library_id
 
     dataset_ids = set()

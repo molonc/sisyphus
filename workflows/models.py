@@ -334,6 +334,8 @@ class Analysis(object):
         """
         return []
 
+    # TODO: delete
+    """
     def _get_blob_dir(self, dir_type):
         if dir_type == 'results':
             template = templates.AZURE_RESULTS_DIR
@@ -372,6 +374,7 @@ class Analysis(object):
 
     def get_scpipeine_dir(self):
         return self._get_dir('scpipeline')
+    """
 
     def create_output_datasets(self):
         """
@@ -861,7 +864,6 @@ class Results:
         self.analysis = self.tantalus_analysis.get_id()
         self.analysis_type = self.tantalus_analysis.analysis_type
         self.samples = self.tantalus_analysis.get_input_samples()
-        self.pipeline_dir = pipeline_dir
         self.pipeline_version = self.tantalus_analysis.version
         self.last_updated = datetime.datetime.now().isoformat()
 
@@ -927,6 +929,8 @@ class Results:
         if self.results[field] != field_value:
             tantalus_api.update('results', id=self.get_id(), **{field: field_value})
 
+    # TODO: delete 
+    """
     def get_analysis_results_dir(self):
         if self.analysis_type == 'align':
             template = templates.ALIGNMENT_RESULTS
@@ -936,12 +940,9 @@ class Results:
             raise Exception('unrecognized analysis type {}'.format(self.analysis_type))
 
         return template.format(results_dir=self.tantalus_analysis.get_results_dir())
-
-
+    
+    
     def get_results_info(self):
-        """
-        Return a dictionary
-        """
         if self.analysis_type == "align":
             analysis_type = "alignment"
         else:
@@ -960,6 +961,7 @@ class Results:
         f.close()
 
         return results_info
+    """
 
 
     def get_file_resources(self, update=False):
@@ -967,25 +969,28 @@ class Results:
         Create file resources for each results file and return their ids.
         """
         file_resource_ids = set()
-        results_info = self.get_results_info()
-        for result in results_info:
 
-            if result["filename"].endswith(".gz"):
+        results_subdir = os.path.join(
+            tantalus_api.get("storage", name=self.storages["working_results"])["prefix"],
+            self.args["job_subdir"],
+            "results")
+
+        for result_filepath in glob.glob("results/*"):  # Exclude metrics files
+            if result_filepath.endswith(".gz"):
                 compression = "GZIP"
             else:
                 compression = "UNCOMPRESSED"
 
             file_resource, file_instance = tantalus_api.add_file(
-                self.storage_name,
-                result["filename"],
-                result["type"].upper(),
+                self.storages["working_results"],
+                result_filepath,
+                result_filepath.split(".")[1].upper(),  # TODO: get file type in a more principled way
                 {'compression': compression},
                 update=update,
             )
 
             file_resource_ids.add(file_resource["id"])
-
-
+            
         return list(file_resource_ids)
 
     def get_id(self):

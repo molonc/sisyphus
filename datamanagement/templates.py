@@ -1,6 +1,8 @@
 import os
 import re
 
+# TODO: delete
+"""
 # Inputs directories
 LUSTRE_ARCHIVE = os.path.join('/', 'share', 'lustre', 'archive')
 SHAHLAB_ARCHIVE = os.path.join('/', 'shahlab', 'archive')
@@ -40,6 +42,7 @@ BRC_SOURCE_RE_LIST = [
     re.compile("^beast:/.*/(\\d{6}_[A-Z0-9]+_\\d{4}_([A-Z0-9]+))/$"),
     re.compile("^patientdata@brclogin1.brc.ubc.ca:/.*/(\\d{6}_[A-Z0-9]+_\\d{4}_([A-Z0-9]+))/$"),
 ]
+"""
 
 ALIGNMENT_METRICS = os.path.join(
 	'{results_dir}',

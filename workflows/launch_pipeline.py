@@ -69,9 +69,6 @@ def run_pipeline(
 
     args = tantalus_analysis.args
     config_override_string = get_config_string(analysis_info, shahlab_run=args['shahlab_run'])
-    results_dir = tantalus_analysis.get_results_dir()
-    tmp_dir = tantalus_analysis.get_tmp_dir()
-    scpipeline_dir = tantalus_analysis.get_scpipeine_dir()
 
     if args['shahlab_run']:
         import single_cell
