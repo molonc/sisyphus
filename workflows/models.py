@@ -590,7 +590,7 @@ class AlignAnalysis(Analysis):
     def create_output_datasets(self, tag_name=None, update=False):
         """
         """
-        cell_metadata = self._generate_cell_metadata(storages['working_inputs'])
+        cell_metadata = self._generate_cell_metadata(self.storages['working_inputs'])
         sequence_lanes = []
 
         for lane_id, lane in self.get_lanes().iteritems():
