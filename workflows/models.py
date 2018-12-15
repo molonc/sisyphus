@@ -257,8 +257,6 @@ class Analysis(object):
         file_resource, file_instance = tantalus_api.add_file(
             storage_name=self.storages['local_results'],
             filepath=inputs_yaml,
-            file_type="YAML",
-            fields={"compression": "UNCOMPRESSED"},
             update=update,
          )
 
@@ -590,7 +588,7 @@ class AlignAnalysis(Analysis):
     def create_output_datasets(self, tag_name=None, update=False):
         """
         """
-        cell_metadata = self._generate_cell_metadata(self.storages['working_inputs'])
+        cell_metadata = self._generate_cell_metadata(storages['working_inputs'])
         sequence_lanes = []
 
         for lane_id, lane in self.get_lanes().iteritems():
@@ -903,19 +901,9 @@ class Results:
             "results")  # Exclude metrics files
 
         for result_filepath in storage_client.list(prefix=prefix):  # Exclude metrics files
-            if result_filepath.endswith(".gz"):
-                compression = "GZIP"
-            else:
-                compression = "UNCOMPRESSED"
-
-            # TODO: determine file type from filepath
-            file_type = result_filepath.split(".")[1].upper()
-
             file_resource, file_instance = tantalus_api.add_file(
-                self.storages["working_results"],
-                result_filepath,
-                file_type,
-                {'compression': compression},
+                storage_name=self.storages["working_results"],
+                filepath=result_filepath,
                 update=update,
             )
 

@@ -367,8 +367,6 @@ def create_sequence_dataset(inputs_data):
             file_resource, file_instance = tantalus_api.add_file(
                 STORAGE_NAME,
                 tantalus_path,
-                'FQ',
-                compression="GZIP",
             )
 
             sequence_dataset["file_resources"].append(file_resource["id"])

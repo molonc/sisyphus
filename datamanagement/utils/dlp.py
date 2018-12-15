@@ -173,8 +173,6 @@ def create_sequence_dataset_models(
             file_resource, file_instance = tantalus_api.add_file(
                 storage_name,
                 info["filepath"],
-                info["file_type"],
-                {'compression': info["compression"]},
                 update=update,
             )
 
