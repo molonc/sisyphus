@@ -130,7 +130,7 @@ class Analysis(object):
     """
     A class representing an Analysis model in Tantalus.
     """
-    def __init__(self, analysis_type, args, storages=None, update=False):
+    def __init__(self, analysis_type, args, storages, update=False):
         """
         Create an Analysis object in Tantalus.
         """
@@ -165,6 +165,7 @@ class Analysis(object):
     @property
     def version(self):
         return self.analysis['version']
+    
 
     def get_or_create_analysis(self, args, update=False):
         """
@@ -460,8 +461,8 @@ class AlignAnalysis(Analysis):
         Args:
             storage_name: Which tantalus storage to look at
         """
-        library_id = self.args["library_id"]
-        if self.args["integrationtest"]:
+        library_id = args["library_id"]
+        if args["integrationtest"]:
             library_id = library_id.strip("TEST")
 
         sample_info = generate_inputs.generate_sample_info(library_id)
@@ -493,7 +494,7 @@ class AlignAnalysis(Analysis):
         for idx, row in sample_info.iterrows():
             index_sequence = row['index_sequence']
 
-            if self.args["integrationtest"] and (index_sequence not in tantalus_index_sequences):
+            if args["integrationtest"] and (index_sequence not in tantalus_index_sequences):
                 # Skip index sequences that are not found in the Tantalus dataset, since
                 # we need to refer to the original library in Colossus for metadata, but
                 # we don't want to iterate through all the cells present in that library
@@ -516,9 +517,9 @@ class AlignAnalysis(Analysis):
                     row['cell_id'], row['index_sequence']))
 
             bam_filename = templates.SC_WGS_BAM_TEMPLATE.format(
-                library_id=self.args['library_id'],
-                ref_genome=self.args['ref_genome'],
-                aligner_name=self.args['aligner'],
+                library_id=args['library_id'],
+                ref_genome=args['ref_genome'],
+                aligner_name=args['aligner'],
                 number_lanes=len(lanes),
                 cell_id=row['cell_id'],
             )
@@ -526,7 +527,7 @@ class AlignAnalysis(Analysis):
             bam_filepath = str(tantalus_api.get_filepath(storage_name, bam_filename))
 
             sample_id = row['sample_id']
-            if self.args['integrationtest']:
+            if args['integrationtest']:
                sample_id += "TEST"
 
             input_info[str(row['cell_id'])] = {
@@ -589,12 +590,12 @@ class AlignAnalysis(Analysis):
     def create_output_datasets(self, tag_name=None, update=False):
         """
         """
-        cell_metadata = self._generate_cell_metadata(self.args['working_inputs'])
+        cell_metadata = self._generate_cell_metadata(storages['working_inputs'])
         sequence_lanes = []
 
         for lane_id, lane in self.get_lanes().iteritems():
 
-            if self.args["integrationtest"]:
+            if args["integrationtest"]:
                 lane["flowcell_id"] += "TEST"
 
             sequence_lanes.append(dict(
@@ -614,12 +615,12 @@ class AlignAnalysis(Analysis):
                     analysis_id=self.analysis['id'],
                     dataset_type='BAM',
                     sample_id=metadata['sample_id'],
-                    library_id=self.args['library_id'],
+                    library_id=args['library_id'],
                     library_type='SC_WGS',
                     index_format='D',
                     sequence_lanes=sequence_lanes,
-                    ref_genome=self.args['ref_genome'],
-                    aligner_name=self.args['aligner'],
+                    ref_genome=args['ref_genome'],
+                    aligner_name=args['aligner'],
                     file_type=file_type,
                     index_sequence=metadata['index_sequence'],
                     compression='UNCOMPRESSED',
@@ -708,7 +709,7 @@ class PseudoBulkAnalysis(Analysis):
             library_id = dataset['library']['library_id']
             sample_id = dataset['sample']['sample_id']
 
-            if sample_id == self.args['matched_normal_sample']:
+            if sample_id == args['matched_normal_sample']:
                 for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name):
                     if not file_instance['file_resource']['file_type'] == 'BAM':
                         continue
@@ -784,7 +785,7 @@ class CNCloneAnalysis(Analysis):
         """
 
         input_info = {
-            "samples": self.args["samples"],
+            "samples": args["samples"],
             "hmmcopy": [],
         }
 
