@@ -334,48 +334,6 @@ class Analysis(object):
         """
         return []
 
-    # TODO: delete
-    """
-    def _get_blob_dir(self, dir_type):
-        if dir_type == 'results':
-            template = templates.AZURE_RESULTS_DIR
-        elif dir_type == 'tmp':
-            template = templates.AZURE_TMP_DIR
-        elif dir_type == 'scpipeline':
-            template = templates.AZURE_SCPIPELINE_DIR
-        else:
-            raise Exception('Unrecognized dir type {}'.format(dir_type))
-
-        return template.format(jira=self.args['jira'], tag=self.args['tag'])
-
-    def _get_server_dir(self, dir_type):
-        if dir_type == 'results':
-            template = templates.SHAHLAB_RESULTS_DIR
-        elif dir_type == 'tmp':
-            template = templates.SHAHLAB_TMP_DIR
-        elif dir_type == 'scpipeline':
-            template = templates.SHAHLAB_PIPELINE_DIR
-        else:
-            raise Exception('Unrecognized dir type {}'.format(dir_type))
-
-        return template.format(jobs_dir=self.args['jobs_dir'], jira=self.args['jira'], tag=self.args['tag'])
-
-    def _get_dir(self, dir_type):
-        if self.args['shahlab_run']:
-            return self._get_server_dir(dir_type)
-
-        return self._get_blob_dir(dir_type)
-
-    def get_results_dir(self):
-        return self._get_dir('results')
-
-    def get_tmp_dir(self):
-        return self._get_dir('tmp')
-
-    def get_scpipeine_dir(self):
-        return self._get_dir('scpipeline')
-    """
-
     def create_output_datasets(self):
         """
         Create the set of output sequence datasets produced by this analysis.
@@ -928,40 +886,6 @@ class Results:
         field_value = vars(self)[field]
         if self.results[field] != field_value:
             tantalus_api.update('results', id=self.get_id(), **{field: field_value})
-
-    # TODO: delete 
-    """
-    def get_analysis_results_dir(self):
-        if self.analysis_type == 'align':
-            template = templates.ALIGNMENT_RESULTS
-        elif self.analysis_type == 'hmmcopy':
-            template = templates.HMMCOPY_RESULTS
-        else:
-            raise Exception('unrecognized analysis type {}'.format(self.analysis_type))
-
-        return template.format(results_dir=self.tantalus_analysis.get_results_dir())
-    
-    
-    def get_results_info(self):
-        if self.analysis_type == "align":
-            analysis_type = "alignment"
-        else:
-            analysis_type = self.analysis_type
-
-        # TODO: here we need a more prescriptive method to path management
-        # we should be specifying storages to the system, and then creating 
-        # filepaths for files we are interested in storing, and results etc
-        storage_client = tantalus_api.get_storage_client(self.storage_name)
-        info_yaml_filename = os.path.relpath(
-            os.path.join(self.get_analysis_results_dir(), 'info.yaml'), 
-            storage_client.prefix)
-
-        f = storage_client.open_file(info_yaml_filename)
-        results_info = yaml.load(f)[analysis_type]['results'].values()
-        f.close()
-
-        return results_info
-    """
 
 
     def get_file_resources(self, update=False):
