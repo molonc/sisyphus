@@ -970,21 +970,26 @@ class Results:
         """
         file_resource_ids = set()
 
-        results_subdir = os.path.join(
-            tantalus_api.get("storage", name=self.storages["working_results"])["prefix"],
-            self.args["job_subdir"],
-            "results")
+        storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
 
-        for result_filepath in glob.glob("results/*"):  # Exclude metrics files
+        prefix = os.path.join(
+            self.args["job_subdir"], 
+            "results", 
+            "results")  # Exclude metrics files
+
+        for result_filepath in storage_client.list(prefix=prefix):  # Exclude metrics files
             if result_filepath.endswith(".gz"):
                 compression = "GZIP"
             else:
                 compression = "UNCOMPRESSED"
 
+            # TODO: determine file type from filepath
+            file_type = result_filepath.split(".")[1].upper()
+
             file_resource, file_instance = tantalus_api.add_file(
                 self.storages["working_results"],
                 result_filepath,
-                result_filepath.split(".")[1].upper(),  # TODO: get file type in a more principled way
+                file_type,
                 {'compression': compression},
                 update=update,
             )
