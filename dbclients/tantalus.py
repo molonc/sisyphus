@@ -237,7 +237,21 @@ class TantalusApi(BasicAPIClient):
 
         return client
 
-    def add_file(self, storage_name, filepath, file_type, fields, update=False):
+    def get_file_compression(self, filepath):
+        compression_choices = {
+            ".gz":      "GZIP",
+            ".bzip2":   "BZIP2",
+            ".spec":    "SPEC",
+        }
+
+        extension = os.path.splitext(filepath)[1]
+        try:
+            return compression_choices[extension]
+        except KeyError:
+            return "UNCOMPRESSED"
+
+
+    def add_file(self, storage_name, filepath, update=False):
         """ Create a file resource and file instance in the given storage.
 
         Args:
@@ -257,6 +271,9 @@ class TantalusApi(BasicAPIClient):
 
         filename = self.get_file_resource_filename(storage_name, filepath)
 
+        compression = self.get_file_compression(filename)
+        file_type = filename.split(".")[1].upper()
+
         try:
             file_resource = self.get_or_create(
                 'file_resource',
@@ -264,7 +281,7 @@ class TantalusApi(BasicAPIClient):
                 file_type=file_type,
                 created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
-                **fields
+                compression=compression,
             )
 
             log.info('file resource has id {}'.format(file_resource['id']))

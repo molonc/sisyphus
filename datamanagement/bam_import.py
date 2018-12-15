@@ -86,20 +86,9 @@ def import_bam(
     lane_info=None,
     tag_name=None,
 ):
-    bam_resource, bam_instance = tantalus_api.add_file(
-        storage_name, 
-        bam_filename, 
-        "BAM",
-        fields={"compression":"UNCOMPRESSED"},
-        update=update
-    )
-    bai_resource, bai_instance = tantalus_api.add_file(
-        storage_name, 
-        bam_filename + ".bai", 
-        "BAI",
-        fields={"compression":"UNCOMPRESSED"},
-        update=update
-    )
+
+    bam_resource, bam_instance = tantalus_api.add_file(storage_name, bam_filename, update=update)
+    bai_resource, bai_instance = tantalus_api.add_file(storage_name, bam_filename + ".bai", update=update)
 
     bam_url = tantalus_api.get_storage_client(storage_name).get_url(bam_resource['filename'])
     bam_header = pysam.AlignmentFile(bam_url).header
