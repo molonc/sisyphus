@@ -73,6 +73,13 @@ class BlobStorageClient(object):
     def list(self, prefix):
         return self.blob_service.list_blobs(self.storage_container, prefix=prefix)
 
+    def write_data(self, blobname, stream):
+        stream.seek(0)
+        return self.blob_service.create_blob_from_stream(
+            self.storage_container, 
+            blob_name=blobname,
+            stream=stream)
+
 
 class ServerStorageClient(object):
     def __init__(self, storage):
@@ -107,6 +114,12 @@ class ServerStorageClient(object):
         for root, dirs, files in os.walk(os.path.join(self.storage_directory, prefix)):
             for filename in files:
                 yield os.path.join(root, filename)
+
+    def write_data(self, filename, stream):
+        stream.seek(0)
+        filepath = os.path.join(self.storage_directory, filename)
+        with open(filepath, "wb") as f:
+            f.write(stream.getvalue())
 
 
 class TantalusApi(BasicAPIClient):
