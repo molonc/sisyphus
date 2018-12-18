@@ -7,6 +7,7 @@ import os
 import json
 import logging
 import mock
+import io
 
 import workflows.run
 import workflows.arguments
@@ -14,6 +15,7 @@ from dbclients.tantalus import TantalusApi
 from dbclients.basicclient import NotFoundError
 from workflows.utils import saltant_utils, file_utils
 from datamanagement.transfer_files import transfer_files
+from models import AlignAnalysis, HmmcopyAnalysis
 
 log = logging.getLogger('sisyphus')
 
@@ -61,16 +63,35 @@ def mock_run_pipeline(
         max_jobs='400',
         dirs=(),
 ):
-    print (
-        tantalus_analysis,
-        analysis_info,
-        inputs_yaml,
-        docker_env_file,
-        max_jobs,
-        dirs,
-    )
+    # print (
+    #     tantalus_analysis,
+    #     analysis_info,
+    #     inputs_yaml,
+    #     docker_env_file,
+    #     max_jobs,
+    #     dirs,
+    # )
 
-    raise Exception()
+    # raise Exception()
+
+    stream = io.BytesIO()
+    stream.write("")
+
+    storage_client = tantalus_api.get_storage_client(storages['working_results'])
+    result_filenames = tantalus_analysis.get_results_filenames()
+
+    for filename in result_filenames:
+        storage_client.write_data(filename, stream) 
+
+
+    inputs_dict = file_utils.load_yaml(inputs_yaml)
+    bams_dict = {bam_key: bam_filename for bam_key, bam_filename in inputs_dict() if bam_key == 'bam'}
+
+    if tantalus_analysis.analysis_type == "align":
+        # Iterate over bam paths in bams_dict and create empty files
+        for bam_filename in bams_dict.itervalues():
+            with open(bam_filename, "w") as f:
+                f.write(stream.getvalue())
 
 
 def run_pipeline(pipeline_version, config_json):
@@ -253,6 +274,8 @@ def parse_args():
 
 
 if __name__ == '__main__':
+    config = file_utils.load_json(args['config'])
+    storages = config['storages']
     args = parse_args()
     tag_name = "IntegrationTestFastqs"
 #    storage_name = "andrewmac"
