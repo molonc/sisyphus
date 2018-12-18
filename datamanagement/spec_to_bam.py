@@ -113,6 +113,13 @@ def spec_to_bam(spec_path,
             raw_reference_genome
             + ' is not a recognized or supported reference genome')
 
+    re_bam_path = r"(.+/).+\.bam$"
+    if re.match(re_bam_path, output_bam_path, re.IGNORECASE):
+        output_path = re.search(re_bam_path, output_bam_path, re.IGNORECASE).group(1)
+
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
     # Convert the SpEC to a BAM
     logging.debug("Converting {} to {}".format(spec_path, output_bam_path))
 
@@ -141,7 +148,7 @@ def get_filepaths(spec_path, to_storage_prefix):
         raise BadSpecStorageError(
             'Can not find a matching storage for ' + spec_path)
         
-    output_path = os.path.join(to_storage_prefix, filename)
+    output_spec_path = os.path.join(to_storage_prefix, filename)
     output_bam_path = get_uncompressed_bam_path(output_spec_path)
     
     return filename, output_bam_path
