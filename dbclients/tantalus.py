@@ -121,7 +121,6 @@ class ServerStorageClient(object):
         with open(filepath, "wb") as f:
             f.write(stream.getvalue())
 
-
 class TantalusApi(BasicAPIClient):
     """Tantalus API class."""
 
