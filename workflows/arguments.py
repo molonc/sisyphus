@@ -69,7 +69,7 @@ def get_args(arglist=None):
     # CONFIGURATION FILES #
     parser.add_argument(
         '--config',
-        default=os.path.join('config', 'normal_config.json'),
+        default=os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json'),
         help='Path to the user-specific config file.'
     )
 

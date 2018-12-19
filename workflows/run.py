@@ -17,6 +17,7 @@ from workflows.utils import saltant_utils
 from workflows.utils import file_utils
 from workflows.utils import log_utils
 from datamanagement.transfer_files import transfer_files
+from dbclients.basicclient import NotFoundError
 
 from utils.log_utils import sentinel
 from models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, Results
@@ -71,7 +72,7 @@ def start_automation(
             tag_name = '_'.join([args['jira'], storages['remote_inputs']])
             tantalus_api.tag(
                 tag_name,
-                sequencedataset_set=tantalus_analysis.search_input_datasets())
+                sequencedataset_set=tantalus_analysis.search_input_datasets(args))
 
             sentinel(
                 'Transferring FASTQ files from {} to {}'.format(storages["remote_inputs"], storages["working_inputs"]),
@@ -175,21 +176,15 @@ def start_automation(
 
 def main(args):
     if not templates.JIRA_ID_RE.match(args['jira']):
-        raise Exception('Invalid SC ID:', jira)
+        raise Exception('Invalid SC ID:'.format(args['jira']))
 
     config = file_utils.load_json(args['config'])
 
     job_subdir = args['jira'] + args['tag']
 
     pipeline_dir = os.path.join(
-        tantalus_api.get("storage", name=config["local_results"])["storage_directory"], 
+        tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], 
         job_subdir)
-
-    # TODO: At this stage i want to specify:
-    # results_subdir: the subdirectory in tantalus storage for the results for this ticket, based on jira ticket
-    # results_storage: storage on the vm or local system for storing the results
-    # inputs_storage: storage on the local system for storing the input datasets
-    # pipeline_dir: location of temporary files for pypeliner
     
     # Shahlab
     # - local: shahlab
