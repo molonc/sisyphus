@@ -152,8 +152,10 @@ def check_results(storage_name):
             dirname = "hmmcopy_autoploidy"
             yaml_field = "hmmcopy"
 
-        # TODO: move to datamanagement.templates
-        info_yaml_path = os.path.join(JIRA_TICKET, "results", "results", dirname, "info.yaml")
+        info_yaml_path = templates.INFO_YAML_PATH.format(
+            jira_ticket=JIRA_TICKET,
+            directory_name=dirname,
+        )
         f = storage_client.open_file(info_yaml_path)
         result_infos = yaml.load(f).values()['results']
         f.close()
