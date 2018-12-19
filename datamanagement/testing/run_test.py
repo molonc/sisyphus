@@ -197,7 +197,7 @@ def check_results(storage_name):
         # TODO: move to datamanagement.templates
         info_yaml_path = os.path.join(JIRA_TICKET, "results", "results", dirname, "info.yaml")
         f = storage_client.open_file(info_yaml_path)
-        result_infos = yaml.load(f)[yaml_field]['results']
+        result_infos = yaml.load(f).values()['results']
         f.close()
 
         result_paths = []
