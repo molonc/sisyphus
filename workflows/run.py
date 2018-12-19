@@ -89,6 +89,7 @@ def start_automation(
             sentinel(
                 'Generating inputs yaml',
                 align_analysis.generate_inputs_yaml,
+                args,
                 inputs_yaml,
             )
         else:
@@ -211,10 +212,9 @@ def main(args):
     try:
         start_automation(args, config, pipeline_dir, analysis_info, config['storages'], job_subdir)
     except Exception:
-        traceback.print_exc()
         if args['shahlab_run']:
             log_utils.send_logging_email(config['email'], '{} error'.format(args['jira']))
-        raise Exception('pipeline failed')
+        raise
 
 
 if __name__ == '__main__':

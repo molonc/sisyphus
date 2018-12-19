@@ -11,7 +11,6 @@ import io
 
 import workflows.run
 import workflows.arguments
-import datamanagement.templates as templates
 from dbclients.tantalus import TantalusApi
 from dbclients.basicclient import NotFoundError
 from workflows.utils import saltant_utils, file_utils
@@ -84,17 +83,19 @@ def create_fake_results(
 
 
 @mock.patch("workflows.launch_pipeline.run_pipeline")
-def test_run_pipeline(mock_run_pipeline):
+def test_run_pipeline(mock_run_pipeline, jira=None, version=None):
     # Create fake results instead of running pipeline
     mock_run_pipeline.side_effect = create_fake_results 
 
-    # TODO: get pipeline version as a parameter
-    arglist = [JIRA_TICKET, "v0.2.6", "--integrationtest"]
+    arglist = [jira, version, "--update", "--integrationtest"]
     args = workflows.arguments.get_args(arglist=arglist)
     workflows.run.main(args)
 
-    # TODO: check arguments that run_pipeline was called with
-    args = mock_run_pipeline.call_args
+    # TODO: check arguments that run_pipeline was called with: 
+    # - we can get the input yaml path here instead of looking in the analysis logs
+    # - can look inside the tantalus_analysis and analysis_info 
+
+    run_pipeline_args = mock_run_pipeline.call_args
     mock_run_pipeline.assert_called_once()
 
 
@@ -141,7 +142,7 @@ def check_bams(storage_name):
         raise Exception("bam datasets associated with analysis jira ticket do not match",
             " those in hmmcopy input datasets")
 
-    # Get bam paths from the inputs yaml
+    # TODO: get inputs yaml from args to run_pipeline
     headnode_client = tantalus_api.get_storage_client("headnode")
     assert len(align_analysis["logs"]) == 1
     inputs_yaml_pk = align_analysis["logs"][0]
@@ -176,11 +177,8 @@ def check_results(storage_name):
             dirname = "hmmcopy_autoploidy"
             yaml_field = "hmmcopy"
 
-        info_yaml_path = templates.INFO_YAML_PATH.format(
-            jira_ticket=JIRA_TICKET,
-            directory_name=dirname,
-        )
-
+        # TODO: move to datamanagement.templates
+        info_yaml_path = os.path.join(JIRA_TICKET, "results", "results", dirname, "info.yaml")
         f = storage_client.open_file(info_yaml_path)
         result_infos = yaml.load(f).values()['results']
         f.close()
@@ -253,26 +251,23 @@ def check_metrics_file(analysis_type, filepath, storage_client):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config_json", required=True)
-    parser.add_argument("--pipeline_version", required=True)
+    parser.add_argument("jira")
+    parser.add_argument("version")
     return dict(vars(parser.parse_args()))
 
 
 if __name__ == '__main__':
-    config = file_utils.load_json(args['config'])
-    storages = config['storages']
     args = parse_args()
     tag_name = "IntegrationTestFastqs"
-#    storage_name = "andrewmac"
-#    storage_dir = "/Users/amcphers/Scratch/tantalus_storage/"
-    # download_data(storage_name, storage_dir, tag_name)
-    run_pipeline(args["pipeline_version"], args["config_json"])
+    config = os.path.join(os.path.dirname(workflows.__file__), "config", "normal_config.json")
 
-    # test_run_pipeline()
+    test_run_pipeline(jira=args["jira"], version=args["version"])
 
+    # TODO: get storages from config
     bams_storage = "singlecellblob"
     results_storage = "singlecellblob_results"
 
+    # TODO: move checking to test_run_pipeline
     check_bams(bams_storage)
     check_results(results_storage)
     cleanup_bams(bams_storage)
