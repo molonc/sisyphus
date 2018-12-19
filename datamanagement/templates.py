@@ -71,3 +71,11 @@ SC_WGS_FQ_NAME_TEMPLATE = "-".join([
     "{library_id}",
     "{lane}",
 ])
+
+INFO_YAML_PATH = os.path.join(
+    "{jira_ticket}",
+    "results",
+    "results",
+    "{directory_name}",
+    "info.yaml"
+)
