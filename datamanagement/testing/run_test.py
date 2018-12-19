@@ -55,43 +55,43 @@ def download_data(storage_name, storage_dir, tag_name):
     )
 
 
-def mock_run_pipeline(
+def create_fake_results(
         tantalus_analysis,
         analysis_info,
         inputs_yaml,
         docker_env_file,
         max_jobs='400',
-        dirs=(),
-):
-    # print (
-    #     tantalus_analysis,
-    #     analysis_info,
-    #     inputs_yaml,
-    #     docker_env_file,
-    #     max_jobs,
-    #     dirs,
-    # )
-
-    # raise Exception()
-
+        dirs=()):
+    
     stream = io.BytesIO()
     stream.write("")
 
-    storage_client = tantalus_api.get_storage_client(storages['working_results'])
+    results_storage_client = tantalus_api.get_storage_client(storages['working_results'])
+    inputs_storage_client = tantalus_api.get_storage_client(storages['working_inputs'])
+
     result_filenames = tantalus_analysis.get_results_filenames()
 
     for filename in result_filenames:
-        storage_client.write_data(filename, stream) 
-
+        results_storage_client.write_data(filename, stream) 
 
     inputs_dict = file_utils.load_yaml(inputs_yaml)
-    bams_dict = {bam_key: bam_filename for bam_key, bam_filename in inputs_dict() if bam_key == 'bam'}
+    bam_paths = [cell_info["bam"] for cell_id, cell_info in input_dict.iteritems()]
 
     if tantalus_analysis.analysis_type == "align":
-        # Iterate over bam paths in bams_dict and create empty files
-        for bam_filename in bams_dict.itervalues():
-            with open(bam_filename, "w") as f:
-                f.write(stream.getvalue())
+        for bam_path in bam_paths:
+            bam_filename = os.path.relpath(bam_path, inputs_storage_client.prefix)
+            inputs_storage_client.write_data(bam_filename, stream)
+
+
+@mock.patch("workflows.launch_pipeline.run_pipeline")
+@mock.patch("workflows.arguments.get_args")
+def test_run_pipeline(mock_parse_args, mock_run_pipeline, side_effect=create_fake_results):
+    # TODO: finish this
+    workflow.run.main()  # Pass the correct arguments here
+
+    args = mock_run_pipeline.call_args
+
+    mock_run_pipeline.assert_called_once()
 
 
 def run_pipeline(pipeline_version, config_json):
@@ -282,6 +282,8 @@ if __name__ == '__main__':
 #    storage_dir = "/Users/amcphers/Scratch/tantalus_storage/"
     # download_data(storage_name, storage_dir, tag_name)
     run_pipeline(args["pipeline_version"], args["config_json"])
+
+    # test_run_pipeline()
 
     bams_storage = "singlecellblob"
     results_storage = "singlecellblob_results"
