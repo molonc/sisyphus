@@ -173,13 +173,12 @@ def create_bam( spec_path,
     except BadReferenceGenomeError as e:
         logging.exception("Unrecognized reference genome")
 
-    if not os.path.isfile(get_uncompressed_bam_path(spec_path) + '.bai'):
-        logging.info("Creating bam index at {}".format(output_bam_path + '.bai'))
-        cmd = [ 'samtools',
-                'index',
-                output_bam_path,
-        ]
-        subprocess.check_call(cmd)
+    logging.info("Creating bam index at {}".format(output_bam_path + '.bai'))
+    cmd = [ 'samtools',
+            'index',
+            output_bam_path,
+    ]
+    subprocess.check_call(cmd)
 
     return created
 

@@ -152,13 +152,11 @@ def add_gsc_wgs_bam_dataset(
                             lane_infos[0]['reference_genome'], 
                             tantalus_bam_path)                         
 
-        if not os.path.isfile(tantalus_bai_path) and os.path.isfile(bai_path):
-            logging.info("Transferring {} to {}".format(bai_path, tantalus_bai_path))
-            rsync_file(bai_path, tantalus_bai_path)
     #Otherwise, copy the bam and the bam index to the specified tantalus path
     else:
         if not os.path.isfile(tantalus_bam_path):
             rsync_file(bam_path, tantalus_bam_path)
+            transferred = True 
             
         elif os.path.getsize(bam_path) != os.path.getsize(tantalus_bam_path):
             logging.info("The size of {} on the GSC does not match {}. Copying new file to {} ".format(
@@ -167,6 +165,7 @@ def add_gsc_wgs_bam_dataset(
                     storage["name"]
                     ))
             rsync_file(bam_path, tantalus_bam_path)
+            transferred = True 
             
         else:
             logging.info("The bam already exists at {}. Skipping import".format(tantalus_bam_path))
@@ -174,6 +173,7 @@ def add_gsc_wgs_bam_dataset(
 
         if not os.path.isfile(tantalus_bai_path):
             rsync_file(bai_path, tantalus_bai_path)
+            transferred = True 
             
         elif os.path.getsize(bai_path) != os.path.getsize(tantalus_bai_path):
             logging.info("The size of {} on the GSC does not match {}. Copying new file to {} ".format(
@@ -182,11 +182,12 @@ def add_gsc_wgs_bam_dataset(
                     storage["name"]
                     ))
             rsync_file(bai_path, tantalus_bai_path)
+            transferred = True 
             
         else:
             logging.info("The bam index already exists at {}. Skipping import".format(tantalus_bai_path))
             
-    transferred = True 
+    
 
     return tantalus_bam_path, transferred
     
