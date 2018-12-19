@@ -31,7 +31,6 @@ LIBRARY_ID = "A96213ATEST"
 test_dataset = tantalus_api.get("sequence_dataset", dataset_type="FQ", library__library_id=LIBRARY_ID)
 
 # TODO: check more fields in datasets
-
 def download_data(storage_name, storage_dir, tag_name):
     """
     Get the storage storage_name from Tantalus (create it if it doesn't 
@@ -63,7 +62,7 @@ def create_fake_results(
         docker_env_file,
         max_jobs='400',
         dirs=()):
-    
+
     stream = io.BytesIO()
     stream.write("")
 
@@ -85,36 +84,18 @@ def create_fake_results(
 
 
 @mock.patch("workflows.launch_pipeline.run_pipeline")
-@mock.patch("workflows.arguments.get_args")
-def test_run_pipeline(mock_parse_args, mock_run_pipeline, side_effect=create_fake_results):
-    # TODO: finish this
-    workflow.run.main()  # Pass the correct arguments here
+def test_run_pipeline(mock_run_pipeline):
+    # Create fake results instead of running pipeline
+    mock_run_pipeline.side_effect = create_fake_results 
 
-    args = mock_run_pipeline.call_args
-
-    mock_run_pipeline.assert_called_once()
-
-
-def run_pipeline(pipeline_version, config_json):
-    """
-    Create a test user configuration file and use it to
-    run the pipeline using Sisyphus.
-    Args:
-        pipeline_version: single cell pipeline version, for example v0.2.3
-        config_json: configuration file for pipeline
-        local_run: if True, run the single cell pipeline locally
-    """
-
-    args = workflows.arguments.get_args([
-        JIRA_TICKET, pipeline_version,
-        '--config', config_json,
-        '--no_transfer',
-        '--update',
-        '--integrationtest',
-    ])
-
-    workflows.launch_pipeline.run_pipeline = mock_run_pipeline
+    # TODO: get pipeline version as a parameter
+    arglist = [JIRA_TICKET, "v0.2.6", "--integrationtest"]
+    args = workflows.arguments.get_args(arglist=arglist)
     workflows.run.main(args)
+
+    # TODO: check arguments that run_pipeline was called with
+    args = mock_run_pipeline.call_args
+    mock_run_pipeline.assert_called_once()
 
 
 def check_output_files(filepaths, storage_name, storage_client):
