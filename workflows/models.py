@@ -453,7 +453,7 @@ class AlignAnalysis(Analysis):
 
         self.bams = [cell_info['bam'] for _, cell_info in inputs_dict.items()]
 
-    def _generate_cell_metadata(self, storage_name):
+    def _generate_cell_metadata(self, args, storage_name):
         """ Generates per cell metadata
 
         Args:
@@ -550,7 +550,7 @@ class AlignAnalysis(Analysis):
 
         return input_info
 
-    def generate_inputs_yaml(self, inputs_yaml_filename):
+    def generate_inputs_yaml(self, args, inputs_yaml_filename):
         """ Generates a YAML file of input information
 
         Args:
@@ -558,7 +558,7 @@ class AlignAnalysis(Analysis):
             storage_name: Which tantalus storage to look at
         """
 
-        input_info = self._generate_cell_metadata(self.storages['working_inputs'])
+        input_info = self._generate_cell_metadata(args, self.storages['working_inputs'])
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.dump(input_info, inputs_yaml, default_flow_style=False)
