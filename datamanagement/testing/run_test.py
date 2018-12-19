@@ -11,6 +11,7 @@ import io
 
 import workflows.run
 import workflows.arguments
+import datamanagement.templates as templates
 from dbclients.tantalus import TantalusApi
 from dbclients.basicclient import NotFoundError
 from workflows.utils import saltant_utils, file_utils
