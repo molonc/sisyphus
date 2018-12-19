@@ -24,35 +24,6 @@ if 'TANTALUS_API_URL' not in os.environ:
 
 tantalus_api = TantalusApi()
 
-JIRA_TICKET = "SC-9999"
-LIBRARY_ID = "A96213ATEST"
-
-test_dataset = tantalus_api.get("sequence_dataset", dataset_type="FQ", library__library_id=LIBRARY_ID)
-
-# TODO: check more fields in datasets
-def download_data(storage_name, storage_dir, tag_name):
-    """
-    Get the storage storage_name from Tantalus (create it if it doesn't 
-    already exist) and download input fastqs tagged with tag_name from 
-    singlecellblob to storage storage_name using Saltant.
-    Args:
-        storage_name: name of Tantalus storage to download files to
-        storage_dir: directory corresponding to storage_name
-        tag_name: tag in Tantalus that identifies the input fastqs
-    """
-    tantalus_api.get_or_create(
-        "storage_server", 
-        storage_type="server", 
-        name=storage_name,
-        storage_directory=storage_dir,
-    )
-
-    transfer_files(
-        tag_name,
-        "singlecellblob",
-        storage_name,
-    )
-
 
 def create_fake_results(
         tantalus_analysis,
@@ -61,20 +32,24 @@ def create_fake_results(
         docker_env_file,
         max_jobs='400',
         dirs=()):
-
+    
     stream = io.BytesIO()
     stream.write("")
 
-    results_storage_client = tantalus_api.get_storage_client(storages['working_results'])
-    inputs_storage_client = tantalus_api.get_storage_client(storages['working_inputs'])
+    storages = tantalus_analysis.args["storages"]
+    results_storage_client = tantalus_api.get_storage_client(
+        tantalus_analysis.storages['working_results'])
+    inputs_storage_client = tantalus_api.get_storage_client(
+        tantalus_analysis.storages['working_inputs'])
 
-    result_filenames = tantalus_analysis.get_results_filenames()
+    result_filenames = tantalus_analysis.get_results_filenames(
+        tantalus_analysis.args)
 
     for filename in result_filenames:
         results_storage_client.write_data(filename, stream) 
 
     inputs_dict = file_utils.load_yaml(inputs_yaml)
-    bam_paths = [cell_info["bam"] for cell_id, cell_info in input_dict.iteritems()]
+    bam_paths = [cell_info["bam"] for cell_id, cell_info in inputs_dict.iteritems()]
 
     if tantalus_analysis.analysis_type == "align":
         for bam_path in bam_paths:

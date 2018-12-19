@@ -193,7 +193,7 @@ class Analysis(object):
             updated = False
 
             fields_to_check = {
-                'args': (args, lambda a, b: a != b),
+                'args': (args, lambda a, b: dict(a) != dict(b)),
                 'version': (version, lambda a, b: a != b),
                 'input_datasets': (input_datasets, lambda a, b: set(a) != set(b)),
                 'input_results': (input_results, lambda a, b: set(a) != set(b)),
@@ -362,6 +362,12 @@ class Analysis(object):
             dataset = self.get_dataset(dataset_id)
             input_samples.add(dataset['sample']['id'])
         return list(input_samples)
+
+    def get_results_filenames(self):
+        """
+        Get the filenames of results from a list of templates.
+        """
+        raise NotImplementedError
 
 
 class AlignAnalysis(Analysis):
@@ -588,7 +594,7 @@ class AlignAnalysis(Analysis):
     def create_output_datasets(self, tag_name=None, update=False):
         """
         """
-        cell_metadata = self._generate_cell_metadata(self.storages['working_inputs'])
+        cell_metadata = self._generate_cell_metadata(self.args, self.storages['working_inputs'])
         sequence_lanes = []
 
         for lane_id, lane in self.get_lanes().iteritems():
@@ -649,6 +655,22 @@ class AlignAnalysis(Analysis):
         datasets = tantalus_api.list('sequence_dataset', analysis=self.get_id(), dataset_type='BAM')
         return [dataset['id'] for dataset in datasets] 
 
+    @staticmethod
+    def get_results_filenames(args):
+        results_prefix = os.path.join(
+            args["jira"],
+            "results",
+            "results",
+            "alignment")
+
+        filenames = [
+            os.path.join("plots", "{library_id}_plot_metrics.pdf"),
+            "{library_id}_alignment_metrics.h5",
+            "info.yaml"
+        ]
+
+        return [os.path.join(results_prefix, filename.format(**args)) for filename in filenames]
+
 
 class HmmcopyAnalysis(Analysis):
     """
@@ -664,6 +686,28 @@ class HmmcopyAnalysis(Analysis):
         Get the input BAM datasets for this analysis.
         """
         return self.align_analysis.get_output_datasets()
+
+    @staticmethod
+    def get_results_filenames(args):
+        results_prefix = os.path.join(
+            args["jira"],
+            "results",
+            "results",
+            "hmmcopy_autoploidy")
+
+        filenames = [
+            os.path.join("plots", "bias", "{library_id}_bias.tar.gz"),
+            os.path.join("plots", "segments", "{library_id}_segs.tar.gz"),
+            os.path.join("plots", "{library_id}_heatmap_by_ec_filtered.pdf"),
+            os.path.join("plots", "{library_id}_heatmap_by_ec.pdf"),
+            os.path.join("plots", "{library_id}_kernel_density.pdf"),
+            os.path.join("plots", "{library_id}_metrics.pdf"),
+            "{library_id}_hmmcopy.h5",
+            "{library_id}_igv_segments.seg",
+            "info.yaml"
+        ]
+
+        return [os.path.join(results_prefix, filename.format(**args)) for filename in filenames]
 
 
 class PseudoBulkAnalysis(Analysis):
