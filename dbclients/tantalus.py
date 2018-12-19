@@ -118,6 +118,10 @@ class ServerStorageClient(object):
     def write_data(self, filename, stream):
         stream.seek(0)
         filepath = os.path.join(self.storage_directory, filename)
+        dirname = os.path.dirname(filepath)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+            
         with open(filepath, "wb") as f:
             f.write(stream.getvalue())
 
