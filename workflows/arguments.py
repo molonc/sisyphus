@@ -20,7 +20,7 @@ def get_args(arglist=None):
     )
 
     parser.add_argument(
-        "--testing",
+        "--skip_pipeline",
         default=False,
         action="store_true"
     )
@@ -39,32 +39,11 @@ def get_args(arglist=None):
     )
 
     parser.add_argument(
-        '--shahlab_run',
-        default=False,
-        action='store_true',
-        help='Run pipeline on shahlab15, rather than on Azure.'
-    )
-
-    parser.add_argument(
-        '--no_transfer',
-        default=False,
-        action='store_true',
-        help='Do not start transfer of files from shahlab to singlecellblob',
-    )
-
-    parser.add_argument(
         '--integrationtest',
         default=False,
         action='store_true',
         help='Run pipeline on shahlab15, rather than on Azure.'
     )
-
-    parser.add_argument(
-        '--bams_tag',
-        default=None,
-        help='Optionally tag the bams produced by the single cell pipeline'
-    )
-
 
     # CONFIGURATION FILES #
     parser.add_argument(
