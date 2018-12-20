@@ -71,7 +71,8 @@ class BlobStorageClient(object):
         return self.blob_service.exists(self.storage_container, blob_name=blobname)
 
     def list(self, prefix):
-        return self.blob_service.list_blobs(self.storage_container, prefix=prefix)
+        for blob in self.blob_service.list_blobs(self.storage_container, prefix=prefix):
+            yield blob.name
 
     def write_data(self, blobname, stream):
         stream.seek(0)
