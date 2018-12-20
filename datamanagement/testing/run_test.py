@@ -15,7 +15,7 @@ from dbclients.tantalus import TantalusApi
 from dbclients.basicclient import NotFoundError
 from workflows.utils import saltant_utils, file_utils
 from datamanagement.transfer_files import transfer_files
-from models import AlignAnalysis, HmmcopyAnalysis
+from workflows.models import AlignAnalysis, HmmcopyAnalysis
 
 log = logging.getLogger('sisyphus')
 
@@ -236,13 +236,14 @@ def parse_args():
 if __name__ == '__main__':
     args = parse_args()
     tag_name = "IntegrationTestFastqs"
-    config = os.path.join(os.path.dirname(workflows.__file__), "config", "normal_config.json")
+    config_path = os.path.join(os.path.dirname(workflows.__file__), "config", "normal_config.json")
+    config = file_utils.load_json(config_path)
+    
+    storages = config['storages']
+    bams_storage = storages['remote_inputs']
+    results_storage = storages['remote_results']
 
     test_run_pipeline(jira=args["jira"], version=args["version"])
-
-    # TODO: get storages from config
-    bams_storage = "singlecellblob"
-    results_storage = "singlecellblob_results"
 
     # TODO: move checking to test_run_pipeline
     check_bams(bams_storage)
