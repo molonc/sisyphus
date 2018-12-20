@@ -599,7 +599,7 @@ class AlignAnalysis(Analysis):
 
         for lane_id, lane in self.get_lanes().iteritems():
 
-            if args["integrationtest"]:
+            if self.args["integrationtest"]:
                 lane["flowcell_id"] += "TEST"
 
             sequence_lanes.append(dict(
@@ -619,12 +619,12 @@ class AlignAnalysis(Analysis):
                     analysis_id=self.analysis['id'],
                     dataset_type='BAM',
                     sample_id=metadata['sample_id'],
-                    library_id=args['library_id'],
+                    library_id=self.args['library_id'],
                     library_type='SC_WGS',
                     index_format='D',
                     sequence_lanes=sequence_lanes,
-                    ref_genome=args['ref_genome'],
-                    aligner_name=args['aligner'],
+                    ref_genome=self.args['ref_genome'],
+                    aligner_name=self.args['aligner'],
                     file_type=file_type,
                     index_sequence=metadata['index_sequence'],
                     compression='UNCOMPRESSED',
@@ -637,7 +637,7 @@ class AlignAnalysis(Analysis):
 
         output_datasets = dlp.create_sequence_dataset_models(
             file_info=output_file_info,
-            storage_name=storage_name,
+            storage_name=self.storages["working_inputs"],
             tag_name=tag_name,  # TODO: tag?
             tantalus_api=tantalus_api,
             analysis_id=self.get_id(),
@@ -646,19 +646,10 @@ class AlignAnalysis(Analysis):
 
         log.info("created sequence datasets {}".format(output_datasets))
 
-    def get_output_datasets(self):
-        """
-        Query Tantalus for bams that match the associated analysis
-        by filtering based on the analysis id.
-        """
-
-        datasets = tantalus_api.list('sequence_dataset', analysis=self.get_id(), dataset_type='BAM')
-        return [dataset['id'] for dataset in datasets] 
-
     @staticmethod
     def get_results_filenames(args):
         results_prefix = os.path.join(
-            args["jira"],
+            args["job_subdir"],
             "results",
             "results",
             "alignment")
@@ -676,8 +667,7 @@ class HmmcopyAnalysis(Analysis):
     """
     A class representing an hmmcopy analysis in Tantalus.
     """
-    def __init__(self, align_analysis, args, **kwargs):
-        self.align_analysis = align_analysis
+    def __init__(self, args, **kwargs):
         super(HmmcopyAnalysis, self).__init__('hmmcopy', args, **kwargs)
 
     @staticmethod
@@ -685,12 +675,13 @@ class HmmcopyAnalysis(Analysis):
         """
         Get the input BAM datasets for this analysis.
         """
-        return self.align_analysis.get_output_datasets()
+        datasets = tantalus_api.list('sequence_dataset', analysis=args["align_analysis"], dataset_type='BAM')
+        return [dataset['id'] for dataset in datasets]
 
     @staticmethod
     def get_results_filenames(args):
         results_prefix = os.path.join(
-            args["jira"],
+            args["job_subdir"],
             "results",
             "results",
             "hmmcopy_autoploidy")
@@ -937,16 +928,14 @@ class Results:
         """
         file_resource_ids = set()
 
-        storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
+        storage_client = tantalus_api.get_storage_client(self.storage_name)
+        results_filenames = self.tantalus_analysis.get_results_filenames(
+            self.tantalus_analysis.args)
 
-        prefix = os.path.join(
-            self.args["job_subdir"], 
-            "results", 
-            "results")  # Exclude metrics files
-
-        for result_filepath in storage_client.list(prefix=prefix):  # Exclude metrics files
+        for result_filename in results_filenames:  # Exclude metrics files
+            result_filepath = os.path.join(storage_client.prefix, result_filename)
             file_resource, file_instance = tantalus_api.add_file(
-                storage_name=self.storages["working_results"],
+                storage_name=self.storage_name,
                 filepath=result_filepath,
                 update=update,
             )

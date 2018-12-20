@@ -52,15 +52,16 @@ def start_automation(
     args['job_subdir'] = job_subdir
     args["library_id"] = library_id
 
-    dataset_ids = set()
-    result_ids = set()
+    results_ids = set()
+    bam_ids = set()
 
     for analysis_type in ('align', 'hmmcopy'):
         if analysis_type == 'align':
             align_analysis = AlignAnalysis(args, storages=storages, update=args['update'])
             tantalus_analysis = align_analysis
         elif analysis_type == 'hmmcopy':
-            tantalus_analysis = HmmcopyAnalysis(align_analysis, args, storages=storages, update=args['update'])
+            args["align_analysis"] = align_analysis.get_id()
+            tantalus_analysis = HmmcopyAnalysis(args, storages=storages, update=args['update'])
         else:
             raise ValueError()
 
@@ -69,21 +70,23 @@ def start_automation(
             input_file_instances = tantalus_analysis.get_input_file_instances(storages["working_inputs"])
         except NotFoundError:
             # Start a file transfer to get the inputs
-            tag_name = '_'.join([args['jira'], storages['remote_inputs']])
+            tag_name = '_'.join([args['jira'], storages['remote_inputs'], "import"])
             tantalus_api.tag(
                 tag_name,
                 sequencedataset_set=tantalus_analysis.search_input_datasets(args))
 
             sentinel(
-                'Transferring FASTQ files from {} to {}'.format(storages["remote_inputs"], storages["working_inputs"]),
+                'Transferring {} input files from {} to {}'.format(
+                    analysis_type, storages["remote_inputs"], storages["working_inputs"]),
                 transfer_files,
                 tag_name, 
                 storages["remote_inputs"],
-                storages["working_inputs"]
-            )
+                storages["working_inputs"])
             
         if args['inputs_yaml'] is None:
-            local_results_storage = tantalus_api.get('storage', name=storages['local_results'])['storage_directory']
+            local_results_storage = tantalus_api.get(
+                'storage', 
+                name=storages['local_results'])['storage_directory']
 
             inputs_yaml = os.path.join(local_results_storage, job_subdir, 'inputs.yaml')
             sentinel(
@@ -97,18 +100,14 @@ def start_automation(
 
         align_analysis.check_inputs_yaml(inputs_yaml)
         tantalus_analysis.add_inputs_yaml(inputs_yaml, update=args['update'])
-        dataset_ids.update(tantalus_analysis.analysis['input_datasets'])
 
-        if analysis_type == 'align' and args['no_align']:
-            continue
-
-        if analysis_type == 'hmmcopy' and args['no_hmmcopy']:
+        if args["_".join(["no", analysis_type])]:
             continue
 
         try:
             tantalus_analysis.set_run_status()
 
-            if args["testing"]:
+            if args["skip_pipeline"]:
                 run_pipeline = launch_pipeline.run_pipeline2
             else:
                 run_pipeline = launch_pipeline.run_pipeline
@@ -127,9 +126,9 @@ def start_automation(
             sentinel(
                 'Running single_cell {}'.format(analysis_type),
                 run_pipeline,
-                tantalus_analysis,
-                analysis_info,
-                inputs_yaml,
+                tantalus_analysis=tantalus_analysis,
+                analysis_info=analysis_info,
+                inputs_yaml=inputs_yaml,
                 docker_env_file=config['docker_env_file'],
                 dirs=dirs,
             )
@@ -138,37 +137,47 @@ def start_automation(
             raise
 
         if analysis_type == 'align':
+            tag_name = "_".join([args["jira"], storages["working_inputs"], "bams"])
+
             sentinel(
                 'Creating output bam datasets',
                 align_analysis.create_output_datasets,
-                tag_name=args['bams_tag'],
                 update=args['update'],
+                tag_name=tag_name,
             )
+
+            sentinel(
+                "Transferring BAM files from {} to {}".format(
+                    storages["working_inputs"], storages["remote_inputs"]),
+                transfer_files,
+                tag_name,
+                storages["working_inputs"],
+                storages["remote_inputs"])
+
+        if analysis_type == "hmmcopy":
+            bam_ids = tantalus_analysis.search_input_datasets(args)
 
         tantalus_results = tantalus_analysis.create_output_results(
             pipeline_dir,
             update=args['update'],
         )
 
-        result_ids.add(tantalus_results.get_id())
+        results_ids.add(tantalus_results.get_id())
         tantalus_analysis.set_complete_status()
 
-    if storages['working_results'] != storages['remote_results']:
-        # Tag the result datasets
-        # Transfer them from working to remote
+    tag_name = '_'.join([args['jira'], storages['working_results'], "results"])
+    tantalus_api.tag(
+        tag_name,
+        resultsdataset_set=list(results_ids),
+    )
 
-        tag_name = '_'.join([args['jira'], storages['working_results']])
-        tantalus_api.tag(
-            tag_name,
-            resultsdataset_set=results_ids
-        )
-        sentinel(
-            'Transferring results from shahlab to singlecellblob',
-            transfer_files,
-            tag_name,
-            storages['working_results'],
-            storages['remote_results']
-        )
+    sentinel(
+        "Transferring results from {} to {}".format(
+            storages["working_results"], storages['remote_results']),
+        transfer_files,
+        tag_name,
+        storages['working_results'],
+        storages['remote_results'])
 
     analysis_info.set_finish_status()
     log.info("Done!")
@@ -209,12 +218,7 @@ def main(args):
 
     log.info('Library ID: {}'.format(analysis_info.chip_id))
 
-    try:
-        start_automation(args, config, pipeline_dir, analysis_info, config['storages'], job_subdir)
-    except Exception:
-        if args['shahlab_run']:
-            log_utils.send_logging_email(config['email'], '{} error'.format(args['jira']))
-        raise
+    start_automation(args, config, pipeline_dir, analysis_info, config['storages'], job_subdir)
 
 
 if __name__ == '__main__':

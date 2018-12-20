@@ -335,7 +335,6 @@ class TantalusApi(BasicAPIClient):
                 file_type=file_type,
                 created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
-                **fields
             )
 
         file_instance = self.get_or_create(

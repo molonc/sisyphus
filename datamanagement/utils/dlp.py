@@ -198,7 +198,7 @@ def create_sequence_dataset_models(
             dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
 
         if tag_name is not None:
-            tantalus_api.tag(tag_name, dataset['id']) 
+            tantalus_api.tag(tag_name, sequencedataset_set=[dataset['id']]) 
 
         dataset_ids.add(dataset['id'])
 
