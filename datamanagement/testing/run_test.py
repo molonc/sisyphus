@@ -171,7 +171,7 @@ def check_fake_results(call_args_list):
 
         result_file_resources = check_output_files(result_paths, storages["remote_results"])
 
-        results = tantalus_api.get("results", name=tantalus_analysis.analysis["name"]))
+        results = tantalus_api.get("results", name=tantalus_analysis.analysis["name"])
         if result_file_resources != set(results["file_resources"]):
             raise Exception("file resources for result files do not match", 
                 "those in {}".format(results["name"]))

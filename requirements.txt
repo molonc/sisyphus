@@ -4,3 +4,6 @@ openapi_codec
 pandas
 pyyaml
 saltant-py
+mock
+django
+django-core
