@@ -5,5 +5,5 @@ pandas
 pyyaml
 saltant-py
 mock
-django
-django-core
+#django
+#django-core

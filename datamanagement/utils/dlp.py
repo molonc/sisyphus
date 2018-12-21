@@ -72,8 +72,6 @@ def create_sequence_dataset_models(
 ):
     """Create tantalus sequence models for a list of files."""
 
-    standardize_metadata(file_info)
-
     # Get storage and tag PKs
     storage = tantalus_api.get("storage", name=storage_name)
     storage_pk = storage["id"]
