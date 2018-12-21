@@ -18,7 +18,23 @@ from dbclients.tantalus import TantalusApi
 
 def get_bam_ref_genome(bam_header):
     sq_as = bam_header["SQ"][0]["AS"]
-    return datamanagement.utils.constants.REF_GENOME_MAP[sq_as]
+    found_match = False
+
+    for ref, regex_list in datamanagement.utils.constants.REF_GENOME_MAP.iteritems():
+        for regex in regex_list:
+            if re.search(regex, sq_as, flags=re.I):
+                # Found a match
+                reference_genome = ref
+                found_match = True
+                break
+
+        if found_match:
+            break
+
+    if not found_match:
+        raise Exception("Unrecognized reference genome {}".format(sq_as))
+    
+    return reference_genome
 
 
 def get_bam_aligner_name(bam_header):

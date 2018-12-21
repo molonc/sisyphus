@@ -358,6 +358,19 @@ def get_gsc_details(
                 else:
                     raise Exception("missing merged bam file {}".format(bam_path))
 
+            list_temp = dict(
+                library_id=library_name,
+                storage_name=storage['name'],
+                library_type=library_type,
+                bam_filepath=bam_filepath,
+                read_type=solexa_run_type_map[solexa_run_type],
+                sequencing_centre='GSC',
+                lane_info=lane_infos, 
+                transferred=transferred
+                )
+
+            details_list.append(list_temp)
+
         libcores = gsc_api.query(
             "aligned_libcore/info?library={}".format(library_name)
         )
@@ -454,18 +467,18 @@ def get_gsc_details(
                 else:
                     raise Exception("missing lane bam file {}".format(bam_path))
     
-        list_temp = dict(
-            library_id=library_name,
-            storage_name=storage['name'],
-            library_type=library_type,
-            bam_filepath=bam_filepath,
-            read_type=solexa_run_type_map[solexa_run_type],
-            sequencing_centre='GSC',
-            lane_info=lane_infos, 
-            transferred=transferred
-            )
+            list_temp = dict(
+                library_id=library_name,
+                storage_name=storage['name'],
+                library_type=library_type,
+                bam_filepath=bam_filepath,
+                read_type=solexa_run_type_map[solexa_run_type],
+                sequencing_centre='GSC',
+                lane_info=lane_infos, 
+                transferred=transferred
+                )
 
-        details_list.append(list_temp)
+            details_list.append(list_temp)
     
     return details_list
 
