@@ -93,7 +93,7 @@ def spec_to_bam(spec_path,
     # Find out what reference genome to use. Currently there are no
     # standardized strings that we can expect, and for reference genomes
     # there are multiple naming standards, so we need to be clever here.
-    logging.debug("Parsing reference genome %s", raw_reference_genome)
+    logging.info("Parsing reference genome %s", raw_reference_genome)
 
     found_match = False
 
@@ -121,7 +121,7 @@ def spec_to_bam(spec_path,
         os.makedirs(output_path)
 
     # Convert the SpEC to a BAM
-    logging.debug("Converting {} to {}".format(spec_path, output_bam_path))
+    logging.info("Converting {} to {}".format(spec_path, output_bam_path))
 
     command = [SHAHLAB_SPEC2BAM_BINARY_PATH,
                '--in',
@@ -160,8 +160,7 @@ def create_bam( spec_path,
 
     if os.path.isfile(output_bam_path):
         logging.warning("An uncompressed BAM file already exists at {}. Skipping decompression of spec file".format(output_bam_path))
-        created = False
-        return created
+        return False
 
     try:
         spec_to_bam(
