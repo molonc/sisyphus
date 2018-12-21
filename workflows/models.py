@@ -32,8 +32,13 @@ class AnalysisInfo:
         self.status = 'idle'
 
         self.aligner_choices = {
-            'A':    'bwa-aln',
-            'M':    'bwa-mem',
+            'A':    'BWA_ALN_0_5_7',
+            'M':    'BWA_MEM_0_7_6A',
+        }
+
+        self.reference_genome_choices = {
+            'grch37': 'HG19',
+            'mm10': 'MM10',
         }
 
         self.smoothing_choices = {
@@ -59,9 +64,9 @@ class AnalysisInfo:
 
     def get_reference_genome(self):
         reference_genome = self.analysis_info['reference_genome']['reference_genome']
-        if reference_genome not in ('grch37', 'mm10'):
+        if reference_genome not in self.reference_genome_choices:
             raise Exception('Unrecognized reference genome {}'.format(reference_genome))
-        return reference_genome
+        return self.reference_genome_choices[reference_genome]
 
     def get_pipeline_version(self, update=False):
         version_str = self.analysis_info['version']

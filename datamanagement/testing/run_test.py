@@ -115,7 +115,7 @@ def check_fake_bams(call_args_list):
 
     bam_file_resources = check_output_files(bam_filenames, storages["remote_inputs"])
     dataset_file_resources = set()
-    for dataset_id in input_dataset_pks:
+    for dataset_id in bam_dataset_pks:
         dataset = tantalus_api.get("sequence_dataset", id=dataset_id)
         dataset_file_resources.update(dataset["file_resources"])
 
