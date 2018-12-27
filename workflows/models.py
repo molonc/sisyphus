@@ -148,9 +148,6 @@ class Analysis(object):
 
         self.storages = storages
 
-        # TODO: remove self.bams
-        self.bams = []
-
     @property
     def name(self):
         return self.analysis['name']
@@ -462,8 +459,6 @@ class AlignAnalysis(Analysis):
                 lanes, input_lanes
             ))
 
-        self.bams = [cell_info['bam'] for _, cell_info in inputs_dict.items()]
-
     def _generate_cell_metadata(self, args, storage_name):
         """ Generates per cell metadata
 
@@ -586,15 +581,6 @@ class AlignAnalysis(Analysis):
                 lane_id = tantalus_utils.get_flowcell_lane(lane)
                 lanes[lane_id] = lane
         return lanes
-
-    def get_output_bams(self):
-        """
-        Query Tantalus for bams that match the lane_ids
-        of the input fastqs
-        """
-        if not self.bams:
-            raise Exception('no output bams found, regenerate or provide an existing inputs yaml')
-        return self.bams
 
     def create_output_datasets(self, tag_name=None, update=False):
         """
