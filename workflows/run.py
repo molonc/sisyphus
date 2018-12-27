@@ -53,7 +53,6 @@ def start_automation(
     args["library_id"] = library_id
 
     results_ids = set()
-    bam_ids = set()
 
     for analysis_type in ('align', 'hmmcopy'):
         if analysis_type == 'align':
@@ -153,9 +152,6 @@ def start_automation(
                 tag_name,
                 storages["working_inputs"],
                 storages["remote_inputs"])
-
-        if analysis_type == "hmmcopy":
-            bam_ids = tantalus_analysis.search_input_datasets(args)
 
         tantalus_results = tantalus_analysis.create_output_results(
             pipeline_dir,
