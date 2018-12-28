@@ -79,7 +79,6 @@ def init_log_files(pl_dir):
     # TODO: WTH
     latest_file = os.path.join(log_dir, 'latest')
     if os.path.exists(latest_file):
-        print latest_file
         os.remove(latest_file)
     os.symlink(log_file, latest_file)
 
