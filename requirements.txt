@@ -1,5 +1,6 @@
 azure-storage-blob
 coreapi
+Click==7.0
 openapi_codec
 pandas
 pyyaml
