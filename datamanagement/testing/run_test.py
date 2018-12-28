@@ -42,8 +42,7 @@ def create_fake_results(
     inputs_storage_client = tantalus_api.get_storage_client(
         storages['working_inputs'])
 
-    result_filenames = tantalus_analysis.get_results_filenames(
-        tantalus_analysis.args)
+    result_filenames = tantalus_analysis.get_results_filenames()
 
     for filename in result_filenames:
         results_storage_client.write_data(filename, stream) 
@@ -59,7 +58,11 @@ def create_fake_results(
 
 
 @mock.patch("workflows.launch_pipeline.run_pipeline")
-def test_run_pipeline(mock_run_pipeline, jira=None, version=None):
+def test_run_pipeline(mock_run_pipeline, config_filename, jira=None, version=None):
+    config = file_utils.load_json(config_filename)
+
+    cleanup_fake_outputs(jira, config['storages'])
+
     # Create fake results instead of running pipeline
     mock_run_pipeline.side_effect = create_fake_results 
 
@@ -68,7 +71,7 @@ def test_run_pipeline(mock_run_pipeline, jira=None, version=None):
     workflows.run.main(args)
 
     check_fake_outputs(mock_run_pipeline.call_args_list)
-    cleanup_fake_outputs(mock_run_pipeline.call_args_list)
+    cleanup_fake_outputs(jira, config['storages'])
 
 
 def check_fake_outputs(call_args_list):
@@ -76,9 +79,9 @@ def check_fake_outputs(call_args_list):
     check_fake_results(call_args_list)
 
 
-def cleanup_fake_outputs(call_args_list):
-    cleanup_fake_bams(call_args_list)
-    cleanup_fake_results(call_args_list)
+def cleanup_fake_outputs(jira, storages):
+    cleanup_fake_bams(jira, storages)
+    cleanup_fake_results(jira, storages)
 
 
 def check_fake_bams(call_args_list):
@@ -165,7 +168,7 @@ def check_fake_results(call_args_list):
         storage = tantalus_api.get("storage", name=storages["remote_results"])
 
         result_paths = []
-        for result_filename in tantalus_analysis.get_results_filenames(tantalus_analysis.args):
+        for result_filename in tantalus_analysis.get_results_filenames():
             result_filepath = os.path.join(storage["prefix"], result_filename)
             result_paths.append(result_filename)
 
@@ -177,75 +180,74 @@ def check_fake_results(call_args_list):
                 "those in {}".format(results["name"]))
 
 
-def cleanup_bams(call_args_list):
-    args, kwargs = call_args_list[1]
-    hmmcopy_analysis = kwargs["tantalus_analysis"]
-    assert hmmcopy_analysis.analysis_type == "hmmcopy"
-
-    storages = hmmcopy_analysis.storages
+def cleanup_fake_bams(jira, storages):
+    working_storage_client = tantalus_api.get_storage_client(storages["working_inputs"])
+    remote_storage_client = tantalus_api.get_storage_client(storages["remote_inputs"])
 
     try:
         bam_dataset = tantalus_api.get(
             "sequence_dataset", 
-            analysis__jira_ticket=hmmcopy_analysis.args["jira"], 
+            analysis__jira_ticket=jira, 
             dataset_type="BAM")
     except NotFoundError:
-        return
+        bam_dataset = None
 
-    working_storage_client = tantalus_api.get_storage_client(storages["working_inputs"])
-    remote_storage_client = tantalus_api.get_storage_client(storages["remote_inputs"])
+    if bam_dataset is not None:
+        for file_resource_pk in bam_dataset["file_resources"]:
+            filename = tantalus_api.get("file_resource", id=file_resource_pk)["filename"]
 
-    for file_resource_pk in bam_dataset["file_resources"]:
-        filename = tantalus_api.get("file_resource", id=file_resource_pk)["filename"]
-        log.info("deleting {}".format(filename))
-        
-        if working_storage_client.exists(filename):
-            working_storage_client.delete(filename)
-
-        if remote_storage_client.exists(filename):
-            remote_storage_client.delete(filename)
-
-    log.info("deleting sequence dataset {}".format(bam_dataset["name"]))
-    tantalus_api.delete("sequence_dataset", bam_dataset["id"])
-
-
-def cleanup_results(call_args_list):
-    for call in call_args_list:
-        args, kwargs = call
-
-        tantalus_analysis = kwargs["tantalus_analysis"]
-        storages = tantalus_analysis.storages
-
-        name = tantalus_analysis.analysis["name"]
-
-        try:
-            results = tantalus_api.get("results", name=name)
-            analysis = tantalus_api.get("analysis", name=name)
-        except NotFoundError:
-            continue
-
-        working_storage_client = tantalus_api.get_storage_client(storages["working_results"])
-        remote_storage_client = tantalus_api.get_storage_client(storages["remote_results"])
-
-        result_filenames = tantalus_analysis.get_results_filenames(tantalus_analysis.args)
-
-        for result_filename in result_filenames:
-            log.info("deleting {}".format(result_filename))
-
+            log.info("deleting {}".format(filename))
+            
             if working_storage_client.exists(filename):
                 working_storage_client.delete(filename)
 
             if remote_storage_client.exists(filename):
                 remote_storage_client.delete(filename)
 
-        log.info("deleting results {}".format(name))
-        tantalus_api.delete("results", name=name)
-        log.info("deleting analysis {}".format(name))
-        tantalus_api.delete("analysis", name=name)
+        log.info("deleting sequence dataset {}".format(bam_dataset["name"]))
+        tantalus_api.delete("sequence_dataset", bam_dataset["id"])
+
+
+def cleanup_fake_results(jira, storages):
+    working_storage_client = tantalus_api.get_storage_client(storages["working_inputs"])
+    remote_storage_client = tantalus_api.get_storage_client(storages["remote_inputs"])
+
+    for analysis_type in ('align', 'hmmcopy'):
+        name = '{}_{}'.format(jira, analysis_type)
+
+        try:
+            results = tantalus_api.get("results", name=name)
+        except NotFoundError:
+            results = None
+
+        if results is not None:
+            for file_resource_pk in results["file_resources"]:
+                filename = tantalus_api.get("file_resource", id=file_resource_pk)["filename"]
+
+                log.info("deleting {}".format(filename))
+
+                if working_storage_client.exists(filename):
+                    working_storage_client.delete(filename)
+
+                if remote_storage_client.exists(filename):
+                    remote_storage_client.delete(filename)
+
+            log.info("deleting results {}".format(name))
+            tantalus_api.delete("results", id=results["id"])
+
+        try:
+            analysis = tantalus_api.get("analysis", name=name)
+        except NotFoundError:
+            analysis = None
+
+        if analysis is not None:
+            log.info("deleting analysis {}".format(name))
+            tantalus_api.delete("analysis", id=analysis["id"])
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("config")
     parser.add_argument("jira")
     parser.add_argument("version")
     return dict(vars(parser.parse_args()))
@@ -255,4 +257,7 @@ if __name__ == '__main__':
     args = parse_args()
     tag_name = "IntegrationTestFastqs"
 
-    test_run_pipeline(jira=args["jira"], version=args["version"])
+    test_run_pipeline(
+        config_filename=args["config"],
+        jira=args["jira"],
+        version=args["version"])
