@@ -44,29 +44,6 @@ def fastq_paired_end_check(file_info):
                 )
 
 
-ref_genome_map = {
-    'grch36': 'grch36',
-    'hg18': 'grch36',
-    'grch37': 'grch37',
-    'hg19': 'grch36',
-    'mm10': 'mm10',
-}
-
-
-aligner_name_map = {
-    'bwa-aln': 'bwa-aln',
-    'bwa-mem': 'bwa-mem',
-}
-
-
-def standardize_metadata(file_info):
-    """ Standardize the metadata of the files """
-    for info in file_info:
-        if info["dataset_type"] == 'BAM':
-            info['ref_genome'] = ref_genome_map[info['ref_genome'].lower()]
-            info['aligner_name'] = aligner_name_map[info['aligner_name'].lower()]
-
-
 def create_sequence_dataset_models(
     file_info, storage_name, tag_name, tantalus_api, analysis_id=None, update=False
 ):
