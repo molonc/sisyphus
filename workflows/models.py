@@ -574,7 +574,6 @@ class AlignAnalysis(Analysis):
         """
         lanes = dict()
         for dataset_id in self.analysis['input_datasets']:
-            print("dataset_id in get_lanes: {}".format(dataset_id))
             dataset = self.get_dataset(dataset_id)
             for lane in dataset['sequence_lanes']:
                 lane_id = tantalus_utils.get_flowcell_lane(lane)
@@ -649,7 +648,7 @@ class AlignAnalysis(Analysis):
             "info.yaml"
         ]
 
-        return [os.path.join(results_prefix, filename.format(**args)) for filename in filenames]
+        return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
 
 
 class HmmcopyAnalysis(Analysis):
@@ -686,7 +685,7 @@ class HmmcopyAnalysis(Analysis):
             "info.yaml"
         ]
 
-        return [os.path.join(results_prefix, filename.format(**args)) for filename in filenames]
+        return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
 
 
 class PseudoBulkAnalysis(Analysis):
@@ -788,7 +787,7 @@ class PseudoBulkAnalysis(Analysis):
                 filenames.append('{}_{}.vcf.gz.csi'.format(sample_id, snv_caller))
                 filenames.append('{}_{}.vcf.gz.tbi'.format(sample_id, snv_caller))
 
-        return [os.path.join(results_prefix, filename.format(**args)) for filename in filenames]
+        return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
 
 
 class CNCloneAnalysis(Analysis):
