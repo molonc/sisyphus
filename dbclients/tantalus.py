@@ -11,29 +11,65 @@ from __future__ import print_function
 import json
 import os
 import time
-import pandas as pd
-from django.core.serializers.json import DjangoJSONEncoder
-from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
-import azure.storage.blob
 import datetime
 import urllib2
 import logging
+import pandas as pd
+
+from django.core.serializers.json import DjangoJSONEncoder
+from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
+
+import azure.storage.blob
+from azure.keyvault import KeyVaultClient, KeyVaultAuthentication
+from azure.common.credentials import ServicePrincipalCredentials
+
 
 log = logging.getLogger('sisyphus')
 
 TANTALUS_API_URL = "http://tantalus.bcgsc.ca/api/"
 
 
+def get_storage_account_key(
+        accountname, client_id, secret_key, tenant_id, keyvault_account
+):
+    def auth_callback(server, resource, scope):
+        credentials = ServicePrincipalCredentials(
+            client_id=client_id,
+            secret=secret_key,
+            tenant=tenant_id,
+            resource="https://vault.azure.net"
+        )
+        token = credentials.token
+        return token['token_type'], token['access_token']
+
+    client = KeyVaultClient(KeyVaultAuthentication(auth_callback))
+    keyvault = "https://{}.vault.azure.net/".format(keyvault_account)
+
+    # passing in empty string for version returns latest key
+    secret_bundle = client.get_secret(keyvault, accountname, "")
+    return secret_bundle.value
+
+
 class BlobStorageClient(object):
     def __init__(self, storage):
         self.storage_account = storage['storage_account']
         self.storage_container = storage['storage_container']
-        self.storage_key = storage['credentials']['storage_key']
-        self.prefix = storage['prefix']
+
+        client_id = os.environ["CLIENT_ID"]
+        secret_key = os.environ["SECRET_KEY"]
+        tenant_id = os.environ["TENANT_ID"]
+        keyvault_account = os.environ['AZURE_KEYVAULT_ACCOUNT']
+
+        storage_key = get_storage_account_key(
+            self.storage_account, client_id, secret_key,
+            tenant_id, keyvault_account)
 
         self.blob_service = azure.storage.blob.BlockBlobService(
             account_name=self.storage_account,
-            account_key=self.storage_key)
+            account_key=storage_key)
+        self.blob_service.MAX_BLOCK_SIZE = 64 * 1024 * 1024
+
+        self.prefix = storage['prefix']
 
     def get_size(self, blobname):
         properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
@@ -241,9 +277,6 @@ class TantalusApi(BasicAPIClient):
         storage = self.get_storage(storage_name)
 
         if storage['storage_type'] == 'blob':
-            storage['credentials'] = self.get(
-                'storage_azure_blob_credentials',
-                id=storage['credentials'])
             client = BlobStorageClient(storage)
         elif storage['storage_type'] == 'server':
             client = ServerStorageClient(storage)

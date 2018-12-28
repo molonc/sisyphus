@@ -94,12 +94,8 @@ class AzureTransfer(object):
     Not so much blob-to-blob interactions in its present form.
     """
 
-    def __init__(self, storage):
-        self.block_blob_service = BlockBlobService(
-            account_name=storage["storage_account"],
-            account_key=storage["credentials"]["storage_key"],
-        )
-        self.block_blob_service.MAX_BLOCK_SIZE = 64 * 1024 * 1024
+    def __init__(self, tantalus_api, storage):
+        self.block_blob_service = tantalus_api.get_storage_client(storage["name"]).blob_service
         self.from_storage = storage
 
     def download_from_blob(self, file_instance, to_storage, tantalus_api):
@@ -208,7 +204,7 @@ class AzureTransfer(object):
         )
 
 
-def blob_to_blob_transfer_closure(source_storage, destination_storage):
+def blob_to_blob_transfer_closure(tantalus_api, source_storage, destination_storage):
     """Returns a function for transfering blobs between Azure containers.
 
     Note that this will *not* create new containers that don't already
@@ -217,14 +213,10 @@ def blob_to_blob_transfer_closure(source_storage, destination_storage):
     containers" are unlikely to exist.
     """
     # Start BlockBlobService for source and destination accounts
-    source_account = BlockBlobService(
-        account_name=source_storage["storage_account"],
-        account_key=source_storage["credentials"]["storage_key"],
-    )
-    destination_account = BlockBlobService(
-        account_name=destination_storage["storage_account"],
-        account_key=destination_storage["credentials"]["storage_key"],
-    )
+    source_account = tantalus_api.get_storage_client(
+        source_storage["storage_account"]["name"]).blob_service
+    destination_account = tantalus_api.get_storage_client(
+        destination_storage["storage_account"]["name"]).blob_service
 
     # Get a shared access signature for the source account so that we
     # can read its private files
@@ -369,19 +361,19 @@ def rsync_file(file_instance, to_storage, tantalus_api):
         raise Exception(error_message)
 
 
-def get_file_transfer_function(from_storage, to_storage):
+def get_file_transfer_function(tantalus_api, from_storage, to_storage):
     if from_storage["storage_type"] == "blob" and to_storage["storage_type"] == "blob":
-        return blob_to_blob_transfer_closure(from_storage, to_storage)
+        return blob_to_blob_transfer_closure(tantalus_api, from_storage, to_storage)
     elif (
         from_storage["storage_type"] == "server"
         and to_storage["storage_type"] == "blob"
     ):
-        return AzureTransfer(to_storage).upload_to_blob
+        return AzureTransfer(tantalus_api, to_storage).upload_to_blob
     elif (
         from_storage["storage_type"] == "blob"
         and to_storage["storage_type"] == "server"
     ):
-        return AzureTransfer(from_storage).download_from_blob
+        return AzureTransfer(tantalus_api, from_storage).download_from_blob
     elif (
         from_storage["storage_type"] == "server"
         and to_storage["storage_type"] == "server"
@@ -396,23 +388,11 @@ def transfer_files(tag_name, from_storage_name, to_storage_name):
     # variables defined)
     tantalus_api = TantalusApi()
 
-    # Get the storage details, sans credentials
+    # Get the storage details
     to_storage = tantalus_api.get("storage", name=to_storage_name)
     from_storage = tantalus_api.get("storage", name=from_storage_name)
 
-    # For blob storages, get credentials for each storage by
-    # transforming from credential ID to the credential itself
-    if to_storage["storage_type"] == "blob":
-        to_storage["credentials"] = tantalus_api.get(
-            "storage_azure_blob_credentials", id=to_storage["credentials"]
-        )
-
-    if from_storage["storage_type"] == "blob":
-        from_storage["credentials"] = tantalus_api.get(
-            "storage_azure_blob_credentials", id=from_storage["credentials"]
-        )
-
-    f_transfer = get_file_transfer_function(from_storage, to_storage)
+    f_transfer = get_file_transfer_function(tantalus_api, from_storage, to_storage)
 
     datasets = tantalus_api.list("tag", name=tag_name)
 
