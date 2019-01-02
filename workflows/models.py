@@ -194,7 +194,7 @@ class Analysis(object):
             updated = False
 
             fields_to_check = {
-                'args': (args, lambda a, b: dict(a) != dict(b)),
+                'args': (args, lambda a, b: a != b),
                 'version': (version, lambda a, b: a != b),
                 'input_datasets': (input_datasets, lambda a, b: set(a) != set(b)),
                 'input_results': (input_results, lambda a, b: set(a) != set(b)),
