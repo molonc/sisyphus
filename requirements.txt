@@ -1,3 +1,4 @@
+azure-keyvault
 azure-storage-blob
 coreapi
 Click==7.0
