@@ -8,77 +8,87 @@ from datamanagement.utils.runtime_args import parse_runtime_args
 import pandas as pd
 from sets import Set
 
+
+tags_to_keep = [
+    'SC-1635',
+    'SC-1293',
+    'SC-1294',
+    'shahlab_pdx_bams_to_keep',
+]
+
+
 if __name__ == "__main__":
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
+
     tantalus_api = TantalusApi()
-    args = parse_runtime_args()
+
     files_to_delete = []
-    shahlab_prefix = "/shahlab/archive/"
 
+    datasets_to_keep = set()
 
-    datasets = tantalus_api.list("tag", name='shahlab_pdx_bams_to_keep')
+    for tag_name in tags_to_keep:
+        datasets = tantalus_api.list("tag", name=tag_name)
 
-    file_paths_to_keep = []
-    for dataset in datasets:
-        sequencedataset_id = dataset['sequencedataset_set']
-
-        for dataset_id in sequencedataset_id:
-            sequence_dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
-
-            for file_resource_id in sequence_dataset['file_resources']:
-                file_resource = tantalus_api.get('file_resource', id=file_resource_id)
-                for file_instance in file_resource['file_instances']:
-                    file_paths_to_keep.append(file_instance['filepath'])
-
-
-    file_paths_to_keep = Set(file_paths_to_keep)
+        for dataset in datasets:
+            datasets_to_keep.add(dataset["id"])
 
     blob_storage = tantalus_api.get_storage_client('singlecellblob')
     shahlab_storage = tantalus_api.get_storage_client('shahlab')
 
-    all_bam_files = tantalus_api.list('sequence_dataset', dataset_type="BAM")
+    all_bam_files = tantalus_api.list('sequence_dataset', dataset_type='BAM', library__library_type__name='WGS')
+
     total_data_size = 0
     file_num_count = 0
-    #Currently Tantalus doesn't have the library_type implemented, so have to filter via iteration
-    #Will change once Andrew implements the new filter
+
     for dataset in all_bam_files:
-        brittany_needs_file = False
-        if(dataset['library']['library_type'] == "WGS"):
-            try:
-                logging.info("Getting blob storage for Dataset {}".format(dataset['id']))
-                file_instances_blob = tantalus_api.get_sequence_dataset_file_instances(dataset, 'singlecellblob')
-                logging.info("Got blob storage for Dataset {}".format(dataset['id']))
-            except NotFoundError:
-                logging.info("Dataset {} has no file instances stored in blob. Skipping...".format(dataset['id']))
+        is_on_blob = tantalus_api.is_sequence_dataset_on_storage(dataset, 'singlecellblob')
+        is_on_shahlab = tantalus_api.is_sequence_dataset_on_storage(dataset, 'shahlab')
+
+        if not is_on_shahlab:
+            continue
+
+        if not is_on_blob:
+            logging.info("Dataset {} has no file instances stored in blob. Skipping...".format(dataset['name']))
+            continue
+
+        if dataset['id'] in datasets_to_keep:
+            logging.info("Dataset {} is required. Skipping...".format(dataset['name']))
+            continue
+
+        file_size_check = True
+        for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, 'singlecellblob'):
+            if not blob_storage.exists(file_instance['file_resource']['filename'])):
+                logging.info("File {} doesnt exist on blob".format(file_instance['filepath']))
+                file_size_check = False
                 continue
-            for file_instance in file_instances_blob:
-                if(file_instance['filepath'] in file_paths_to_keep):
-                    logging.info("Can't delete. Brittany/Daniel needs this file")
-                    brittany_needs_file = True
-                    break
-            if(brittany_needs_file):
+            if blob_storage.get_size(file_instance['file_resource']['filename']) != file_instance['file_resource']['size']:
+                logging.info("File {} has a different size in blob. Skipping...".format(file_instance['filepath']))
+                file_size_check = False
                 continue
-            for file_instance in file_instances_blob:
-                try:
-                    shahlab_file_instance = tantalus_api.get_file_instance(file_instance['file_resource'], 'shahlab')
-                except NotFoundError:
-                    logging.info("File Resource {} doesn't exist in Shahlab".format(file_instance['file_resource']['id']))
-                    continue
-                if(shahlab_storage.exists(file_instance['file_resource']['filename'])):
-                    files_to_delete.append(shahlab_file_instance['filepath'])
-                    #shahlab_storage.delete(file_instance['file_resource']['filename'])
-                    total_data_size += file_instance['file_resource']['size']
-                    file_num_count += 1
-                    logging.info("Total size of the {} files has been recorded: {} bytes; {} kilobytes; {} megabytes; {} gigabytes; {} terabytes".format(
-                        file_num_count,
-                        total_data_size, 
-                        total_data_size/1024,
-                        total_data_size/(1024*1024),
-                        total_data_size/(1024*1024*1024),
-                        total_data_size/(1024*1024*1024*1024)))
-                else:
-                    logging.info("Tantalus says file exists but it doesn't...")
-                #tantalus_api.delete("file_instance", file_instance['id'])
+            if not shahlab_storage.exists(file_instance['file_resource']['filename'])):
+                logging.info("File {} doesnt exist on shahlab".format(file_instance['filepath']))
+                file_size_check = False
+                continue
+            if shahlab_storage.get_size(file_instance['file_resource']['filename']) != file_instance['file_resource']['size']:
+                logging.info("File {} has a different size in shahlab. Skipping...".format(file_instance['filepath']))
+                file_size_check = False
+                continue
+            total_data_size += file_instance['file_resource']['size']
+            file_num_count += 1
+
+        if not file_size_check:
+            logging.info("Dataset {} failed file size check in blob. Skipping...".format(dataset['name']))
+            continue
+
+        for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, 'singlecellblob'):
+            files_to_delete.append(shahlab_file_instance['filepath'])
+            total_data_size += file_instance['file_resource']['size']
+            file_num_count += 1
+
+            #tantalus_api.delete("file_instance", file_instance['id'])
+
+    logging.info("Total size of the {} files is {} bytes".format(
+        file_num_count, total_data_size)
 
     with open("file_paths.txt", "w") as f:
         for path in files_to_delete:

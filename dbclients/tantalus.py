@@ -491,6 +491,25 @@ class TantalusApi(BasicAPIClient):
 
         return file_instances
 
+    def is_sequence_dataset_on_storage(self, dataset, storage_name):
+        """
+        Given a dataset test if all files are on a specific storage.
+
+        Args:
+            dataset (dict)
+            storage_name (str)
+
+        Returns:
+            bool
+        """
+        for file_resource in self.list('file_resource', sequencedataset__id=dataset['id']):
+            try:
+                self.get_file_instance(file_resource, storage_name)
+            except NotFoundError:
+                return False
+
+        return True
+
     def tag(self, name, sequencedataset_set=(), resultsdataset_set=()):
         """
         Tag datasets.
