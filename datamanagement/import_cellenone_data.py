@@ -16,7 +16,7 @@ from add_generic_results import add_generic_results
 
 @click.command()
 @click.argument('filepaths', nargs=-1)
-@click.option('--library_id', multiple=True)
+@click.option('--library_id')
 @click.option('--storage_name')
 @click.option('--tag_name')
 @click.option('--update', is_flag=True)
@@ -33,7 +33,7 @@ def add_cellenone_data(
     results_type = 'CELLENONE'
     results_version = None
 
-    add_generic_dataset(
+    add_generic_results(
         filepaths=filepaths,
         sample_ids=[sample_id],
         storage_name=storage_name,
@@ -43,4 +43,8 @@ def add_cellenone_data(
         tag_name=tag_name,
         update=update,
     )
+
+
+if __name__=='__main__':
+    add_cellenone_data()
 
