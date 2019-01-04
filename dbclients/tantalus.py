@@ -324,6 +324,9 @@ class TantalusApi(BasicAPIClient):
         compression = self.get_file_compression(filename)
         file_type = filename.split(".")[1].upper()
 
+        if file_type == 'FASTQ':
+            file_type = 'FQ'
+
         try:
             file_resource = self.get_or_create(
                 'file_resource',
