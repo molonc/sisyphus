@@ -2,7 +2,8 @@ import sys
 import os
 import logging
 import json
-from dbclients.tantalus import TantalusApi, FileInstanceNotFoundException
+from dbclients.tantalus import TantalusApi
+from dbclients.basicclient import NotFoundError
 from datamanagement.utils.runtime_args import parse_runtime_args
 import pandas as pd
 from sets import Set
@@ -14,15 +15,23 @@ if __name__ == "__main__":
     files_to_delete = []
     shahlab_prefix = "/shahlab/archive/"
 
-    brittany_files_to_keep_df = pd.read_csv("WGS Inventory - Analysis.csv")
-    data_to_keep_list = brittany_files_to_keep_df['Shahlab Filepath.1'].tolist()
-    data_to_keep_list.extend(brittany_files_to_keep_df['Shahlab Filepath'].tolist())
+
+    datasets = tantalus_api.list("tag", name='shahlab_pdx_bams_to_keep')
+
+    file_paths_to_keep = []
+    for dataset in datasets:
+        sequencedataset_id = dataset['sequencedataset_set']
+
+        for dataset_id in sequencedataset_id:
+            sequence_dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
+
+            for file_resource_id in sequence_dataset['file_resources']:
+                file_resource = tantalus_api.get('file_resource', id=file_resource_id)
+                for file_instance in file_resource['file_instances']:
+                    file_paths_to_keep.append(file_instance['filepath'])
 
 
-    daniel_files_to_keep_df = pd.read_csv("sample_info.csv")
-    data_to_keep_list.extend(daniel_files_to_keep_df['ABSOLUTE_FILE_PATH'].tolist())
-
-    data_to_keep_set = Set(data_to_keep_list)
+    file_paths_to_keep = Set(file_paths_to_keep)
 
     blob_storage = tantalus_api.get_storage_client('singlecellblob')
     shahlab_storage = tantalus_api.get_storage_client('shahlab')
@@ -39,11 +48,11 @@ if __name__ == "__main__":
                 logging.info("Getting blob storage for Dataset {}".format(dataset['id']))
                 file_instances_blob = tantalus_api.get_sequence_dataset_file_instances(dataset, 'singlecellblob')
                 logging.info("Got blob storage for Dataset {}".format(dataset['id']))
-            except FileInstanceNotFoundException:
+            except NotFoundError:
                 logging.info("Dataset {} has no file instances stored in blob. Skipping...".format(dataset['id']))
                 continue
             for file_instance in file_instances_blob:
-                if(file_instance['filepath'] in data_to_keep_set):
+                if(file_instance['filepath'] in file_paths_to_keep):
                     logging.info("Can't delete. Brittany/Daniel needs this file")
                     brittany_needs_file = True
                     break
@@ -52,7 +61,7 @@ if __name__ == "__main__":
             for file_instance in file_instances_blob:
                 try:
                     shahlab_file_instance = tantalus_api.get_file_instance(file_instance['file_resource'], 'shahlab')
-                except FileInstanceNotFoundException:
+                except NotFoundError:
                     logging.info("File Resource {} doesn't exist in Shahlab".format(file_instance['file_resource']['id']))
                     continue
                 if(shahlab_storage.exists(file_instance['file_resource']['filename'])):
@@ -75,60 +84,4 @@ if __name__ == "__main__":
         for path in files_to_delete:
             f.write(path +'\n')
 
-    '''data_to_check_list = []
-    shahlab_prefix = "/shahlab/archive"
-
-    blob_storage = tantalus_api.get_storage_client('singlecellblob')
-    shahlab_storage = tantalus_api.get_storage_client('shahlab')
-
-    files_to_keep_df = pd.read_csv("WGS Inventory - Analysis.csv")
-
-    data_to_keep_list = files_to_keep_df['Shahlab Filepath.1'].tolist()
-    data_to_keep_list.extend(files_to_keep_df['Shahlab Filepath'].tolist())
-    data_to_keep_set = Set(data_to_keep_list)
-
-    #Change in future to accept command line args for different dataset types
-    all_bam_files = tantalus_api.list('sequence_dataset', dataset_type="BAM")
-    total_data_size = 0
-    file_num_count = 0
-    #Currently Tantalus doesn't have the library_type implemented, so have to filter via iteration
-    #Will change once Andrew implements the new filter
-    for dataset in all_bam_files:
-        brittany_needs_file = False
-        if(dataset['library']["library_type"] == "SC_WGS" or dataset['library']['library_type'] == "WGS"):
-            try:
-                logging.info("Getting blob storage for Dataset {}".format(dataset['id']))
-                file_instances_blob = tantalus_api.get_sequence_dataset_file_instances(dataset, 'singlecellblob')
-                logging.info("Got blob storage for Dataset {}".format(dataset['id']))
-            except FileInstanceNotFoundException:
-                logging.info("Dataset {} has no file instances stored in blob. Skipping...".format(dataset['id']))
-                continue
-            for file_instance in file_instances_blob:
-                if(shahlab_prefix + file_instance['file_resource']['filename'] in data_to_keep_set):
-                    logging.info("Can't delete. Brittany needs this file")
-                    brittany_needs_file = True
-                    break
-            for file_instance in file_instances_blob:
-                if not brittany_needs_file:
-                    try:
-                        tantalus_api.get_file_instance(file_instance['file_resource'], 'shahlab')
-                        total_data_size += file_instance['file_resource']['size']
-                        file_num_count += 1
-                        logging.info("Total size of the {} files that can be deleted: {} bytes; {} kilobytes; {} megabytes; {} gigabytes; {} terabytes".format(
-                            file_num_count,
-                            total_data_size, 
-                            total_data_size/1024,
-                            total_data_size/(1024*1024),
-                            total_data_size/(1024*1024*1024),
-                            total_data_size/(1024*1024*1024*1024)))
-                    except FileInstanceNotFoundException:
-                        logging.info("File Resource {} doesn't exist in Shahlab".format(file_instance['file_resource']['id']))
-                        continue
-                else:
-                    break
-
-        
-
-
-    print(total_data_size)'''
-
+   
