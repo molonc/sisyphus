@@ -29,6 +29,17 @@ logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO
 @click.option('--tag_name')
 @click.option('--analysis_pk')
 @click.option('--update', is_flag=True)
+def add_generic_results_cmd(
+        filepaths, sample_ids, storage_name, results_name,
+        results_type, results_version, analysis_pk=None,
+        tag_name=None, update=False):
+
+    add_generic_results(
+        filepaths, sample_ids, storage_name, results_name,
+        results_type, results_version, analysis_pk=analysis_pk,
+        tag_name=tag_name, update=update)
+
+
 def add_generic_results(
         filepaths, sample_ids, storage_name, results_name,
         results_type, results_version, analysis_pk=None,
@@ -77,4 +88,4 @@ def add_generic_results(
 
 
 if __name__=='__main__':
-    add_generic_results()
+    add_generic_results_cmd()
