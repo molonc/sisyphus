@@ -17,15 +17,12 @@ from dbclients.tantalus import TantalusApi
 import datamanagement.templates as templates
 
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
-tantalus_api = TantalusApi()
 
 REQUIRED_FIELDS = [
     'filepaths',
     'sample_id',
     'library_id',
     'storage_name',
-    'file_type',
-    'compression',
     'dataset_name',
     'dataset_type',
 ]
@@ -95,9 +92,7 @@ def json_input(**kwargs):
 @click.argument('filepaths', nargs=-1)
 @click.argument('sample_id', nargs=1)
 @click.argument('library_id', nargs=1)
-@click.option('--storage_name') 
-@click.option('--file_type')    #should be able to remove soon
-@click.option('--compression')     #should be able to remove soon
+@click.option('--storage_name')
 @click.option('--dataset_name')
 @click.option('--dataset_type')
 @click.option('--tag_name')
@@ -122,6 +117,8 @@ def command_line(**kwargs):
 
 
 def add_generic_dataset(**kwargs):
+    tantalus_api = TantalusApi()
+
     file_resource_pks = []
 
     sample = tantalus_api.get(
@@ -140,26 +137,21 @@ def add_generic_dataset(**kwargs):
         resource, instance = tantalus_api.add_file(
             storage_name=kwargs['storage_name'],
             filepath=filepath,
-            file_type=kwargs['file_type'],
-            fields={"compression":"UNCOMPRESSED"},
             update=kwargs['update']
         )
-
         file_resource_pks.append(resource["id"])
 
-    if kwargs["tag_name"]:
+    if "tag_name" in kwargs:
         tag = tantalus_api.get("tag", name=kwargs["tag_name"])
         tags = [tag["id"]]
     else:
         tags = []
 
-    if not kwargs["reference_genome"]:
-        ref_genome = 'UNALIGNED'
-    else:
-        ref_genome = kwargs['reference_genome']
+    ref_genome = kwargs.get("reference_genome")
+    aligner = kwargs.get("aligner")
 
-    if kwargs['sequence_lane_pks']:
-        sequence_pks = map(str, kwargs['sequence_lane_pks'])
+    if "sequence_lane_pks" in kwargs:
+        sequence_pks = map(str, kwargs["sequence_lane_pks"])
 
     #Add the dataset to tantalus
     sequence_dataset = tantalus_api.get_or_create(
@@ -171,7 +163,7 @@ def add_generic_dataset(**kwargs):
             sequence_lanes=sequence_pks,
             file_resources=file_resource_pks,
             reference_genome=ref_genome,
-            aligner=kwargs['aligner'],
+            aligner=aligner,
             tags=tags,
     )
 
