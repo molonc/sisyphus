@@ -436,7 +436,7 @@ class TantalusApi(BasicAPIClient):
         """
         endpoint_url = self.join_urls(self.base_api_url, 'tag')
 
-	fields = {
+        fields = {
             'name': name,
             'sequencedataset_set': sequencedataset_set,
             'resultsdataset_set': resultsdataset_set,
@@ -452,45 +452,4 @@ class TantalusApi(BasicAPIClient):
                 r.reason, r.text))
 
         return r.json()
-
-    @staticmethod
-    def join_urls(*pieces):
-        """Join pieces of an URL together safely."""
-        return "/".join(s.strip("/") for s in pieces) + "/"
-
-    def sequence_dataset_add(self, model_dictionaries, tag_name=None):
-        """POST to the sequence_dataset_add endpoint.
-
-        Args:
-            model_dictionaries: A list of dictionaries containing
-                information about a model to create.
-            tag_name: An optional string (or None) containing the name
-                of the tag to associate with the model instances
-                represented in the model_dictionaries.
-
-        Raises:
-            RuntimeError: The request returned with a non-2xx status
-                code.
-        """
-        endpoint_url = self.join_urls(self.base_api_url, "/sequence_dataset_add/")
-
-        payload = json.dumps(
-            {"model_dictionaries": model_dictionaries, "tag": tag_name},
-            cls=DjangoJSONEncoder,
-        )
-
-        r = self.session.post(endpoint_url, data=payload)
-
-        try:
-            # Ensure that the request was successful
-            assert 200 <= r.status_code < 300
-        except AssertionError:
-            msg = (
-                "Request to {url} failed with status {status_code}:\n"
-                "The reponse from the request was as follows:\n\n"
-                "{content}"
-            ).format(url=endpoint_url, status_code=r.status_code, content=r.text)
-
-            raise RuntimeError(msg)
-
 
