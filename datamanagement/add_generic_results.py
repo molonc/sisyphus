@@ -72,17 +72,29 @@ def add_generic_results(
     else:
         tags = []
 
-    #Add the dataset to tantalus
-    results_dataset = tantalus_api.get_or_create(
-            "results",
-            name=results_name,
-            results_type=results_type,
-            results_version=results_version,
-            analysis=analysis_pk,
-            samples=sample_pks,
-            file_resources=file_resource_pks,
-            tags=tags,
+    results_dataset_fields = dict(
+        name=results_name,
+        results_type=results_type,
+        results_version=results_version,
+        analysis=analysis_pk,
+        samples=sample_pks,
+        file_resources=file_resource_pks,
+        tags=tags,
     )
+
+    #Add the dataset to tantalus
+    try:
+        results_id = tantalus_api.get("results", name=results_dataset_fields["name"])["id"]
+    except NotFoundError:
+        results_id = None
+
+    if update and results_id is not None:
+        logging.warning("results dataset {} exists, updating".format(results_dataset_fields["name"]))
+        results_dataset = tantalus_api.update("results", id=results_id, **results_dataset_fields)
+
+    else:
+        logging.info("creating results dataset {}".format(results_dataset_fields["name"]))
+        results_dataset = tantalus_api.get_or_create("results", **results_dataset_fields)
 
     logging.info("Succesfully created sequence dataset with ID {}".format(results_dataset["id"]))
 
