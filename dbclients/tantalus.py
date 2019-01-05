@@ -116,6 +116,11 @@ class BlobStorageClient(object):
             self.storage_container, 
             blob_name=blobname,
             stream=stream)
+        
+    def create(self, blobname, filepath):
+        return self.blob_service.create_blob_from_path(self.storage_container, 
+            blobname,
+            filepath)
 
 
 class ServerStorageClient(object):
