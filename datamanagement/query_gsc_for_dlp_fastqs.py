@@ -10,7 +10,6 @@ import sys
 import time
 import collections
 import pandas as pd
-from workflows.utils import file_utils
 from datamanagement.utils.constants import LOGGING_FORMAT
 from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 import datamanagement.templates as templates
@@ -352,8 +351,6 @@ if __name__ == "__main__":
 
     # Parse the incoming arguments
     args = parse_runtime_args()
-
-    config = file_utils.load_json(args['config'])
 
     # Connect to the Tantalus API (this requires appropriate environment
     colossus_api = ColossusApi()
