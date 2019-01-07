@@ -310,16 +310,14 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             if not os.path.exists(tantalus_path):
                 raise Exception('file {} already imported but does not exist at {}'.format(fastq_info['data_path'], tantalus_path))
         else:
-            if storage['storage_type'] == 'server': 
-                rsync_file(fastq_path, tantalus_path)
+            # rsync_file(fastq_path, tantalus_path)
+            # Ex: tantalus_path = 
+            #   /shahlab/archive/single_cell_indexing/fastq/SA1105/A96168B/HWJLKCCXY_8/SA1105_A96168B_AGCGCT-ATTATA_2.fastq.gz
 
-            elif storage['storage_type'] == 'blob'
-                # Get fastq filename and push fastq to blob
-                # Ex. tantalus_path =
-                #   /shahlab/archive/single_cell_indexing/fastq/SA1105/A96168B/HWJLKCCXY_8/SA1105_A96168B_AGCGCT-ATTATA_2.fastq.gz
-                tantalus_path_parsed = tantalus_path.split('/')
-                fastq_name = tantalus_path_parsed[-1]
-                storage_client.create(file_name, fastq_path)
+            # Get fastq filename and push fastq to blob
+            tantalus_path_parsed = tantalus_path.split('/')
+            fastq_name = tantalus_path_parsed[-1]
+            blob_storage_client.create(file_name, fastq_path)
 
 
     if len(fastq_file_info) == 0:
@@ -365,7 +363,7 @@ if __name__ == "__main__":
     tantalus_api = TantalusApi()
 
     storage = tantalus_api.get("storage_server", name=args["storage_name"])
-    storage_client = tantalus_api.get_storage_client(storage['name'])
+    blob_storage_client = tantalus_api.get_storage_client(storage['name'])
 
     # Get the tag name if it was passed in
     try:
