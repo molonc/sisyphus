@@ -455,6 +455,7 @@ def transfer_dataset(tantalus_api, dataset, from_storage, to_storage):
                 )
             )
 
+<<<<<<< HEAD
         # Get a "nicer" version of the file instance with more
         # nested model relationships
         from_file_instance = tantalus_api.get(
@@ -483,6 +484,24 @@ def transfer_dataset(tantalus_api, dataset, from_storage, to_storage):
                     raise e
 
         tantalus_api.add_instance(file_resource, to_storage)
+=======
+            RETRIES = 3
+
+            for retry in range(RETRIES):
+                try:
+                    f_transfer(from_file_instance, to_storage, tantalus_api)
+                    break
+                except Exception as e:
+                    logging.error("Transfer failed. Retrying.")
+
+                    if retry < RETRIES - 1:
+                        traceback.print_exc()
+                    else:
+                        logging.error("Failed all retry attempts")
+                        raise e
+
+            tantalus_api.add_instance(file_resource, to_storage)
+>>>>>>> 7babbbc... SISY-101: support for is_deleted, add instance for creating new instances that are possibly deleted
 
 
 if __name__ == "__main__":
