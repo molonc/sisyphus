@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     tantalus_api = TantalusApi()
 
-    files_to_delete = []
+    file_instances_to_delete = []
 
     datasets_to_keep = set()
 
@@ -80,17 +80,18 @@ if __name__ == "__main__":
             continue
 
         for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, 'shahlab'):
-            files_to_delete.append(file_instance['filepath'])
+            file_instances_to_delete.append(file_instance)
             total_data_size += file_instance['file_resource']['size']
             file_num_count += 1
-
-            #tantalus_api.delete("file_instance", file_instance['id'])
 
     logging.warning("Total size of the {} files is {} bytes".format(
         file_num_count, total_data_size))
 
     with open("file_paths.txt", "w") as f:
-        for path in files_to_delete:
-            f.write(path +'\n')
+        for file_instance in file_instances_to_delete:
+            f.write(file_instance['filepath'] +'\n')
 
-   
+    for file_instance in file_instances_to_delete:
+        tantalus_api.update("file_instance", id=file_instance['id'], is_deleted=True)
+
+
