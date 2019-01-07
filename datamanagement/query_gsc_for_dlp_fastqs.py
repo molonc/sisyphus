@@ -10,6 +10,7 @@ import sys
 import time
 import collections
 import pandas as pd
+from workflows.utils import file_utils
 from datamanagement.utils.constants import LOGGING_FORMAT
 from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 import datamanagement.templates as templates
@@ -309,7 +310,14 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             if not os.path.exists(tantalus_path):
                 raise Exception('file {} already imported but does not exist at {}'.format(fastq_info['data_path'], tantalus_path))
         else:
-            rsync_file(fastq_path, tantalus_path)
+            # rsync_file(fastq_path, tantalus_path)
+            # /shahlab/archive/single_cell_indexing/fastq/SA1105/A96168B/HWJLKCCXY_8/SA1105_A96168B_AGCGCT-ATTATA_2.fastq.gz
+
+            # Get fastq filename and push fastq to blob
+            tantalus_path_parsed = tantalus_path.split('/')
+            fastq_name = tantalus_path_parsed[-1]
+            blob_storage_client.create(file_name, fastq_path)
+
 
     if len(fastq_file_info) == 0:
         return []
@@ -347,11 +355,14 @@ if __name__ == "__main__":
     # Parse the incoming arguments
     args = parse_runtime_args()
 
+    config = file_utils.load_json(args['config'])
+
     # Connect to the Tantalus API (this requires appropriate environment
     colossus_api = ColossusApi()
     tantalus_api = TantalusApi()
 
     storage = tantalus_api.get("storage_server", name=args["storage_name"])
+    blob_storage_client = tantalus_api.get_storage_client(storage['name'])
 
     # Get the tag name if it was passed in
     try:
