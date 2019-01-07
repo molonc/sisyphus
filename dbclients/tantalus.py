@@ -332,6 +332,7 @@ class TantalusApi(BasicAPIClient):
         if file_type == 'FASTQ':
             file_type = 'FQ'
 
+<<<<<<< HEAD
         try:
             file_resource = self.get_or_create(
                 'file_resource',
@@ -374,6 +375,8 @@ class TantalusApi(BasicAPIClient):
 
                 return file_resource, file_instance
 
+=======
+>>>>>>> 840c74e... Bugfix: Changed file_type to FQ if file is a fastq. (#19)
         try:
             file_resource = self.get_or_create(
                 'file_resource',
