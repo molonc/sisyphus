@@ -145,8 +145,8 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
         elif storage['storage_type'] == 'blob'
             # Get fastq filename and push fastq to blob
             tantalus_path_parsed = tantalus_path.split('/')
-            fastq_name = tantalus_path_parsed[-1]
-            storage_client.create(file_name, fastq_path)
+            fastq_blobname = '/'.join(tantalus_path_parsed[3:])
+            storage_client.create(fastq_blobname, fastq_path)
 
 
         fastq_file_info.append(

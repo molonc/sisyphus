@@ -318,8 +318,8 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                 # Ex. tantalus_path =
                 #   /shahlab/archive/single_cell_indexing/fastq/SA1105/A96168B/HWJLKCCXY_8/SA1105_A96168B_AGCGCT-ATTATA_2.fastq.gz
                 tantalus_path_parsed = tantalus_path.split('/')
-                fastq_name = tantalus_path_parsed[-1]
-                storage_client.create(file_name, fastq_path)
+                fastq_blobname = '/'.join(tantalus_path_parsed[3:])
+                storage_client.create(fastq_blobname, fastq_path)
 
 
     if len(fastq_file_info) == 0:
