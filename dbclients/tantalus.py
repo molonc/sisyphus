@@ -328,6 +328,48 @@ class TantalusApi(BasicAPIClient):
             file_resource = self.get_or_create(
                 'file_resource',
                 filename=filename,
+            )
+        except FieldMismatchError as e:
+            file_resource = None
+
+        # For an existing file resource with no instances or
+        # a single deleted instance in this storage, update the file resource
+        # and create a new file instance that is not deleted
+        if file_resource is not None:
+            overwrite = False
+            if file_resource['file_instances'] == 0:
+                log.info('file resource has no instances, overwriting')
+                overwrite = True
+
+            one_deleted_instance = (
+                len(file_resource['file_instances']) == 1 and
+                file_resource['file_instances'][0]['storage']['name'] == storage_name and
+                file_resource['file_instances'][0]['is_deleted']
+            )
+
+            if one_deleted_instance:
+                log.info('file resource has one deleted instance on {}, overwriting'.format(storage_name))
+                overwrite = True
+
+            if overwrite:
+                file_resource = self.update(
+                    'file_resource',
+                    id=file_resource['id'],
+                    filename=filename,
+                    file_type=file_type,
+                    created=storage_client.get_created_time(filename),
+                    size=storage_client.get_size(filename),
+                    compression=compression,
+                )
+
+                file_instance = self.add_instance(file_resource, storage)
+
+                return file_resource, file_instance
+
+        try:
+            file_resource = self.get_or_create(
+                'file_resource',
+                filename=filename,
                 file_type=file_type,
                 created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
