@@ -276,7 +276,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             extension=extension,
         )
 
-        tantalus_path = os.path.join(storage["storage_directory"], tantalus_filename)
+        tantalus_path = os.path.join(storage["prefix"], tantalus_filename)
 
         fastq_file_info.append(
             dict(
@@ -314,12 +314,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                 rsync_file(fastq_path, tantalus_path)
 
             elif storage['storage_type'] == 'blob'
-                # Get fastq filename and push fastq to blob
-                # Ex. tantalus_path =
-                #   /shahlab/archive/single_cell_indexing/fastq/SA1105/A96168B/HWJLKCCXY_8/SA1105_A96168B_AGCGCT-ATTATA_2.fastq.gz
-                tantalus_path_parsed = tantalus_path.split('/')
-                fastq_blobname = '/'.join(tantalus_path_parsed[3:])
-                storage_client.create(fastq_blobname, fastq_path)
+                storage_client.create(tantalus_filename, fastq_path)
 
 
     if len(fastq_file_info) == 0:

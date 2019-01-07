@@ -143,10 +143,7 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
             rsync_file(fastq_path, tantalus_path)
 
         elif storage['storage_type'] == 'blob'
-            # Get fastq filename and push fastq to blob
-            tantalus_path_parsed = tantalus_path.split('/')
-            fastq_blobname = '/'.join(tantalus_path_parsed[3:])
-            storage_client.create(fastq_blobname, fastq_path)
+            storage_client.create(tantalus_filename, fastq_path)
 
 
         fastq_file_info.append(
