@@ -479,11 +479,7 @@ def transfer_files(tag_name, from_storage_name, to_storage_name):
                         logging.error("Failed all retry attempts")
                         raise e
 
-            tantalus_api.get_or_create(
-                "file_instance",
-                file_resource=file_resource["id"],
-                storage=to_storage["id"],
-            )
+            tantalus_api.add_instance(file_resource, to_storage)
 
 
 if __name__ == "__main__":

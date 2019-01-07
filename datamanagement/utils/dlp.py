@@ -53,7 +53,6 @@ def create_sequence_dataset_models(
     storage = tantalus_api.get("storage", name=storage_name)
     storage_pk = storage["id"]
 
-
     # Sort files by dataset
     dataset_info = collections.defaultdict(list)
     for info in file_info:
