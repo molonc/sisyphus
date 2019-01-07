@@ -139,7 +139,15 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
 
         tantalus_path = os.path.join(storage_directory, tantalus_filename)
 
-        rsync_file(fastq_path, tantalus_path)
+        if storage['storage_type'] == 'server': 
+            rsync_file(fastq_path, tantalus_path)
+
+        elif storage['storage_type'] == 'blob'
+            # Get fastq filename and push fastq to blob
+            tantalus_path_parsed = tantalus_path.split('/')
+            fastq_name = tantalus_path_parsed[-1]
+            storage_client.create(file_name, fastq_path)
+
 
         fastq_file_info.append(
             dict(
@@ -203,6 +211,7 @@ if __name__ == "__main__":
     tantalus_api = TantalusApi()
 
     storage = tantalus_api.get("storage_server", name=args["storage_name"])
+    storage_client = tantalus_api.get_storage_client(storage['name'])
 
     # Get the tag name if it was passed in
     try:
