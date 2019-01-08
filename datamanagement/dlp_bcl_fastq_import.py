@@ -52,12 +52,13 @@ def load_brc_fastqs(
     storage_name,
     storage_directory,
     tantalus_api,
+    storage_client,
     tag_name=None,
 ):
     if not os.path.isdir(output_dir):
         raise Exception("output directory {} not a directory".format(output_dir))
 
-    fastq_file_info = get_fastq_info(output_dir, flowcell_id, storage_directory)
+    fastq_file_info = get_fastq_info(output_dir, flowcell_id, storage_directory, storage_client)
 
     fastq_paired_end_check(fastq_file_info)
 
@@ -74,7 +75,7 @@ def _update_info(info, key, value):
         info[key] = value
 
 
-def get_fastq_info(output_dir, flowcell_id, storage_directory):
+def get_fastq_info(output_dir, flowcell_id, storage_directory, storage_client):
     """ Retrieve fastq filenames and metadata from output directory.
     """
     filenames = os.listdir(output_dir)
@@ -139,7 +140,12 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
 
         tantalus_path = os.path.join(storage_directory, tantalus_filename)
 
-        rsync_file(fastq_path, tantalus_path)
+        if storage['storage_type'] == 'server': 
+            rsync_file(fastq_path, tantalus_path)
+
+        elif storage['storage_type'] == 'blob'
+            storage_client.create(tantalus_filename, fastq_path)
+
 
         fastq_file_info.append(
             dict(
@@ -203,6 +209,7 @@ if __name__ == "__main__":
     tantalus_api = TantalusApi()
 
     storage = tantalus_api.get("storage_server", name=args["storage_name"])
+    storage_client = tantalus_api.get_storage_client(storage['name'])
 
     # Get the tag name if it was passed in
     try:
@@ -234,6 +241,7 @@ if __name__ == "__main__":
         storage["name"],
         storage["storage_directory"],
         tantalus_api,
+        storage_client,
         tag_name=tag_name
     )
 
