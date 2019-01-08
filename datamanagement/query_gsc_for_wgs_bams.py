@@ -143,15 +143,13 @@ def add_gsc_wgs_bam_dataset(
         storage["storage_directory"], tantalus_bai_filename
     )
 
-
-
     #If this is a spec file, create a bam file in the tantlus_bam_path destination
     if is_spec:
         transferred = create_bam( 
                             bam_path, 
                             lane_infos[0]['reference_genome'], 
-                            tantalus_bam_path)                         
-
+                            tantalus_bam_path,
+                            storage)                         
     #Otherwise, copy the bam and the bam index to the specified tantalus path
     else:
         if not os.path.isfile(tantalus_bam_path):
@@ -186,8 +184,6 @@ def add_gsc_wgs_bam_dataset(
             
         else:
             logging.info("The bam index already exists at {}. Skipping import".format(tantalus_bai_path))
-            
-    
 
     return tantalus_bam_path, transferred
     
@@ -574,11 +570,10 @@ def main(
                             flowcell_id=lane["flowcell_id"],
                             dna_library=library_pk,
                             read_type=lane["read_type"],
-                            lane_number=lane["lane_number"],
+                            lane_number=str(lane["lane_number"]),
                             sequencing_centre=instance["sequencing_centre"],
                             sequencing_instrument=lane["sequencing_instrument"])
                         logging.info("Successfully created lane {} in tantalus".format(lane["id"]))
-   
 
 
 if __name__ == "__main__":
