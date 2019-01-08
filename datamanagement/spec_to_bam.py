@@ -9,6 +9,7 @@ import socket
 import subprocess
 import sys
 from dbclients.tantalus import TantalusApi
+from dbclients import basicclient
 from utils.runtime_args import parse_runtime_args
 from utils.constants import LOGGING_FORMAT
 
@@ -169,7 +170,7 @@ def create_bam( spec_path,
                 filename=output_bam_filename
         )
         file_size = file_resource["size"]
-    except:
+    except basicclient.NotFoundError as e:
         file_size = None
 
     #Check if the file exists on the to_storage, and if it exists in Tantalus with the same size
