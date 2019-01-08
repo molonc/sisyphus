@@ -140,7 +140,7 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
     return set(existing_data.keys())
 
 
-def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, tag_name=None, update=False):
+def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, storage_client, tag_name=None, update=False):
     ''' Import dlp fastq data from the GSC.
     
     Args:
@@ -371,6 +371,7 @@ if __name__ == "__main__":
         tantalus_api,
         args["dlp_library_id"],
         storage,
+        storage_client,
         tag_name,
         update=args.get("update", False))
 

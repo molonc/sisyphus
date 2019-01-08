@@ -52,12 +52,13 @@ def load_brc_fastqs(
     storage_name,
     storage_directory,
     tantalus_api,
+    storage_client,
     tag_name=None,
 ):
     if not os.path.isdir(output_dir):
         raise Exception("output directory {} not a directory".format(output_dir))
 
-    fastq_file_info = get_fastq_info(output_dir, flowcell_id, storage_directory)
+    fastq_file_info = get_fastq_info(output_dir, flowcell_id, storage_directory, storage_client)
 
     fastq_paired_end_check(fastq_file_info)
 
@@ -74,7 +75,7 @@ def _update_info(info, key, value):
         info[key] = value
 
 
-def get_fastq_info(output_dir, flowcell_id, storage_directory):
+def get_fastq_info(output_dir, flowcell_id, storage_directory, storage_client):
     """ Retrieve fastq filenames and metadata from output directory.
     """
     filenames = os.listdir(output_dir)
@@ -240,6 +241,7 @@ if __name__ == "__main__":
         storage["name"],
         storage["storage_directory"],
         tantalus_api,
+        storage_client,
         tag_name=tag_name
     )
 
