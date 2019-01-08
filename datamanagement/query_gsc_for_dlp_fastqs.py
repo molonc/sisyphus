@@ -140,7 +140,7 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
     return set(existing_data.keys())
 
 
-def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, tag_name=None, update=False):
+def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, storage_client, tag_name=None, update=False):
     ''' Import dlp fastq data from the GSC.
     
     Args:
@@ -275,7 +275,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             extension=extension,
         )
 
-        tantalus_path = os.path.join(storage["storage_directory"], tantalus_filename)
+        tantalus_path = os.path.join(storage["prefix"], tantalus_filename)
 
         fastq_file_info.append(
             dict(
@@ -309,7 +309,12 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             if not os.path.exists(tantalus_path):
                 raise Exception('file {} already imported but does not exist at {}'.format(fastq_info['data_path'], tantalus_path))
         else:
-            rsync_file(fastq_path, tantalus_path)
+            if storage['storage_type'] == 'server': 
+                rsync_file(fastq_path, tantalus_path)
+
+            elif storage['storage_type'] == 'blob'
+                storage_client.create(tantalus_filename, fastq_path)
+
 
     if len(fastq_file_info) == 0:
         return []
@@ -352,6 +357,7 @@ if __name__ == "__main__":
     tantalus_api = TantalusApi()
 
     storage = tantalus_api.get("storage_server", name=args["storage_name"])
+    storage_client = tantalus_api.get_storage_client(storage['name'])
 
     # Get the tag name if it was passed in
     try:
@@ -365,6 +371,7 @@ if __name__ == "__main__":
         tantalus_api,
         args["dlp_library_id"],
         storage,
+        storage_client,
         tag_name,
         update=args.get("update", False))
 
