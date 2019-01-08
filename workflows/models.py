@@ -663,7 +663,13 @@ class HmmcopyAnalysis(Analysis):
         """
         Get the input BAM datasets for this analysis.
         """
-        datasets = tantalus_api.list('sequence_dataset', analysis=args["align_analysis"], dataset_type='BAM')
+        datasets = tantalus_api.list(
+            'sequence_dataset', 
+            library__library_id=args['library_id'], 
+            reference_genome=args['ref_genome'],
+            dataset_type='BAM',
+        )
+
         return [dataset['id'] for dataset in datasets]
 
     def get_results_filenames(self):
