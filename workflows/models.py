@@ -693,7 +693,28 @@ class HmmcopyAnalysis(Analysis):
         if not datasets:
             raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
 
-        return [dataset['id'] for dataset in datasets]
+        dataset_ids = set()
+
+        for dataset in datasets:
+            sequencing_centre = tantalus_utils.get_sequencing_centre_from_dataset(dataset)
+            sequencing_instrument = tantalus_utils.get_sequencing_instrument_from_dataset(dataset)
+
+            lanes = tantalus_utils.get_lanes_from_dataset(dataset)
+            if len(lanes) != 1:
+                raise Exception('sequence dataset {} has {} lanes'.format(dataset['id'], len(lanes)))
+
+            lane_id = lanes.pop()  # One lane per fastq
+            if filter_lanes and (lane_id not in filter_lanes):
+                continue
+
+            if 'gsc' in sequencing_centre.lower():
+                # If the FASTQ was sequenced at the GSC, check that the lane id
+                # is in the correct format [flowcell_id]_[lane_number]
+                tantalus_utils.check_gsc_lane_id(lane_id)
+
+            dataset_ids.add(dataset['id'])
+
+        return list(dataset_ids)
 
     def get_results_filenames(self):
         results_prefix = os.path.join(
