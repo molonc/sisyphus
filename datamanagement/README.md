@@ -39,22 +39,12 @@ The variable names should be self-explanatory.
 Each of the tasks take in their arguments in the form of a single JSON
 dump. Here's a few examples for how you might run them:
 
-### [query_gsc_for_wgs_bams](automate_me/query_gsc_for_wgs_bams.py)
-
+### [query_gsc_for_wgs_bams](query_gsc_for_wgs_bams.py)
+This script accepts command line arguments as inputs. Required arguments are a list of one or more sample or library IDs, followed by the destination storage, and a flag identifying whether the identifiers are sample IDs or library IDs. 
 ```
-python automate_me/query_gsc_for_wgs_bams.py '{"tag_name": "gsc_wgs_bam_test2", "libraries": ["A06679"], "skip_file_import": false, "skip_older_than": "2018-06-01", "storage_name": "shahlab"}'
+python query_gsc_for_wgs_bams.py SA607T SA607_3T shahlab --id_type sample --update
 ```
 
-where the JSON dump is
-
-```json
-{
-  "tag_name": "gsc_wgs_bam_test",
-  "libraries": ["A06679"],
-  "skip_file_import": false,
-  "skip_older_than": "2018-06-01",
-  "storage_name": "shahlab"
-}
 ```
 
 ### [query_gsc_for_dlp_fastqs](automate_me/query_gsc_for_dlp_fastqs.py)
