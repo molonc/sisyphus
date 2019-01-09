@@ -45,8 +45,6 @@ This script accepts command line arguments as inputs. Required arguments are a l
 python query_gsc_for_wgs_bams.py SA607T SA607_3T shahlab --id_type sample --update
 ```
 
-```
-
 ### [query_gsc_for_dlp_fastqs](automate_me/query_gsc_for_dlp_fastqs.py)
 
 ```
