@@ -38,6 +38,7 @@ def start_automation(
         config,
         pipeline_dir,
         analysis_info,
+        analysis_type,
         storages,
         job_subdir,
 ):
@@ -54,114 +55,111 @@ def start_automation(
 
     results_ids = set()
 
-    for analysis_type in ('align', 'hmmcopy'):
-        if analysis_type == 'align':
-            align_analysis = AlignAnalysis(args, storages=storages, update=args['update'])
-            tantalus_analysis = align_analysis
-        elif analysis_type == 'hmmcopy':
-            args["align_analysis"] = align_analysis.get_id()
-            tantalus_analysis = HmmcopyAnalysis(args, storages=storages, update=args['update'])
-        elif analysis_type == 'pseudobulk':
-            tantalus_analysis = PseudoBulkAnalysis(args, update=args['update'])
+    if analysis_type == 'align':
+        tantalus_analysis = AlignAnalysis(args, storages=storages, update=args['update'])
+    elif analysis_type == 'hmmcopy':
+        tantalus_analysis = HmmcopyAnalysis(args, storages=storages, update=args['update'])
+    elif analysis_type == 'pseudobulk':
+        tantalus_analysis = PseudoBulkAnalysis(args, update=args['update'])
+    else:
+        raise ValueError()
+
+    try:
+        # FIXME: if inputs exist in working_inputs, then we iterate over the file instances twice
+        input_file_instances = tantalus_analysis.get_input_file_instances(storages["working_inputs"])
+    except NotFoundError:
+        # Start a file transfer to get the inputs
+        tag_name = '_'.join([args['jira'], storages['remote_inputs'], "import"])
+        tantalus_api.tag(
+            tag_name,
+            sequencedataset_set=tantalus_analysis.search_input_datasets(args))
+
+        sentinel(
+            'Transferring {} input files from {} to {}'.format(
+                analysis_type, storages["remote_inputs"], storages["working_inputs"]),
+            transfer_files,
+            tag_name, 
+            storages["remote_inputs"],
+            storages["working_inputs"])
+        
+    if args['inputs_yaml'] is None:
+        local_results_storage = tantalus_api.get(
+            'storage', 
+            name=storages['local_results'])['storage_directory']
+
+        inputs_yaml = os.path.join(local_results_storage, job_subdir, 'inputs.yaml')
+        sentinel(
+            'Generating inputs yaml',
+            align_analysis.generate_inputs_yaml,
+            args,
+            inputs_yaml,
+        )
+    else:
+        inputs_yaml = args['inputs_yaml']
+
+    align_analysis.check_inputs_yaml(inputs_yaml)
+    tantalus_analysis.add_inputs_yaml(inputs_yaml, update=args['update'])
+
+    if args["_".join(["no", analysis_type])]:
+        continue
+
+    try:
+        tantalus_analysis.set_run_status()
+
+        if args["skip_pipeline"]:
+            run_pipeline = launch_pipeline.run_pipeline2
         else:
-            raise ValueError()
+            run_pipeline = launch_pipeline.run_pipeline
 
-        try:
-            # FIXME: if inputs exist in working_inputs, then we iterate over the file instances twice
-            input_file_instances = tantalus_analysis.get_input_file_instances(storages["working_inputs"])
-        except NotFoundError:
-            # Start a file transfer to get the inputs
-            tag_name = '_'.join([args['jira'], storages['remote_inputs'], "import"])
-            tantalus_api.tag(
-                tag_name,
-                sequencedataset_set=tantalus_analysis.search_input_datasets(args))
+        dirs = [
+            pipeline_dir, 
+            config['docker_path'],
+            config['docker_sock_path'],
+        ]
+        # Pass all server storages to docker
+        for storage_name in storages.itervalues():
+            storage = tantalus_api.get('storage', name=storage_name)
+            if storage['storage_type'] == 'server':
+                dirs.append(storage['storage_directory'])
 
-            sentinel(
-                'Transferring {} input files from {} to {}'.format(
-                    analysis_type, storages["remote_inputs"], storages["working_inputs"]),
-                transfer_files,
-                tag_name, 
-                storages["remote_inputs"],
-                storages["working_inputs"])
-            
-        if args['inputs_yaml'] is None:
-            local_results_storage = tantalus_api.get(
-                'storage', 
-                name=storages['local_results'])['storage_directory']
+        sentinel(
+            'Running single_cell {}'.format(analysis_type),
+            run_pipeline,
+            tantalus_analysis=tantalus_analysis,
+            analysis_info=analysis_info,
+            inputs_yaml=inputs_yaml,
+            docker_env_file=config['docker_env_file'],
+            dirs=dirs,
+        )
+    except Exception:
+        tantalus_analysis.set_error_status()
+        raise
 
-            inputs_yaml = os.path.join(local_results_storage, job_subdir, 'inputs.yaml')
-            sentinel(
-                'Generating inputs yaml',
-                align_analysis.generate_inputs_yaml,
-                args,
-                inputs_yaml,
-            )
-        else:
-            inputs_yaml = args['inputs_yaml']
+    if analysis_type == 'align':
+        tag_name = "_".join([args["jira"], storages["working_inputs"], "bams"])
 
-        align_analysis.check_inputs_yaml(inputs_yaml)
-        tantalus_analysis.add_inputs_yaml(inputs_yaml, update=args['update'])
-
-        if args["_".join(["no", analysis_type])]:
-            continue
-
-        try:
-            tantalus_analysis.set_run_status()
-
-            if args["skip_pipeline"]:
-                run_pipeline = launch_pipeline.run_pipeline2
-            else:
-                run_pipeline = launch_pipeline.run_pipeline
-
-            dirs = [
-                pipeline_dir, 
-                config['docker_path'],
-                config['docker_sock_path'],
-            ]
-            # Pass all server storages to docker
-            for storage_name in storages.itervalues():
-                storage = tantalus_api.get('storage', name=storage_name)
-                if storage['storage_type'] == 'server':
-                    dirs.append(storage['storage_directory'])
-
-            sentinel(
-                'Running single_cell {}'.format(analysis_type),
-                run_pipeline,
-                tantalus_analysis=tantalus_analysis,
-                analysis_info=analysis_info,
-                inputs_yaml=inputs_yaml,
-                docker_env_file=config['docker_env_file'],
-                dirs=dirs,
-            )
-        except Exception:
-            tantalus_analysis.set_error_status()
-            raise
-
-        if analysis_type == 'align':
-            tag_name = "_".join([args["jira"], storages["working_inputs"], "bams"])
-
-            sentinel(
-                'Creating output bam datasets',
-                align_analysis.create_output_datasets,
-                update=args['update'],
-                tag_name=tag_name,
-            )
-
-            sentinel(
-                "Transferring BAM files from {} to {}".format(
-                    storages["working_inputs"], storages["remote_inputs"]),
-                transfer_files,
-                tag_name,
-                storages["working_inputs"],
-                storages["remote_inputs"])
-
-        tantalus_results = tantalus_analysis.create_output_results(
-            pipeline_dir,
+        sentinel(
+            'Creating output bam datasets',
+            align_analysis.create_output_datasets,
             update=args['update'],
+            tag_name=tag_name,
         )
 
-        results_ids.add(tantalus_results.get_id())
-        tantalus_analysis.set_complete_status()
+        sentinel(
+            "Transferring BAM files from {} to {}".format(
+                storages["working_inputs"], storages["remote_inputs"]),
+            transfer_files,
+            tag_name,
+            storages["working_inputs"],
+            storages["remote_inputs"])
+
+    tantalus_results = tantalus_analysis.create_output_results(
+        pipeline_dir,
+        update=args['update'],
+    )
+
+    results_ids.add(tantalus_results.get_id())
+    tantalus_analysis.set_complete_status()
 
     tag_name = '_'.join([args['jira'], storages['working_results'], "results"])
     tantalus_api.tag(
@@ -193,7 +191,7 @@ def main(args):
     pipeline_dir = os.path.join(
         tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], 
         job_subdir)
-    
+
     # Shahlab
     # - local: shahlab
     # - working: shahlab
@@ -214,12 +212,13 @@ def main(args):
         update=args['update'],
     )
 
+    analysis_type = args['analysis_type']
+
     log.info('Library ID: {}'.format(analysis_info.chip_id))
 
-    start_automation(args, config, pipeline_dir, analysis_info, config['storages'], job_subdir)
+    start_automation(args, config, pipeline_dir, results_dir, analysis_info, analysis_type, config['storages'], job_subdir)
 
 
 if __name__ == '__main__':
     args = arguments.get_args()
     main(args)
-
