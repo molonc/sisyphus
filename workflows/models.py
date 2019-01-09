@@ -663,12 +663,35 @@ class HmmcopyAnalysis(Analysis):
         """
         Get the input BAM datasets for this analysis.
         """
-        datasets = tantalus_api.list(
-            'sequence_dataset', 
-            library__library_id=args['library_id'], 
-            reference_genome=args['ref_genome'],
-            dataset_type='BAM',
-        )
+
+        filter_lanes = []
+        if args['gsc_lanes'] is not None:
+            filter_lanes.append(args['gsc_lanes'])
+            flowcell_id = args['gsc_lanes']
+        if args['brc_flowcell_ids'] is not None:
+            filter_lanes.append(['{}_{}'.format(args['brc_flowcell_ids'], i+1) for i in range(4)])
+            flowcell_id = args['brc_flowcell_ids']
+
+
+        # Filter for datasets with specific lanes if given
+        if args['gsc_lanes'] is not None or args['brc_flowcell_ids'] is not None:
+            datasets = tantalus_api.list(
+                'sequence_dataset', 
+                library__library_id=args['library_id'], 
+                reference_genome=args['ref_genome'],
+                dataset_type='BAM',
+                sequence_lanes__flowcell_id=flowcell_id
+            )
+        else:
+            datasets = tantalus_api.list(
+                'sequence_dataset', 
+                library__library_id=args['library_id'], 
+                reference_genome=args['ref_genome'],
+                dataset_type='BAM',
+            )            
+
+        if not datasets:
+            raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
 
         return [dataset['id'] for dataset in datasets]
 
