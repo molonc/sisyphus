@@ -392,7 +392,7 @@ class AlignAnalysis(Analysis):
             filter_lanes += args['gsc_lanes']
         if args['brc_flowcell_ids'] is not None:
             # Each BRC flowcell has 4 lanes
-            filter_lanes += ['{}_{}'.format(flowcell_id, i+1) for i in range(4)]
+            filter_lanes += ['{}_{}'.format(args['brc_flowcell_ids'], i+1) for i in range(4)]
 
         datasets = tantalus_api.list(
             'sequence_dataset',
