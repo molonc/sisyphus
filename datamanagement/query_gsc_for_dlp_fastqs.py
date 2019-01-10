@@ -312,7 +312,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             if storage['storage_type'] == 'server': 
                 rsync_file(fastq_path, tantalus_path)
 
-            elif storage['storage_type'] == 'blob'
+            elif storage['storage_type'] == 'blob':
                 storage_client.create(tantalus_filename, fastq_path)
 
 
