@@ -76,9 +76,10 @@ cell_ids = [
 
 LIBRARY_ID = 'A96213A'
 TEST_LANE_PK = 6551
-TUMOUR_DATASET_NAME = 'BAM-SA1090-SC_WGS-A96213A-lanes_341dd558-bwa_aln-grch37'
-NORMAL_DATASET_NAME = 'BAM-DAH370N-WGS-A41086 (lanes 52f27595)'
+TUMOUR_DATASET_NAME = 'BAM-SA1090-SC_WGS-A96213A-lanes_341dd558-BWA_ALN_0_5_7-HG19'
+NORMAL_DATASET_NAME = 'BAM-DAH370N-WGS-A41086-lanes_52f27595-BWA_ALN_0_5_7-HG19'
 STORAGE_NAME = 'shahlab'
+
 
 selected_indices = {}
 for sublib in dbclients.colossus.get_colossus_sublibraries_from_library_id(LIBRARY_ID):
@@ -92,6 +93,7 @@ for sublib in dbclients.colossus.get_colossus_sublibraries_from_library_id(LIBRA
         continue
     index_sequence = sublib['primer_i7'] + '-' + sublib['primer_i5']
     selected_indices[index_sequence] = cell_id
+
 
 def gzip_file(uncompressed):
     cmd = [
@@ -227,7 +229,6 @@ def create_fastqs(data_dir):
         with open(tumour_fastq_paths_pk, "rb") as handle:
             return pickle.load(handle)
 
-
     tumour_bam_paths = get_tumour_bams()[0]
     normal_filepath = get_normal_bam()
     normal_filtered_bam = os.path.join(data_dir, 'DAH370N_filtered.bam')
@@ -241,7 +242,6 @@ def create_fastqs(data_dir):
         bam_path = tumour_bam_paths[index_sequence]['bam']
         print('creating paired end fastqs for bam {}'.format(bam_path))
         cell_id = selected_indices[index_sequence]
-        
 
         cell_filtered_bam = os.path.join(bam_dir, '{cell_id}.bam'.format(cell_id=cell_id))
 
