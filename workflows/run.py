@@ -106,10 +106,7 @@ def start_automation(
     try:
         tantalus_analysis.set_run_status()
 
-        if args["skip_pipeline"]:
-            run_pipeline = launch_pipeline.run_pipeline2
-        else:
-            run_pipeline = launch_pipeline.run_pipeline
+        run_pipeline = tantalus_analysis.run_pipeline(args)
 
         dirs = [
             pipeline_dir, 

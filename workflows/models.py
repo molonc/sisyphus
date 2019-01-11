@@ -13,6 +13,7 @@ from dbclients.basicclient import NotFoundError
 from datamanagement.utils.utils import make_dirs
 
 import generate_inputs
+import launch_pipeline
 import datamanagement.templates as templates
 from utils import tantalus_utils, file_utils
 
@@ -650,6 +651,13 @@ class AlignAnalysis(Analysis):
 
         return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
 
+    def run_pipeline(self, args):
+        if args["skip_pipeline"]:
+            return launch_pipeline.run_pipeline2
+        else:
+            return launch_pipeline.run_pipeline
+
+
 
 class HmmcopyAnalysis(Analysis):
     """
@@ -736,6 +744,12 @@ class HmmcopyAnalysis(Analysis):
         ]
 
         return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
+
+    def run_pipeline(self, args):
+        if args["skip_pipeline"]:
+            return launch_pipeline.run_pipeline2
+        else:
+            return launch_pipeline.run_pipeline
 
 
 class PseudoBulkAnalysis(Analysis):
