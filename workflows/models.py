@@ -671,54 +671,58 @@ class HmmcopyAnalysis(Analysis):
         """
         Get the input BAM datasets for this analysis.
         """
+        
+        filter_lane_pks = []
+        filter_lane_flowcells = []
 
-        filter_lanes = []
         if args['gsc_lanes'] is not None:
             filter_lanes.append(args['gsc_lanes'])
-            flowcell_id = args['gsc_lanes']
+            for lane in args['gsc_lanes']:
+                flowcell_id = (args['gsc_lanes'].split('_'))[0]
+                lane_number = (args['gsc_lanes'].split('_'))[1]
+                sequence_lane = tantalus_api.get(
+                    'sequencing_lane',
+                    flowcell_id=flowcell_id,
+                    lane_number=lane_number
+                )
+
+                filter_lane_pks.extend(sequence_lane['id'])
+                filter_lane_flowcells.extend(flowcell_id)
+
         if args['brc_flowcell_ids'] is not None:
             filter_lanes.append(['{}_{}'.format(args['brc_flowcell_ids'], i+1) for i in range(4)])
-            flowcell_id = args['brc_flowcell_ids']
+            for flowcell_id in args['brc_flowcell_ids']:
+                sequence_lane = tantalus_api.get(
+                    'sequencing_lane',
+                    flowcell_id=flowcell_id
+                )
 
+                filter_lane_pks.extend(sequence_lane['id'])
+                filter_lane_flowcells.extend(flowcell_id)
 
-        # Filter for datasets with specific lanes if given
-        if args['gsc_lanes'] is not None or args['brc_flowcell_ids'] is not None:
+        if not filter_lane_pks:
             datasets = tantalus_api.list(
-                'sequence_dataset', 
-                library__library_id=args['library_id'], 
-                reference_genome=args['ref_genome'],
-                dataset_type='BAM',
-                sequence_lanes__flowcell_id=flowcell_id
-            )
-        else:
-            datasets = tantalus_api.list(
-                'sequence_dataset', 
-                library__library_id=args['library_id'], 
-                reference_genome=args['ref_genome'],
-                dataset_type='BAM',
-            )            
+            'sequence_dataset', 
+            library__library_id=args['library_id'], 
+            reference_genome=args['ref_genome'],
+            dataset_type='BAM',
+        )           
 
-        if not datasets:
-            raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
+            if not datasets:
+                raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
+
+            return [dataset["id"] for dataset in datasets]
 
         dataset_ids = set()
 
-        for dataset in datasets:
-            sequencing_centre = tantalus_utils.get_sequencing_centre_from_dataset(dataset)
-            sequencing_instrument = tantalus_utils.get_sequencing_instrument_from_dataset(dataset)
-
-            lanes = tantalus_utils.get_lanes_from_dataset(dataset)
-            if len(lanes) != 1:
-                raise Exception('sequence dataset {} has {} lanes'.format(dataset['id'], len(lanes)))
-
-            lane_id = lanes.pop()  # One lane per fastq
-            if filter_lanes and (lane_id not in filter_lanes):
-                continue
-
-            if 'gsc' in sequencing_centre.lower():
-                # If the FASTQ was sequenced at the GSC, check that the lane id
-                # is in the correct format [flowcell_id]_[lane_number]
-                tantalus_utils.check_gsc_lane_id(lane_id)
+        for flowcell_id in filter_lane_flowcells:
+            datasets = tantalus_api.list(
+                'sequence_dataset', 
+                library__library_id=args['library_id'], 
+                reference_genome=args['ref_genome'],
+                dataset_type='BAM',
+                sequence_lane__flowcell_id=flowcell_id
+            )   
 
             dataset_ids.add(dataset['id'])
 
