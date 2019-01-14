@@ -4,7 +4,7 @@
     "storages": {
         "working_results": "jphamvm", 
         "local_results": "jphamvm", 
-        "working_inputs": "jphamvm", 
+        "working_inputs": "singlecellblob", 
         "remote_results": "singlecellblob_results", 
         "remote_inputs": "singlecellblob"
     }, 
