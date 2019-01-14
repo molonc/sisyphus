@@ -11,6 +11,7 @@ import dbclients.tantalus
 import dbclients.colossus
 from dbclients.basicclient import NotFoundError
 from datamanagement.utils.utils import make_dirs
+from datamanagement.transfer_files import transfer_files
 
 import generate_inputs
 import launch_pipeline
@@ -656,6 +657,40 @@ class AlignAnalysis(Analysis):
             return launch_pipeline.run_pipeline2
         else:
             return launch_pipeline.run_pipeline
+
+    def get_or_create_inputs_yaml(self, job_subdir, args, storages):
+        if args['inputs_yaml'] is None:
+            local_results_storage = tantalus_api.get(
+                'storage', 
+                name=storages['local_results'])['storage_directory']
+
+        inputs_yaml = os.path.join(local_results_storage, job_subdir, 'inputs.yaml')
+        sentinel(
+            'Generating inputs yaml',
+            self.generate_inputs_yaml,
+            args,
+            inputs_yaml,
+        )
+    else:
+        inputs_yaml = args['inputs_yaml']
+
+    def create_and_transfer_bams(self, args, storages):
+        tag_name = "_".join([args["jira"], storages["working_inputs"], "bams"])
+
+        sentinel(
+            'Creating output bam datasets',
+            self.create_output_datasets,
+            update=args['update'],
+            tag_name=tag_name,
+        )
+
+        sentinel(
+            "Transferring BAM files from {} to {}".format(
+                storages["working_inputs"], storages["remote_inputs"]),
+            transfer_files,
+            tag_name,
+            storages["working_inputs"],
+            storages["remote_inputs"])
 
 
 
