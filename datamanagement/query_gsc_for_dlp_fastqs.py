@@ -140,7 +140,7 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
     return set(existing_data.keys())
 
 
-def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, storage_client, tag_name=None, update=False):
+def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, tag_name=None, update=False, check_library=False):
     ''' Import dlp fastq data from the GSC.
     
     Args:
@@ -148,15 +148,29 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         tantalus_api: Basic client for tantalus
         dlp_library_id: library id for the dlp run
         storage: to storage details for transfer
+
+    Kwargs:
         tag_name: a tag to add to imported data
+        update: update an existing dataset
+        check_library: only check the library, dont load
 
     '''
 
-    logging.info('importing data for {}'.format(dlp_library_id))
+
+    if check_library:
+        logging.info('checking data for {}'.format(dlp_library_id))
+
+    else:
+        logging.info('importing data for {}'.format(dlp_library_id))
 
     # Existing fastqs in tantalus as a set of tuples of
     # the form (flowcell_id, lane_number, index_sequence, read_end)
-    existing_data = get_existing_fastq_data(tantalus_api, dlp_library_id)
+    # skip if we are checking an existing library
+    if not check_library:
+        existing_data = get_existing_fastq_data(tantalus_api, dlp_library_id)
+
+    else:
+        existing_data = []
 
     primary_sample_id = colossus_api.query_libraries_by_library_id(dlp_library_id)['sample']['sample_id']
     cell_samples = query_colossus_dlp_cell_info(colossus_api, dlp_library_id)
@@ -304,17 +318,18 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
         flowcells_to_be_created.append(flowcell_id + '_' + str(lane_number))
 
-        if (flowcell_id, str(lane_number), index_sequence, read_end) in existing_data:
-            logging.info('skipping transfer of file {} that has already been imported'.format(fastq_info['data_path']))
-            if not os.path.exists(tantalus_path):
-                raise Exception('file {} already imported but does not exist at {}'.format(fastq_info['data_path'], tantalus_path))
-        else:
-            if storage['storage_type'] == 'server': 
-                rsync_file(fastq_path, tantalus_path)
+        if not check_library:
+            if (flowcell_id, str(lane_number), index_sequence, read_end) in existing_data:
+                logging.info('skipping transfer of file {} that has already been imported'.format(fastq_info['data_path']))
+                if not os.path.exists(tantalus_path):
+                    raise Exception('file {} already imported but does not exist at {}'.format(fastq_info['data_path'], tantalus_path))
+            else:
+                if storage['storage_type'] == 'server': 
+                    rsync_file(fastq_path, tantalus_path)
 
-            elif storage['storage_type'] == 'blob':
-                storage_client.create(tantalus_filename, fastq_path)
-
+                elif storage['storage_type'] == 'blob':
+                    storage_client = tantalus_api.get_storage_client(storage['name'])
+                    storage_client.create(tantalus_filename, fastq_path)
 
     if len(fastq_file_info) == 0:
         return []
@@ -326,6 +341,10 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     fastq_lane_index_sequences = collections.defaultdict(set)
     for info in fastq_file_info:
+        if info['index_sequence'] not in cell_index_sequences:
+            raise Exception('fastq {} with index {}, flowcell {}, lane {} with index not in colossus'.format(
+                info['filepath'], info['index_sequence'], info['sequence_lanes'][0]['flowcell_id'],
+                info['sequence_lanes'][0]['lane_number']))
         flowcell_lane = (
             info['sequence_lanes'][0]['flowcell_id'],
             info['sequence_lanes'][0]['lane_number'])
@@ -337,9 +356,10 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                 raise Exception('no fastq found for index sequence {}, flowcell {}, lane {}'.format(
                     index_sequence, flowcell_lane[0], flowcell_lane[1]))
 
-    create_sequence_dataset_models(
-        fastq_file_info, storage["name"], tag_name, tantalus_api, update=update
-    )
+    if not check_library:
+        create_sequence_dataset_models(
+            fastq_file_info, storage["name"], tag_name, tantalus_api, update=update
+        )
 
     logging.info('import succeeded')
 
@@ -357,7 +377,6 @@ if __name__ == "__main__":
     tantalus_api = TantalusApi()
 
     storage = tantalus_api.get("storage_server", name=args["storage_name"])
-    storage_client = tantalus_api.get_storage_client(storage['name'])
 
     # Get the tag name if it was passed in
     try:
@@ -371,7 +390,8 @@ if __name__ == "__main__":
         tantalus_api,
         args["dlp_library_id"],
         storage,
-        storage_client,
         tag_name,
-        update=args.get("update", False))
+        update=args.get("update", False),
+        check_library=args.get("check_library", False),
+    )
 
