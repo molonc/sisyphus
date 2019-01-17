@@ -1,38 +1,36 @@
 import os
 import sys
 from dbclients.tantalus import TantalusApi
-import click
 
-@click.command()
-@click.option('--name', type=str)
-def init(name):
+
+def init():
     print "STARTING"
 
     tantalus_api = TantalusApi()
     tantalus_filecheck_result = open("tantalus_filepath_check_result.txt", "w+")
-    # blosb_torage = tantalus_api.get_storage_client('singlecellblob')
+
     fail_flag = False
 
     print "Collecting File Resources..."
 
-    file_resources = tantalus_api.list('file_resource', fileinstance__storage__name=name)
+    file_resources = tantalus_api.list('file_resource', fileinstance__storage__name="shahlab")
 
     print "File Resources collected..."
 
     assert file_resources, "Empty File Resources is empty"
 
-    blob_storage = tantalus_api.get_storage_client(name)
-    singlecell_blob_storage = tantalus_api.get_storage_client("singlecellblob")
+    shahlab_blob = tantalus_api.get_storage_client("shahlab")
+    singlecell_blob = tantalus_api.get_storage_client("singlecellblob")
 
     print "Blob Storage collected..."
 
     for file_resource in file_resources:
         for file_instance in file_resource["file_instances"]:
-            if file_instance['storage']['name'] ==  name:
+            if file_instance['storage']['name'] ==  "shahlab":
                 print "Checking " + file_instance['filepath'] + "... \n"
                 print file_resource["created"]
-                if blob_storage.exists(file_instance['filepath']):
-                    if  blob_storage.get_size(file_instance["filepath"]) != file_resource["size"] :
+                if shahlab_blob.exists(file_instance['filepath']):
+                    if  shahlab_blob.get_size(file_instance["filepath"]) != file_resource["size"] :
                         print "Expected size do not match the actual size!"
                         tantalus_filecheck_result.write(
                             "ERROR: Size mismatch in: " + file_instance['filepath'] +
@@ -42,9 +40,9 @@ def init(name):
                         tantalus_filecheck_result.write("Tantalus: ")
                         tantalus_filecheck_result.write(file_resource["created"])
                         tantalus_filecheck_result.write("\nShahlab: ")
-                        tantalus_filecheck_result.write(blob_storage.get_created_time(file_instance["filepath"]))
+                        tantalus_filecheck_result.write(shahlab_blob.get_created_time(file_instance["filepath"]))
                         tantalus_filecheck_result.write("\nSinglecellBlob: ")
-                        tantalus_filecheck_result.write(singlecell_blob_storage.get_created_time(file_instance["filepath"]))
+                        tantalus_filecheck_result.write(singlecell_blob.get_created_time(file_instance["filepath"]))
                         tantalus_filecheck_result.write("\n")
                         fail_flag = True
 
@@ -53,7 +51,11 @@ def init(name):
                 else:
                     print "file path does not exist or not valid"
                     tantalus_filecheck_result.write("DELETED: " + file_instance['filepath'] + " is not a valid filepath \n")
-                    tantalus_api.delete("file_instance", file_instance["id"])
+                    try:
+                        tantalus_api.delete("file_instance", file_instance["id"])
+                    except:
+                        print "Deletion failed. Ignoring"
+                        continue
                     fail_flag = True
             else:
                 pass
