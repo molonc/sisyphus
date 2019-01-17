@@ -50,7 +50,7 @@ def load_brc_fastqs(
     flowcell_id,
     output_dir,
     storage_name,
-    storage_directory,
+    storage,
     tantalus_api,
     storage_client,
     tag_name=None,
@@ -58,7 +58,7 @@ def load_brc_fastqs(
     if not os.path.isdir(output_dir):
         raise Exception("output directory {} not a directory".format(output_dir))
 
-    fastq_file_info = get_fastq_info(output_dir, flowcell_id, storage_directory, storage_client)
+    fastq_file_info = get_fastq_info(output_dir, flowcell_id, storage, storage_client)
 
     fastq_paired_end_check(fastq_file_info)
 
@@ -66,6 +66,7 @@ def load_brc_fastqs(
         fastq_file_info, storage_name, tag_name, tantalus_api
     )
 
+    logging.info('import succeeded')
 
 def _update_info(info, key, value):
     if key in info:
@@ -75,7 +76,7 @@ def _update_info(info, key, value):
         info[key] = value
 
 
-def get_fastq_info(output_dir, flowcell_id, storage_directory, storage_client):
+def get_fastq_info(output_dir, flowcell_id, storage, storage_client):
     """ Retrieve fastq filenames and metadata from output directory.
     """
     filenames = os.listdir(output_dir)
@@ -211,12 +212,6 @@ if __name__ == "__main__":
     storage = tantalus_api.get("storage", name=args["storage_name"])
     storage_client = tantalus_api.get_storage_client(storage['name'])
 
-    if storage['storage_type'] == 'server':
-        storage_dir = storage["storage_directory"]
-    elif storage['storage_type'] == 'blob':
-        storage_dir = storage["storage_container"]
-
-
     # Get the tag name if it was passed in
     try:
         tag_name = args["tag_name"]
@@ -245,7 +240,7 @@ if __name__ == "__main__":
         args["flowcell_id"],
         args["temp_dir"],
         storage["name"],
-        storage_dir,
+        storage,
         tantalus_api,
         storage_client,
         tag_name=tag_name
