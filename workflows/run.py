@@ -91,9 +91,6 @@ def start_automation(
         tantalus_analysis.check_inputs_yaml(inputs_yaml)
         tantalus_analysis.add_inputs_yaml(inputs_yaml, update=args['update'])
 
-    if args["_".join(["no", analysis_type])]:
-        continue
-
     try:
         tantalus_analysis.set_run_status()
 
@@ -195,7 +192,7 @@ def main(args):
 
     log.info('Library ID: {}'.format(analysis_info.chip_id))
 
-    start_automation(args, config, pipeline_dir, results_dir, scpipeline_dir, tmp_dir, analysis_info, config['storages'], job_subdir)
+    start_automation(args, config, pipeline_dir, results_dir, scpipeline_dir, tmp_dir, analysis_info, analysis_type, config['storages'], job_subdir)
 
 
 if __name__ == '__main__':
