@@ -22,6 +22,7 @@ def init(name):
     assert file_resources, "Empty File Resources is empty"
 
     blob_storage = tantalus_api.get_storage_client(name)
+    singlecell_blob_storage = tantalus_api.get_storage_client("singlecellblob")
 
     print "Blob Storage collected..."
 
@@ -38,8 +39,12 @@ def init(name):
                             "\nActual Size: " + str(os.path.getsize(file_instance["filepath"])) +
                             "\nExpected Size: " + str(file_resource["size"]) + "\n"
                         )
+                        tantalus_filecheck_result.write("Tantalus: ")
                         tantalus_filecheck_result.write(file_resource["created"])
+                        tantalus_filecheck_result.write("\nShahlab: ")
                         tantalus_filecheck_result.write(blob_storage.get_created_time(file_instance["filepath"]))
+                        tantalus_filecheck_result.write("\nSinglecellBlob: ")
+                        tantalus_filecheck_result.write(singlecell_blob_storage.get_created_time(file_instance["filepath"]))
                         tantalus_filecheck_result.write("\n")
                         fail_flag = True
 
@@ -47,7 +52,8 @@ def init(name):
                         print "Passed"
                 else:
                     print "file path does not exist or not valid"
-                    tantalus_filecheck_result.write("ERROR: " + file_instance['filepath'] + " is not a valid filepath \n")
+                    tantalus_filecheck_result.write("DELETED: " + file_instance['filepath'] + " is not a valid filepath \n")
+                    tantalus_api.delete("file_instance", file_instance["id"])
                     fail_flag = True
             else:
                 pass
