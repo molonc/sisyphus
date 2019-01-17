@@ -68,7 +68,7 @@ class AnalysisInfo:
         reference_genome = self.analysis_info['reference_genome']['reference_genome']
         if reference_genome not in self.reference_genome_choices:
             raise Exception('Unrecognized reference genome {}'.format(reference_genome))
-        return reference_genome
+        return self.reference_genome_choices[reference_genome]
 
     def get_pipeline_version(self, update=False):
         version_str = self.analysis_info['version']
