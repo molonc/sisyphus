@@ -9,6 +9,7 @@ import yaml
 import subprocess
 import dbclients.colossus
 import dbclients.tantalus
+import datamanagement.transfer_files
 import datamanagement.templates as templates
 from datamanagement.utils.filecopy import rsync_file
 import argparse
@@ -78,7 +79,8 @@ LIBRARY_ID = 'A96213A'
 TEST_LANE_PK = 6551
 TUMOUR_DATASET_NAME = 'BAM-SA1090-SC_WGS-A96213A-lanes_341dd558-BWA_ALN_0_5_7-HG19'
 NORMAL_DATASET_NAME = 'BAM-DAH370N-WGS-A41086-lanes_52f27595-BWA_ALN_0_5_7-HG19'
-STORAGE_NAME = 'shahlab'
+LOCAL_STORAGE_NAME = 'shahlab'
+REMOTE_STORAGE_NAME = 'singlecellblob'
 
 
 selected_indices = {}
@@ -173,13 +175,13 @@ def run_bam_fastq(end_1_fastq, end_2_fastq, source_bam):
 
 
 def get_tumour_bams():
-    storage = tantalus_api.get('storage', name=STORAGE_NAME)
+    storage = tantalus_api.get('storage', name=LOCAL_STORAGE_NAME)
     tumour_dataset = tantalus_api.get('sequence_dataset', name=TUMOUR_DATASET_NAME)
 
     sample_id = str(tumour_dataset['sample']['sample_id'])
 
     file_instances = tantalus_api.get_sequence_dataset_file_instances(
-        tumour_dataset, STORAGE_NAME)
+        tumour_dataset, LOCAL_STORAGE_NAME)
 
     tumour_bam_paths = {}
     tumour_file_resources = {}
@@ -207,7 +209,7 @@ def get_tumour_bams():
 def get_normal_bam():
     normal_dataset = tantalus_api.get('sequence_dataset', name=NORMAL_DATASET_NAME)
     file_instances = tantalus_api.get_sequence_dataset_file_instances(
-        normal_dataset, STORAGE_NAME)
+        normal_dataset, LOCAL_STORAGE_NAME)
 
     for file_instance in file_instances:
         file_resource = file_instance['file_resource']
@@ -229,6 +231,9 @@ def create_fastqs(data_dir):
         with open(tumour_fastq_paths_pk, "rb") as handle:
             return pickle.load(handle)
 
+    try: os.makedirs(data_dir)
+    except: pass
+
     tumour_bam_paths = get_tumour_bams()[0]
     normal_filepath = get_normal_bam()
     normal_filtered_bam = os.path.join(data_dir, 'DAH370N_filtered.bam')
@@ -236,6 +241,11 @@ def create_fastqs(data_dir):
 
     bam_dir = os.path.join(data_dir, "bam")
     fastq_dir = os.path.join(data_dir, "fastq")
+
+    try: os.makedirs(bam_dir)
+    except: pass
+    try: os.makedirs(fastq_dir)
+    except: pass
 
     tumour_fastq_paths = {}
     for index_sequence in tumour_bam_paths:
@@ -286,7 +296,7 @@ def create_sequence_dataset(inputs_data):
     the corresponding library, sample, and sequence lane.
     """
     tumour_dataset = tantalus_api.get('sequence_dataset', name=TUMOUR_DATASET_NAME)
-    storage = tantalus_api.get("storage", name=STORAGE_NAME)
+    storage = tantalus_api.get("storage", name=LOCAL_STORAGE_NAME)
 
     test_sample_id = tumour_dataset["sample"]["sample_id"] + 'TEST'
     test_library_id = tumour_dataset["library"]["library_id"] + 'TEST'
@@ -365,7 +375,7 @@ def create_sequence_dataset(inputs_data):
 
             print("adding {} to Tantalus".format(tantalus_path))
             file_resource, file_instance = tantalus_api.add_file(
-                STORAGE_NAME,
+                LOCAL_STORAGE_NAME,
                 tantalus_path,
             )
 
@@ -388,6 +398,17 @@ def create_sequence_dataset(inputs_data):
     tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
 
 
+def pull_source_datasets():
+    tantalus_api = dbclients.tantalus.TantalusApi()
+
+    from_storage = tantalus_api.get('storage', name=REMOTE_STORAGE_NAME)
+    to_storage = tantalus_api.get('storage', name=LOCAL_STORAGE_NAME)
+
+    for dataset_name in (TUMOUR_DATASET_NAME, NORMAL_DATASET_NAME):
+        dataset = tantalus_api.get('sequence_dataset', name=dataset_name)
+        datamanagement.transfer_files.transfer_dataset(tantalus_api, dataset, from_storage, to_storage)
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", required=True)  # Where to put the test dataset 
@@ -396,5 +417,7 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
+    pull_source_datasets()
     tumour_fastq_paths = create_fastqs(args["data_dir"])
     create_sequence_dataset(tumour_fastq_paths)
+

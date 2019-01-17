@@ -143,7 +143,7 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory, storage_client):
         if storage['storage_type'] == 'server': 
             rsync_file(fastq_path, tantalus_path)
 
-        elif storage['storage_type'] == 'blob'
+        elif storage['storage_type'] == 'blob':
             storage_client.create(tantalus_filename, fastq_path)
 
 
@@ -225,7 +225,7 @@ if __name__ == "__main__":
         dataset_type="FQ"))
 
     if len(datasets) > 0:
-        raise Exception("found dataset {}".format(','.join([str(d["id"]) for d in datasets])))
+        logging.warning("found dataset {}".format(','.join([str(d["id"]) for d in datasets])))
 
     # Run bcl to fastq
     run_bcl2fastq(
