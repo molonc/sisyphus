@@ -138,7 +138,7 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory, storage_client):
             extension=extension,
         )
 
-        tantalus_path = os.path.join(storage_directory, tantalus_filename)
+        tantalus_path = os.path.join(storage["prefix"], tantalus_filename)
 
         if storage['storage_type'] == 'server': 
             rsync_file(fastq_path, tantalus_path)
@@ -208,8 +208,14 @@ if __name__ == "__main__":
     # variables defined)
     tantalus_api = TantalusApi()
 
-    storage = tantalus_api.get("storage_server", name=args["storage_name"])
+    storage = tantalus_api.get("storage", name=args["storage_name"])
     storage_client = tantalus_api.get_storage_client(storage['name'])
+
+    if storage['storage_type'] == 'server':
+        storage_dir = storage["storage_directory"]
+    elif storage['storage_type'] == 'blob':
+        storage_dir = storage["storage_container"]
+
 
     # Get the tag name if it was passed in
     try:
@@ -239,7 +245,7 @@ if __name__ == "__main__":
         args["flowcell_id"],
         args["temp_dir"],
         storage["name"],
-        storage["storage_directory"],
+        storage_dir,
         tantalus_api,
         storage_client,
         tag_name=tag_name
