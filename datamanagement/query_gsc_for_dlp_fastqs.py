@@ -10,6 +10,7 @@ import sys
 import time
 import collections
 import pandas as pd
+from collections import defaultdict
 from datamanagement.utils.constants import LOGGING_FORMAT
 from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 import datamanagement.templates as templates
@@ -110,34 +111,14 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
         existing_data: set of tuples of the form (flowcell_id, lane_number, index_sequence, read_end)
     '''
 
-    existing_data = dict()
+    existing_flowcell_ids = []
 
-    sequence_datasets = tantalus_api.list('sequence_dataset', library__library_id=dlp_library_id, dataset_type='FQ')
+    lanes = tantalus_api.list('sequencing_lane', dna_library__library_id=dlp_library_id)
 
-    for sequence_dataset in sequence_datasets:
-        num_lanes = len(sequence_dataset['sequence_lanes'])
+    for lane in lanes:
+        existing_flowcell_ids.append((lane['flowcell_id'], lane['lane_number']))
 
-        if num_lanes != 1:
-            raise Exception('Sequencing Dataset {} has {} lanes'.format(sequence_dataset, num_lanes))
-
-        flowcell_id = str(sequence_dataset['sequence_lanes'][0]['flowcell_id'])
-        lane_number = sequence_dataset['sequence_lanes'][0]['lane_number']
-
-        file_resources = tantalus_api.list('file_resource', sequencedataset__id=sequence_dataset['id'])
-
-        for file_resource in file_resources:
-            index_sequence = str(file_resource['sequencefileinfo']['index_sequence'])
-            read_end = file_resource['sequencefileinfo']['read_end']
-
-            fastq_key = (flowcell_id, lane_number, index_sequence, read_end)
-
-            if fastq_key in existing_data:
-                raise Exception('fastq for {} found multiple times, pks {} and {}'.format(
-                    fastq_key, file_resource['id'], existing_data[fastq_key]))
-
-            existing_data[fastq_key] = file_resource['id']
-
-    return set(existing_data.keys())
+    return set(existing_flowcell_ids)
 
 
 def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, tag_name=None, update=False, check_library=False):
@@ -206,124 +187,130 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     flowcells_to_be_created = []
 
-    for fastq_info in fastq_infos:
-        fastq_path = fastq_info["data_path"]
-        
-        try_gzip(fastq_path)
+    lane_fastq_file_info = defaultdict(list)
 
-        if fastq_info["status"] != "production":
+    for fastq_info in fastq_infos:
+        flowcell_id = str(fastq_info['libcore']['run']['flowcell']['lims_flowcell_code'])
+        lane_number = str(fastq_info['libcore']['run']['lane_number'])
+        lane_fastq_file_info[(flowcell_id, str(lane_number))].append(fastq_info)
+
+    for (flowcell_id, lane_number) in lane_fastq_file_info.keys():
+
+        if (flowcell_id, lane_number) in existing_data:
+            logging.info('Skipping fastqs with flowcell id {}, lane number {}'.format(
+                flowcell_id, lane_number))
+            continue
+
+        for fastq_info in lane_fastq_file_info[(flowcell_id, lane_number)]:
+            fastq_path = fastq_info["data_path"]
+            
+            try_gzip(fastq_path)
+
+            if fastq_info["status"] != "production":
+                logging.info(
+                    "skipping file {} marked as {}".format(
+                        fastq_info["data_path"], fastq_info["status"]
+                    )
+                )
+                continue
+
+            if fastq_info['removed_datetime'] is not None:
+                logging.info('skipping file {} marked as removed {}'.format(
+                    fastq_info['data_path'], fastq_info['removed_datetime']))
+                continue
+
+            sequencing_instrument = get_sequencing_instrument(
+                fastq_info["libcore"]["run"]["machine"]
+            )
+            solexa_run_type = fastq_info["libcore"]["run"]["solexarun_type"]
+            read_type = solexa_run_type_map[solexa_run_type]
+
+            primer_id = fastq_info["libcore"]["primer_id"]
+            primer_info = gsc_api.query("primer/{}".format(primer_id))
+            raw_index_sequence = primer_info["adapter_index_sequence"]
+
+            flowcell_lane = flowcell_id
+            if lane_number is not None:
+                flowcell_lane = flowcell_lane + "_" + str(lane_number)
+
+            rev_comp_override = rev_comp_overrides.get(flowcell_lane)
+
+            index_sequence = decode_raw_index_sequence(
+                raw_index_sequence, sequencing_instrument, rev_comp_override
+            )
+
+            filename_pattern = fastq_info["file_type"]["filename_pattern"]
+            read_end, passed = filename_pattern_map.get(filename_pattern, (None, None))
+
             logging.info(
-                "skipping file {} marked as {}".format(
-                    fastq_info["data_path"], fastq_info["status"]
+                "loading fastq %s, raw index %s, index %s, %s",
+                fastq_info["id"],
+                raw_index_sequence,
+                index_sequence,
+                fastq_path,
+            )
+
+            if read_end is None:
+                raise Exception("Unrecognized file type: {}".format(filename_pattern))
+
+            if not passed:
+                continue
+
+            try:
+                cell_sample_id = cell_samples[index_sequence]
+            except KeyError:
+                raise Exception('unable to find index {} for flowcell lane {} for library {}'.format(
+                    index_sequence, flowcell_lane, dlp_library_id))
+
+            extension = ''
+            compression = 'UNCOMPRESSED'
+            if fastq_path.endswith('.gz'):
+                extension = '.gz'
+                compression = 'GZIP'
+            elif not fastq_path.endswith('.fastq'):
+                raise ValueError('unknown extension for filename {}'.format(fastq_path))
+
+            tantalus_filename = templates.SC_WGS_FQ_TEMPLATE.format(
+                primary_sample_id=primary_sample_id,
+                dlp_library_id=dlp_library_id,
+                flowcell_id=flowcell_id,
+                lane_number=lane_number,
+                cell_sample_id=cell_sample_id,
+                index_sequence=index_sequence,
+                read_end=read_end,
+                extension=extension,
+            )
+
+            tantalus_path = os.path.join(storage["prefix"], tantalus_filename)
+
+            fastq_file_info.append(
+                dict(
+                    dataset_type="FQ",
+                    sample_id=cell_sample_id,
+                    library_id=dlp_library_id,
+                    library_type="SC_WGS",
+                    index_format="D",
+                    sequence_lanes=[
+                        dict(
+                            flowcell_id=flowcell_id,
+                            lane_number=lane_number,
+                            sequencing_centre="GSC",
+                            sequencing_instrument=sequencing_instrument,
+                            sequencing_library_id=gsc_library_id,
+                            read_type=read_type,
+                        )
+                    ],
+                    file_type="FQ",
+                    read_end=read_end,
+                    index_sequence=index_sequence,
+                    compression=compression,
+                    filepath=tantalus_path,
                 )
             )
-            continue
 
-        flowcell_id = str(fastq_info['libcore']['run']['flowcell']['lims_flowcell_code'])
-        lane_number = fastq_info['libcore']['run']['lane_number']
+            flowcells_to_be_created.append(flowcell_id + '_' + str(lane_number))
 
-        if fastq_info['removed_datetime'] is not None:
-            logging.info('skipping file {} marked as removed {}'.format(
-                fastq_info['data_path'], fastq_info['removed_datetime']))
-            continue
-
-        sequencing_instrument = get_sequencing_instrument(
-            fastq_info["libcore"]["run"]["machine"]
-        )
-        solexa_run_type = fastq_info["libcore"]["run"]["solexarun_type"]
-        read_type = solexa_run_type_map[solexa_run_type]
-
-        primer_id = fastq_info["libcore"]["primer_id"]
-        primer_info = gsc_api.query("primer/{}".format(primer_id))
-        raw_index_sequence = primer_info["adapter_index_sequence"]
-
-        flowcell_lane = flowcell_id
-        if lane_number is not None:
-            flowcell_lane = flowcell_lane + "_" + str(lane_number)
-
-        rev_comp_override = rev_comp_overrides.get(flowcell_lane)
-
-        index_sequence = decode_raw_index_sequence(
-            raw_index_sequence, sequencing_instrument, rev_comp_override
-        )
-
-        filename_pattern = fastq_info["file_type"]["filename_pattern"]
-        read_end, passed = filename_pattern_map.get(filename_pattern, (None, None))
-
-        logging.info(
-            "loading fastq %s, raw index %s, index %s, %s",
-            fastq_info["id"],
-            raw_index_sequence,
-            index_sequence,
-            fastq_path,
-        )
-
-        if read_end is None:
-            raise Exception("Unrecognized file type: {}".format(filename_pattern))
-
-        if not passed:
-            continue
-
-        try:
-            cell_sample_id = cell_samples[index_sequence]
-        except KeyError:
-            raise Exception('unable to find index {} for flowcell lane {} for library {}'.format(
-                index_sequence, flowcell_lane, dlp_library_id))
-
-        extension = ''
-        compression = 'UNCOMPRESSED'
-        if fastq_path.endswith('.gz'):
-            extension = '.gz'
-            compression = 'GZIP'
-        elif not fastq_path.endswith('.fastq'):
-            raise ValueError('unknown extension for filename {}'.format(fastq_path))
-
-        tantalus_filename = templates.SC_WGS_FQ_TEMPLATE.format(
-            primary_sample_id=primary_sample_id,
-            dlp_library_id=dlp_library_id,
-            flowcell_id=flowcell_id,
-            lane_number=lane_number,
-            cell_sample_id=cell_sample_id,
-            index_sequence=index_sequence,
-            read_end=read_end,
-            extension=extension,
-        )
-
-        tantalus_path = os.path.join(storage["prefix"], tantalus_filename)
-
-        fastq_file_info.append(
-            dict(
-                dataset_type="FQ",
-                sample_id=cell_sample_id,
-                library_id=dlp_library_id,
-                library_type="SC_WGS",
-                index_format="D",
-                sequence_lanes=[
-                    dict(
-                        flowcell_id=flowcell_id,
-                        lane_number=lane_number,
-                        sequencing_centre="GSC",
-                        sequencing_instrument=sequencing_instrument,
-                        sequencing_library_id=gsc_library_id,
-                        read_type=read_type,
-                    )
-                ],
-                file_type="FQ",
-                read_end=read_end,
-                index_sequence=index_sequence,
-                compression=compression,
-                filepath=tantalus_path,
-            )
-        )
-
-        flowcells_to_be_created.append(flowcell_id + '_' + str(lane_number))
-
-        if not check_library:
-            if (flowcell_id, str(lane_number), index_sequence, read_end) in existing_data:
-                logging.info('skipping transfer of file {} that has already been imported'.format(fastq_info['data_path']))
-                if not os.path.exists(tantalus_path):
-                    raise Exception('file {} already imported but does not exist at {}'.format(fastq_info['data_path'], tantalus_path))
-            else:
+            if not check_library:
                 if storage['storage_type'] == 'server': 
                     rsync_file(fastq_path, tantalus_path)
 
@@ -365,9 +352,10 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     return flowcells_to_be_created
 
+
 if __name__ == "__main__":
     # Set up the root logger
-    logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
     # Parse the incoming arguments
     args = parse_runtime_args()
