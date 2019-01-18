@@ -26,7 +26,7 @@ def update_config(config, key, value):
     return False
 
 
-def get_config_override(analysis_info, shahlab_run=False):
+def get_config_override(analysis_info):
     """
     Get a dictionary of default configuration options that
     override existing single cell pipeline configuration options.
@@ -40,9 +40,10 @@ def get_config_override(analysis_info, shahlab_run=False):
         'aligner':              'bwa-mem',
         'reference':            'grch37',
         'smoothing_function':   'modal',
+        'containers':           {"mounts": ["/refdata", "/datadrive", "/mnt", "/home"]}
     }
 
-    cluster = 'shahlab' if shahlab_run else 'azure'
+    cluster = 'azure'
     update_config(config, 'cluster', cluster)
     update_config(config, 'aligner', analysis_info.aligner)
     update_config(config, 'reference', analysis_info.reference_genome)
@@ -50,8 +51,8 @@ def get_config_override(analysis_info, shahlab_run=False):
     return config
 
 
-def get_config_string(analysis_info, shahlab_run=False):
-    config_string = json.dumps(get_config_override(analysis_info, shahlab_run=shahlab_run))
+def get_config_string(analysis_info):
+    config_string = json.dumps(get_config_override(analysis_info))
     config_string = ''.join(config_string.split())  # Remove all whitespace
     return r"'{}'".format(config_string)
 
@@ -60,6 +61,9 @@ def run_pipeline2(*args, **kwargs):
     print args, kwargs
 
 def run_pipeline(
+        results_dir,
+        scpipeline_dir,
+        tmp_dir,
         tantalus_analysis,
         analysis_info,
         inputs_yaml,
@@ -68,15 +72,8 @@ def run_pipeline(
         dirs=()):
 
     args = tantalus_analysis.args
-    config_override_string = get_config_string(analysis_info, shahlab_run=args['shahlab_run'])
-
-    if args['shahlab_run']:
-        import single_cell
-        env_version = 'v' + single_cell.__version__.split("+")[0]
-        if env_version != args['version']:
-            raise Exception("version in args is {} but single_cell version is {}".format(
-                args['version'], env_version))
-
+    config_override_string = get_config_string(analysis_info)
+    
     run_cmd = [
         'single_cell',          tantalus_analysis.analysis_type,
         '--input_yaml',         inputs_yaml,
@@ -93,38 +90,32 @@ def run_pipeline(
 
     if args['local_run']:
         run_cmd += ["--submit", "local"]
-    elif args['shahlab_run']:
-        run_cmd += [
-            '--submit',         'asyncqsub',
-            '--nativespec',     "' -hard -q shahlab.q -V -l h_vmem=20G -pe ncpus {ncpus}'",
-        ]
+
     else:
         run_cmd += [
             '--submit',         'azurebatch',
             '--storage',        'azureblob',
         ]
 
-    if not args["shahlab_run"]:
-        # Append docker command to the beginning
-        docker_cmd = [
-            'docker', 'run', '-w', '$PWD',
-            '-v', '$PWD:$PWD',
-            '-v', '/var/run/docker.sock:/var/run/docker.sock',
-            '-v', '/usr/bin/docker:/usr/bin/docker',
-            '--rm',
-            '--env-file', docker_env_file,
-        ]
+    docker_cmd = [
+        'docker', 'run', '-w', '$PWD',
+        '-v', '$PWD:$PWD',
+        '-v', '/var/run/docker.sock:/var/run/docker.sock',
+        '-v', '/usr/bin/docker:/usr/bin/docker',
+        '--rm',
+        '--env-file', docker_env_file,
+    ]
 
-        for d in dirs:
-            docker_cmd.extend([
-                '-v', '{d}:{d}'.format(d=d),
-            ])
+    for d in dirs:
+        docker_cmd.extend([
+            '-v', '{d}:{d}'.format(d=d),
+        ])
 
-        docker_cmd.append(
-            'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(args['version'])
-        )
+    docker_cmd.append(
+        'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(args['version'])
+    )
 
-        run_cmd = docker_cmd + run_cmd
+    run_cmd = docker_cmd + run_cmd
 
 
     has_classifier = StrictVersion(args['version'].strip('v')) >= StrictVersion('0.1.5')
