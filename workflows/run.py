@@ -85,11 +85,22 @@ def start_automation(
             storages["remote_inputs"],
             storages["working_inputs"])
 
+    if args['inputs_yaml'] is None:
+        local_results_storage = tantalus_api.get(
+            'storage', 
+            name=storages['local_results'])['storage_directory']
 
-    if analysis_type == 'align':
-        tantalus_analysis.get_or_create_inputs_yaml(job_subdir, args, storages)
-        tantalus_analysis.check_inputs_yaml(inputs_yaml)
-        tantalus_analysis.add_inputs_yaml(inputs_yaml, update=args['update'])
+        inputs_yaml = os.path.join(local_results_storage, job_subdir, 'inputs.yaml')
+        sentinel(
+            'Generating inputs yaml',
+            tantalus_analysis.generate_inputs_yaml,
+            args,
+            inputs_yaml,
+        )
+    else:
+        inputs_yaml = args['inputs_yaml']
+
+    tantalus_analysis.add_inputs_yaml(inputs_yaml, update=args['update'])
 
     try:
         tantalus_analysis.set_run_status()
@@ -120,8 +131,25 @@ def start_automation(
         tantalus_analysis.set_error_status()
         raise
 
-    if analysis_type == 'align':
-        tantalus_analysis.create_and_transfer_bams(args, storages)
+    tag_name = "_".join([args["jira"], storages["working_inputs"], "bams"])
+
+    # Should only be created for align analysis
+    sentinel(
+        'Creating output bam datasets',
+        tantalus_analysis.create_output_datasets,
+        update=args['update'],
+        tag_name=tag_name,
+    )
+
+    if storages["working_inputs"] != storages["remote_inputs"]:
+        sentinel(
+            "Transferring BAM files from {} to {}".format(
+                storages["working_inputs"], storages["remote_inputs"]),
+            transfer_files,
+            tag_name,
+            storages["working_inputs"],
+            storages["remote_inputs"])
+
 
     tantalus_results = tantalus_analysis.create_output_results(
         pipeline_dir,
