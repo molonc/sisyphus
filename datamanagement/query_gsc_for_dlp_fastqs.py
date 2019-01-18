@@ -181,27 +181,29 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     gsc_library_id = library_info["name"]
 
-    fastq_infos = gsc_api.query("fastq?parent_library={}".format(gsc_library_id))
+    gsc_fastq_infos = gsc_api.query("fastq?parent_library={}".format(gsc_library_id))
 
     fastq_file_info = []
 
-    flowcells_to_be_created = []
+    flowcells_to_be_created = set()
 
-    lane_fastq_file_info = defaultdict(list)
+    gsc_lane_fastq_file_infos = defaultdict(list)
 
-    for fastq_info in fastq_infos:
+    for fastq_info in gsc_fastq_infos:
         flowcell_id = str(fastq_info['libcore']['run']['flowcell']['lims_flowcell_code'])
         lane_number = str(fastq_info['libcore']['run']['lane_number'])
-        lane_fastq_file_info[(flowcell_id, str(lane_number))].append(fastq_info)
+        gsc_lane_fastq_file_infos[(flowcell_id, str(lane_number))].append(fastq_info)
 
-    for (flowcell_id, lane_number) in lane_fastq_file_info.keys():
+    for (flowcell_id, lane_number) in gsc_lane_fastq_file_infos.keys():
 
         if (flowcell_id, lane_number) in existing_data:
             logging.info('Skipping fastqs with flowcell id {}, lane number {}'.format(
                 flowcell_id, lane_number))
             continue
 
-        for fastq_info in lane_fastq_file_info[(flowcell_id, lane_number)]:
+        flowcells_to_be_created.add(flowcell_id + '_' + str(lane_number))
+
+        for fastq_info in gsc_lane_fastq_file_infos[(flowcell_id, lane_number)]:
             fastq_path = fastq_info["data_path"]
             
             try_gzip(fastq_path)
@@ -308,8 +310,6 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                 )
             )
 
-            flowcells_to_be_created.append(flowcell_id + '_' + str(lane_number))
-
             if not check_library:
                 if storage['storage_type'] == 'server': 
                     rsync_file(fastq_path, tantalus_path)
@@ -323,10 +323,11 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     fastq_paired_end_check(fastq_file_info)
 
-    # Check that all index sequences have fastq files
     cell_index_sequences = set(cell_samples.keys())
 
     fastq_lane_index_sequences = collections.defaultdict(set)
+
+    # Check that all fastq files refer to indices known in colossus
     for info in fastq_file_info:
         if info['index_sequence'] not in cell_index_sequences:
             raise Exception('fastq {} with index {}, flowcell {}, lane {} with index not in colossus'.format(
@@ -337,6 +338,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             info['sequence_lanes'][0]['lane_number'])
         fastq_lane_index_sequences[flowcell_lane].add(info['index_sequence'])
 
+    # Check that all index sequences in colossus have fastq files
     for flowcell_lane in fastq_lane_index_sequences:
         for index_sequence in cell_index_sequences:
             if index_sequence not in fastq_lane_index_sequences[flowcell_lane]:
