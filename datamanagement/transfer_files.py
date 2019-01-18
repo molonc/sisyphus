@@ -18,7 +18,7 @@ from datamanagement.utils.utils import make_dirs
 
 
 # Set up the root logger
-logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
 # Configure the azure.storage logger.
 # For more verbose output as required by microsoft set loglevel

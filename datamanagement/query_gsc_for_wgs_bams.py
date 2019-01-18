@@ -26,7 +26,7 @@ from templates import  (WGS_BAM_NAME_TEMPLATE,
                         )
 
 # Set up the root logger
-logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
 gsc_api = GSCAPI()
 

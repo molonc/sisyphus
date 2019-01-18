@@ -15,7 +15,7 @@ from utils.constants import LOGGING_FORMAT
 
 
 # Set up the root logger
-logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
 # Useful Shahlab-specific variables
 SHAHLAB_TANTALUS_SERVER_NAME = 'shahlab'

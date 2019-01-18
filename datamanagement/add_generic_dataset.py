@@ -16,7 +16,7 @@ from utils.runtime_args import parse_runtime_args
 from dbclients.tantalus import TantalusApi
 import datamanagement.templates as templates
 
-logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
 REQUIRED_FIELDS = [
     'filepaths',
