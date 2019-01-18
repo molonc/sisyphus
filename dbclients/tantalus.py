@@ -333,11 +333,11 @@ class TantalusApi(BasicAPIClient):
             file_type = 'FQ'
 
         try:
-            file_resource = self.get_or_create(
+            file_resource = self.get(
                 'file_resource',
                 filename=filename,
             )
-        except FieldMismatchError as e:
+        except NotFoundError:
             file_resource = None
 
         # For an existing file resource with no instances or
@@ -345,7 +345,7 @@ class TantalusApi(BasicAPIClient):
         # and create a new file instance that is not deleted
         if file_resource is not None:
             overwrite = False
-            if file_resource['file_instances'] == 0:
+            if len(file_resource['file_instances']) == 0:
                 log.info('file resource has no instances, overwriting')
                 overwrite = True
 
