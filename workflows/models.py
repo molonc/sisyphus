@@ -570,6 +570,8 @@ class AlignAnalysis(Analysis):
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.dump(input_info, inputs_yaml, default_flow_style=False)
 
+        self.check_inputs_yaml(inputs_yaml_filename)
+
     def get_lanes(self):
         """
         Get the lanes for each input dataset for the analysis.
@@ -658,42 +660,6 @@ class AlignAnalysis(Analysis):
         else:
             return launch_pipeline.run_pipeline
 
-    def get_or_create_inputs_yaml(self, job_subdir, args, storages):
-        if args['inputs_yaml'] is None:
-            local_results_storage = tantalus_api.get(
-                'storage', 
-                name=storages['local_results'])['storage_directory']
-
-        inputs_yaml = os.path.join(local_results_storage, job_subdir, 'inputs.yaml')
-        sentinel(
-            'Generating inputs yaml',
-            self.generate_inputs_yaml,
-            args,
-            inputs_yaml,
-        )
-    else:
-        inputs_yaml = args['inputs_yaml']
-
-    def create_and_transfer_bams(self, args, storages):
-        tag_name = "_".join([args["jira"], storages["working_inputs"], "bams"])
-
-        sentinel(
-            'Creating output bam datasets',
-            self.create_output_datasets,
-            update=args['update'],
-            tag_name=tag_name,
-        )
-
-        sentinel(
-            "Transferring BAM files from {} to {}".format(
-                storages["working_inputs"], storages["remote_inputs"]),
-            transfer_files,
-            tag_name,
-            storages["working_inputs"],
-            storages["remote_inputs"])
-
-
-
 class HmmcopyAnalysis(Analysis):
     """
     A class representing an hmmcopy analysis in Tantalus.
@@ -707,11 +673,9 @@ class HmmcopyAnalysis(Analysis):
         Get the input BAM datasets for this analysis.
         """
         
-        filter_lane_pks = []
         filter_lane_flowcells = []
 
         if args['gsc_lanes'] is not None:
-            filter_lanes.append(args['gsc_lanes'])
             for lane in args['gsc_lanes']:
                 flowcell_id = (args['gsc_lanes'].split('_'))[0]
                 lane_number = (args['gsc_lanes'].split('_'))[1]
@@ -721,27 +685,24 @@ class HmmcopyAnalysis(Analysis):
                     lane_number=lane_number
                 )
 
-                filter_lane_pks.extend(sequence_lane['id'])
                 filter_lane_flowcells.extend(flowcell_id)
 
         if args['brc_flowcell_ids'] is not None:
-            filter_lanes.append(['{}_{}'.format(args['brc_flowcell_ids'], i+1) for i in range(4)])
             for flowcell_id in args['brc_flowcell_ids']:
                 sequence_lane = tantalus_api.get(
                     'sequencing_lane',
                     flowcell_id=flowcell_id
                 )
 
-                filter_lane_pks.extend(sequence_lane['id'])
                 filter_lane_flowcells.extend(flowcell_id)
 
-        if not filter_lane_pks:
+        if not filter_lane_flowcells:
             datasets = tantalus_api.list(
             'sequence_dataset', 
             library__library_id=args['library_id'], 
             reference_genome=args['ref_genome'],
             dataset_type='BAM',
-        )           
+            )           
 
             if not datasets:
                 raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
@@ -759,7 +720,8 @@ class HmmcopyAnalysis(Analysis):
                 sequence_lane__flowcell_id=flowcell_id
             )   
 
-            dataset_ids.add(dataset['id'])
+            for dataset in list(datasets):
+                dataset_ids.add(dataset['id'])
 
         return list(dataset_ids)
 
@@ -789,6 +751,12 @@ class HmmcopyAnalysis(Analysis):
             return launch_pipeline.run_pipeline2
         else:
             return launch_pipeline.run_pipeline
+
+    def generate_inputs_yaml(self, args, inputs_yaml_filename):
+        """
+        inputs.yaml should already exists from align analysis
+        """
+        pass
 
 
 class PseudoBulkAnalysis(Analysis):
@@ -892,6 +860,11 @@ class PseudoBulkAnalysis(Analysis):
 
         return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
 
+    def run_pipeline(self, args):
+        if args["skip_pipeline"]:
+            return launch_pipeline.run_pipeline2
+        else:
+            return launch_pipeline.run_pipeline
 
 class CNCloneAnalysis(Analysis):
     """
@@ -945,6 +918,12 @@ class CNCloneAnalysis(Analysis):
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
+
+    def run_pipeline(self, args):
+        if args["skip_pipeline"]:
+            return launch_pipeline.run_pipeline2
+        else:
+            return launch_pipeline.run_pipeline
 
 
 class Results:
