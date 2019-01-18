@@ -214,9 +214,9 @@ def blob_to_blob_transfer_closure(tantalus_api, source_storage, destination_stor
     """
     # Start BlockBlobService for source and destination accounts
     source_account = tantalus_api.get_storage_client(
-        source_storage["storage_account"]["name"]).blob_service
+        source_storage).blob_service
     destination_account = tantalus_api.get_storage_client(
-        destination_storage["storage_account"]["name"]).blob_service
+        destination_storage).blob_service
 
     # Get a shared access signature for the source account so that we
     # can read its private files
@@ -381,118 +381,125 @@ def get_file_transfer_function(tantalus_api, from_storage, to_storage):
         return rsync_file
 
 
-def transfer_files(tag_name, from_storage_name, to_storage_name):
-    """ Transfer a set of files
+def transfer_tagged_datasets(tantalus_api, tag_name, from_storage, to_storage):
+    """ Transfer a set tagged datasets
     """
-    # Connect to the Tantalus API (this requires appropriate environment
-    # variables defined)
-    tantalus_api = TantalusApi()
+    tag = tantalus_api.get("tag", name=tag_name)
 
-    # Get the storage details
-    to_storage = tantalus_api.get("storage", name=to_storage_name)
-    from_storage = tantalus_api.get("storage", name=from_storage_name)
+    for dataset_id in tag['sequencedataset_set']:
+        transfer_sequence_dataset(tantalus_api, dataset_id, from_storage, to_storage)
 
+    for dataset_id in tag['resultsdataset_set']:
+        transfer_results_dataset(tantalus_api, dataset_id, from_storage, to_storage)
+
+
+def transfer_sequence_dataset(tantalus_api, dataset_id, from_storage, to_storage):
+    """ Transfer a sequence dataset
+    """
+    dataset = tantalus_api.get("sequence_dataset", id=dataset_id)
+    transfer_dataset(tantalus_api, dataset, from_storage, to_storage)
+
+
+def transfer_results_dataset(tantalus_api, dataset_id, from_storage, to_storage):
+    """ Transfer a results dataset
+    """
+    dataset = tantalus_api.get("results", id=dataset_id)
+    transfer_dataset(tantalus_api, dataset, from_storage, to_storage)
+
+
+def transfer_dataset(tantalus_api, dataset, from_storage, to_storage):
+    """ Transfer a dataset
+    """
     f_transfer = get_file_transfer_function(tantalus_api, from_storage, to_storage)
 
-    datasets = tantalus_api.list("tag", name=tag_name)
+    for file_resource_id in dataset['file_resources']:
+        # Get the file resource corresponding to the ID
+        file_resource = tantalus_api.get("file_resource", id=file_resource_id)
 
-    for dataset in datasets:
-        sequencedataset_id = dataset['sequencedataset_set']
-        resultsdataset_id = dataset['resultsdataset_set']
-        file_resource_ids = []
+        storage_names = []
 
-        for dataset_id in sequencedataset_id:
-            sequence_dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
-            file_resource_ids += sequence_dataset['file_resources']
+        for file_instance in file_resource["file_instances"]:
+            storage_id = file_instance["storage"]["id"]
 
-        for dataset_id in resultsdataset_id:
-            results_dataset = tantalus_api.get('results', id=dataset_id)
-            file_resource_ids += results_dataset['file_resources']
+            storage_name = tantalus_api.get("storage", id=int(storage_id))["name"]
+            storage_names.append(storage_name)
 
-        for file_resource_id in file_resource_ids:
-            # Get the file resource corresponding to the ID
-            file_resource = tantalus_api.get("file_resource", id=file_resource_id)
-
-            storage_names = []
-
-            for file_instance in file_resource["file_instances"]:
-                storage_id = file_instance["storage"]["id"]
-
-                storage_name = tantalus_api.get("storage", id=int(storage_id))["name"]
-                storage_names.append(storage_name)
-
-            if to_storage_name in storage_names:
-                logging.info(
-                    "skipping file resource {} that already exists on storage {}".format(
-                        file_resource["filename"], to_storage_name
-                    )
-                )
-
-                # Skip this file resource
-                continue
-
-            from_file_instance = None
-
-            for file_instance in file_resource["file_instances"]:
-                # TODO(mwiens91): We're querying Tantalus for storage
-                # names above and here. Two requests for identical
-                # information. We only really need to do it once. Fix
-                # this by saving the storage name in the file_instance
-                # dictionary after the first set of API requests.
-                storage_id = file_instance["storage"]["id"]
-                storage_name = tantalus_api.get("storage", id=int(storage_id))["name"]
-
-                if storage_name == from_storage_name:
-                    from_file_instance = file_instance
-
-            if from_file_instance is None:
-                raise FileDoesNotExist(
-                    "file instance for file resource {} does not exist on source storage {}".format(
-                        file_resource["filename"], from_storage_name
-                    )
-                )
-
-            # Get a "nicer" version of the file instance with more
-            # nested model relationships
-            from_file_instance = tantalus_api.get(
-                "file_instance", id=from_file_instance["id"]
-            )
-
+        if to_storage["name"] in storage_names:
             logging.info(
-                "starting transfer {} to {}".format(
+                "skipping file resource {} that already exists on storage {}".format(
                     file_resource["filename"], to_storage["name"]
                 )
             )
 
-            RETRIES = 3
+            # Skip this file resource
+            continue
 
-            for retry in range(RETRIES):
-                try:
-                    f_transfer(from_file_instance, to_storage, tantalus_api)
-                    break
-                except Exception as e:
-                    logging.error("Transfer failed. Retrying.")
+        from_file_instance = None
 
-                    if retry < RETRIES - 1:
-                        traceback.print_exc()
-                    else:
-                        logging.error("Failed all retry attempts")
-                        raise e
+        for file_instance in file_resource["file_instances"]:
+            # TODO(mwiens91): We're querying Tantalus for storage
+            # names above and here. Two requests for identical
+            # information. We only really need to do it once. Fix
+            # this by saving the storage name in the file_instance
+            # dictionary after the first set of API requests.
+            storage_id = file_instance["storage"]["id"]
+            storage_name = tantalus_api.get("storage", id=int(storage_id))["name"]
 
-            tantalus_api.get_or_create(
-                "file_instance",
-                file_resource=file_resource["id"],
-                storage=to_storage["id"],
+            if storage_name == from_storage["name"]:
+                from_file_instance = file_instance
+
+        if from_file_instance is None:
+            raise FileDoesNotExist(
+                "file instance for file resource {} does not exist on source storage {}".format(
+                    file_resource["filename"], from_storage["name"]
+                )
             )
+
+        # Get a "nicer" version of the file instance with more
+        # nested model relationships
+        from_file_instance = tantalus_api.get(
+            "file_instance", id=from_file_instance["id"]
+        )
+
+        logging.info(
+            "starting transfer {} to {}".format(
+                file_resource["filename"], to_storage["name"]
+            )
+        )
+
+        RETRIES = 3
+
+        for retry in range(RETRIES):
+            try:
+                f_transfer(from_file_instance, to_storage, tantalus_api)
+                break
+            except Exception as e:
+                logging.error("Transfer failed. Retrying.")
+
+                if retry < RETRIES - 1:
+                    traceback.print_exc()
+                else:
+                    logging.error("Failed all retry attempts")
+                    raise e
+
+        tantalus_api.add_instance(file_resource, to_storage)
 
 
 if __name__ == "__main__":
     # Parse the incoming arguments
     args = parse_runtime_args()
 
+    # Connect to the Tantalus API (this requires appropriate environment
+    # variables defined)
+    tantalus_api = TantalusApi()
+
+    to_storage = tantalus_api.get("storage", name=args["to_storage"])
+    from_storage = tantalus_api.get("storage", name=args["from_storage"])
+
     # Transfer some files
-    transfer_files(
+    transfer_tagged_datasets(
+        tantalus_api,
         tag_name=args["tag_name"],
-        from_storage_name=args["from_storage"],
-        to_storage_name=args["to_storage"],
+        from_storage_name=from_storage,
+        to_storage_name=to_storage,
     )

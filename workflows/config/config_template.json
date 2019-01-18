@@ -2,12 +2,12 @@
     "_comment": "Use this config as an example. Create your own and save it as normal_config.json", 
     "email": "jpham@bccrc.ca", 
     "storages": {
-        "working_results": "jphamvm", 
         "local_results": "jphamvm", 
         "working_inputs": "singlecellblob", 
+        "working_results": "singlecellblob_results",
         "remote_results": "singlecellblob_results", 
         "remote_inputs": "singlecellblob"
-    }, 
+    },
     "docker_env_file": "/home/jpham/set-docker-credentials.sh", 
     "user": "jpham",
     "docker_sock_path": "/var/run/docker.sock",

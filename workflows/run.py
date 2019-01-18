@@ -58,6 +58,7 @@ def start_automation(
 
     results_ids = set()
 
+
     if analysis_type == 'align':
         tantalus_analysis = AlignAnalysis(args, storages=storages, update=args['update'])
     elif analysis_type == 'hmmcopy':
@@ -189,6 +190,13 @@ def main(args):
     pipeline_dir = os.path.join(
         tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], 
         job_subdir)
+
+    results_dir = os.path.join('singlecelldata', 'results', job_subdir, 'results')
+
+    scpipeline_dir = os.path.join('singlecelldata', 'pipeline', job_subdir)
+
+    tmp_dir = os.path.join('singlecelldata', 'temp', job_subdir)
+
     
     results_dir = os.path.join('singlecelldata', 'results', job_subdir, 'results')
 
@@ -219,8 +227,9 @@ def main(args):
     analysis_type = args['analysis_type']
 
     log.info('Library ID: {}'.format(analysis_info.chip_id))
-
+    
     start_automation(args, config, pipeline_dir, results_dir, scpipeline_dir, tmp_dir, analysis_info, analysis_type, config['storages'], job_subdir)
+
 
 
 if __name__ == '__main__':

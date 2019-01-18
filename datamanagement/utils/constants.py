@@ -5,5 +5,10 @@
 LOGGING_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 
 REF_GENOME_MAP = {
-    "hg19/1000genomes": "HG19",
-}
+    'HG18': [r'hg[-_ ]?18',                
+             r'ncbi[-_ ]?build[-_ ]?36.1',  
+            ],
+    'HG19': [r'hg[-_ ]?19',                
+             r'grc[-_ ]?h[-_ ]?37',        
+             r'ncbi[-_ ]?build[-_ ]?37'
+            ],}

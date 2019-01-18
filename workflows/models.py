@@ -146,7 +146,7 @@ class Analysis(object):
 
         self.analysis_type = analysis_type
 
-        self.analysis = self.get_or_create_analysis(args, update=update)
+        self.analysis = self.get_or_create_analysis(args, analysis_type, update=update)
 
         self.storages = storages
 
@@ -170,7 +170,7 @@ class Analysis(object):
     def version(self):
         return self.analysis['version']
 
-    def get_or_create_analysis(self, args, update=False):
+    def get_or_create_analysis(self, args, analysis_type, update=False):
         """
         Get the analysis by querying Tantalus. Create the analysis
         if it doesn't exist. Set the input dataset ids.
@@ -227,6 +227,7 @@ class Analysis(object):
                 'input_datasets':   input_datasets,
                 'input_results':    input_results,
                 'version':          version,
+                'analysis_type':    self.analysis_type,
             }
 
             # TODO: created timestamp for analysis
@@ -466,6 +467,13 @@ class AlignAnalysis(Analysis):
         Args:
             storage_name: Which tantalus storage to look at
         """
+        log.info('Generating cell metadata')
+        reference_genome_choices = {
+            'grch37': 'HG19',
+            'mm10': 'MM10',
+        }
+
+        inverted_ref_genome_map = dict([[v,k] for k,v in reference_genome_choices.items()])
         library_id = args["library_id"]
         if args["integrationtest"]:
             library_id = library_id.strip("TEST")
@@ -523,7 +531,7 @@ class AlignAnalysis(Analysis):
 
             bam_filename = templates.SC_WGS_BAM_TEMPLATE.format(
                 library_id=args['library_id'],
-                ref_genome=args['ref_genome'],
+                ref_genome=inverted_ref_genome_map[args['ref_genome']],
                 aligner_name=args['aligner'],
                 number_lanes=len(lanes),
                 cell_id=row['cell_id'],
@@ -623,7 +631,7 @@ class AlignAnalysis(Analysis):
                     compression='UNCOMPRESSED',
                     filepath=filepath,
                 )
-
+                
                 output_file_info.append(file_info)
 
         log.info('creating sequence dataset models for output bams')
@@ -724,7 +732,7 @@ class HmmcopyAnalysis(Analysis):
                 dataset_ids.add(dataset['id'])
 
         return list(dataset_ids)
-
+      
     def get_results_filenames(self):
         results_prefix = os.path.join(
             self.args["job_subdir"],

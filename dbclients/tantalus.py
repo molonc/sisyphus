@@ -116,6 +116,11 @@ class BlobStorageClient(object):
             self.storage_container, 
             blob_name=blobname,
             stream=stream)
+        
+    def create(self, blobname, filepath):
+        self.blob_service.create_blob_from_path(self.storage_container, 
+            blobname,
+            filepath)
 
 
 class ServerStorageClient(object):
@@ -324,6 +329,51 @@ class TantalusApi(BasicAPIClient):
         compression = self.get_file_compression(filename)
         file_type = filename.split(".")[1].upper()
 
+        if file_type == 'FASTQ':
+            file_type = 'FQ'
+
+        try:
+            file_resource = self.get(
+                'file_resource',
+                filename=filename,
+            )
+        except NotFoundError:
+            file_resource = None
+
+        # For an existing file resource with no instances or
+        # a single deleted instance in this storage, update the file resource
+        # and create a new file instance that is not deleted
+        if file_resource is not None:
+            overwrite = False
+            if len(file_resource['file_instances']) == 0:
+                log.info('file resource has no instances, overwriting')
+                overwrite = True
+
+            one_deleted_instance = (
+                len(file_resource['file_instances']) == 1 and
+                file_resource['file_instances'][0]['storage']['name'] == storage_name and
+                file_resource['file_instances'][0]['is_deleted']
+            )
+
+            if one_deleted_instance:
+                log.info('file resource has one deleted instance on {}, overwriting'.format(storage_name))
+                overwrite = True
+
+            if overwrite:
+                file_resource = self.update(
+                    'file_resource',
+                    id=file_resource['id'],
+                    filename=filename,
+                    file_type=file_type,
+                    created=storage_client.get_created_time(filename),
+                    size=storage_client.get_size(filename),
+                    compression=compression,
+                )
+
+                file_instance = self.add_instance(file_resource, storage)
+
+                return file_resource, file_instance
+
         try:
             file_resource = self.get_or_create(
                 'file_resource',
@@ -379,6 +429,33 @@ class TantalusApi(BasicAPIClient):
 
         return file_resource, file_instance
 
+    def add_instance(self, file_resource, storage):
+        """
+        Add a file instance accounting for the possibility that we are replacing a deleted instance.
+
+        Args:
+            file_resource (dict)
+            storage (dict)
+
+        Returns:
+            file_instance (dict)
+        """
+
+        file_instance = self.get_or_create(
+            'file_instance',
+            file_resource=file_resource['id'],
+            storage=storage['id'],
+        )
+
+        if file_instance['is_deleted']:
+            file_instance = self.update(
+                'file_instance',
+                id=file_instance['id'],
+                is_deleted=False,
+            )
+
+        return file_instance
+
     def get_file_instance(self, file_resource, storage_name):
         """
         Given a file resource and a storage name, return the matching file instance.
@@ -422,6 +499,25 @@ class TantalusApi(BasicAPIClient):
 
         return file_instances
 
+    def is_sequence_dataset_on_storage(self, dataset, storage_name):
+        """
+        Given a dataset test if all files are on a specific storage.
+
+        Args:
+            dataset (dict)
+            storage_name (str)
+
+        Returns:
+            bool
+        """
+        for file_resource in self.list('file_resource', sequencedataset__id=dataset['id']):
+            try:
+                self.get_file_instance(file_resource, storage_name)
+            except NotFoundError:
+                return False
+
+        return True
+
     def tag(self, name, sequencedataset_set=(), resultsdataset_set=()):
         """
         Tag datasets.
@@ -436,7 +532,7 @@ class TantalusApi(BasicAPIClient):
         """
         endpoint_url = self.join_urls(self.base_api_url, 'tag')
 
-	fields = {
+        fields = {
             'name': name,
             'sequencedataset_set': sequencedataset_set,
             'resultsdataset_set': resultsdataset_set,
@@ -452,45 +548,4 @@ class TantalusApi(BasicAPIClient):
                 r.reason, r.text))
 
         return r.json()
-
-    @staticmethod
-    def join_urls(*pieces):
-        """Join pieces of an URL together safely."""
-        return "/".join(s.strip("/") for s in pieces) + "/"
-
-    def sequence_dataset_add(self, model_dictionaries, tag_name=None):
-        """POST to the sequence_dataset_add endpoint.
-
-        Args:
-            model_dictionaries: A list of dictionaries containing
-                information about a model to create.
-            tag_name: An optional string (or None) containing the name
-                of the tag to associate with the model instances
-                represented in the model_dictionaries.
-
-        Raises:
-            RuntimeError: The request returned with a non-2xx status
-                code.
-        """
-        endpoint_url = self.join_urls(self.base_api_url, "/sequence_dataset_add/")
-
-        payload = json.dumps(
-            {"model_dictionaries": model_dictionaries, "tag": tag_name},
-            cls=DjangoJSONEncoder,
-        )
-
-        r = self.session.post(endpoint_url, data=payload)
-
-        try:
-            # Ensure that the request was successful
-            assert 200 <= r.status_code < 300
-        except AssertionError:
-            msg = (
-                "Request to {url} failed with status {status_code}:\n"
-                "The reponse from the request was as follows:\n\n"
-                "{content}"
-            ).format(url=endpoint_url, status_code=r.status_code, content=r.text)
-
-            raise RuntimeError(msg)
-
 

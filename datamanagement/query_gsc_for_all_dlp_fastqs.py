@@ -16,7 +16,7 @@ from dbclients.tantalus import TantalusApi
 
 if __name__ == "__main__":
     # Set up the root logger
-    logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
     # Parse the incoming arguments
     args = parse_runtime_args()

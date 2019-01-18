@@ -26,7 +26,7 @@ from templates import  (WGS_BAM_NAME_TEMPLATE,
                         )
 
 # Set up the root logger
-logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
 gsc_api = GSCAPI()
 
@@ -143,15 +143,13 @@ def add_gsc_wgs_bam_dataset(
         storage["storage_directory"], tantalus_bai_filename
     )
 
-
-
     #If this is a spec file, create a bam file in the tantlus_bam_path destination
     if is_spec:
         transferred = create_bam( 
                             bam_path, 
                             lane_infos[0]['reference_genome'], 
-                            tantalus_bam_path)                         
-
+                            tantalus_bam_path,
+                            storage)                         
     #Otherwise, copy the bam and the bam index to the specified tantalus path
     else:
         if not os.path.isfile(tantalus_bam_path):
@@ -186,8 +184,6 @@ def add_gsc_wgs_bam_dataset(
             
         else:
             logging.info("The bam index already exists at {}. Skipping import".format(tantalus_bai_path))
-            
-    
 
     return tantalus_bam_path, transferred
     
@@ -203,7 +199,6 @@ def add_gsc_bam_lanes(sample, library, lane_infos):
             sequencing_instrument=lane_info["sequencing_instrument"],
             read_type=lane_info["read_type"],
             dna_library=library,
-            model="SequenceLane",
         )
 
         detail_list.append(lane)
@@ -213,7 +208,10 @@ def add_gsc_bam_lanes(sample, library, lane_infos):
 
 def query_gsc(identifier, id_type):
     logging.info("Querying GSC for {} {}".format(id_type, identifier))
-    
+
+    if ' ' in identifier:
+        raise ValueError('space in id "{}"'.format(identifier))
+
     if id_type == 'library':
         infos = gsc_api.query("library?name={}".format(identifier))
     elif id_type == 'sample':
@@ -249,6 +247,10 @@ def get_gsc_details(
             continue
 
         sample_id = library_info["external_identifier"]
+
+        if ' ' in identifier:
+            raise ValueError('space in sample_id "{}"'.format(sample_id))
+
         sample = dict(sample_id=sample_id)
 
         library_type = protocol_id_map[library_info["protocol_id"]]
@@ -281,27 +283,35 @@ def get_gsc_details(
                 logging.info("skipping old merge")
                 continue
 
+            reference_genome = merge_info["lims_genome_reference"]["path"]
+            aligner = merge_info["aligner_software"]["name"]
+
             lane_infos = []
 
             for merge_xref in merge_info["merge_xrefs"]:
-                libcore_id = merge_xref["object_id"]
+                if merge_xref["object_type"] == "metadata.aligned_libcore":
+                    aligned_libcore = gsc_api.query("aligned_libcore/{}/info".format(merge_xref["object_id"]))
+                    libcore = aligned_libcore["libcore"]
+                    run = libcore["run"]
+                    primer = libcore["primer"]
 
-                libcore = gsc_api.query(
-                    "aligned_libcore/{}/info".format(libcore_id)
-                )
-                flowcell_id = libcore["libcore"]["run"]["flowcell_id"]
-                lane_number = libcore["libcore"]["run"]["lane_number"]
-                sequencing_instrument = get_sequencing_instrument(
-                    libcore["libcore"]["run"]["machine"]
-                )
-                solexa_run_type = libcore["libcore"]["run"]["solexarun_type"]
-                reference_genome = libcore["lims_genome_reference"]["path"]
-                aligner = libcore["analysis_software"]["name"]
-                flowcell_info = gsc_api.query("flowcell/{}".format(flowcell_id))
+                elif merge_xref["object_type"] == "metadata.run":
+                    run = gsc_api.query("run/{}".format(merge_xref["object_id"]))
+                    libcores = gsc_api.query("libcore?run_id={}".format(merge_xref["object_id"]))
+                    assert len(libcores) == 1
+                    libcore = libcores[0]
+                    primer = gsc_api.query("primer/{}".format(libcore["primer_id"]))
+
+                else:
+                    raise Exception('unknown object type {}'.format(merge_xref["object_type"]))
+
+                flowcell_info = gsc_api.query("flowcell/{}".format(run["flowcell_id"]))
                 flowcell_id = flowcell_info["lims_flowcell_code"]
-                adapter_index_sequence = libcore["libcore"]["primer"][
-                    "adapter_index_sequence"
-                ]
+                lane_number = run["lane_number"]
+                sequencing_instrument = get_sequencing_instrument(run["machine"])
+                solexa_run_type = run["solexarun_type"]
+                created_date = convert_time(run["run_datetime"])
+                adapter_index_sequence = primer["adapter_index_sequence"]
 
                 merged_lanes.add((flowcell_id, lane_number, adapter_index_sequence))
 
@@ -357,6 +367,19 @@ def get_gsc_details(
                     )
                 else:
                     raise Exception("missing merged bam file {}".format(bam_path))
+
+            list_temp = dict(
+                library_id=library_name,
+                storage_name=storage['name'],
+                library_type=library_type,
+                bam_filepath=bam_filepath,
+                read_type=solexa_run_type_map[solexa_run_type],
+                sequencing_centre='GSC',
+                lane_info=lane_infos, 
+                transferred=transferred,
+                )
+
+            details_list.append(list_temp)
 
         libcores = gsc_api.query(
             "aligned_libcore/info?library={}".format(library_name)
@@ -454,18 +477,18 @@ def get_gsc_details(
                 else:
                     raise Exception("missing lane bam file {}".format(bam_path))
     
-        list_temp = dict(
-            library_id=library_name,
-            storage_name=storage['name'],
-            library_type=library_type,
-            bam_filepath=bam_filepath,
-            read_type=solexa_run_type_map[solexa_run_type],
-            sequencing_centre='GSC',
-            lane_info=lane_infos, 
-            transferred=transferred
-            )
+            list_temp = dict(
+                library_id=library_name,
+                storage_name=storage['name'],
+                library_type=library_type,
+                bam_filepath=bam_filepath,
+                read_type=solexa_run_type_map[solexa_run_type],
+                sequencing_centre='GSC',
+                lane_info=lane_infos, 
+                transferred=transferred
+                )
 
-        details_list.append(list_temp)
+            details_list.append(list_temp)
     
     return details_list
 
@@ -561,11 +584,10 @@ def main(
                             flowcell_id=lane["flowcell_id"],
                             dna_library=library_pk,
                             read_type=lane["read_type"],
-                            lane_number=lane["lane_number"],
+                            lane_number=str(lane["lane_number"]),
                             sequencing_centre=instance["sequencing_centre"],
                             sequencing_instrument=lane["sequencing_instrument"])
                         logging.info("Successfully created lane {} in tantalus".format(lane["id"]))
-   
 
 
 if __name__ == "__main__":

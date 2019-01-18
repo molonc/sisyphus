@@ -21,7 +21,7 @@ import datamanagement.templates as templates
 
 
 # Set up the root logger
-logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
 # Hard coded BRC details
 BRC_INSTRUMENT = "NextSeq550"
@@ -50,14 +50,15 @@ def load_brc_fastqs(
     flowcell_id,
     output_dir,
     storage_name,
-    storage_directory,
+    storage,
     tantalus_api,
+    storage_client,
     tag_name=None,
 ):
     if not os.path.isdir(output_dir):
         raise Exception("output directory {} not a directory".format(output_dir))
 
-    fastq_file_info = get_fastq_info(output_dir, flowcell_id, storage_directory)
+    fastq_file_info = get_fastq_info(output_dir, flowcell_id, storage, storage_client)
 
     fastq_paired_end_check(fastq_file_info)
 
@@ -65,6 +66,7 @@ def load_brc_fastqs(
         fastq_file_info, storage_name, tag_name, tantalus_api
     )
 
+    logging.info('import succeeded')
 
 def _update_info(info, key, value):
     if key in info:
@@ -74,7 +76,7 @@ def _update_info(info, key, value):
         info[key] = value
 
 
-def get_fastq_info(output_dir, flowcell_id, storage_directory):
+def get_fastq_info(output_dir, flowcell_id, storage, storage_client):
     """ Retrieve fastq filenames and metadata from output directory.
     """
     filenames = os.listdir(output_dir)
@@ -137,9 +139,14 @@ def get_fastq_info(output_dir, flowcell_id, storage_directory):
             extension=extension,
         )
 
-        tantalus_path = os.path.join(storage_directory, tantalus_filename)
+        tantalus_path = os.path.join(storage["prefix"], tantalus_filename)
 
-        rsync_file(fastq_path, tantalus_path)
+        if storage['storage_type'] == 'server': 
+            rsync_file(fastq_path, tantalus_path)
+
+        elif storage['storage_type'] == 'blob':
+            storage_client.create(tantalus_filename, fastq_path)
+
 
         fastq_file_info.append(
             dict(
@@ -202,7 +209,8 @@ if __name__ == "__main__":
     # variables defined)
     tantalus_api = TantalusApi()
 
-    storage = tantalus_api.get("storage_server", name=args["storage_name"])
+    storage = tantalus_api.get("storage", name=args["storage_name"])
+    storage_client = tantalus_api.get_storage_client(storage['name'])
 
     # Get the tag name if it was passed in
     try:
@@ -218,7 +226,7 @@ if __name__ == "__main__":
         dataset_type="FQ"))
 
     if len(datasets) > 0:
-        raise Exception("found dataset {}".format(','.join([str(d["id"]) for d in datasets])))
+        logging.warning("found dataset {}".format(','.join([str(d["id"]) for d in datasets])))
 
     # Run bcl to fastq
     run_bcl2fastq(
@@ -232,8 +240,9 @@ if __name__ == "__main__":
         args["flowcell_id"],
         args["temp_dir"],
         storage["name"],
-        storage["storage_directory"],
+        storage,
         tantalus_api,
+        storage_client,
         tag_name=tag_name
     )
 

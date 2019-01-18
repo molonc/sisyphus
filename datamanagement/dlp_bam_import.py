@@ -17,7 +17,7 @@ from utils.runtime_args import parse_runtime_args
 from utils.tantalus import TantalusApi
 
 # Set up the root logger
-logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
 
 def get_bam_ref_genome(bam_header):

@@ -8,11 +8,14 @@ import re
 import socket
 import subprocess
 import sys
+from dbclients.tantalus import TantalusApi
+from dbclients import basicclient
 from utils.runtime_args import parse_runtime_args
 from utils.constants import LOGGING_FORMAT
 
+
 # Set up the root logger
-logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
 # Useful Shahlab-specific variables
 SHAHLAB_TANTALUS_SERVER_NAME = 'shahlab'
@@ -156,11 +159,25 @@ def get_filepaths(spec_path, to_storage_prefix):
     
 def create_bam( spec_path, 
                 reference_genome, 
-                output_bam_path):
+                output_bam_path,
+                to_storage):
+    tantalus_api = TantalusApi()         
+    output_bam_filename = output_bam_path[len(to_storage["prefix"]) + 1:] 
 
+    try:
+        file_resource = tantalus_api.get(
+                "file_resource",
+                filename=output_bam_filename
+        )
+        file_size = file_resource["size"]
+    except basicclient.NotFoundError as e:
+        file_size = None
+
+    #Check if the file exists on the to_storage, and if it exists in Tantalus with the same size
     if os.path.isfile(output_bam_path):
-        logging.warning("An uncompressed BAM file already exists at {}. Skipping decompression of spec file".format(output_bam_path))
-        return False
+        if os.path.getsize(output_bam_path) == file_size:
+            logging.warning("An uncompressed BAM file already exists at {}. Skipping decompression of spec file".format(output_bam_path))
+            return False
 
     try:
         spec_to_bam(
@@ -188,6 +205,7 @@ def main():
         json = {
             "spec_path": spec_path,
             "reference_genome": reference_genome,
+            "output_bam_path": output_bam_path,
             "to_storage": to_storage
         }
 
@@ -199,7 +217,8 @@ def main():
     created = create_bam(
                 args['spec_path'],
                 args['reference_genome'], 
-                output_bam_path)
+                output_bam_path,
+                to_storage)
 
 
 if __name__ == '__main__':

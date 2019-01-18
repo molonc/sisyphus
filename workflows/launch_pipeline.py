@@ -39,6 +39,7 @@ def get_config_override(analysis_info):
         'aligner':              'bwa-mem',
         'reference':            'grch37',
         'smoothing_function':   'modal',
+        'containers':           {"mounts": ["/refdata", "/datadrive", "/mnt", "/home"]}
     }
 
     cluster = 'azure'
@@ -71,7 +72,7 @@ def run_pipeline(
 
     args = tantalus_analysis.args
     config_override_string = get_config_string(analysis_info)
-
+    
     run_cmd = [
         'single_cell',          tantalus_analysis.analysis_type,
         '--input_yaml',         inputs_yaml,
