@@ -12,7 +12,7 @@ from dbclients.basicclient import NotFoundError
 
 
 if __name__ == '__main__':
-    logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
     gsc_api = GSCAPI()
 

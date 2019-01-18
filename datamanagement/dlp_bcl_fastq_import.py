@@ -21,7 +21,7 @@ import datamanagement.templates as templates
 
 
 # Set up the root logger
-logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
 # Hard coded BRC details
 BRC_INSTRUMENT = "NextSeq550"

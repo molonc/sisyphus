@@ -26,7 +26,7 @@ from templates import  (WGS_BAM_NAME_TEMPLATE,
                         )
 
 # Set up the root logger
-logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
 gsc_api = GSCAPI()
 
@@ -208,7 +208,10 @@ def add_gsc_bam_lanes(sample, library, lane_infos):
 
 def query_gsc(identifier, id_type):
     logging.info("Querying GSC for {} {}".format(id_type, identifier))
-    
+
+    if ' ' in identifier:
+        raise ValueError('space in id "{}"'.format(identifier))
+
     if id_type == 'library':
         infos = gsc_api.query("library?name={}".format(identifier))
     elif id_type == 'sample':
@@ -244,6 +247,10 @@ def get_gsc_details(
             continue
 
         sample_id = library_info["external_identifier"]
+
+        if ' ' in identifier:
+            raise ValueError('space in sample_id "{}"'.format(sample_id))
+
         sample = dict(sample_id=sample_id)
 
         library_type = protocol_id_map[library_info["protocol_id"]]
