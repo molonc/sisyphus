@@ -169,7 +169,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     if len(library_infos) == 0:
         logging.error('no libraries with external_identifier {} in gsc api'.format(external_identifier))
-        return []
+        return None
     elif len(library_infos) > 1:
         raise Exception(
             "multiple libraries with external_identifier {} in gsc api".format(
@@ -319,7 +319,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                     storage_client.create(tantalus_filename, fastq_path)
 
     if len(fastq_file_info) == 0:
-        return []
+        return None
 
     fastq_paired_end_check(fastq_file_info)
 
@@ -352,7 +352,12 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     logging.info('import succeeded')
 
-    return flowcells_to_be_created
+    import_info = dict(
+        flowcells_to_be_created=flowcells_to_be_created,
+        gsc_library_id=gsc_library_id,
+    )
+
+    return import_info
 
 
 if __name__ == "__main__":
