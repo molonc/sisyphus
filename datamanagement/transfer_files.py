@@ -500,6 +500,6 @@ if __name__ == "__main__":
     transfer_tagged_datasets(
         tantalus_api,
         tag_name=args["tag_name"],
-        from_storage_name=from_storage,
-        to_storage_name=to_storage,
+        from_storage=from_storage,
+        to_storage=to_storage,
     )
