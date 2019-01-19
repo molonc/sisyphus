@@ -206,8 +206,15 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
         for fastq_info in gsc_lane_fastq_file_infos[(flowcell_id, lane_number)]:
             fastq_path = fastq_info["data_path"]
-            
-            try_gzip(fastq_path)
+
+            try:
+                try_gzip(fastq_path)
+            except Exception as e:
+                if check_library:
+                    logging.warning('failed to gunzip')
+                    continue
+                else:
+                    raise
 
             if fastq_info["status"] != "production":
                 logging.info(
@@ -338,6 +345,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             info['sequence_lanes'][0]['flowcell_id'],
             info['sequence_lanes'][0]['lane_number'])
         fastq_lane_index_sequences[flowcell_lane].add(info['index_sequence'])
+    logging.info('all fastq files refer to indices known in colossus')
 
     # Check that all index sequences in colossus have fastq files
     for flowcell_lane in fastq_lane_index_sequences:
@@ -345,6 +353,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             if index_sequence not in fastq_lane_index_sequences[flowcell_lane]:
                 raise Exception('no fastq found for index sequence {}, flowcell {}, lane {}'.format(
                     index_sequence, flowcell_lane[0], flowcell_lane[1]))
+    logging.info('all indices in colossus have fastq files')
 
     if not check_library:
         create_sequence_dataset_models(
