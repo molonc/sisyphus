@@ -9,6 +9,7 @@ import string
 import sys
 import time
 import collections
+import click
 import pandas as pd
 from collections import defaultdict
 from datamanagement.utils.constants import LOGGING_FORMAT
@@ -360,33 +361,34 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     return import_info
 
 
-if __name__ == "__main__":
+@click.command()
+@click.argument('storage_name', nargs=1)
+@click.argument('dlp_library_id', nargs=1)
+@click.option('--tag_name')
+@click.option('--update', is_flag=True)
+@click.option('--check_library', is_flag=True)
+def main(storage_name, dlp_library_id, tag_name=None, update=False, check_library=False):
+
     # Set up the root logger
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
-
-    # Parse the incoming arguments
-    args = parse_runtime_args()
 
     # Connect to the Tantalus API (this requires appropriate environment
     colossus_api = ColossusApi()
     tantalus_api = TantalusApi()
 
-    storage = tantalus_api.get("storage_server", name=args["storage_name"])
-
-    # Get the tag name if it was passed in
-    try:
-        tag_name = args["tag_name"]
-    except KeyError:
-        tag_name = None
+    storage = tantalus_api.get("storage_server", name=storage_name)
 
     # Query GSC for FastQs
     import_gsc_dlp_paired_fastqs(
         colossus_api,
         tantalus_api,
-        args["dlp_library_id"],
+        dlp_library_id,
         storage,
         tag_name,
-        update=args.get("update", False),
-        check_library=args.get("check_library", False),
+        update=update,
+        check_library=check_library,
     )
 
+
+if __name__ == "__main__":
+    main()
