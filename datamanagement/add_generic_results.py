@@ -66,12 +66,6 @@ def add_generic_results(
         )
         file_resource_pks.append(resource["id"])
 
-    if tag_name is not None:
-        tag = tantalus_api.get("tag", name=tag_name)
-        tags = [tag["id"]]
-    else:
-        tags = []
-
     results_dataset_fields = dict(
         name=results_name,
         results_type=results_type,
@@ -79,7 +73,6 @@ def add_generic_results(
         analysis=analysis_pk,
         samples=sample_pks,
         file_resources=file_resource_pks,
-        tags=tags,
     )
 
     #Add the dataset to tantalus
@@ -95,6 +88,9 @@ def add_generic_results(
     else:
         logging.info("creating results dataset {}".format(results_dataset_fields["name"]))
         results_dataset = tantalus_api.get_or_create("results", **results_dataset_fields)
+
+    if tag_name is not None:
+        tantalus_api.tag(tag_name, resultsdataset_set=[results_id])
 
     logging.info("Succesfully created sequence dataset with ID {}".format(results_dataset["id"]))
 
