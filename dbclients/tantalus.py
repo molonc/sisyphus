@@ -523,7 +523,7 @@ class TantalusApi(BasicAPIClient):
         Tag datasets.
 
         Args:
-            tag_name (str)
+            name (str)
             sequencedataset_set (list)
             resultsdataset_set (list)
 
