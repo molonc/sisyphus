@@ -143,7 +143,7 @@ class AzureTransfer(object):
             cloud_blobname,
             local_filepath,
             progress_callback=TransferProgress().print_progress,
-            max_connections=1,
+            max_connections=16,
         )
 
         os.chmod(local_filepath, 0o444)
@@ -381,35 +381,38 @@ def get_file_transfer_function(tantalus_api, from_storage, to_storage):
         return rsync_file
 
 
-def transfer_tagged_datasets(tantalus_api, tag_name, from_storage, to_storage):
+def transfer_tagged_datasets(tantalus_api, tag_name, from_storage_name, to_storage_name):
     """ Transfer a set tagged datasets
     """
     tag = tantalus_api.get("tag", name=tag_name)
 
     for dataset_id in tag['sequencedataset_set']:
-        transfer_sequence_dataset(tantalus_api, dataset_id, from_storage, to_storage)
+        transfer_sequence_dataset(tantalus_api, dataset_id, from_storage_name, to_storage_name)
 
     for dataset_id in tag['resultsdataset_set']:
-        transfer_results_dataset(tantalus_api, dataset_id, from_storage, to_storage)
+        transfer_results_dataset(tantalus_api, dataset_id, from_storage_name, to_storage_name)
 
 
-def transfer_sequence_dataset(tantalus_api, dataset_id, from_storage, to_storage):
+def transfer_sequence_dataset(tantalus_api, dataset_id, from_storage_name, to_storage_name):
     """ Transfer a sequence dataset
     """
     dataset = tantalus_api.get("sequence_dataset", id=dataset_id)
-    transfer_dataset(tantalus_api, dataset, from_storage, to_storage)
+    transfer_dataset(tantalus_api, dataset, from_storage_name, to_storage_name)
 
 
-def transfer_results_dataset(tantalus_api, dataset_id, from_storage, to_storage):
+def transfer_results_dataset(tantalus_api, dataset_id, from_storage_name, to_storage_name):
     """ Transfer a results dataset
     """
     dataset = tantalus_api.get("results", id=dataset_id)
-    transfer_dataset(tantalus_api, dataset, from_storage, to_storage)
+    transfer_dataset(tantalus_api, dataset, from_storage_name, to_storage_name)
 
 
-def transfer_dataset(tantalus_api, dataset, from_storage, to_storage):
+def transfer_dataset(tantalus_api, dataset, from_storage_name, to_storage_name):
     """ Transfer a dataset
     """
+    to_storage = tantalus_api.get("storage", name=to_storage_name)
+    from_storage = tantalus_api.get("storage", name=from_storage_name)
+
     f_transfer = get_file_transfer_function(tantalus_api, from_storage, to_storage)
 
     for file_resource_id in dataset['file_resources']:
@@ -493,13 +496,10 @@ if __name__ == "__main__":
     # variables defined)
     tantalus_api = TantalusApi()
 
-    to_storage = tantalus_api.get("storage", name=args["to_storage"])
-    from_storage = tantalus_api.get("storage", name=args["from_storage"])
-
     # Transfer some files
     transfer_tagged_datasets(
         tantalus_api,
         tag_name=args["tag_name"],
-        from_storage=from_storage,
-        to_storage=to_storage,
+        from_storage_name=args["from_storage"],
+        to_storage_name=args["to_storage"],
     )
