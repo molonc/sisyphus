@@ -25,6 +25,7 @@ def init():
 
     for file_resource in file_resources:
         file_instances = {}
+        date_flag = False
         for file_instance in file_resource["file_instances"]:
             file_instances[file_instance['storage']['name']] = file_instance
 
@@ -44,13 +45,22 @@ def init():
                 tantalus_filecheck_result.write("\nShahlab: ")
                 tantalus_filecheck_result.write(shahlabclient.get_created_time(file_instances['shahlab']['filepath']))
 
-                if 'singlecellblob' in file_instances.keys() and singlecellblob.exists(
-                        file_instances['singlecellblob']['filepath']):
-                    tantalus_filecheck_result.write("\nSinglecellBlob: ")
-                    tantalus_filecheck_result.write(singlecellblob.get_created_time(file_instances['singlecellblob']['filepath']))
+                if 'singlecellblob' in file_instances.keys():
+                    file_instances['singlecellblob']['filepath'] =  file_instances['singlecellblob']['filepath'].replace("singlecelldata/data/","")
+                    if singlecellblob.exists(file_instances['singlecellblob']['filepath']):
+                        tantalus_filecheck_result.write("\nSinglecellBlob: ")
+                        tantalus_filecheck_result.write(singlecellblob.get_created_time(file_instances['singlecellblob']['filepath']))
+                        if singlecellblob.get_created_time(file_instances['singlecellblob']['filepath']) == file_resource["created"]:
+                            date_flag = True
 
+                if file_resource["created"] > shahlabclient.get_created_time(file_instances['shahlab']['filepath']) or date_flag:
+                    tantalus_filecheck_result.write("\nDeleted outdated filepath on Tantalus ")
+                    print "Removed outdated filepath from tantalus, and file from shahlab"
+                    # tantalus_api.delete("file_instance", file_instances['shahlab']["id"])
+                    # shahlabclient.delete(file_instances['shahlab']['filepath'])
                 tantalus_filecheck_result.write("\n")
                 fail_flag = True
+
 
             else:
                 print "Passed"
