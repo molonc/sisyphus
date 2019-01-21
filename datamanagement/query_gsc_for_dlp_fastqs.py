@@ -13,7 +13,7 @@ import click
 import pandas as pd
 from collections import defaultdict
 from datamanagement.utils.constants import LOGGING_FORMAT
-from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
+from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check, fastq_dlp_index_check
 import datamanagement.templates as templates
 from utils.filecopy import rsync_file, try_gzip
 from utils.gsc import get_sequencing_instrument, GSCAPI
@@ -331,29 +331,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     fastq_paired_end_check(fastq_file_info)
 
-    cell_index_sequences = set(cell_samples.keys())
-
-    fastq_lane_index_sequences = collections.defaultdict(set)
-
-    # Check that all fastq files refer to indices known in colossus
-    for info in fastq_file_info:
-        if info['index_sequence'] not in cell_index_sequences:
-            raise Exception('fastq {} with index {}, flowcell {}, lane {} with index not in colossus'.format(
-                info['filepath'], info['index_sequence'], info['sequence_lanes'][0]['flowcell_id'],
-                info['sequence_lanes'][0]['lane_number']))
-        flowcell_lane = (
-            info['sequence_lanes'][0]['flowcell_id'],
-            info['sequence_lanes'][0]['lane_number'])
-        fastq_lane_index_sequences[flowcell_lane].add(info['index_sequence'])
-    logging.info('all fastq files refer to indices known in colossus')
-
-    # Check that all index sequences in colossus have fastq files
-    for flowcell_lane in fastq_lane_index_sequences:
-        for index_sequence in cell_index_sequences:
-            if index_sequence not in fastq_lane_index_sequences[flowcell_lane]:
-                raise Exception('no fastq found for index sequence {}, flowcell {}, lane {}'.format(
-                    index_sequence, flowcell_lane[0], flowcell_lane[1]))
-    logging.info('all indices in colossus have fastq files')
+    fastq_dlp_index_check(fastq_file_info)
 
     if not check_library:
         create_sequence_dataset_models(

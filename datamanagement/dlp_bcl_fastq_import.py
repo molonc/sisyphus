@@ -13,7 +13,7 @@ import pandas as pd
 from dbclients.colossus import get_colossus_sublibraries_from_library_id
 from dbclients.tantalus import TantalusApi
 from utils.constants import LOGGING_FORMAT
-from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
+from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check, fastq_dlp_index_check
 from utils.runtime_args import parse_runtime_args
 from utils.filecopy import rsync_file
 from utils.utils import make_dirs
@@ -61,6 +61,8 @@ def load_brc_fastqs(
     fastq_file_info = get_fastq_info(output_dir, flowcell_id, storage, storage_client)
 
     fastq_paired_end_check(fastq_file_info)
+
+    fastq_dlp_index_check(fastq_file_info)
 
     create_sequence_dataset_models(
         fastq_file_info, storage_name, tag_name, tantalus_api
