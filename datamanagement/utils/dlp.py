@@ -5,6 +5,7 @@ import collections
 
 from datamanagement.utils.utils import get_lanes_hash, get_lane_str
 import datamanagement.templates as templates
+from dbclients.colossus import ColossusApi
 from dbclients.basicclient import NotFoundError
 import logging
 
@@ -43,8 +44,19 @@ def fastq_paired_end_check(file_info):
                     "missing fastq file with end {} for {}".format(read_end, fastq_id)
                 )
 
+def query_colossus_dlp_cell_info(colossus_api, library_id):
 
-def fastq_dlp_index_check(cell_index_sequences, file_info):
+    sublibraries = colossus_api.get_colossus_sublibraries_from_library_id(library_id)
+
+    cell_samples = {}
+    for sublib in sublibraries:
+        index_sequence = sublib["primer_i7"] + "-" + sublib["primer_i5"]
+        cell_samples[index_sequence] = sublib["sample_id"]["sample_id"]
+
+    return cell_samples
+
+
+def fastq_dlp_index_check(file_info):
     """ Check consistency between colossus indices and file indices. """
 
     colossus_api = ColossusApi()
