@@ -4,7 +4,7 @@ from dbclients.tantalus import TantalusApi
 
 
 def init():
-    print "STARTING"
+    print "STARTING, NOT DELETING"
 
     tantalus_api = TantalusApi()
     tantalus_filecheck_result = open("tantalus_filepath_check_result.txt", "w+")
@@ -56,14 +56,14 @@ def init():
                 print "Passed"
         else:
             print "file path does not exist or not valid"
-            tantalus_filecheck_result.write("DELETED: " + file_instances['shahlab']['filepath'] + " is not a valid filepath \n")
+            tantalus_filecheck_result.write("ERROR: " + file_instances['shahlab']['filepath'] + " is not a valid filepath \n")
             fail_flag = True
             try:
-               tantalus_api.delete("file_instance", file_instances['shahlab']["id"])
+                pass
+               #tantalus_api.delete("file_instance", file_instances['shahlab']["id"])
             except:
                 print "Deletion failed. Ignoring"
                 continue
-
 
 
     tantalus_filecheck_result.close()
