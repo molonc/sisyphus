@@ -4,13 +4,12 @@ import logging
 import json
 from dbclients.tantalus import TantalusApi
 from dbclients.basicclient import NotFoundError
-from datamanagement.utils.runtime_args import parse_runtime_args
 import pandas as pd
 from sets import Set
 
 
 tags_to_keep = [
-    'SC-1635',
+    'SC-1635'
     'SC-1293',
     'SC-1294',
     'shahlab_pdx_bams_to_keep',

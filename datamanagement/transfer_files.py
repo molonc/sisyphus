@@ -12,9 +12,9 @@ import time
 import traceback
 from azure.storage.blob import BlockBlobService, ContainerPermissions
 from datamanagement.utils.constants import LOGGING_FORMAT
-from datamanagement.utils.runtime_args import parse_runtime_args
 from dbclients.tantalus import TantalusApi
 from datamanagement.utils.utils import make_dirs
+import click
 
 
 # Set up the root logger
@@ -380,10 +380,18 @@ def get_file_transfer_function(tantalus_api, from_storage, to_storage):
     ):
         return rsync_file
 
-
-def transfer_tagged_datasets(tantalus_api, tag_name, from_storage_name, to_storage_name):
+@click.command()
+@click.argument("tag_name")
+@click.argument("from_storage_name")
+@click.argument("to_storage_name")
+def transfer_tagged_datasets(tag_name, from_storage_name, to_storage_name):
     """ Transfer a set tagged datasets
     """
+
+    # Connect to the Tantalus API (this requires appropriate environment
+    # variables defined)
+    tantalus_api = TantalusApi()
+
     tag = tantalus_api.get("tag", name=tag_name)
 
     for dataset_id in tag['sequencedataset_set']:
@@ -489,17 +497,6 @@ def transfer_dataset(tantalus_api, dataset, from_storage_name, to_storage_name):
 
 
 if __name__ == "__main__":
-    # Parse the incoming arguments
-    args = parse_runtime_args()
-
-    # Connect to the Tantalus API (this requires appropriate environment
-    # variables defined)
-    tantalus_api = TantalusApi()
 
     # Transfer some files
-    transfer_tagged_datasets(
-        tantalus_api,
-        tag_name=args["tag_name"],
-        from_storage_name=args["from_storage"],
-        to_storage_name=args["to_storage"],
-    )
+    transfer_tagged_datasets()
