@@ -16,7 +16,7 @@ import urllib2
 import logging
 import pandas as pd
 
-from django.core.serializers.json import DjangoJSONEncoder
+from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
 
 import azure.storage.blob
@@ -26,7 +26,7 @@ from azure.common.credentials import ServicePrincipalCredentials
 
 log = logging.getLogger('sisyphus')
 
-TANTALUS_API_URL = "http://tantalus.bcgsc.ca/api/"
+TANTALUS_API_URL = "http://127.0.0.1:8001/api/"
 
 
 def get_storage_account_key(
@@ -182,7 +182,7 @@ class TantalusApi(BasicAPIClient):
         """
 
         super(TantalusApi, self).__init__(
-            os.environ.get("TANTALUS_API_URL", TANTALUS_API_URL),
+            TANTALUS_API_URL,
             username=os.environ.get("TANTALUS_API_USERNAME"),
             password=os.environ.get("TANTALUS_API_PASSWORD"),
         )

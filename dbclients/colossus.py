@@ -5,7 +5,7 @@ import os
 from dbclients.basicclient import BasicAPIClient
 
 
-COLOSSUS_API_URL = os.environ.get("COLOSSUS_API_URL", "http://colossus.bcgsc.ca/api/")
+COLOSSUS_API_URL = "http://127.0.0.1:8000/api/"
 
 
 class ColossusApi(BasicAPIClient):
@@ -23,7 +23,7 @@ class ColossusApi(BasicAPIClient):
         """
 
         super(ColossusApi, self).__init__(
-            os.environ.get("COLOSSUS_API_URL", COLOSSUS_API_URL),
+            COLOSSUS_API_URL,
             username=os.environ.get("COLOSSUS_API_USERNAME"),
             password=os.environ.get("COLOSSUS_API_PASSWORD"),
         )
