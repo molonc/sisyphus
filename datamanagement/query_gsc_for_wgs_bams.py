@@ -248,7 +248,7 @@ def get_gsc_details(
 
         sample_id = library_info["external_identifier"]
 
-        if ' ' in identifier:
+        if ' ' in sample_id:
             raise ValueError('space in sample_id "{}"'.format(sample_id))
 
         sample = dict(sample_id=sample_id)
