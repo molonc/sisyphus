@@ -9,7 +9,7 @@ from sets import Set
 
 
 tags_to_keep = [
-    'SC-1635'
+    'SC-1635',
     'SC-1293',
     'SC-1294',
     'shahlab_pdx_bams_to_keep',
