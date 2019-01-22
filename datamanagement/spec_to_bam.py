@@ -10,7 +10,7 @@ import subprocess
 import sys
 from dbclients.tantalus import TantalusApi
 from dbclients import basicclient
-from utils.runtime_args import parse_runtime_args
+import click
 from utils.constants import LOGGING_FORMAT
 
 
@@ -198,25 +198,17 @@ def create_bam( spec_path,
 
     return created
 
-
-def main():
-    '''
-        INPUT JSON IS
-        json = {
-            "spec_path": spec_path,
-            "reference_genome": reference_genome,
-            "output_bam_path": output_bam_path,
-            "to_storage": to_storage
-        }
-
-    '''
-    args = parse_runtime_args()
+@click.command()
+@click.argument("spec_path")
+@click.argument("reference_genome")
+@click.argument("to_storage")
+def main(spec_path, reference_genome, to_storage):
 
     filename, output_bam_path = get_filepaths(spec_path, STORAGE_PREFIX_MAP[to_storage])
 
     created = create_bam(
-                args['spec_path'],
-                args['reference_genome'], 
+                spec_path,
+                reference_genome,
                 output_bam_path,
                 to_storage)
 

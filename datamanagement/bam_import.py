@@ -10,10 +10,10 @@ import azure.storage.blob
 import pandas as pd
 import pysam
 import datamanagement.utils.constants
-from datamanagement.utils.runtime_args import parse_runtime_args
 from datamanagement.utils.utils import get_lanes_hash, get_lane_str
 import datamanagement.templates as templates
 from dbclients.tantalus import TantalusApi
+import click
 
 
 def get_bam_ref_genome(bam_header):
@@ -89,19 +89,31 @@ def get_bam_header_info(header):
         "sequence_lanes": sequence_lanes,
     }
 
-
+@click.command()
+@click.argument("storage_name")
+@click.argument("library_type")
+@click.argument("bam_filename")
+@click.argument("read_type")
+@click.argument("sequencing_centre")
+@click.argument("index_format")
+@click.option("--update",is_flag=True)
+@click.option("--lane_info",default=None)
+@click.option("--tag_name",default=None)
 def import_bam(
-    tantalus_api,
     storage_name,
     library_type,
     bam_filename,
     read_type,
     sequencing_centre,
     index_format,
-    update=False,
-    lane_info=None,
-    tag_name=None,
+    update,
+    lane_info,
+    tag_name,
 ):
+
+    # Connect to the Tantalus API (this requires appropriate environment
+    # variables defined)
+    tantalus_api = TantalusApi()
 
     bam_resource, bam_instance = tantalus_api.add_file(storage_name, bam_filename, update=update)
     bai_resource, bai_instance = tantalus_api.add_file(storage_name, bam_filename + ".bai", update=update)
@@ -185,23 +197,8 @@ def import_bam(
 
 
 if __name__ == "__main__":
-    # Get arguments
-    args = parse_runtime_args()
-
-    # Connect to the Tantalus API (this requires appropriate environment
-    # variables defined)
-    tantalus_api = TantalusApi()
 
     # Import BAMs
-    dataset = import_bam(
-        tantalus_api,
-        args["storage_name"],
-        args["library_type"],
-        args["bam_filename"],
-        args["read_type"],
-        args["sequencing_centre"],
-        args["index_format"],
-        tag_name=args["tag_name"],
-    )
+    dataset = import_bam()
 
     print("dataset {}".format(dataset["id"]))

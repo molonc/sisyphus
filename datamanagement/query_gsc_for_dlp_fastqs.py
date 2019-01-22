@@ -207,15 +207,6 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         for fastq_info in gsc_lane_fastq_file_infos[(flowcell_id, lane_number)]:
             fastq_path = fastq_info["data_path"]
 
-            try:
-                try_gzip(fastq_path)
-            except Exception as e:
-                if check_library:
-                    logging.warning('failed to gunzip')
-                    continue
-                else:
-                    raise
-
             if fastq_info["status"] != "production":
                 logging.info(
                     "skipping file {} marked as {}".format(
@@ -228,6 +219,15 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                 logging.info('skipping file {} marked as removed {}'.format(
                     fastq_info['data_path'], fastq_info['removed_datetime']))
                 continue
+
+            try:
+                try_gzip(fastq_path)
+            except Exception as e:
+                if check_library:
+                    logging.warning('failed to gunzip')
+                    continue
+                else:
+                    raise
 
             sequencing_instrument = get_sequencing_instrument(
                 fastq_info["libcore"]["run"]["machine"]
