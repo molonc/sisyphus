@@ -35,7 +35,7 @@ def rsync_file(from_path, to_path, sftp=None):
 
     with process.stdout:
         for line in iter(process.stdout.readline, b""):
-            log.info(line)
+            log.info(line.rstrip())
 
     exitcode = process.wait()
 
