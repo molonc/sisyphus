@@ -6,7 +6,7 @@ from __future__ import division
 import coreapi
 import json
 from coreapi.codecs import JSONCodec
-from django.core.serializers.json import DjangoJSONEncoder
+from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from openapi_codec import OpenAPICodec
 import requests
 import pandas as pd

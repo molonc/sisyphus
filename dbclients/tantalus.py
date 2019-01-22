@@ -16,7 +16,7 @@ import urllib2
 import logging
 import pandas as pd
 
-from django.core.serializers.json import DjangoJSONEncoder
+from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
 
 import azure.storage.blob
