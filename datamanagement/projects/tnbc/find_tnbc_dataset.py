@@ -51,7 +51,27 @@ def find_tnbc_datasets(library_ids_filename):
                 reference_genome__name='HG19',
             ))
 
-        datasets = filter(lambda d: d['is_complete'], datasets)
+        # Special case A30655 which did not have all the lanes in the GSC merge
+        if library_id == 'A30655':
+            lanes = [
+                ('HGFCJCCXY', '6'),
+                ('D2GEWACXX', '1'),
+                ('D2EYCACXX', '6'),
+                ('D291GACXX', '2'),
+                ('C2PV5ACXX', '2'),
+                ('C2PV5ACXX', '1'),
+            ]
+            def is_correct_lanes(d):
+                if len(d['sequence_lanes']) != len(lanes):
+                    return False
+                for l in d['sequence_lanes']:
+                    if (l['flowcell_id'], l['lane_number']) not in lanes:
+                        return False
+                return True
+            datasets = filter(is_correct_lanes, datasets)
+
+        else:
+            datasets = filter(lambda d: d['is_complete'], datasets)
 
         if len(datasets) != 1:
             logging.error('{} datasets for library {}'.format(len(datasets), library_id))
