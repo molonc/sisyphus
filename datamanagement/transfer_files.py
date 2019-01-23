@@ -88,36 +88,43 @@ class TransferProgress(object):
         )
 
 
-class AzureTransfer(object):
-    """A class useful for server-blob interactions.
+def _check_file_same_blob(block_blob_service, file_resource, container, blobname):
+    properties = block_blob_service.get_blob_properties(container, blobname)
+    blobsize = properties.properties.content_length
+    if file_resource["size"] != blobsize:
+        return False
+    return True
 
-    Not so much blob-to-blob interactions in its present form.
+
+class AzureBlobServerDownload(object):
+    """ Blob Download class.
+
+    Note: this class works with a tantalus storage or directory as destination.
     """
 
-    def __init__(self, tantalus_api, storage):
-        self.block_blob_service = tantalus_api.get_storage_client(storage["name"]).blob_service
-        self.from_storage = storage
+    def __init__(self, tantalus_api, from_storage, to_storage_name, to_storage_prefix):
+        self.block_blob_service = tantalus_api.get_storage_client(from_storage["name"]).blob_service
+        self.from_storage = from_storage
+        self.to_storage_name = to_storage_name
+        self.to_storage_prefix = to_storage_prefix
 
-    def download_from_blob(self, file_instance, to_storage, tantalus_api):
+    def download_from_blob(self, file_instance):
         """ Transfer a file from blob to a server.
 
         This should be called on the from server.
         """
+
+        file_resource = file_instance["file_resource"]
 
         cloud_filepath = file_instance["filepath"]
         if not cloud_filepath.startswith(self.from_storage["prefix"]):
             raise Exception("{} does not have storage prefix {}".format(
                 cloud_filepath, self.from_storage["prefix"]))
 
-        cloud_blobname = tantalus_api.get_file_resource_filename(self.from_storage["name"], cloud_filepath)
+        cloud_blobname = file_resource["filename"]
         cloud_container = self.from_storage["storage_container"]
 
-        # Get the file resource associated with the file instance
-        file_resource = tantalus_api.get(
-            "file_resource", id=file_instance["file_resource"]
-        )
-
-        local_filepath = os.path.join(to_storage["prefix"], file_resource["filename"])
+        local_filepath = os.path.join(self.to_storage_prefix, file_resource["filename"])
 
         make_dirs(os.path.dirname(local_filepath))
 
@@ -130,11 +137,17 @@ class AzureTransfer(object):
             raise FileDoesNotExist(error_message)
 
         if os.path.isfile(local_filepath):
-            if self._check_file_same_blob(file_resource, cloud_container, cloud_blobname):
+            if _check_file_same_blob(
+                self.block_blob_service,
+                file_resource, cloud_container, cloud_blobname,
+            ):
+                logging.info(
+                    "skipping transfer of file resource {} that matches existing file".format(
+                        file_resource["filename"]))
                 return
 
             error_message = "target file {filepath} already exists on {storage}".format(
-                filepath=local_filepath, storage=to_storage["name"]
+                filepath=local_filepath, storage=self.to_storage_name
             )
             raise FileAlreadyExists(error_message)
 
@@ -148,32 +161,33 @@ class AzureTransfer(object):
 
         os.chmod(local_filepath, 0o444)
 
-    def _check_file_same_blob(self, file_resource, container, blobname):
-        properties = self.block_blob_service.get_blob_properties(container, blobname)
-        blobsize = properties.properties.content_length
-        if file_resource["size"] != blobsize:
-            return False
-        return True
 
-    def upload_to_blob(self, file_instance, to_storage, tantalus_api):
+class AzureBlobServerUpload(object):
+    """ Blob Upload class.
+
+    Note: this class only works with tantalus storage as destination.
+    """
+
+    def __init__(self, tantalus_api, to_storage):
+        self.block_blob_service = tantalus_api.get_storage_client(self.to_storage["name"]).blob_service
+        self.to_storage = to_storage
+
+    def upload_to_blob(self, file_instance):
         """Transfer a file from a server to blob.
 
         This should be called on the from server.
         """
+        file_resource = file_instance["file_resource"]
+
         local_filepath = file_instance["filepath"]
 
-        # Get the file resource associated with the file instance
-        file_resource = tantalus_api.get(
-            "file_resource", id=file_instance["file_resource"]
-        )
-
-        cloud_filepath = os.path.join(to_storage["prefix"], file_resource["filename"])
-        if not cloud_filepath.startswith(to_storage["prefix"]):
+        cloud_filepath = os.path.join(self.to_storage["prefix"], file_resource["filename"])
+        if not cloud_filepath.startswith(self.to_storage["prefix"]):
             raise Exception("{} does not have storage prefix {}".format(
-                cloud_filepath, to_storage["prefix"]))
+                cloud_filepath, self.to_storage["prefix"]))
 
-        cloud_blobname = tantalus_api.get_file_resource_filename(to_storage["name"], cloud_filepath)
-        cloud_container = to_storage["storage_container"]
+        cloud_blobname = file_resource["filename"]
+        cloud_container = self.to_storage["storage_container"]
 
         if not os.path.isfile(local_filepath):
             error_message = "source file {filepath} does not exist on {storage} for file instance with pk: {pk}".format(
@@ -184,13 +198,17 @@ class AzureTransfer(object):
             raise FileDoesNotExist(error_message)
 
         if self.block_blob_service.exists(cloud_container, cloud_blobname):
-            if self._check_file_same_blob(
-                file_resource, cloud_container, cloud_blobname
+            if _check_file_same_blob(
+                self.block_blob_service,
+                file_resource, cloud_container, cloud_blobname,
             ):
+                logging.info(
+                    "skipping transfer of file resource {} that matches existing file".format(
+                        file_resource["filename"]))
                 return
 
             error_message = "target file {filepath} already exists on {storage}".format(
-                filepath=cloud_filepath, storage=to_storage["name"]
+                filepath=cloud_filepath, storage=self.to_storage["name"]
             )
             raise FileAlreadyExists(error_message)
 
@@ -226,7 +244,7 @@ def blob_to_blob_transfer_closure(tantalus_api, source_storage, destination_stor
         expiry=(datetime.datetime.utcnow() + datetime.timedelta(hours=200)),
     )
 
-    def transfer_function(source_file, *_):
+    def transfer_function(source_file):
         """Transfer function aware of source and destination Azure storages.
 
         Using non-local source_account and destination_account. This
@@ -261,6 +279,9 @@ def blob_to_blob_transfer_closure(tantalus_api, source_storage, destination_stor
 
             if source_file["size"] == destination_blob_size:
                 # Don't retransfer
+                logging.info(
+                    "skipping transfer of file resource {} that matches existing file".format(
+                        source_file["filename"]))
                 return
             else:
                 # Raise an exception and report that a blob with this
@@ -299,141 +320,185 @@ def check_file_same_local(file_resource, filepath):
     return True
 
 
-def rsync_file(file_instance, to_storage, tantalus_api):
-    """ Rsync a single file from one storage to another
+class RsyncTransfer(object):
+    """ Blob Upload class.
+
+    Note: this class works with a tantalus storage or directory as destination.
     """
 
-    # Get the file resource associated with the file instance
-    file_resource = tantalus_api.get("file_resource", id=file_instance["file_resource"])
+    def __init__(self, tantalus_api, to_storage_name, to_storage_prefix, to_storage_server_ip):
+        self.to_storage = to_storage
+        self.to_storage_name = to_storage_name
+        self.to_storage_prefix = to_storage_prefix
+        self.to_storage_server_ip = to_storage_server_ip
 
-    local_filepath = os.path.join(to_storage["prefix"], file_resource["filename"])
+    def rsync_file(file_instance):
+        """ Rsync a single file from one storage to another
+        """
 
-    remote_filepath = file_instance["filepath"]
+        file_resource = file_instance["file_resource"]
 
-    if file_instance["file_resource"]["is_folder"]:
-        local_filepath = local_filepath + "/"
-        remote_filepath = remote_filepath + "/"
+        local_filepath = os.path.join(self.to_storage_prefix, file_resource["filename"])
 
-    if os.path.isfile(local_filepath):
-        if check_file_same_local(file_instance["file_resource"], local_filepath):
-            return
-        error_message = "target file {filepath} already exists on {storage} with different size".format(
-            filepath=local_filepath, storage=to_storage["name"]
-        )
-        raise FileAlreadyExists(error_message)
+        remote_filepath = file_instance["filepath"]
 
-    if file_instance["storage"]["server_ip"] == to_storage["server_ip"]:
-        remote_location = remote_filepath
-    else:
-        remote_location = (
-            file_instance["storage"]["username"]
-            + "@"
-            + file_instance["storage"]["server_ip"]
-            + ":"
-            + remote_filepath
-        )
+        if file_instance["file_resource"]["is_folder"]:
+            local_filepath = local_filepath + "/"
+            remote_filepath = remote_filepath + "/"
 
-    make_dirs(os.path.dirname(local_filepath))
+        if os.path.isfile(local_filepath):
+            if check_file_same_local(file_instance["file_resource"], local_filepath):
+                logging.info(
+                    "skipping transfer of file resource {} that matches existing file".format(
+                        source_file["filename"]))
+                return
 
-    subprocess_cmd = [
-        "rsync",
-        "--progress",
-        # '--info=progress2',
-        "--chmod=D555",
-        "--chmod=F444",
-        "--times",
-        "--copy-links",
-        remote_location,
-        local_filepath,
-    ]
+            error_message = "target file {filepath} already exists on {storage} with different size".format(
+                filepath=local_filepath, storage=self.to_storage_name)
 
-    if file_instance["file_resource"]["is_folder"]:
-        subprocess_cmd.insert(1, "-r")
+            raise FileAlreadyExists(error_message)
 
-    sys.stdout.flush()
-    sys.stderr.flush()
-    subprocess.check_call(subprocess_cmd, stdout=sys.stdout, stderr=sys.stderr)
+        if file_instance["storage"]["server_ip"] == self.to_storage_server_ip:
+            remote_location = remote_filepath
+        else:
+            remote_location = file_instance["storage"]["server_ip"] + ":" + remote_filepath
 
-    if not check_file_same_local(file_instance["file_resource"], local_filepath):
-        error_message = "transfer to {filepath} on {storage} failed".format(
-            filepath=local_filepath, storage=to_storage["name"]
-        )
-        raise Exception(error_message)
+        make_dirs(os.path.dirname(local_filepath))
+
+        subprocess_cmd = [
+            "rsync",
+            "--progress",
+            # '--info=progress2',
+            "--chmod=D555",
+            "--chmod=F444",
+            "--times",
+            "--copy-links",
+            remote_location,
+            local_filepath,
+        ]
+
+        if file_instance["file_resource"]["is_folder"]:
+            subprocess_cmd.insert(1, "-r")
+
+        sys.stdout.flush()
+        sys.stderr.flush()
+        subprocess.check_call(subprocess_cmd, stdout=sys.stdout, stderr=sys.stderr)
+
+        if not check_file_same_local(file_instance["file_resource"], local_filepath):
+            error_message = "transfer to {filepath} on {storage} failed".format(
+                filepath=local_filepath, storage=self.to_storage_name
+            )
+            raise Exception(error_message)
 
 
 def get_file_transfer_function(tantalus_api, from_storage, to_storage):
     if from_storage["storage_type"] == "blob" and to_storage["storage_type"] == "blob":
         return blob_to_blob_transfer_closure(tantalus_api, from_storage, to_storage)
-    elif (
-        from_storage["storage_type"] == "server"
-        and to_storage["storage_type"] == "blob"
-    ):
-        return AzureTransfer(tantalus_api, to_storage).upload_to_blob
-    elif (
-        from_storage["storage_type"] == "blob"
-        and to_storage["storage_type"] == "server"
-    ):
-        return AzureTransfer(tantalus_api, from_storage).download_from_blob
-    elif (
-        from_storage["storage_type"] == "server"
-        and to_storage["storage_type"] == "server"
-    ):
-        return rsync_file
 
-@click.command()
+    elif from_storage["storage_type"] == "server" and to_storage["storage_type"] == "blob":
+        return AzureBlobServerUpload(
+            tantalus_api, to_storage).upload_to_blob
+
+    elif from_storage["storage_type"] == "blob" and to_storage["storage_type"] == "server":
+        return AzureBlobServerDownload(
+            tantalus_api, from_storage, to_storage["name"], to_storage["prefix"]).download_from_blob
+
+    elif from_storage["storage_type"] == "server" and to_storage["storage_type"] == "server":
+        return RsyncTransfer(
+            tantalus_api, to_storage["name"], to_storage["prefix"], to_storage["server_ip"]).rsync_file
+
+
+def get_cache_function(tantalus_api, from_storage, cache_directory):
+    if from_storage["storage_type"] == "blob":
+        return AzureBlobServerDownload(
+            tantalus_api, from_storage, 'localcache', cache_directory).download_from_blob
+
+    elif from_storage["storage_type"] == "server":
+        return RsyncTransfer(
+            tantalus_api, 'localcache', cache_directory, to_storage_server_ip).rsync_file
+
+    else:
+        raise ValueError('unaccepted storage type {}'.format(from_storage["storage_type"]))
+
+
+@click.group()
+def cli():
+    pass
+
+
+@cli.command()
 @click.argument("tag_name")
 @click.argument("from_storage_name")
 @click.argument("to_storage_name")
 def transfer_tagged_datasets(tag_name, from_storage_name, to_storage_name):
-    """ Transfer a set tagged datasets
+    """ Transfer a set of tagged datasets
     """
 
-    # Connect to the Tantalus API (this requires appropriate environment
-    # variables defined)
     tantalus_api = TantalusApi()
 
     tag = tantalus_api.get("tag", name=tag_name)
 
     for dataset_id in tag['sequencedataset_set']:
-        transfer_sequence_dataset(tantalus_api, dataset_id, from_storage_name, to_storage_name)
+        transfer_dataset(tantalus_api, dataset_id, "sequencedataset", from_storage_name, to_storage_name)
 
     for dataset_id in tag['resultsdataset_set']:
-        transfer_results_dataset(tantalus_api, dataset_id, from_storage_name, to_storage_name)
+        transfer_dataset(tantalus_api, dataset_id, "resultsdataset", from_storage_name, to_storage_name)
 
 
-def transfer_sequence_dataset(tantalus_api, dataset_id, from_storage_name, to_storage_name):
-    """ Transfer a sequence dataset
+@cli.command()
+@click.argument("tag_name")
+@click.argument("from_storage_name")
+@click.argument("cache_directory")
+def cache_tagged_datasets(tag_name, from_storage_name, cache_directory):
+    """ Cache a set of tagged datasets
     """
-    dataset = tantalus_api.get("sequence_dataset", id=dataset_id)
-    transfer_dataset(tantalus_api, dataset, from_storage_name, to_storage_name)
+
+    tantalus_api = TantalusApi()
+
+    tag = tantalus_api.get("tag", name=tag_name)
+
+    for dataset_id in tag['sequencedataset_set']:
+        cache_dataset(tantalus_api, dataset_id, "sequencedataset", from_storage_name, cache_directory)
+
+    for dataset_id in tag['resultsdataset_set']:
+        cache_dataset(tantalus_api, dataset_id, "resultsdataset", from_storage_name, cache_directory)
 
 
-def transfer_results_dataset(tantalus_api, dataset_id, from_storage_name, to_storage_name):
-    """ Transfer a results dataset
-    """
-    dataset = tantalus_api.get("results", id=dataset_id)
-    transfer_dataset(tantalus_api, dataset, from_storage_name, to_storage_name)
+RETRIES = 3
+def _transfer_files_with_retry(f_transfer, file_instance):
+    for retry in range(RETRIES):
+        try:
+            f_transfer(file_instance)
+            break
+        except Exception as e:
+            logging.error("Transfer failed. Retrying.")
+
+            if retry < RETRIES - 1:
+                traceback.print_exc()
+            else:
+                logging.error("Failed all retry attempts")
+                raise
 
 
-def transfer_dataset(tantalus_api, dataset, from_storage_name, to_storage_name):
+def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name):
     """ Transfer a dataset
     """
+    assert dataset_model in ("sequencedataset", "resultsdataset")
+
+    dataset = tantalus_api.get(dataset_model, id=dataset_id)
+
     to_storage = tantalus_api.get("storage", name=to_storage_name)
     from_storage = tantalus_api.get("storage", name=from_storage_name)
 
     f_transfer = get_file_transfer_function(tantalus_api, from_storage, to_storage)
 
-    for file_resource_id in dataset['file_resources']:
-        # Get the file resource corresponding to the ID
-        file_resource = tantalus_api.get("file_resource", id=file_resource_id)
+    file_instances = tantalus_api.get_dataset_file_instances(dataset_id, dataset_model, from_storage_name)
 
-        storage_names = []
+    for file_instance in file_instances:
+        file_resource = file_instance["file_resource"]
+        other_file_instances = file_resource["file_instances"]
 
-        for file_instance in file_resource["file_instances"]:
-            storage_id = file_instance["storage"]["id"]
-
-            storage_name = tantalus_api.get("storage", id=int(storage_id))["name"]
-            storage_names.append(storage_name)
+        storage_names = set([f["storage"]["name"] for f in other_file_instances])
 
         if to_storage["name"] in storage_names:
             logging.info(
@@ -441,62 +506,37 @@ def transfer_dataset(tantalus_api, dataset, from_storage_name, to_storage_name):
                     file_resource["filename"], to_storage["name"]
                 )
             )
-
-            # Skip this file resource
             continue
-
-        from_file_instance = None
-
-        for file_instance in file_resource["file_instances"]:
-            # TODO(mwiens91): We're querying Tantalus for storage
-            # names above and here. Two requests for identical
-            # information. We only really need to do it once. Fix
-            # this by saving the storage name in the file_instance
-            # dictionary after the first set of API requests.
-            storage_id = file_instance["storage"]["id"]
-            storage_name = tantalus_api.get("storage", id=int(storage_id))["name"]
-
-            if storage_name == from_storage["name"]:
-                from_file_instance = file_instance
-
-        if from_file_instance is None:
-            raise FileDoesNotExist(
-                "file instance for file resource {} does not exist on source storage {}".format(
-                    file_resource["filename"], from_storage["name"]
-                )
-            )
-
-        # Get a "nicer" version of the file instance with more
-        # nested model relationships
-        from_file_instance = tantalus_api.get(
-            "file_instance", id=from_file_instance["id"]
-        )
 
         logging.info(
             "starting transfer {} to {}".format(
-                file_resource["filename"], to_storage["name"]
-            )
-        )
+                file_resource["filename"], to_storage["name"]))
 
-        RETRIES = 3
-
-        for retry in range(RETRIES):
-            try:
-                f_transfer(from_file_instance, to_storage, tantalus_api)
-                break
-            except Exception as e:
-                logging.error("Transfer failed. Retrying.")
-
-                if retry < RETRIES - 1:
-                    traceback.print_exc()
-                else:
-                    logging.error("Failed all retry attempts")
-                    raise e
+        _transfer_files_with_retry(f_transfer, file_instance)
 
         tantalus_api.add_instance(file_resource, to_storage)
 
 
-if __name__ == "__main__":
+def cache_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, cache_directory):
+    """ Cache a dataset
+    """
+    assert dataset_model in ("sequencedataset", "resultsdataset")
 
-    # Transfer some files
-    transfer_tagged_datasets()
+    dataset = tantalus_api.get(dataset_model, id=dataset_id)
+
+    from_storage = tantalus_api.get("storage", name=from_storage_name)
+
+    f_transfer = get_cache_function(tantalus_api, from_storage, cache_directory)
+
+    file_instances = tantalus_api.get_dataset_file_instances(dataset_id, dataset_model, from_storage_name)
+
+    for file_instance in file_instances:
+        logging.info(
+            "starting caching {} to {}".format(
+                file_instance["file_resource"]["filename"], cache_directory))
+
+        _transfer_files_with_retry(f_transfer, file_instance)
+
+
+if __name__ == "__main__":
+    cli()

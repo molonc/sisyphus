@@ -499,6 +499,40 @@ class TantalusApi(BasicAPIClient):
 
         return file_instances
 
+    def get_dataset_file_instances(self, dataset_id, dataset_model, storage_name):
+        """
+        Given a dataset get all file instances.
+
+        Note: file_resource and sequence_dataset are added as fields
+        to the file_instances
+
+        Args:
+            dataset (dict)
+            storage_name (str)
+
+        Returns:
+            file_instances (list)
+        """
+        file_instances = []
+
+        if dataset_model == 'sequencedataset':
+            file_resources = self.list('file_resource', sequencedataset__id=dataset_id)
+
+        elif dataset_model == 'resultsdataset':
+            file_resources = self.list('file_resource', resultsdataset__id=dataset_id)
+
+        else:
+            raise ValueError('unrecognized dataset model {}'.format(dataset_model))
+
+        for file_resource in file_resources:
+
+            file_instance = self.get_file_instance(file_resource, storage_name)
+            file_instance['file_resource'] = file_resource
+
+            file_instances.append(file_instance)
+
+        return file_instances
+
     def is_sequence_dataset_on_storage(self, dataset, storage_name):
         """
         Given a dataset test if all files are on a specific storage.
