@@ -337,13 +337,12 @@ class RsyncTransfer(object):
     Note: this class works with a tantalus storage or directory as destination.
     """
 
-    def __init__(self, tantalus_api, to_storage_name, to_storage_prefix, to_storage_server_ip):
-        self.to_storage = to_storage
+    def __init__(self, to_storage_name, to_storage_prefix, local_transfer=False):
         self.to_storage_name = to_storage_name
         self.to_storage_prefix = to_storage_prefix
-        self.to_storage_server_ip = to_storage_server_ip
+        self.local_transfer = local_transfer
 
-    def rsync_file(file_instance):
+    def rsync_file(self, file_instance):
         """ Rsync a single file from one storage to another
         """
         file_resource = file_instance["file_resource"]
@@ -368,7 +367,7 @@ class RsyncTransfer(object):
 
             raise FileAlreadyExists(error_message)
 
-        if file_instance["storage"]["server_ip"] == self.to_storage_server_ip:
+        if file_instance["storage"]["server_ip"] == self.local_transfer:
             remote_location = remote_filepath
         else:
             remote_location = file_instance["storage"]["server_ip"] + ":" + remote_filepath
@@ -414,8 +413,9 @@ def get_file_transfer_function(tantalus_api, from_storage, to_storage):
             tantalus_api, from_storage, to_storage["name"], to_storage["prefix"]).download_from_blob
 
     elif from_storage["storage_type"] == "server" and to_storage["storage_type"] == "server":
+        local_transfer = (to_storage["server_ip"] == from_storage["server_ip"])
         return RsyncTransfer(
-            tantalus_api, to_storage["name"], to_storage["prefix"], to_storage["server_ip"]).rsync_file
+            to_storage["name"], to_storage["prefix"], local_transfer=local_transfer).rsync_file
 
 
 def get_cache_function(tantalus_api, from_storage, cache_directory):
@@ -425,7 +425,7 @@ def get_cache_function(tantalus_api, from_storage, cache_directory):
 
     elif from_storage["storage_type"] == "server":
         return RsyncTransfer(
-            tantalus_api, 'localcache', cache_directory, to_storage_server_ip).rsync_file
+            'localcache', cache_directory).rsync_file
 
     else:
         raise ValueError('unaccepted storage type {}'.format(from_storage["storage_type"]))
