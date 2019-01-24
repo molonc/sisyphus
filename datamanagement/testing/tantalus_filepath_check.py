@@ -58,8 +58,12 @@ def init():
                 if isoformat_to_datetime(file_resource["created"]) > isoformat_to_datetime(shahlabclient.get_created_time(file_instances['shahlab']['filepath'])) or date_flag:
                     tantalus_filecheck_result.write("\nDeleted outdated filepath on Tantalus ")
                     print "Removed outdated filepath from tantalus, and file from shahlab"
-                    # tantalus_api.delete("file_instance", file_instances['shahlab']["id"])
-                    # shahlabclient.delete(file_instances['shahlab']['filepath'])
+                    try:
+                        tantalus_api.delete("file_instance", file_instances['shahlab']["id"])
+                        shahlabclient.delete(file_instances['shahlab']['filepath'])
+                    except:
+                        print "Deletion failed. Ignoring"
+                        continue
                 tantalus_filecheck_result.write("\n")
                 fail_flag = True
 
@@ -71,8 +75,7 @@ def init():
             tantalus_filecheck_result.write("ERROR: " + file_instances['shahlab']['filepath'] + " is not a valid filepath \n")
             fail_flag = True
             try:
-                pass
-            #tantalus_api.delete("file_instance", file_instances['shahlab']["id"])
+                tantalus_api.delete("file_instance", file_instances['shahlab']["id"])
             except:
                 print "Deletion failed. Ignoring"
                 continue
