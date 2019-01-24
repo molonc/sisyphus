@@ -1,7 +1,7 @@
 import os
 import sys
 from dbclients.tantalus import TantalusApi
-
+from datamanagement.utils.utils import isoformat_to_datetime
 
 def init():
     print "STARTING, NOT DELETING"
@@ -26,6 +26,8 @@ def init():
     for file_resource in file_resources:
         file_instances = {}
         date_flag = False
+        if "file_instances" not in file_resource.keys():
+            pass
         for file_instance in file_resource["file_instances"]:
             file_instances[file_instance['storage']['name']] = file_instance
 
@@ -53,7 +55,7 @@ def init():
                         if singlecellblob.get_created_time(file_instances['singlecellblob']['filepath']) == file_resource["created"]:
                             date_flag = True
 
-                if file_resource["created"] > shahlabclient.get_created_time(file_instances['shahlab']['filepath']) or date_flag:
+                if isoformat_to_datetime(file_resource["created"]) > isoformat_to_datetime(shahlabclient.get_created_time(file_instances['shahlab']['filepath'])) or date_flag:
                     tantalus_filecheck_result.write("\nDeleted outdated filepath on Tantalus ")
                     print "Removed outdated filepath from tantalus, and file from shahlab"
                     # tantalus_api.delete("file_instance", file_instances['shahlab']["id"])
@@ -70,7 +72,7 @@ def init():
             fail_flag = True
             try:
                 pass
-               #tantalus_api.delete("file_instance", file_instances['shahlab']["id"])
+            #tantalus_api.delete("file_instance", file_instances['shahlab']["id"])
             except:
                 print "Deletion failed. Ignoring"
                 continue
