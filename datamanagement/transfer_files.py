@@ -191,7 +191,7 @@ class AzureBlobServerUpload(object):
     """
 
     def __init__(self, tantalus_api, to_storage):
-        self.block_blob_service = tantalus_api.get_storage_client(self.to_storage["name"]).blob_service
+        self.block_blob_service = tantalus_api.get_storage_client(to_storage["name"]).blob_service
         self.to_storage = to_storage
 
     def upload_to_blob(self, file_instance):
