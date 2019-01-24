@@ -51,9 +51,9 @@ def get_storage_account_key(
 
 
 class BlobStorageClient(object):
-    def __init__(self, storage):
-        self.storage_account = storage['storage_account']
-        self.storage_container = storage['storage_container']
+    def __init__(self, storage_account, storage_container):
+        self.storage_account = storage_account
+        self.storage_container = storage_container
 
         client_id = os.environ["CLIENT_ID"]
         secret_key = os.environ["SECRET_KEY"]
@@ -68,8 +68,6 @@ class BlobStorageClient(object):
             account_name=self.storage_account,
             account_key=storage_key)
         self.blob_service.MAX_BLOCK_SIZE = 64 * 1024 * 1024
-
-        self.prefix = storage['prefix']
 
     def get_size(self, blobname):
         properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
@@ -124,9 +122,8 @@ class BlobStorageClient(object):
 
 
 class ServerStorageClient(object):
-    def __init__(self, storage):
-        self.storage_directory = storage['storage_directory']
-        self.prefix = storage['prefix']
+    def __init__(self, storage_directory):
+        self.storage_directory = storage_directory
 
     def get_size(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
@@ -267,6 +264,17 @@ class TantalusApi(BasicAPIClient):
 
         return storage
 
+    def get_cache_client(self, storage_directory):
+        """ Retrieve a client for the given cache
+
+        Args:
+            storage_directory: directory in which the files are cached
+
+        Returns:
+            storage client object
+        """
+        return ServerStorageClient(storage_directory)
+
     def get_storage_client(self, storage_name):
         """ Retrieve a client for the given storage
 
@@ -282,9 +290,9 @@ class TantalusApi(BasicAPIClient):
         storage = self.get_storage(storage_name)
 
         if storage['storage_type'] == 'blob':
-            client = BlobStorageClient(storage)
+            client = BlobStorageClient(storage['storage_account'], storage['storage_container'])
         elif storage['storage_type'] == 'server':
-            client = ServerStorageClient(storage)
+            client = ServerStorageClient(storage['storage_directory'])
         else:
             return ValueError('unsupported storage type {}'.format(storage['storage_type']))
 
@@ -494,6 +502,40 @@ class TantalusApi(BasicAPIClient):
             file_instance = self.get_file_instance(file_resource, storage_name)
             file_instance['file_resource'] = file_resource
             file_instance['sequence_dataset'] = dataset
+
+            file_instances.append(file_instance)
+
+        return file_instances
+
+    def get_dataset_file_instances(self, dataset_id, dataset_model, storage_name):
+        """
+        Given a dataset get all file instances.
+
+        Note: file_resource and sequence_dataset are added as fields
+        to the file_instances
+
+        Args:
+            dataset (dict)
+            storage_name (str)
+
+        Returns:
+            file_instances (list)
+        """
+        file_instances = []
+
+        if dataset_model == 'sequencedataset':
+            file_resources = self.list('file_resource', sequencedataset__id=dataset_id)
+
+        elif dataset_model == 'resultsdataset':
+            file_resources = self.list('file_resource', resultsdataset__id=dataset_id)
+
+        else:
+            raise ValueError('unrecognized dataset model {}'.format(dataset_model))
+
+        for file_resource in file_resources:
+
+            file_instance = self.get_file_instance(file_resource, storage_name)
+            file_instance['file_resource'] = file_resource
 
             file_instances.append(file_instance)
 
