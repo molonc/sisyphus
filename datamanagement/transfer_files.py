@@ -92,6 +92,9 @@ def _check_file_same_blob(block_blob_service, file_resource, container, blobname
     properties = block_blob_service.get_blob_properties(container, blobname)
     blobsize = properties.properties.content_length
     if file_resource["size"] != blobsize:
+        logging.info(
+            "blob {} in container {} has size {} which mismatches recorded size {} for {} in tantalus".format(
+                blobname, container, blobsize, file_resource["size"], file_resource["filename"]))
         return False
     return True
 
@@ -314,7 +317,12 @@ def check_file_same_local(file_resource, filepath):
     if file_resource["is_folder"]:
         return True
 
-    if file_resource["size"] != os.path.getsize(filepath):
+    filesize = os.path.getsize(filepath)
+
+    if file_resource["size"] != filesize:
+        logging.info(
+            "file {} has size {} which mismatches recorded size {} for {} in tantalus".format(
+                filepath, filesize, file_resource["size"], file_resource["filename"]))
         return False
 
     return True
