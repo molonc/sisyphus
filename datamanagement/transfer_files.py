@@ -436,10 +436,14 @@ def cli():
     pass
 
 
-@cli.command()
+@cli.command("transfer")
 @click.argument("tag_name")
 @click.argument("from_storage_name")
 @click.argument("to_storage_name")
+def transfer_tagged_datasets_cmd(tag_name, from_storage_name, to_storage_name):
+    transfer_tagged_datasets(tag_name, from_storage_name, to_storage_name)
+
+
 def transfer_tagged_datasets(tag_name, from_storage_name, to_storage_name):
     """ Transfer a set of tagged datasets
     """
@@ -455,10 +459,14 @@ def transfer_tagged_datasets(tag_name, from_storage_name, to_storage_name):
         transfer_dataset(tantalus_api, dataset_id, "resultsdataset", from_storage_name, to_storage_name)
 
 
-@cli.command()
+@cli.command("cache")
 @click.argument("tag_name")
 @click.argument("from_storage_name")
 @click.argument("cache_directory")
+def cache_tagged_datasets_cmd(tag_name, from_storage_name, cache_directory):
+    cache_tagged_datasets(tag_name, from_storage_name, cache_directory)
+
+
 def cache_tagged_datasets(tag_name, from_storage_name, cache_directory):
     """ Cache a set of tagged datasets
     """
