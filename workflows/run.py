@@ -16,7 +16,7 @@ from dbclients.tantalus import TantalusApi
 from workflows.utils import saltant_utils
 from workflows.utils import file_utils
 from workflows.utils import log_utils
-from datamanagement.transfer_files import transfer_files
+from datamanagement.transfer_files import transfer_dataset
 from dbclients.basicclient import NotFoundError
 
 from utils.log_utils import sentinel
@@ -78,13 +78,16 @@ def start_automation(
             tag_name,
             sequencedataset_set=tantalus_analysis.search_input_datasets(args))
 
-        sentinel(
-            'Transferring {} input files from {} to {}'.format(
-                analysis_type, storages["remote_inputs"], storages["working_inputs"]),
-            transfer_files,
-            tag_name, 
-            storages["remote_inputs"],
-            storages["working_inputs"])
+        if storages["working_inputs"] != storages["remote_inputs"]:  
+            # FIXME: transfer_dataset(tantalus_api, dataset, from_storage, to_storage)
+            # Not a problem atm since storages for results are the same 
+                sentinel(
+                    'Transferring {} input files from {} to {}'.format(
+                        analysis_type, storages["remote_inputs"], storages["working_inputs"]),
+                    transfer_dataset,
+                    tag_name, 
+                    storages["remote_inputs"],
+                    storages["working_inputs"])
 
     if args['inputs_yaml'] is None:
         local_results_storage = tantalus_api.get(
@@ -122,6 +125,9 @@ def start_automation(
         sentinel(
             'Running single_cell {}'.format(analysis_type),
             run_pipeline,
+            results_dir=results_dir,
+            scpipeline_dir=scpipeline_dir,
+            tmp_dir=tmp_dir,
             tantalus_analysis=tantalus_analysis,
             analysis_info=analysis_info,
             inputs_yaml=inputs_yaml,
@@ -166,13 +172,16 @@ def start_automation(
         resultsdataset_set=list(results_ids),
     )
 
-    sentinel(
-        "Transferring results from {} to {}".format(
-            storages["working_results"], storages['remote_results']),
-        transfer_files,
-        tag_name,
-        storages['working_results'],
-        storages['remote_results'])
+    if storages["working_results"] != storages["remote_results"]:
+        sentinel(
+            "Transferring results from {} to {}".format(
+                storages["working_results"], storages['remote_results']),
+            # FIXME: transfer_dataset(tantalus_api, dataset, from_storage, to_storage)
+            # Not a problem atm since storages for results are the same 
+            transfer_dataset,
+            tag_name,
+            storages['working_results'],
+            storages['remote_results'])
 
     analysis_info.set_finish_status()
     log.info("Done!")
@@ -191,13 +200,6 @@ def main(args):
         tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], 
         job_subdir)
 
-    results_dir = os.path.join('singlecelldata', 'results', job_subdir, 'results')
-
-    scpipeline_dir = os.path.join('singlecelldata', 'pipeline', job_subdir)
-
-    tmp_dir = os.path.join('singlecelldata', 'temp', job_subdir)
-
-    
     results_dir = os.path.join('singlecelldata', 'results', job_subdir, 'results')
 
     scpipeline_dir = os.path.join('singlecelldata', 'pipeline', job_subdir)
