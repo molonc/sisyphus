@@ -99,6 +99,19 @@ def _check_file_same_blob(block_blob_service, file_resource, container, blobname
     return True
 
 
+def _check_file_same_local(file_resource, filepath):
+    # TODO: define 'size' for folder
+    if file_resource["is_folder"]:
+        return True
+    filesize = os.path.getsize(filepath)
+    if file_resource["size"] != filesize:
+        logging.info(
+            "file {} has size {} which mismatches recorded size {} for {} in tantalus".format(
+                filepath, filesize, file_resource["size"], file_resource["filename"]))
+        return False
+    return True
+
+
 class AzureBlobServerDownload(object):
     """ Blob Download class.
 
@@ -132,25 +145,31 @@ class AzureBlobServerDownload(object):
         make_dirs(os.path.dirname(local_filepath))
 
         if not self.block_blob_service.exists(cloud_container, cloud_blobname):
-            error_message = "source file {filepath} does not exist on {storage} for file instance with pk: {pk}".format(
+            error_message = "source blob {filepath} does not exist on {storage} for file instance with pk: {pk}".format(
                 filepath=cloud_filepath,
                 storage=file_instance["storage"]["name"],
                 pk=file_instance["id"],
             )
             raise FileDoesNotExist(error_message)
 
-        if os.path.isfile(local_filepath):
-            if _check_file_same_blob(
+        if not _check_file_same_blob(
                 self.block_blob_service,
-                file_resource, cloud_container, cloud_blobname,
-            ):
+                file_resource, cloud_container, cloud_blobname):
+            error_message = "source blob {filepath} mismatches in size compared to file resource with pk: {pk}".format(
+                filepath=cloud_filepath,
+                pk=file_resource["id"],
+            )
+            raise DataCorruptionError(error_message)
+
+        if os.path.isfile(local_filepath):
+            if _check_file_same_local(file_resource, local_filepath):
                 logging.info(
                     "skipping transfer of file resource {} that matches existing file".format(
                         file_resource["filename"]))
                 return
-
-            error_message = "target file {filepath} already exists on {storage}".format(
-                filepath=local_filepath, storage=self.to_storage_name
+            error_message = "target file {filepath} already exists on {storage} with different size".format(
+                filepath=local_filepath,
+                storage=self.to_storage_name,
             )
             raise FileAlreadyExists(error_message)
 
@@ -200,18 +219,24 @@ class AzureBlobServerUpload(object):
             )
             raise FileDoesNotExist(error_message)
 
+        if not _check_file_same_local(file_resource, local_filepath):
+            error_message = "source file {filepath} mismatches in size compared to file resource with pk: {pk}".format(
+                filepath=local_filepath,
+                pk=file_resource["id"],
+            )
+            raise DataCorruptionError(error_message)
+
         if self.block_blob_service.exists(cloud_container, cloud_blobname):
             if _check_file_same_blob(
-                self.block_blob_service,
-                file_resource, cloud_container, cloud_blobname,
-            ):
+                    self.block_blob_service,
+                    file_resource, cloud_container, cloud_blobname):
                 logging.info(
                     "skipping transfer of file resource {} that matches existing file".format(
                         file_resource["filename"]))
                 return
-
-            error_message = "target file {filepath} already exists on {storage}".format(
-                filepath=cloud_filepath, storage=self.to_storage["name"]
+            error_message = "target file {filepath} already exists on {storage} with different size".format(
+                filepath=cloud_filepath,
+                storage=self.to_storage["name"],
             )
             raise FileAlreadyExists(error_message)
 
@@ -225,107 +250,85 @@ class AzureBlobServerUpload(object):
         )
 
 
-def blob_to_blob_transfer_closure(tantalus_api, source_storage, destination_storage):
-    """Returns a function for transfering blobs between Azure containers.
+class AzureBlobBlobTransfer(object):
+    """ Blob Upload class.
 
-    Note that this will *not* create new containers that don't already
-    exist. This is a useful note because for development the container
-    names are changed to "{container name}-test", and these "test
-    containers" are unlikely to exist.
+    Note: this class only works with tantalus storage as destination.
     """
-    # Start BlockBlobService for source and destination accounts
-    source_account = tantalus_api.get_storage_client(
-        source_storage).blob_service
-    destination_account = tantalus_api.get_storage_client(
-        destination_storage).blob_service
 
-    # Get a shared access signature for the source account so that we
-    # can read its private files
-    shared_access_sig = source_account.generate_container_shared_access_signature(
-        container_name=source_storage["storage_container"],
-        permission=ContainerPermissions.READ,
-        expiry=(datetime.datetime.utcnow() + datetime.timedelta(hours=200)),
-    )
+    def __init__(self, tantalus_api, source_storage, destination_storage):
+        self.source_storage = source_storage
+        self.destination_storage = destination_storage
 
-    def transfer_function(source_file):
-        """Transfer function aware of source and destination Azure storages.
+        # Start BlockBlobService for source and destination accounts
+        self.source_account = tantalus_api.get_storage_client(source_storage["name"]).blob_service
+        self.destination_account = tantalus_api.get_storage_client(destination_storage["name"]).blob_service
 
-        Using non-local source_account and destination_account. This
-        isn't Python 3, so no nonlocal keyword :(
+        # Get a shared access signature for the source account so that we
+        # can read its private files
+        self.shared_access_sig = self.source_account.generate_container_shared_access_signature(
+            container_name=source_storage["storage_container"],
+            permission=ContainerPermissions.READ,
+            expiry=(datetime.datetime.utcnow() + datetime.timedelta(hours=200)),
+        )
+
+    def transfer_function(file_instance):
+        """ Transfer function aware of source and destination Azure storages.
         """
-        # Copypasta validation from AzureTransfer.download_from_blob
-        source_filepath = source_file["filepath"]
-        source_container, blobname = source_filepath.split("/", 1)
-        assert source_container == source_file["storage"]["storage_container"]
+        file_resource = file_instance["file_resource"]
 
-        if not source_account.exists(source_container, blobname):
-            error_message = "source file {filepath} does not exist on {storage} for file instance with pk: {pk}".format(
-                filepath=source_filepath,
-                storage=source_file["storage"]["name"],
-                pk=source_file["id"],
+        blobname = file_resource["filename"]
+        source_container = file_instance["storage"]["storage_container"]
+        destination_container = self.destination_storage["storage_container"]
+
+        assert self.source_storage["storage_container"] == source_container
+
+        if not self.source_account.exists(source_container, blobname):
+            error_message = "source blob {blobname} in container {container} does not exist on {storage} for file instance with pk: {pk}".format(
+                blobname=blobname,
+                container=source_container,
+                storage=file_instance["storage"]["name"],
+                pk=file_instance["id"],
             )
             raise FileDoesNotExist(error_message)
 
-        # Copypasta validation from AzureTransfer.upload_to_blob
-        if destination_account.exists(
-            destination_storage["storage_container"], blobname
-        ):
-            # Check if the file already exist. If the file does already
-            # exist, don't re-transfer this file. If the file does exist
-            # but has a different size, then raise an exception.
-
-            # Size check
-            destination_blob_size = destination_account.get_blob_properties(
-                container_name=destination_storage["storage_container"],
-                blob_name=blobname,
+        if not _check_file_same_blob(
+                self.self.source_account,
+                file_resource, source_container, blobname):
+            error_message = "source blob {blobname} in container {container} mismatches in size compared to file resource with pk: {pk}".format(
+                blobname=blobname,
+                container=source_container,
+                pk=file_resource["id"],
             )
+            raise DataCorruptionError(error_message)
 
-            if source_file["size"] == destination_blob_size:
-                # Don't retransfer
+        if self.destination_account.exists(destination_container, blobname):
+            if _check_file_same_blob(
+                    self.destination_account,
+                    file_resource, destination_container, blobname):
                 logging.info(
                     "skipping transfer of file resource {} that matches existing file".format(
-                        source_file["filename"]))
+                        file_resource["filename"]))
                 return
-            else:
-                # Raise an exception and report that a blob with this
-                # name already exists!
-                error_message = "target filepath {filepath} already exists on {storage} but with different filesize".format(
-                    filepath=source_filepath,
-                    storage=destination_storage["storage_account"],
-                )
-                raise FileAlreadyExists(error_message)
+            error_message = "target blob {blobname} in container {container} already exists on {storage} with different size".format(
+                filepath=blobname,
+                container=destination_container,
+                storage=self.destination_storage["name"],
+            )
+            raise FileAlreadyExists(error_message)
 
         # Finally, transfer the file between the blobs
-        source_sas_url = source_account.make_blob_url(
-            container_name=source_file["storage"]["storage_container"],
+        source_sas_url = self.source_account.make_blob_url(
+            container_name=file_instance["storage"]["storage_container"],
             blob_name=blobname,
-            sas_token=shared_access_sig,
+            sas_token=self.shared_access_sig,
         )
 
-        destination_account.copy_blob(
-            container_name=destination_storage["storage_container"],
+        self.destination_account.copy_blob(
+            container_name=self.destination_storage["storage_container"],
             blob_name=blobname,
             copy_source=source_sas_url,
         )
-
-    # Return the transfer function
-    return transfer_function
-
-
-def check_file_same_local(file_resource, filepath):
-    # TODO: define 'size' for folder
-    if file_resource["is_folder"]:
-        return True
-
-    filesize = os.path.getsize(filepath)
-
-    if file_resource["size"] != filesize:
-        logging.info(
-            "file {} has size {} which mismatches recorded size {} for {} in tantalus".format(
-                filepath, filesize, file_resource["size"], file_resource["filename"]))
-        return False
-
-    return True
 
 
 class RsyncTransfer(object):
@@ -343,7 +346,6 @@ class RsyncTransfer(object):
     def rsync_file(file_instance):
         """ Rsync a single file from one storage to another
         """
-
         file_resource = file_instance["file_resource"]
 
         local_filepath = os.path.join(self.to_storage_prefix, file_resource["filename"])
@@ -355,10 +357,10 @@ class RsyncTransfer(object):
             remote_filepath = remote_filepath + "/"
 
         if os.path.isfile(local_filepath):
-            if check_file_same_local(file_instance["file_resource"], local_filepath):
+            if _check_file_same_local(file_instance["file_resource"], local_filepath):
                 logging.info(
                     "skipping transfer of file resource {} that matches existing file".format(
-                        source_file["filename"]))
+                        file_resource["filename"]))
                 return
 
             error_message = "target file {filepath} already exists on {storage} with different size".format(
@@ -392,7 +394,7 @@ class RsyncTransfer(object):
         sys.stderr.flush()
         subprocess.check_call(subprocess_cmd, stdout=sys.stdout, stderr=sys.stderr)
 
-        if not check_file_same_local(file_instance["file_resource"], local_filepath):
+        if not _check_file_same_local(file_instance["file_resource"], local_filepath):
             error_message = "transfer to {filepath} on {storage} failed".format(
                 filepath=local_filepath, storage=self.to_storage_name
             )
@@ -401,7 +403,7 @@ class RsyncTransfer(object):
 
 def get_file_transfer_function(tantalus_api, from_storage, to_storage):
     if from_storage["storage_type"] == "blob" and to_storage["storage_type"] == "blob":
-        return blob_to_blob_transfer_closure(tantalus_api, from_storage, to_storage)
+        return AzureBlobBlobTransfer(tantalus_api, from_storage, to_storage).transfer
 
     elif from_storage["storage_type"] == "server" and to_storage["storage_type"] == "blob":
         return AzureBlobServerUpload(
