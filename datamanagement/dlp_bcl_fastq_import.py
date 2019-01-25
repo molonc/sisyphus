@@ -78,9 +78,21 @@ def _update_info(info, key, value):
         info[key] = value
 
 
-def check_fastqs(fastq_file_info):
+def check_fastqs(library_id, fastq_file_info):
     logging.info("Checking if BCL2FASTQ generated complete set of fastqs.")
-    index_sequences = set([fastq["index_sequence"] for fastq in fastq_file_info])
+
+    # Get indices from colossus
+    colossus_samples = query_colossus_dlp_cell_info(library_id)
+    colossus_index_sequences = set(cell_samples.keys())
+
+    # Get indices from given fastqs
+    fastq_index_sequences = set([fastq["index_sequence"] for fastq in fastq_file_info])
+    index_sequence = fastq_index_sequences
+
+    if len(colossus_index_sequences - fastq_index_sequences) != 0:
+        logging.info("BCL2FASTQ skipped indices {}".format(colossus_index_sequences - fastq_index_sequences))
+        index_sequences = colossus_index_sequences
+
     fastqs_to_be_generated = dict()
     threshold = 20
 
@@ -94,20 +106,20 @@ def check_fastqs(fastq_file_info):
 
         fastqs_to_be_generated[index] = list(fastq_lane_numbers_to_be_generated)
 
-    if len(fastqs_to_be_generated) > threshold:
-        # Change if using python 3
-        text = raw_input("Number of missing fastqs to be generated exceed {}. Generate missing fastqs anyways? (Y) or (N)".format(threshold))
+    # if len(fastqs_to_be_generated) > threshold:
+    #     # Change if using python 3
+    #     text = raw_input("Number of missing fastqs to be generated exceed {}. Generate missing fastqs anyways? (Y) or (N)".format(threshold))
 
-        if text == "Y" or text == "y":
-            return fastqs_to_be_generated
-        else:
-            raise Exception("Threshold reached.")
+    #     if text == "Y" or text == "y":
+    #         return fastqs_to_be_generated
+    #     else:
+    #         raise Exception("Threshold reached.")
 
     return fastqs_to_be_generated
 
 def generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated):
     # Ex: SA992-A90632-R54-C54_S317_L004_R1_001.fastq.gz
-    
+
     sublibraries = get_colossus_sublibraries_from_library_id(library_id)
 
     index_sequence_map = {}
@@ -138,7 +150,7 @@ def generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated):
     for filename in file_names:
         filepath = os.path.join(output_dir, filename)
         if not os.path.isfile(filepath):
-            print("Creating empty file {} at {}.".format(filename, filepath))
+            logging.info("Creating empty file {} at {}.".format(filename, filepath))
             with open(filepath, 'wb') as f:
                 f.write("")
 
@@ -166,20 +178,22 @@ def get_fastq_info(output_dir, flowcell_id, storage, storage_client):
     # Fastq filenames and info keyed by fastq id, read end
     fastq_file_info = []
 
-    fastq_file_info = transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, storage, storage_client)
+    fastq_file_info = transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, output_dir, storage, storage_client)
+    library_id = fastq_file_info[0]["library_id"] # Maybe make library_id an argument
 
-    fastqs_to_be_generated = check_fastqs(fastq_file_info)
+    fastqs_to_be_generated = check_fastqs(library_id, fastq_file_info)
 
     if fastqs_to_be_generated:
         logging.info("BCL2FASTQ failed to generate complete set of fastqs. Generating missing fastqs.")
         new_filenames = generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated)
 
-        new_fastq_file_info = transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, new_filenames, storage, storage_client)
+        new_fastq_file_info = transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, new_filenames, output_dir, storage, storage_client)
         return new_fastq_file_info
 
     return fastq_file_info
 
-def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, storage, storage_client):
+def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, output_dir, storage, storage_client):
+    extension = ".gz"
     for filename in filenames:
         match = re.match(
             r"^(\w+)-(\w+)-R(\d+)-C(\d+)_S(\d+)(_L(\d+))?_R([12])_001.fastq.gz$",
@@ -187,7 +201,7 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, sto
         )
 
         if match is None:
-            raise Exception(
+            raise Exception( 
                 "unrecognized fastq filename structure for {}".format(filename)
             )
 
