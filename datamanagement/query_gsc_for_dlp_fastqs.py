@@ -273,10 +273,8 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                     index_sequence, flowcell_lane, dlp_library_id))
 
             extension = ''
-            compression = 'UNCOMPRESSED'
             if fastq_path.endswith('.gz'):
                 extension = '.gz'
-                compression = 'GZIP'
             elif not fastq_path.endswith('.fastq'):
                 raise ValueError('unknown extension for filename {}'.format(fastq_path))
 
@@ -310,10 +308,8 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                             read_type=read_type,
                         )
                     ],
-                    file_type="FQ",
                     read_end=read_end,
                     index_sequence=index_sequence,
-                    compression=compression,
                     filepath=tantalus_path,
                 )
             )
