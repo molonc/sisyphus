@@ -20,11 +20,26 @@ def update_config(config, key, value):
         key (str)
         value (str)
     """
+    aligner_map = {
+        'BWA_ALN_0_5_7':    'bwa-aln',
+        'BWA_MEM_0_7_6A':   'bwa-mem',
+    }
+
+    reference_genome_map = {
+        'HG19': 'grch37',
+        'MM10': 'mm10',
+    }
+
+    if key == 'aligner' and value in aligner_map:
+        value = aligner_map[value]
+
+    elif key == 'reference' and value in reference_genome_map:
+        value = reference_genome_map[value]
+
     if (value is not None) and (config[key] != value):
         config[key] = value
         return True
     return False
-
 
 def get_config_override(analysis_info):
     """
