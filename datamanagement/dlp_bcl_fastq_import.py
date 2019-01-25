@@ -83,7 +83,7 @@ def check_fastqs(library_id, fastq_file_info):
 
     # Get indices from colossus
     colossus_samples = query_colossus_dlp_cell_info(library_id)
-    colossus_index_sequences = set(cell_samples.keys())
+    colossus_index_sequences = set(colossus_samples.keys())
 
     # Get indices from given fastqs
     fastq_index_sequences = set([fastq["index_sequence"] for fastq in fastq_file_info])
