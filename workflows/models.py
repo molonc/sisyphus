@@ -11,7 +11,7 @@ import dbclients.tantalus
 import dbclients.colossus
 from dbclients.basicclient import NotFoundError
 from datamanagement.utils.utils import make_dirs
-from datamanagement.transfer_files import transfer_files
+from datamanagement.transfer_files import transfer_dataset
 
 import generate_inputs
 import launch_pipeline
@@ -682,6 +682,7 @@ class HmmcopyAnalysis(Analysis):
         """
         
         filter_lane_flowcells = []
+        dataset_ids = set()
 
         if args['gsc_lanes'] is not None:
             for lane in args['gsc_lanes']:
@@ -715,9 +716,12 @@ class HmmcopyAnalysis(Analysis):
             if not datasets:
                 raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
 
-            return [dataset["id"] for dataset in datasets]
+            # return [dataset["id"] for dataset in datasets]
 
-        dataset_ids = set()
+            for dataset in datasets:
+                dataset_ids.add(dataset['id'])
+            
+            return list(dataset_ids)
 
         for flowcell_id in filter_lane_flowcells:
             datasets = tantalus_api.list(
@@ -761,9 +765,11 @@ class HmmcopyAnalysis(Analysis):
             return launch_pipeline.run_pipeline
 
     def generate_inputs_yaml(self, args, inputs_yaml_filename):
-        """
-        inputs.yaml should already exists from align analysis
-        """
+        log.info("inputs.yaml should already exists from align analysis.")
+        pass
+
+    def create_output_datasets(self, tag_name=None, update=False):
+        log.info("No outputs need to be create for hmmcopy analysis.")
         pass
 
 
