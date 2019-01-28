@@ -80,9 +80,7 @@ def query_colossus_dlp_rev_comp_override(colossus_api, library_id):
     rev_comp_override = {}
     for sequencing in library_info["dlpsequencing_set"]:
         for lane in sequencing["dlplane_set"]:
-            rev_comp_override[lane["flow_cell_id"]] = sequencing["dlpsequencingdetail"][
-                "rev_comp_override"
-            ]
+            rev_comp_override[lane["flow_cell_id"]] = sequencing["rev_comp_override"]
 
     return rev_comp_override
 
@@ -122,7 +120,7 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
     return set(existing_flowcell_ids)
 
 
-def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, tag_name=None, update=False, check_library=False):
+def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, tag_name=None, update=False, check_library=False, dry_run=False):
     ''' Import dlp fastq data from the GSC.
     
     Args:
@@ -202,7 +200,13 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                 flowcell_id, lane_number))
             continue
 
+        else:
+            logging.info("Importing lane {}_{}.".format(flowcell_id, lane_number))
+
         flowcells_to_be_created.add(flowcell_id + '_' + str(lane_number))
+
+        if dry_run:
+            continue
 
         for fastq_info in gsc_lane_fastq_file_infos[(flowcell_id, lane_number)]:
             fastq_path = fastq_info["data_path"]
@@ -323,10 +327,12 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                     rsync_file(fastq_path, tantalus_path)
 
                 elif storage['storage_type'] == 'blob':
+                    logging.info("Creating blob {} from path {}".format(tantalus_filename, fastq_path))
                     storage_client = tantalus_api.get_storage_client(storage['name'])
                     storage_client.create(tantalus_filename, fastq_path)
 
     if len(fastq_file_info) == 0:
+        print("Library {} already imported".format(dlp_library_id))
         return None
 
     fastq_paired_end_check(fastq_file_info)
@@ -359,7 +365,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         create_sequence_dataset_models(
             fastq_file_info, storage["name"], tag_name, tantalus_api, update=update
         )
-
+    print("Library {} imported successfully".format(dlp_library_id))
     logging.info('import succeeded')
 
     import_info = dict(
@@ -376,7 +382,8 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 @click.option('--tag_name')
 @click.option('--update', is_flag=True)
 @click.option('--check_library', is_flag=True)
-def main(storage_name, dlp_library_id, tag_name=None, update=False, check_library=False):
+@click.option('--dry_run', is_flag=True)
+def main(storage_name, dlp_library_id, tag_name=None, update=False, check_library=False, dry_run=False):
 
     # Set up the root logger
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
@@ -385,7 +392,7 @@ def main(storage_name, dlp_library_id, tag_name=None, update=False, check_librar
     colossus_api = ColossusApi()
     tantalus_api = TantalusApi()
 
-    storage = tantalus_api.get("storage_server", name=storage_name)
+    storage = tantalus_api.get("storage", name=storage_name)
 
     # Query GSC for FastQs
     import_gsc_dlp_paired_fastqs(
@@ -396,6 +403,7 @@ def main(storage_name, dlp_library_id, tag_name=None, update=False, check_librar
         tag_name,
         update=update,
         check_library=check_library,
+        dry_run=dry_run,
     )
 
 

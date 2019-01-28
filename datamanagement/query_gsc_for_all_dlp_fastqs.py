@@ -18,7 +18,8 @@ from dbclients.tantalus import TantalusApi
 @click.argument('storage_name')
 @click.option('--all', is_flag=True)
 @click.option('--tag_name')
-def main(storage_name, all, tag_name=None):
+@click.option('--dry_run', is_flag=True)
+def main(storage_name, all, dry_run, tag_name=None):
     # Set up the root logger
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
@@ -26,7 +27,7 @@ def main(storage_name, all, tag_name=None):
     colossus_api = ColossusApi()
     tantalus_api = TantalusApi()
 
-    storage = tantalus_api.get("storage_server", name=storage_name)
+    storage = tantalus_api.get("storage", name=storage_name)
 
     sequencing_list_all = list(colossus_api.list('sequencing'))
     sequencing_list = list()
@@ -36,19 +37,23 @@ def main(storage_name, all, tag_name=None):
 
     else:
         for sequencing in sequencing_list_all:
-            if sequencing['dlpsequencingdetail']:
-                if sequencing['dlpsequencingdetail']['number_of_lanes_requested'] != len(sequencing['dlplane_set']):
-                    sequencing_list.append(sequencing)
+            if sequencing['number_of_lanes_requested'] != len(sequencing['dlplane_set']):
+                sequencing_list.append(sequencing)
 
     for sequencing in sequencing_list:
 
         # Query GSC for FastQs
-        import_info = import_gsc_dlp_paired_fastqs(
-            colossus_api,
-            tantalus_api,
-            sequencing["library"],
-            storage,
-            tag_name)
+        try:
+            import_info = import_gsc_dlp_paired_fastqs(
+                colossus_api,
+                tantalus_api,
+                sequencing["library"],
+                storage,
+                tag_name,
+                dry_run=dry_run)
+        except Exception as e:
+            print("Library {} failed to import: {}".format(sequencing["library"], e))
+            continue
 
         if import_info is None:
             continue
@@ -56,15 +61,15 @@ def main(storage_name, all, tag_name=None):
         # Re-get the sequencing details, may be unnecessary but safer
         # given that it is nested in sequencing and may have been changed
         # in a previous iteration of this loop
-        sequencingdetails = colossus_api.get('sequencingdetails', id=sequencing['dlpsequencingdetail']['id'])
+        sequencingdetails = colossus_api.get('sequencing', id=sequencing['id'])
 
         if sequencingdetails['gsc_library_id'] is not None:
             if sequencingdetails['gsc_library_id'] != import_info['gsc_library_id']:
-                raise Exception('gsc library id mismatch in dlpsequencingdetail {} '.format(sequencingdetails['id']))
+                raise Exception('gsc library id mismatch in sequencing {} '.format(sequencingdetails['id']))
 
         else:
             colossus_api.update(
-                'sequencingdetails',
+                'sequencing',
                 sequencingdetails['id'],
                 gsc_library_id=import_info['gsc_library_id'])
 
