@@ -150,6 +150,8 @@ class Analysis(object):
 
         self.storages = storages
 
+        self.output_datasets = []
+
     @property
     def name(self):
         return self.analysis['name']
@@ -636,7 +638,7 @@ class AlignAnalysis(Analysis):
 
         log.info('creating sequence dataset models for output bams')
 
-        output_datasets = dlp.create_sequence_dataset_models(
+        self.output_datasets = dlp.create_sequence_dataset_models(
             file_info=output_file_info,
             storage_name=self.storages["working_inputs"],
             tag_name=tag_name,  # TODO: tag?
@@ -646,6 +648,9 @@ class AlignAnalysis(Analysis):
         )
 
         log.info("created sequence datasets {}".format(output_datasets))
+
+    def get_output_datasets(self):
+        return self.output_datasets
 
     def get_results_filenames(self):
         results_prefix = os.path.join(
@@ -769,8 +774,11 @@ class HmmcopyAnalysis(Analysis):
         pass
 
     def create_output_datasets(self, tag_name=None, update=False):
-        log.info("No outputs need to be create for hmmcopy analysis.")
+        log.info("No outputs need to be created for hmmcopy analysis.")
         pass
+
+    def get_output_datasets(self):
+        return self.output_datasets
 
 
 class PseudoBulkAnalysis(Analysis):
