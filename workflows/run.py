@@ -79,15 +79,17 @@ def start_automation(
             sequencedataset_set=tantalus_analysis.search_input_datasets(args))
 
         if storages["working_inputs"] != storages["remote_inputs"]:  
-            # FIXME: transfer_dataset(tantalus_api, dataset, from_storage, to_storage)
-            # Not a problem atm since storages for results are the same 
+            input_datasets_ids = tantalus_analysis.search_input_datasets(args)
+
+            for dataset_id in input_datasets_ids:
                 sentinel(
-                    'Transferring {} input files from {} to {}'.format(
+                    'Transferring {} input datasets from {} to {}'.format(
                         analysis_type, storages["remote_inputs"], storages["working_inputs"]),
                     transfer_dataset,
-                    tag_name, 
+                    dataset_id, 
                     storages["remote_inputs"],
-                    storages["working_inputs"])
+                    storages["working_inputs"],
+                )
 
     if args['inputs_yaml'] is None:
         local_results_storage = tantalus_api.get(
@@ -140,22 +142,25 @@ def start_automation(
 
     tag_name = "_".join([args["jira"], storages["working_inputs"], "bams"])
 
-    # Should only be created for align analysis
     sentinel(
-        'Creating output bam datasets',
+        'Creating output datasets',
         tantalus_analysis.create_output_datasets,
         update=args['update'],
         tag_name=tag_name,
     )
 
-    if storages["working_inputs"] != storages["remote_inputs"]:
-        sentinel(
-            "Transferring BAM files from {} to {}".format(
-                storages["working_inputs"], storages["remote_inputs"]),
-            transfer_files,
-            tag_name,
-            storages["working_inputs"],
-            storages["remote_inputs"])
+    output_datasets_ids = tantalus_analysis.get_output_datasets()
+
+    if storages["working_inputs"] != storages["remote_inputs"] and output_datasets_ids != []:
+        for dataset_id in output_datasets_ids:
+        # Should not transfer for hmmcopy since no output datasets
+            sentinel(
+                "Transferring output datasets from {} to {}".format(
+                    storages["working_inputs"], storages["remote_inputs"]),
+                transfer_dataset,
+                dataset_id,
+                storages["working_inputs"],
+                storages["remote_inputs"])
 
 
     tantalus_results = tantalus_analysis.create_output_results(
@@ -173,15 +178,14 @@ def start_automation(
     )
 
     if storages["working_results"] != storages["remote_results"]:
-        sentinel(
-            "Transferring results from {} to {}".format(
-                storages["working_results"], storages['remote_results']),
-            # FIXME: transfer_dataset(tantalus_api, dataset, from_storage, to_storage)
-            # Not a problem atm since storages for results are the same 
-            transfer_dataset,
-            tag_name,
-            storages['working_results'],
-            storages['remote_results'])
+        for result_id in results_ids:  
+            sentinel(
+                "Transferring results from {} to {}".format(
+                    storages["working_results"], storages['remote_results']),
+                result_id,
+                tag_name,
+                storages['working_results'],
+                storages['remote_results'])
 
     analysis_info.set_finish_status()
     log.info("Done!")
