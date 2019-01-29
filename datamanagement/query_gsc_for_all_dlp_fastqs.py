@@ -52,25 +52,25 @@ def main(storage_name, all, dry_run, tag_name=None):
                 tag_name,
                 dry_run=dry_run)
         except Exception as e:
-            print("Library {} failed to import: {}".format(sequencing["library"], e))
+            logging.warning(("Library {} failed to import: {}".format(sequencing["library"], e)))
             continue
 
         if import_info is None:
             continue
 
-        # Re-get the sequencing details, may be unnecessary but safer
+        # Re-get the sequencing, may be unnecessary but safer
         # given that it is nested in sequencing and may have been changed
         # in a previous iteration of this loop
-        sequencingdetails = colossus_api.get('sequencing', id=sequencing['id'])
+        sequencing = colossus_api.get('sequencing', id=sequencing['id'])
 
-        if sequencingdetails['gsc_library_id'] is not None:
-            if sequencingdetails['gsc_library_id'] != import_info['gsc_library_id']:
-                raise Exception('gsc library id mismatch in sequencing {} '.format(sequencingdetails['id']))
+        if sequencing['gsc_library_id'] is not None:
+            if sequencing['gsc_library_id'] != import_info['gsc_library_id']:
+                raise Exception('gsc library id mismatch in sequencing {} '.format(sequencing['id']))
 
         else:
             colossus_api.update(
                 'sequencing',
-                sequencingdetails['id'],
+                sequencing['id'],
                 gsc_library_id=import_info['gsc_library_id'])
 
         for flowcell in import_info['flowcells_to_be_created']:
