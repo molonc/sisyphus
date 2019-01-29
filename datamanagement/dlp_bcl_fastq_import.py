@@ -151,7 +151,7 @@ def generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated):
 
     for filename in file_names:
         filepath = os.path.join(output_dir, filename)
-        if not os.path.isfile(filepath):
+        if not os.path.exists(filepath):
             logging.info("Creating empty file {} at {}.".format(filename, filepath))
             with open(filepath, 'wb') as f:
                 f.write("")
@@ -244,7 +244,6 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
             rsync_file(fastq_path, tantalus_path)
 
         elif storage['storage_type'] == 'blob':
-            logging.info("Creating blob {} from path {}".format(tantalus_filename, fastq_path))
             storage_client.create(tantalus_filename, fastq_path)
 
 
