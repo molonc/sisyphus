@@ -10,6 +10,7 @@ import sys
 import time
 import subprocess
 import pandas as pd
+import click
 from dbclients.colossus import get_colossus_sublibraries_from_library_id
 from dbclients.tantalus import TantalusApi
 from utils.constants import LOGGING_FORMAT
@@ -88,7 +89,7 @@ def check_fastqs(library_id, fastq_file_info):
 
     # Get indices from given fastqs
     fastq_index_sequences = set([fastq["index_sequence"] for fastq in fastq_file_info])
-    index_sequence = fastq_index_sequences
+    index_sequences = fastq_index_sequences
 
     if len(colossus_index_sequences - fastq_index_sequences) != 0:
         logging.info("BCL2FASTQ skipped indices {}".format(colossus_index_sequences - fastq_index_sequences))
@@ -275,7 +276,7 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
 
 
 def get_samplesheet(destination, lane_id):
-    sheet_url = 'http://10.9.18.26:8001/dlp/sequencing/samplesheet/query_download/{lane_id}'
+    sheet_url = 'http://colossus.bcgsc.ca/dlp/sequencing/samplesheet/query_download/{lane_id}'
     sheet_url = sheet_url.format(lane_id=lane_id)
 
     subprocess.check_call(["wget", "-O", destination, sheet_url])
@@ -301,48 +302,50 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
     subprocess.check_call(cmd)
 
 
-if __name__ == "__main__":
-    # Parse the incoming arguments
-    args = parse_runtime_args()
-
-    # variables defined)
+@click.command()
+@click.argument('storage_name',  nargs=1)
+@click.argument('temp_output_dir',  nargs=1)
+@click.argument('flowcell_id',  nargs=1)
+@click.argument('bcl_dir',  nargs=1)
+@click.option('--tag_name')
+@click.option('--update', is_flag=True)
+@click.option('--no_bcl2fastq', is_flag=True)
+def main(storage_name, temp_output_dir, flowcell_id, bcl_dir, tag_name=None, update=False, no_bcl2fastq=False):
     tantalus_api = TantalusApi()
 
-    storage = tantalus_api.get("storage", name=args["storage_name"])
-    storage_client = tantalus_api.get_storage_client(storage['name'])
+    storage = tantalus_api.get("storage", name=storage_name)
+    storage_client = tantalus_api.get_storage_client(storage_name)
 
-    # Get the tag name if it was passed in
-    try:
-        tag_name = args["tag_name"]
-    except KeyError:
-        tag_name = None
-
-    make_dirs(args["temp_dir"])
+    make_dirs(temp_output_dir)
 
     datasets = list(tantalus_api.list(
         "sequence_dataset",
-        sequence_lanes__flowcell_id=args["flowcell_id"],
+        sequence_lanes__flowcell_id=flowcell_id,
         dataset_type="FQ"))
 
     if len(datasets) > 0:
         logging.warning("found dataset {}".format(','.join([str(d["id"]) for d in datasets])))
 
-    # Run bcl to fastq
-    run_bcl2fastq(
-        args["flowcell_id"],
-        args["bcl_dir"],
-        args["temp_dir"]
-    )
+    if not no_bcl2fastq:
+        # Run bcl to fastq
+        run_bcl2fastq(
+            flowcell_id,
+            bcl_dir,
+            temp_output_dir,
+        )
 
     # Import fastqs
     load_brc_fastqs(
-        args["flowcell_id"],
-        args["temp_dir"],
-        storage["name"],
+        flowcell_id,
+        temp_output_dir,
+        storage_name,
         storage,
         tantalus_api,
         storage_client,
         tag_name=tag_name,
-        update=args["update"],
+        update=update
     )
+
+if __name__ == "__main__":
+    main()
 
