@@ -54,6 +54,7 @@ def load_brc_fastqs(
     tantalus_api,
     storage_client,
     tag_name=None,
+    update=False,
 ):
     if not os.path.isdir(output_dir):
         raise Exception("output directory {} not a directory".format(output_dir))
@@ -65,7 +66,7 @@ def load_brc_fastqs(
     fastq_dlp_index_check(fastq_file_info)
 
     create_sequence_dataset_models(
-        fastq_file_info, storage_name, tag_name, tantalus_api
+        fastq_file_info, storage_name, tag_name, tantalus_api, update=update,
     )
 
     logging.info('import succeeded')
@@ -83,7 +84,7 @@ def check_fastqs(library_id, fastq_file_info):
 
     # Get indices from colossus
     colossus_samples = query_colossus_dlp_cell_info(library_id)
-    colossus_index_sequences = set(colossus_samples.keys())
+    colossus_index_sequences = set(sample["index_sequence"] for sample in colossus_samples.values())
 
     # Get indices from given fastqs
     fastq_index_sequences = set([fastq["index_sequence"] for fastq in fastq_file_info])
@@ -179,8 +180,9 @@ def get_fastq_info(output_dir, flowcell_id, storage, storage_client):
     fastq_file_info = []
 
     fastq_file_info = transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, output_dir, storage, storage_client)
-    library_id = fastq_file_info[0]["library_id"] # Maybe make library_id an argument
+    library_id = fastq_file_info[0]["library_id"] # TODO: Maybe make library_id an argument
 
+    # Run through list of fastqs and check if bcl2fastqs skipped over indices or skipped lanes/reads 
     fastqs_to_be_generated = check_fastqs(library_id, fastq_file_info)
 
     if fastqs_to_be_generated:
@@ -273,7 +275,7 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
 
 
 def get_samplesheet(destination, lane_id):
-    sheet_url = 'http://colossus.bcgsc.ca/dlp/sequencing/samplesheet/query_download/{lane_id}'
+    sheet_url = 'http://10.9.18.26:8001/dlp/sequencing/samplesheet/query_download/{lane_id}'
     sheet_url = sheet_url.format(lane_id=lane_id)
 
     subprocess.check_call(["wget", "-O", destination, sheet_url])
@@ -340,6 +342,7 @@ if __name__ == "__main__":
         storage,
         tantalus_api,
         storage_client,
-        tag_name=tag_name
+        tag_name=tag_name,
+        update=args["update"],
     )
 
