@@ -871,11 +871,13 @@ class PseudoBulkAnalysis(Analysis):
         filenames = []
         filenames.append('haplotypes.tsv')
         for sample_id in sample_ids:
+            if sample_id == self.args['matched_normal_sample']:
+                continue
             filenames.append('{}_allele_counts.csv'.format(sample_id))
             filenames.append('{}_snv_annotations.h5'.format(sample_id))
             filenames.append('{}_snv_counts.h5'.format(sample_id))
             filenames.append('{}_destruct.h5'.format(sample_id))
-            for snv_caller in ('museq', 'strelka'):
+            for snv_caller in ('museq', 'strelka_snv', 'strelka_indel'):
                 filenames.append('{}_{}.vcf.gz'.format(sample_id, snv_caller))
                 filenames.append('{}_{}.vcf.gz.csi'.format(sample_id, snv_caller))
                 filenames.append('{}_{}.vcf.gz.tbi'.format(sample_id, snv_caller))
