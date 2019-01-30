@@ -647,7 +647,7 @@ class AlignAnalysis(Analysis):
             update=update,
         )
 
-        log.info("created sequence datasets {}".format(output_datasets))
+        log.info("created sequence datasets {}".format(self.output_datasets))
 
     def get_output_datasets(self):
         return self.output_datasets
