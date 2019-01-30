@@ -131,7 +131,7 @@ class BasicAPIClient(object):
                     # Response has nested foreign key relationship
                     try:
                         result_field = result[field_name]["id"]
-                    except TypeError:
+                    except (TypeError, KeyError):
                         pass
 
                     # Response has nested many to many
@@ -151,7 +151,7 @@ class BasicAPIClient(object):
 
                     # Response is a timestamp
                     try:
-                        if isinstance(result[field_name], basestring):
+                        if result[field_name] and isinstance(result[field_name], basestring):
                             result_field = pd.Timestamp(result[field_name])
                             field_value = pd.Timestamp(field_value)
                     except (ValueError, TypeError):
