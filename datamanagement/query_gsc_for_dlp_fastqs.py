@@ -181,6 +181,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     gsc_library_id = library_info["name"]
 
     gsc_fastq_infos = gsc_api.query("fastq?parent_library={}".format(gsc_library_id))
+    sequencing_date = gsc_fastq_infos[0]["libcore"]["run"]["run_datetime"]
 
     fastq_file_info = []
 
@@ -372,6 +373,15 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         flowcells_to_be_created=flowcells_to_be_created,
         gsc_library_id=gsc_library_id,
     )
+    sequencing = colossus_api.get('sequencing', gsc_library_id=gsc_library_id)
+
+    colossus_api.update(
+        'sequencing',
+        sequencing['id'],
+        gsc_library_id=gsc_library_id)
+
+    for flowcell in import_info['flowcells_to_be_created']:
+        colossus_api.get_or_create("lane", sequencing=sequencing['id'], flow_cell_id=flowcell, sequencing_date=sequencing_date)
 
     return import_info
 
