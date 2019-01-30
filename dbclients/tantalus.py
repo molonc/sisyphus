@@ -507,7 +507,7 @@ class TantalusApi(BasicAPIClient):
 
         return file_instances
 
-    def get_dataset_file_instances(self, dataset_id, dataset_model, storage_name):
+    def get_dataset_file_instances(self, dataset_id, dataset_model, storage_name, filters=None):
         """
         Given a dataset get all file instances.
 
@@ -521,13 +521,16 @@ class TantalusApi(BasicAPIClient):
         Returns:
             file_instances (list)
         """
+        if filters is None:
+            filters = {}
+
         file_instances = []
 
         if dataset_model == 'sequencedataset':
-            file_resources = self.list('file_resource', sequencedataset__id=dataset_id)
+            file_resources = self.list('file_resource', sequencedataset__id=dataset_id, **filters)
 
         elif dataset_model == 'resultsdataset':
-            file_resources = self.list('file_resource', resultsdataset__id=dataset_id)
+            file_resources = self.list('file_resource', resultsdataset__id=dataset_id, **filters)
 
         else:
             raise ValueError('unrecognized dataset model {}'.format(dataset_model))
