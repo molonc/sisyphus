@@ -20,6 +20,11 @@ def get_args(arglist=None):
     )
 
     parser.add_argument(
+        'analysis_type',
+        help="Type of analysis, e.g. align",
+    )
+
+    parser.add_argument(
         "--skip_pipeline",
         default=False,
         action="store_true"
