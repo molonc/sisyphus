@@ -107,6 +107,13 @@ class BasicAPIClient(object):
             if field.name in fields:
                 get_params[field.name] = fields[field.name]
 
+        # Since we are not accepting related fields for checking
+        # they must be implemented as a filter for this endpoint
+        for field_name in fields:
+            if "__" in field_name and field_name not in get_params:
+                raise ValueError("field {} not accepted for {}".format(
+                    field_name, table_name))
+
         # Add in pagination params
         self.get_list_pagination_initial_params(get_params)
 
