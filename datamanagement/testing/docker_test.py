@@ -6,7 +6,6 @@ if __name__ == '__main__':
     print "TANTALUS CREATING..."
     tantalus_api = TantalusApi()
     print "COLOSSUS CREATING..."
-    colossus_api = ColossusApi()
     console.log("HELLO")
 
 
