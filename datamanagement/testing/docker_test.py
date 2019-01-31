@@ -1,5 +1,5 @@
 from dbclients.tantalus import TantalusApi
-from dbclients.colossus import ColossusApi
+
 import time
 
 if __name__ == '__main__':
