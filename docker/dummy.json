@@ -1,0 +1,4289 @@
+[
+    {
+        "id": 7389,
+        "sample": {
+            "id": 4010,
+            "sample_id": "SA1090TEST",
+            "external_sample_id": null,
+            "submitter": null,
+            "collaborator": null,
+            "tissue": null,
+            "note": null,
+            "patient": null,
+            "projects": []
+        },
+        "library": {
+            "id": 4623,
+            "library_type": "SC_WGS",
+            "library_id": "A96213ATEST",
+            "index_format": "D",
+            "owner": 7
+        },
+        "sequence_lanes": [
+            {
+                "id": 9188,
+                "flowcell_id": "HHCJ7CCXYTEST",
+                "lane_number": "5",
+                "sequencing_centre": "GSC",
+                "sequencing_instrument": "HiSeqX",
+                "sequencing_library_id": null,
+                "read_type": "P",
+                "owner": 1,
+                "dna_library": 3620
+            }
+        ],
+        "aligner": null,
+        "reference_genome": null,
+        "is_complete": false,
+        "last_updated": "2019-01-22T06:22:45.602472Z",
+        "name": "FQ-SA1090TEST-SC_WGS-A96213ATEST-HHCJ7CCXYTEST_5",
+        "dataset_type": "FQ",
+        "owner": 1,
+        "analysis": null,
+        "tags": [
+            685
+        ],
+        "file_resources": [
+            1951643,
+            1951644,
+            1951645,
+            1951646,
+            1951647,
+            1951648,
+            1951649,
+            1951650,
+            1951651,
+            1951652,
+            1951653,
+            1951654,
+            1951655,
+            1951656,
+            1951657,
+            1951658,
+            1951659,
+            1951660,
+            1951661,
+            1951662,
+            1951663,
+            1951664,
+            1951665,
+            1951666,
+            1951667,
+            1951668,
+            1951669,
+            1951670,
+            1951671,
+            1951672,
+            1951673,
+            1951674,
+            1951675,
+            1951676,
+            1951677,
+            1951678,
+            1951679,
+            1951680,
+            1951681,
+            1951682,
+            1951683,
+            1951684,
+            1951685,
+            1951686,
+            1951687,
+            1951688,
+            1951689,
+            1951690,
+            1951691,
+            1951692,
+            1951693,
+            1951694,
+            1951695,
+            1951696,
+            1951697,
+            1951698,
+            1951699,
+            1951700,
+            1951701,
+            1951702,
+            1951703,
+            1951704,
+            1951705,
+            1951706,
+            1951707,
+            1951708,
+            1951709,
+            1951710,
+            1951711,
+            1951712,
+            1951713,
+            1951714,
+            1951715,
+            1951716,
+            1951717,
+            1951718,
+            1951719,
+            1951720,
+            1951721,
+            1951722
+        ]
+    },
+    {
+        "id": 1951643,
+        "file_instances": [
+            {
+                "id": 3477888,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ATTCCG-GCTGTA_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951643
+            },
+            {
+                "id": 3477794,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ATTCCG-GCTGTA_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951643
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848676,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "ATTCCG-GCTGTA",
+            "file_resource": 1951643,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:47.907078Z",
+        "md5": null,
+        "size": 122949,
+        "created": "2019-01-14T03:08:20Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ATTCCG-GCTGTA_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951644,
+        "file_instances": [
+            {
+                "id": 3477889,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ATTCCG-GCTGTA_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951644
+            },
+            {
+                "id": 3477795,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ATTCCG-GCTGTA_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951644
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848677,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "ATTCCG-GCTGTA",
+            "file_resource": 1951644,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:48.420252Z",
+        "md5": null,
+        "size": 142389,
+        "created": "2019-01-14T03:08:20Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ATTCCG-GCTGTA_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951645,
+        "file_instances": [
+            {
+                "id": 3477890,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TCTGAG_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951645
+            },
+            {
+                "id": 3477796,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TCTGAG_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951645
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848678,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AGATGT-TCTGAG",
+            "file_resource": 1951645,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:48.896532Z",
+        "md5": null,
+        "size": 172406,
+        "created": "2019-01-14T03:08:44Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TCTGAG_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951646,
+        "file_instances": [
+            {
+                "id": 3477891,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TCTGAG_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951646
+            },
+            {
+                "id": 3477797,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TCTGAG_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951646
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848679,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AGATGT-TCTGAG",
+            "file_resource": 1951646,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:49.372296Z",
+        "md5": null,
+        "size": 193611,
+        "created": "2019-01-14T03:08:44Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TCTGAG_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951647,
+        "file_instances": [
+            {
+                "id": 3477892,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TATATC-GCTGTA_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951647
+            },
+            {
+                "id": 3477798,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TATATC-GCTGTA_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951647
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848680,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TATATC-GCTGTA",
+            "file_resource": 1951647,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:49.835089Z",
+        "md5": null,
+        "size": 173224,
+        "created": "2019-01-14T03:08:49Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TATATC-GCTGTA_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951648,
+        "file_instances": [
+            {
+                "id": 3477893,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TATATC-GCTGTA_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951648
+            },
+            {
+                "id": 3477799,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TATATC-GCTGTA_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951648
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848681,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TATATC-GCTGTA",
+            "file_resource": 1951648,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:50.290195Z",
+        "md5": null,
+        "size": 195961,
+        "created": "2019-01-14T03:08:49Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TATATC-GCTGTA_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951649,
+        "file_instances": [
+            {
+                "id": 3477894,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-CCAGCA_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951649
+            },
+            {
+                "id": 3477800,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-CCAGCA_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951649
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848682,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TTGACT-CCAGCA",
+            "file_resource": 1951649,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:50.770905Z",
+        "md5": null,
+        "size": 150630,
+        "created": "2019-01-14T03:08:24Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-CCAGCA_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951650,
+        "file_instances": [
+            {
+                "id": 3477895,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-CCAGCA_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951650
+            },
+            {
+                "id": 3477801,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-CCAGCA_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951650
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848683,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TTGACT-CCAGCA",
+            "file_resource": 1951650,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:51.238970Z",
+        "md5": null,
+        "size": 175123,
+        "created": "2019-01-14T03:08:24Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-CCAGCA_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951651,
+        "file_instances": [
+            {
+                "id": 3477896,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTTCAC-CCAGCA_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951651
+            },
+            {
+                "id": 3477802,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTTCAC-CCAGCA_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951651
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848684,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TTTCAC-CCAGCA",
+            "file_resource": 1951651,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:51.706022Z",
+        "md5": null,
+        "size": 131954,
+        "created": "2019-01-14T03:08:33Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTTCAC-CCAGCA_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951652,
+        "file_instances": [
+            {
+                "id": 3477897,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTTCAC-CCAGCA_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951652
+            },
+            {
+                "id": 3477803,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTTCAC-CCAGCA_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951652
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848685,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TTTCAC-CCAGCA",
+            "file_resource": 1951652,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:52.173983Z",
+        "md5": null,
+        "size": 151369,
+        "created": "2019-01-14T03:08:33Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTTCAC-CCAGCA_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951653,
+        "file_instances": [
+            {
+                "id": 3477898,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTTCGA-GCCTAA_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951653
+            },
+            {
+                "id": 3477804,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTTCGA-GCCTAA_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951653
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848686,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CTTCGA-GCCTAA",
+            "file_resource": 1951653,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:52.650131Z",
+        "md5": null,
+        "size": 234720,
+        "created": "2019-01-14T03:08:27Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTTCGA-GCCTAA_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951654,
+        "file_instances": [
+            {
+                "id": 3477899,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTTCGA-GCCTAA_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951654
+            },
+            {
+                "id": 3477805,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTTCGA-GCCTAA_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951654
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848687,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CTTCGA-GCCTAA",
+            "file_resource": 1951654,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:53.119873Z",
+        "md5": null,
+        "size": 274223,
+        "created": "2019-01-14T03:08:27Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTTCGA-GCCTAA_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951655,
+        "file_instances": [
+            {
+                "id": 3477900,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TATCGT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951655
+            },
+            {
+                "id": 3477806,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TATCGT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951655
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848688,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AGATGT-TATCGT",
+            "file_resource": 1951655,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:53.574768Z",
+        "md5": null,
+        "size": 110435,
+        "created": "2019-01-14T03:08:21Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TATCGT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951656,
+        "file_instances": [
+            {
+                "id": 3477901,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TATCGT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951656
+            },
+            {
+                "id": 3477807,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TATCGT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951656
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848689,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AGATGT-TATCGT",
+            "file_resource": 1951656,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:54.031495Z",
+        "md5": null,
+        "size": 123148,
+        "created": "2019-01-14T03:08:21Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGATGT-TATCGT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951657,
+        "file_instances": [
+            {
+                "id": 3477902,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTATTC-TGACAT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951657
+            },
+            {
+                "id": 3477808,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTATTC-TGACAT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951657
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848690,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TTATTC-TGACAT",
+            "file_resource": 1951657,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:54.485271Z",
+        "md5": null,
+        "size": 116757,
+        "created": "2019-01-14T03:08:16Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTATTC-TGACAT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951658,
+        "file_instances": [
+            {
+                "id": 3477903,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTATTC-TGACAT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951658
+            },
+            {
+                "id": 3477809,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTATTC-TGACAT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951658
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848691,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TTATTC-TGACAT",
+            "file_resource": 1951658,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:54.942660Z",
+        "md5": null,
+        "size": 129062,
+        "created": "2019-01-14T03:08:16Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTATTC-TGACAT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951659,
+        "file_instances": [
+            {
+                "id": 3477904,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-GCCTAA_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951659
+            },
+            {
+                "id": 3477810,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-GCCTAA_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951659
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848692,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TGCTTT-GCCTAA",
+            "file_resource": 1951659,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:55.402969Z",
+        "md5": null,
+        "size": 204914,
+        "created": "2019-01-14T03:08:40Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-GCCTAA_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951660,
+        "file_instances": [
+            {
+                "id": 3477905,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-GCCTAA_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951660
+            },
+            {
+                "id": 3477811,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-GCCTAA_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951660
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848693,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TGCTTT-GCCTAA",
+            "file_resource": 1951660,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:55.859846Z",
+        "md5": null,
+        "size": 231916,
+        "created": "2019-01-14T03:08:40Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-GCCTAA_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951661,
+        "file_instances": [
+            {
+                "id": 3477906,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGGAGC-AGTCTT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951661
+            },
+            {
+                "id": 3477812,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGGAGC-AGTCTT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951661
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848694,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TGGAGC-AGTCTT",
+            "file_resource": 1951661,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:56.320484Z",
+        "md5": null,
+        "size": 211795,
+        "created": "2019-01-14T03:08:35Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGGAGC-AGTCTT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951662,
+        "file_instances": [
+            {
+                "id": 3477907,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGGAGC-AGTCTT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951662
+            },
+            {
+                "id": 3477813,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGGAGC-AGTCTT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951662
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848695,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TGGAGC-AGTCTT",
+            "file_resource": 1951662,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:56.781491Z",
+        "md5": null,
+        "size": 246455,
+        "created": "2019-01-14T03:08:35Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGGAGC-AGTCTT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951663,
+        "file_instances": [
+            {
+                "id": 3477908,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-AATTAT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951663
+            },
+            {
+                "id": 3477814,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-AATTAT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951663
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848696,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AAGCTA-AATTAT",
+            "file_resource": 1951663,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:57.243262Z",
+        "md5": null,
+        "size": 165240,
+        "created": "2019-01-14T03:08:47Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-AATTAT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951664,
+        "file_instances": [
+            {
+                "id": 3477909,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-AATTAT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951664
+            },
+            {
+                "id": 3477815,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-AATTAT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951664
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848697,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AAGCTA-AATTAT",
+            "file_resource": 1951664,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:57.708331Z",
+        "md5": null,
+        "size": 189012,
+        "created": "2019-01-14T03:08:47Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-AATTAT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951665,
+        "file_instances": [
+            {
+                "id": 3477910,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-AATTAT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951665
+            },
+            {
+                "id": 3477816,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-AATTAT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951665
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848698,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TTGACT-AATTAT",
+            "file_resource": 1951665,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:58.163595Z",
+        "md5": null,
+        "size": 158174,
+        "created": "2019-01-14T03:08:34Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-AATTAT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951666,
+        "file_instances": [
+            {
+                "id": 3477911,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-AATTAT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951666
+            },
+            {
+                "id": 3477817,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-AATTAT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951666
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848699,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TTGACT-AATTAT",
+            "file_resource": 1951666,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:58.628115Z",
+        "md5": null,
+        "size": 184724,
+        "created": "2019-01-14T03:08:34Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTGACT-AATTAT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951667,
+        "file_instances": [
+            {
+                "id": 3477912,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-AGTCTT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951667
+            },
+            {
+                "id": 3477818,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-AGTCTT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951667
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848700,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TGCTTT-AGTCTT",
+            "file_resource": 1951667,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:59.094715Z",
+        "md5": null,
+        "size": 177529,
+        "created": "2019-01-14T03:08:36Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-AGTCTT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951668,
+        "file_instances": [
+            {
+                "id": 3477913,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-AGTCTT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951668
+            },
+            {
+                "id": 3477819,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-AGTCTT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951668
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848701,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TGCTTT-AGTCTT",
+            "file_resource": 1951668,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:43:59.551877Z",
+        "md5": null,
+        "size": 204724,
+        "created": "2019-01-14T03:08:36Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGCTTT-AGTCTT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951669,
+        "file_instances": [
+            {
+                "id": 3477914,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTATCT-GTATAG_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951669
+            },
+            {
+                "id": 3477820,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTATCT-GTATAG_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951669
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848702,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CTATCT-GTATAG",
+            "file_resource": 1951669,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:00.012806Z",
+        "md5": null,
+        "size": 137757,
+        "created": "2019-01-14T03:08:37Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTATCT-GTATAG_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951670,
+        "file_instances": [
+            {
+                "id": 3477915,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTATCT-GTATAG_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951670
+            },
+            {
+                "id": 3477821,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTATCT-GTATAG_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951670
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848703,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CTATCT-GTATAG",
+            "file_resource": 1951670,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:00.479102Z",
+        "md5": null,
+        "size": 155591,
+        "created": "2019-01-14T03:08:37Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTATCT-GTATAG_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951671,
+        "file_instances": [
+            {
+                "id": 3477916,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-AAGTGC_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951671
+            },
+            {
+                "id": 3477822,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-AAGTGC_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951671
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848704,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGTACG-AAGTGC",
+            "file_resource": 1951671,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:00.938602Z",
+        "md5": null,
+        "size": 162421,
+        "created": "2019-01-14T03:08:30Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-AAGTGC_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951672,
+        "file_instances": [
+            {
+                "id": 3477917,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-AAGTGC_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951672
+            },
+            {
+                "id": 3477823,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-AAGTGC_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951672
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848705,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGTACG-AAGTGC",
+            "file_resource": 1951672,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:01.398986Z",
+        "md5": null,
+        "size": 189321,
+        "created": "2019-01-14T03:08:30Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-AAGTGC_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951673,
+        "file_instances": [
+            {
+                "id": 3477918,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-GTATAG_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951673
+            },
+            {
+                "id": 3477824,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-GTATAG_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951673
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848706,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AAGCTA-GTATAG",
+            "file_resource": 1951673,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:01.862287Z",
+        "md5": null,
+        "size": 132298,
+        "created": "2019-01-14T03:08:43Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-GTATAG_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951674,
+        "file_instances": [
+            {
+                "id": 3477919,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-GTATAG_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951674
+            },
+            {
+                "id": 3477825,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-GTATAG_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951674
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848707,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AAGCTA-GTATAG",
+            "file_resource": 1951674,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:02.329362Z",
+        "md5": null,
+        "size": 152287,
+        "created": "2019-01-14T03:08:43Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAGCTA-GTATAG_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951675,
+        "file_instances": [
+            {
+                "id": 3477920,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TCAAGT-CATGGG_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951675
+            },
+            {
+                "id": 3477826,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TCAAGT-CATGGG_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951675
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848708,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TCAAGT-CATGGG",
+            "file_resource": 1951675,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:02.791976Z",
+        "md5": null,
+        "size": 142227,
+        "created": "2019-01-14T03:08:29Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TCAAGT-CATGGG_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951676,
+        "file_instances": [
+            {
+                "id": 3477921,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TCAAGT-CATGGG_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951676
+            },
+            {
+                "id": 3477827,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TCAAGT-CATGGG_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951676
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848709,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TCAAGT-CATGGG",
+            "file_resource": 1951676,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:03.252241Z",
+        "md5": null,
+        "size": 166076,
+        "created": "2019-01-14T03:08:29Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TCAAGT-CATGGG_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951677,
+        "file_instances": [
+            {
+                "id": 3477922,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTCTCG-AAGTGC_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951677
+            },
+            {
+                "id": 3477828,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTCTCG-AAGTGC_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951677
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848710,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TTCTCG-AAGTGC",
+            "file_resource": 1951677,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:03.711860Z",
+        "md5": null,
+        "size": 180723,
+        "created": "2019-01-14T03:08:46Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTCTCG-AAGTGC_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951678,
+        "file_instances": [
+            {
+                "id": 3477923,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTCTCG-AAGTGC_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951678
+            },
+            {
+                "id": 3477829,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTCTCG-AAGTGC_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951678
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848711,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TTCTCG-AAGTGC",
+            "file_resource": 1951678,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:04.168319Z",
+        "md5": null,
+        "size": 201114,
+        "created": "2019-01-14T03:08:46Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TTCTCG-AAGTGC_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951679,
+        "file_instances": [
+            {
+                "id": 3477924,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GTAGCC_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951679
+            },
+            {
+                "id": 3477830,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GTAGCC_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951679
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848712,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GCCGGT-GTAGCC",
+            "file_resource": 1951679,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:04.625767Z",
+        "md5": null,
+        "size": 151379,
+        "created": "2019-01-14T03:08:31Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GTAGCC_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951680,
+        "file_instances": [
+            {
+                "id": 3477925,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GTAGCC_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951680
+            },
+            {
+                "id": 3477831,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GTAGCC_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951680
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848713,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GCCGGT-GTAGCC",
+            "file_resource": 1951680,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:05.084399Z",
+        "md5": null,
+        "size": 176077,
+        "created": "2019-01-14T03:08:31Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GTAGCC_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951681,
+        "file_instances": [
+            {
+                "id": 3477926,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-TATCGT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951681
+            },
+            {
+                "id": 3477832,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-TATCGT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951681
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848714,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GCCGGT-TATCGT",
+            "file_resource": 1951681,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:05.542989Z",
+        "md5": null,
+        "size": 134387,
+        "created": "2019-01-14T03:08:18Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-TATCGT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951682,
+        "file_instances": [
+            {
+                "id": 3477927,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-TATCGT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951682
+            },
+            {
+                "id": 3477833,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-TATCGT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951682
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848715,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GCCGGT-TATCGT",
+            "file_resource": 1951682,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:06.005154Z",
+        "md5": null,
+        "size": 155566,
+        "created": "2019-01-14T03:08:18Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-TATCGT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951683,
+        "file_instances": [
+            {
+                "id": 3477928,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ACATCG-GTAGCC_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951683
+            },
+            {
+                "id": 3477834,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ACATCG-GTAGCC_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951683
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848716,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "ACATCG-GTAGCC",
+            "file_resource": 1951683,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:06.464080Z",
+        "md5": null,
+        "size": 108760,
+        "created": "2019-01-14T03:08:23Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ACATCG-GTAGCC_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951684,
+        "file_instances": [
+            {
+                "id": 3477929,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ACATCG-GTAGCC_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951684
+            },
+            {
+                "id": 3477835,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ACATCG-GTAGCC_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951684
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848717,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "ACATCG-GTAGCC",
+            "file_resource": 1951684,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:06.928039Z",
+        "md5": null,
+        "size": 121290,
+        "created": "2019-01-14T03:08:23Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_ACATCG-GTAGCC_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951685,
+        "file_instances": [
+            {
+                "id": 3477930,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GGAGAA-TATCGT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951685
+            },
+            {
+                "id": 3477836,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GGAGAA-TATCGT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951685
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848718,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GGAGAA-TATCGT",
+            "file_resource": 1951685,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:07.397514Z",
+        "md5": null,
+        "size": 90117,
+        "created": "2019-01-14T03:08:53Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GGAGAA-TATCGT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951686,
+        "file_instances": [
+            {
+                "id": 3477931,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GGAGAA-TATCGT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951686
+            },
+            {
+                "id": 3477837,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GGAGAA-TATCGT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951686
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848719,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GGAGAA-TATCGT",
+            "file_resource": 1951686,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:07.863180Z",
+        "md5": null,
+        "size": 102266,
+        "created": "2019-01-14T03:08:53Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GGAGAA-TATCGT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951687,
+        "file_instances": [
+            {
+                "id": 3477932,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGGAAT-TCTGAG_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951687
+            },
+            {
+                "id": 3477838,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGGAAT-TCTGAG_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951687
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848720,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AGGAAT-TCTGAG",
+            "file_resource": 1951687,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:08.332258Z",
+        "md5": null,
+        "size": 187989,
+        "created": "2019-01-14T03:08:19Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGGAAT-TCTGAG_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951688,
+        "file_instances": [
+            {
+                "id": 3477933,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGGAAT-TCTGAG_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951688
+            },
+            {
+                "id": 3477839,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGGAAT-TCTGAG_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951688
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848721,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AGGAAT-TCTGAG",
+            "file_resource": 1951688,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:08.795334Z",
+        "md5": null,
+        "size": 210990,
+        "created": "2019-01-14T03:08:19Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AGGAAT-TCTGAG_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951689,
+        "file_instances": [
+            {
+                "id": 3477934,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGATTA-TGACAT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951689
+            },
+            {
+                "id": 3477840,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGATTA-TGACAT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951689
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848722,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGATTA-TGACAT",
+            "file_resource": 1951689,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:09.261124Z",
+        "md5": null,
+        "size": 131143,
+        "created": "2019-01-14T03:08:28Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGATTA-TGACAT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951690,
+        "file_instances": [
+            {
+                "id": 3477935,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGATTA-TGACAT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951690
+            },
+            {
+                "id": 3477841,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGATTA-TGACAT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951690
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848723,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGATTA-TGACAT",
+            "file_resource": 1951690,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:09.719366Z",
+        "md5": null,
+        "size": 148666,
+        "created": "2019-01-14T03:08:28Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGATTA-TGACAT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951691,
+        "file_instances": [
+            {
+                "id": 3477936,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGGCCT-TCTGAG_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951691
+            },
+            {
+                "id": 3477842,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGGCCT-TCTGAG_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951691
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848724,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGGCCT-TCTGAG",
+            "file_resource": 1951691,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:10.178011Z",
+        "md5": null,
+        "size": 105479,
+        "created": "2019-01-14T03:08:41Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGGCCT-TCTGAG_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951692,
+        "file_instances": [
+            {
+                "id": 3477937,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGGCCT-TCTGAG_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951692
+            },
+            {
+                "id": 3477843,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGGCCT-TCTGAG_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951692
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848725,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGGCCT-TCTGAG",
+            "file_resource": 1951692,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:10.639653Z",
+        "md5": null,
+        "size": 122511,
+        "created": "2019-01-14T03:08:41Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGGCCT-TCTGAG_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951693,
+        "file_instances": [
+            {
+                "id": 3477938,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-CCAGCA_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951693
+            },
+            {
+                "id": 3477844,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-CCAGCA_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951693
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848726,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGCCTG-CCAGCA",
+            "file_resource": 1951693,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:11.098389Z",
+        "md5": null,
+        "size": 128854,
+        "created": "2019-01-14T03:08:45Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-CCAGCA_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951694,
+        "file_instances": [
+            {
+                "id": 3477939,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-CCAGCA_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951694
+            },
+            {
+                "id": 3477845,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-CCAGCA_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951694
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848727,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGCCTG-CCAGCA",
+            "file_resource": 1951694,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:11.561695Z",
+        "md5": null,
+        "size": 147911,
+        "created": "2019-01-14T03:08:45Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-CCAGCA_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951695,
+        "file_instances": [
+            {
+                "id": 3477940,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-CCAGCA_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951695
+            },
+            {
+                "id": 3477846,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-CCAGCA_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951695
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848728,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGTACG-CCAGCA",
+            "file_resource": 1951695,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:12.018575Z",
+        "md5": null,
+        "size": 122854,
+        "created": "2019-01-14T03:08:32Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-CCAGCA_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951696,
+        "file_instances": [
+            {
+                "id": 3477941,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-CCAGCA_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951696
+            },
+            {
+                "id": 3477847,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-CCAGCA_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951696
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848729,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGTACG-CCAGCA",
+            "file_resource": 1951696,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:12.482198Z",
+        "md5": null,
+        "size": 142476,
+        "created": "2019-01-14T03:08:32Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTACG-CCAGCA_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951697,
+        "file_instances": [
+            {
+                "id": 3477942,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTGAT-GTAGCC_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951697
+            },
+            {
+                "id": 3477848,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTGAT-GTAGCC_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951697
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848730,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGTGAT-GTAGCC",
+            "file_resource": 1951697,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:12.948195Z",
+        "md5": null,
+        "size": 124511,
+        "created": "2019-01-14T03:08:39Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTGAT-GTAGCC_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951698,
+        "file_instances": [
+            {
+                "id": 3477943,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTGAT-GTAGCC_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951698
+            },
+            {
+                "id": 3477849,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTGAT-GTAGCC_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951698
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848731,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGTGAT-GTAGCC",
+            "file_resource": 1951698,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:13.412632Z",
+        "md5": null,
+        "size": 141479,
+        "created": "2019-01-14T03:08:39Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGTGAT-GTAGCC_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951699,
+        "file_instances": [
+            {
+                "id": 3477944,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-TCTGAG_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951699
+            },
+            {
+                "id": 3477850,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-TCTGAG_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951699
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848732,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TAGTTG-TCTGAG",
+            "file_resource": 1951699,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:13.870291Z",
+        "md5": null,
+        "size": 136604,
+        "created": "2019-01-14T03:08:43Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-TCTGAG_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951700,
+        "file_instances": [
+            {
+                "id": 3477945,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-TCTGAG_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951700
+            },
+            {
+                "id": 3477851,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-TCTGAG_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951700
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848733,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TAGTTG-TCTGAG",
+            "file_resource": 1951700,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:14.329687Z",
+        "md5": null,
+        "size": 151303,
+        "created": "2019-01-14T03:08:43Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-TCTGAG_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951701,
+        "file_instances": [
+            {
+                "id": 3477946,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GCCTAA_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951701
+            },
+            {
+                "id": 3477852,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GCCTAA_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951701
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848734,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GCCGGT-GCCTAA",
+            "file_resource": 1951701,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:14.791546Z",
+        "md5": null,
+        "size": 224562,
+        "created": "2019-01-14T03:08:26Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GCCTAA_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951702,
+        "file_instances": [
+            {
+                "id": 3477947,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GCCTAA_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951702
+            },
+            {
+                "id": 3477853,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GCCTAA_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951702
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848735,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GCCGGT-GCCTAA",
+            "file_resource": 1951702,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:15.252265Z",
+        "md5": null,
+        "size": 261305,
+        "created": "2019-01-14T03:08:26Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCCGGT-GCCTAA_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951703,
+        "file_instances": [
+            {
+                "id": 3477948,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGTTGG-CCGGTG_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951703
+            },
+            {
+                "id": 3477854,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGTTGG-CCGGTG_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951703
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848736,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TGTTGG-CCGGTG",
+            "file_resource": 1951703,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:15.715344Z",
+        "md5": null,
+        "size": 142126,
+        "created": "2019-01-14T03:08:21Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGTTGG-CCGGTG_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951704,
+        "file_instances": [
+            {
+                "id": 3477949,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGTTGG-CCGGTG_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951704
+            },
+            {
+                "id": 3477855,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGTTGG-CCGGTG_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951704
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848737,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TGTTGG-CCGGTG",
+            "file_resource": 1951704,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:16.179344Z",
+        "md5": null,
+        "size": 159551,
+        "created": "2019-01-14T03:08:21Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TGTTGG-CCGGTG_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951705,
+        "file_instances": [
+            {
+                "id": 3477950,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTGATC-GTAGCC_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951705
+            },
+            {
+                "id": 3477856,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTGATC-GTAGCC_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951705
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848738,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CTGATC-GTAGCC",
+            "file_resource": 1951705,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:16.654248Z",
+        "md5": null,
+        "size": 150817,
+        "created": "2019-01-14T03:08:50Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTGATC-GTAGCC_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951706,
+        "file_instances": [
+            {
+                "id": 3477951,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTGATC-GTAGCC_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951706
+            },
+            {
+                "id": 3477857,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTGATC-GTAGCC_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951706
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848739,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CTGATC-GTAGCC",
+            "file_resource": 1951706,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:17.116415Z",
+        "md5": null,
+        "size": 174772,
+        "created": "2019-01-14T03:08:50Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CTGATC-GTAGCC_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951707,
+        "file_instances": [
+            {
+                "id": 3477952,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GATGCT-GCCTAA_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951707
+            },
+            {
+                "id": 3477858,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GATGCT-GCCTAA_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951707
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848740,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GATGCT-GCCTAA",
+            "file_resource": 1951707,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:17.587378Z",
+        "md5": null,
+        "size": 215548,
+        "created": "2019-01-14T03:08:51Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GATGCT-GCCTAA_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951708,
+        "file_instances": [
+            {
+                "id": 3477953,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GATGCT-GCCTAA_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951708
+            },
+            {
+                "id": 3477859,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GATGCT-GCCTAA_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951708
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848741,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GATGCT-GCCTAA",
+            "file_resource": 1951708,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:18.054871Z",
+        "md5": null,
+        "size": 247449,
+        "created": "2019-01-14T03:08:51Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GATGCT-GCCTAA_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951709,
+        "file_instances": [
+            {
+                "id": 3477954,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-AAGTGC_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951709
+            },
+            {
+                "id": 3477860,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-AAGTGC_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951709
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848742,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TAGTTG-AAGTGC",
+            "file_resource": 1951709,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:18.517325Z",
+        "md5": null,
+        "size": 167253,
+        "created": "2019-01-14T03:08:38Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-AAGTGC_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951710,
+        "file_instances": [
+            {
+                "id": 3477955,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-AAGTGC_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951710
+            },
+            {
+                "id": 3477861,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-AAGTGC_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951710
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848743,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "TAGTTG-AAGTGC",
+            "file_resource": 1951710,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:18.980482Z",
+        "md5": null,
+        "size": 185075,
+        "created": "2019-01-14T03:08:38Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_TAGTTG-AAGTGC_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951711,
+        "file_instances": [
+            {
+                "id": 3477956,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-AATTAT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951711
+            },
+            {
+                "id": 3477862,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-AATTAT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951711
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848744,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGCCTG-AATTAT",
+            "file_resource": 1951711,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:19.445121Z",
+        "md5": null,
+        "size": 111161,
+        "created": "2019-01-14T03:08:48Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-AATTAT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951712,
+        "file_instances": [
+            {
+                "id": 3477957,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-AATTAT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951712
+            },
+            {
+                "id": 3477863,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-AATTAT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951712
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848745,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CGCCTG-AATTAT",
+            "file_resource": 1951712,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:19.913679Z",
+        "md5": null,
+        "size": 126309,
+        "created": "2019-01-14T03:08:48Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CGCCTG-AATTAT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951713,
+        "file_instances": [
+            {
+                "id": 3477958,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CCTATT-CCGGTG_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951713
+            },
+            {
+                "id": 3477864,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CCTATT-CCGGTG_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951713
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848746,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CCTATT-CCGGTG",
+            "file_resource": 1951713,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:20.375288Z",
+        "md5": null,
+        "size": 192712,
+        "created": "2019-01-14T03:08:25Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CCTATT-CCGGTG_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951714,
+        "file_instances": [
+            {
+                "id": 3477959,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CCTATT-CCGGTG_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951714
+            },
+            {
+                "id": 3477865,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CCTATT-CCGGTG_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951714
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848747,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CCTATT-CCGGTG",
+            "file_resource": 1951714,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:20.839059Z",
+        "md5": null,
+        "size": 223515,
+        "created": "2019-01-14T03:08:25Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CCTATT-CCGGTG_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951715,
+        "file_instances": [
+            {
+                "id": 3477960,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CATTCA-AATTAT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951715
+            },
+            {
+                "id": 3477866,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CATTCA-AATTAT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951715
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848748,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CATTCA-AATTAT",
+            "file_resource": 1951715,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:21.304590Z",
+        "md5": null,
+        "size": 145141,
+        "created": "2019-01-14T03:08:22Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CATTCA-AATTAT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951716,
+        "file_instances": [
+            {
+                "id": 3477961,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CATTCA-AATTAT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951716
+            },
+            {
+                "id": 3477867,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CATTCA-AATTAT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951716
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848749,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CATTCA-AATTAT",
+            "file_resource": 1951716,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:21.768493Z",
+        "md5": null,
+        "size": 170091,
+        "created": "2019-01-14T03:08:22Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CATTCA-AATTAT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951717,
+        "file_instances": [
+            {
+                "id": 3477962,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCGGAC-TGACAT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951717
+            },
+            {
+                "id": 3477868,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCGGAC-TGACAT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951717
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848750,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GCGGAC-TGACAT",
+            "file_resource": 1951717,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:22.231104Z",
+        "md5": null,
+        "size": 123650,
+        "created": "2019-01-14T03:08:52Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCGGAC-TGACAT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951718,
+        "file_instances": [
+            {
+                "id": 3477963,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCGGAC-TGACAT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951718
+            },
+            {
+                "id": 3477869,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCGGAC-TGACAT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951718
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848751,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "GCGGAC-TGACAT",
+            "file_resource": 1951718,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:22.692945Z",
+        "md5": null,
+        "size": 142437,
+        "created": "2019-01-14T03:08:52Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_GCGGAC-TGACAT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951719,
+        "file_instances": [
+            {
+                "id": 3477964,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAACCT-CCGGTG_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951719
+            },
+            {
+                "id": 3477870,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAACCT-CCGGTG_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951719
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848752,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AAACCT-CCGGTG",
+            "file_resource": 1951719,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:23.154011Z",
+        "md5": null,
+        "size": 180987,
+        "created": "2019-01-14T03:08:42Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAACCT-CCGGTG_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951720,
+        "file_instances": [
+            {
+                "id": 3477965,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAACCT-CCGGTG_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951720
+            },
+            {
+                "id": 3477871,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAACCT-CCGGTG_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951720
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848753,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "AAACCT-CCGGTG",
+            "file_resource": 1951720,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:23.617289Z",
+        "md5": null,
+        "size": 206500,
+        "created": "2019-01-14T03:08:42Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_AAACCT-CCGGTG_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951721,
+        "file_instances": [
+            {
+                "id": 3477966,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CAGGCC-AGTCTT_1.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951721
+            },
+            {
+                "id": 3477872,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CAGGCC-AGTCTT_1.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951721
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848754,
+            "read_end": 1,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CAGGCC-AGTCTT",
+            "file_resource": 1951721,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:24.085172Z",
+        "md5": null,
+        "size": 149698,
+        "created": "2019-01-14T03:08:17Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CAGGCC-AGTCTT_1.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    },
+    {
+        "id": 1951722,
+        "file_instances": [
+            {
+                "id": 3477967,
+                "filepath": "singlecelldata/data/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CAGGCC-AGTCTT_2.fastq.gz",
+                "storage": {
+                    "id": 4,
+                    "storage_type": "blob",
+                    "name": "singlecellblob",
+                    "storage_account": "singlecelldata",
+                    "storage_container": "data",
+                    "prefix": "singlecelldata/data"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951722
+            },
+            {
+                "id": 3477873,
+                "filepath": "/shahlab/archive/test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CAGGCC-AGTCTT_2.fastq.gz",
+                "storage": {
+                    "id": 3,
+                    "storage_type": "server",
+                    "name": "shahlab",
+                    "storage_directory": "/shahlab/archive",
+                    "prefix": "/shahlab/archive",
+                    "server_ip": "10.9.215.80"
+                },
+                "is_deleted": false,
+                "owner": 1,
+                "file_resource": 1951722
+            }
+        ],
+        "sequencefileinfo": {
+            "id": 1848755,
+            "read_end": 2,
+            "genome_region": "6:11000000-13000000 8:3000000-5000000 17:45000000-47000000",
+            "index_sequence": "CAGGCC-AGTCTT",
+            "file_resource": 1951722,
+            "owner": 1
+        },
+        "file_type": "FQ",
+        "last_updated": "2019-01-22T01:44:24.554959Z",
+        "md5": null,
+        "size": 177313,
+        "created": "2019-01-14T03:08:17Z",
+        "compression": "GZIP",
+        "filename": "test_datasets/single_cell_indexing/fastq/SA1090TEST/A96213ATEST/HHCJ7CCXYTEST_5_N/SA1090TEST_A96213ATEST_CAGGCC-AGTCTT_2.fastq.gz",
+        "is_folder": false,
+        "owner": 1
+    }
+]

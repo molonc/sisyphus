@@ -9,5 +9,9 @@ if __name__ == '__main__':
     print "COLOSSUS CREATING..."
     colossus_api = ColossusApi()
 
+    instances = tantalus_api.list("file_instance")
+    for instance in instances:
+        print instance["filepath"]
+
 
 
