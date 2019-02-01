@@ -406,7 +406,7 @@ def check_library_id_and_add_lanes(sequencing, import_info):
 @click.option('--update', is_flag=True)
 @click.option('--check_library', is_flag=True)
 @click.option('--dry_run', is_flag=True)
-def main(storage_name, dlp_library_id, tag_name=None, all=False, update=False, check_library=False, dry_run=False):
+def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=False, check_library=False, dry_run=False):
 
     # Set up the root logger
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
