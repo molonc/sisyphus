@@ -164,10 +164,8 @@ def get_fastq_info(output_dir, flowcell_id, storage, storage_client):
                         read_type=BRC_READ_TYPE,
                     )
                 ],
-                file_type="FQ",
                 read_end=read_end,
                 index_sequence=index_sequence,
-                compression="GZIP",
                 filepath=tantalus_path,
             )
         )

@@ -302,28 +302,12 @@ class TantalusApi(BasicAPIClient):
 
         return client
 
-    def get_file_compression(self, filepath):
-        compression_choices = {
-            ".gz":      "GZIP",
-            ".bzip2":   "BZIP2",
-            ".spec":    "SPEC",
-        }
-
-        extension = os.path.splitext(filepath)[1]
-        try:
-            return compression_choices[extension]
-        except KeyError:
-            return "UNCOMPRESSED"
-
-
     def add_file(self, storage_name, filepath, update=False):
         """ Create a file resource and file instance in the given storage.
 
         Args:
             storage_name: storage for file instance
             filepath: full path to file
-            file_type: type for file_resource
-            fields: additional fields for file_resource
 
         Kwargs:
             update: update the file if exists
@@ -335,12 +319,6 @@ class TantalusApi(BasicAPIClient):
         storage_client = self.get_storage_client(storage_name)
 
         filename = self.get_file_resource_filename(storage_name, filepath)
-
-        compression = self.get_file_compression(filename)
-        file_type = filename.split(".")[1].upper()
-
-        if file_type == 'FASTQ':
-            file_type = 'FQ'
 
         try:
             file_resource = self.get(
@@ -374,10 +352,8 @@ class TantalusApi(BasicAPIClient):
                     'file_resource',
                     id=file_resource['id'],
                     filename=filename,
-                    file_type=file_type,
                     created=storage_client.get_created_time(filename),
                     size=storage_client.get_size(filename),
-                    compression=compression,
                 )
 
                 file_instance = self.add_instance(file_resource, storage)
@@ -388,10 +364,8 @@ class TantalusApi(BasicAPIClient):
             file_resource = self.get_or_create(
                 'file_resource',
                 filename=filename,
-                file_type=file_type,
                 created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
-                compression=compression,
             )
 
             log.info('file resource has id {}'.format(file_resource['id']))
@@ -426,7 +400,6 @@ class TantalusApi(BasicAPIClient):
                 'file_resource',
                 id=file_resource['id'],
                 filename=filename,
-                file_type=file_type,
                 created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
             )

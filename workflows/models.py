@@ -615,9 +615,7 @@ class AlignAnalysis(Analysis):
 
             bam_filepath = metadata['bam']
 
-            file_types = {'BAM': bam_filepath, 'BAI': bam_filepath + '.bai'}
-
-            for file_type, filepath in file_types.iteritems():
+            for filepath in (bam_filepath, bam_filepath + '.bai'):
                 file_info = dict(
                     analysis_id=self.analysis['id'],
                     dataset_type='BAM',
@@ -628,9 +626,7 @@ class AlignAnalysis(Analysis):
                     sequence_lanes=sequence_lanes,
                     ref_genome=self.args['ref_genome'],
                     aligner_name=self.args['aligner'],
-                    file_type=file_type,
                     index_sequence=metadata['index_sequence'],
-                    compression='UNCOMPRESSED',
                     filepath=filepath,
                 )
                 
@@ -824,7 +820,9 @@ class PseudoBulkAnalysis(Analysis):
 
             if sample_id == args['matched_normal_sample']:
                 for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name):
-                    if not file_instance['file_resource']['file_type'] == 'BAM':
+                    extension = os.path.splitext(file_instance['file_resource']['filename'])[1]
+
+                    if not extension == 'bam':
                         continue
 
                     filepath = str(file_instance['filepath'])
@@ -837,7 +835,9 @@ class PseudoBulkAnalysis(Analysis):
                 cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
 
                 for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name):
-                    if not file_instance['file_resource']['file_type'] == 'BAM':
+                    extension = os.path.splitext(file_instance['file_resource']['filename'])[1]
+
+                    if not extension == 'bam':
                         continue
 
                     index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])

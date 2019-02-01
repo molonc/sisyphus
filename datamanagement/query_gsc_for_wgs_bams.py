@@ -70,7 +70,7 @@ def add_compression_suffix(path, compression):
 
 def get_merge_bam_path(
     library_type, 
-    data_path, 
+    data_path,
     library_name, 
     num_lanes, 
     compression=None

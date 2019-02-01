@@ -154,42 +154,22 @@ def import_dlp_realign_bam_blob(bam_filepath, container_name):
 
     bam_header = get_bam_header_blob(blob_service, container_name, bam_filepath)
 
-    bam_info = {
-        "filepath": bam_filepath,
-        "file_type": "BAM",
-    }
-
-    bai_info = {
-        "filepath": bam_filepath + ".bai",
-        "file_type": "BAI",
-    }
-
     return [
-        create_file_metadata(bam_info, bam_header),
-        create_file_metadata(bai_info, bam_header),
+        create_file_metadata(bam_filepath, bam_header),
+        create_file_metadata(bam_filepath + ".bai", bam_header),
     ]
 
 
 def import_dlp_realign_bam_server(bam_filepath, storage_directory):
     bam_header = get_bam_header_file(bam_filepath)
 
-    bam_info = {
-        "filepath": bam_filepath,
-        "file_type": "BAM",
-    }
-
-    bai_info = {
-        "filepath": bam_filepath + ".bai",
-        "file_type": "BAI",
-    }
-
     return [
-        create_file_metadata(bam_info, bam_header),
-        create_file_metadata(bai_info, bam_header),
+        create_file_metadata(bam_filepath, bam_header),
+        create_file_metadata(bam_filepath + ".bai", bam_header),
     ]
 
 
-def create_file_metadata(file_info, bam_header):
+def create_file_metadata(filepath, bam_header):
     ref_genome = get_bam_ref_genome(bam_header)
     aligner_name = get_bam_aligner_name(bam_header)
     bam_header_info = get_bam_header_info(bam_header)
@@ -203,10 +183,8 @@ def create_file_metadata(file_info, bam_header):
         sequence_lanes=bam_header_info["sequence_lanes"],
         ref_genome=ref_genome,
         aligner_name=aligner_name,
-        file_type=file_info["file_type"],
         index_sequence=bam_header_info["index_sequence"],
-        compression="UNCOMPRESSED",
-        filepath=file_info["filepath"],
+        filepath=filepath,
     )
 
 
