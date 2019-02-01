@@ -120,7 +120,7 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
     return set(existing_flowcell_ids)
 
 
-def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, tag_name=None, all=False, update=False, check_library=False, dry_run=False):
+def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, tag_name=None, update=False, check_library=False, dry_run=False):
     ''' Import dlp fastq data from the GSC.
     
     Args:
