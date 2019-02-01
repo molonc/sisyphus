@@ -132,6 +132,7 @@ def start_automation(
             tantalus_analysis=tantalus_analysis,
             analysis_info=analysis_info,
             inputs_yaml=inputs_yaml,
+            context_config_file=config['context_config_file'],
             docker_env_file=config['docker_env_file'],
             dirs=dirs,
         )
