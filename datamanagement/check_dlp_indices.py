@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import collections
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
@@ -40,18 +42,27 @@ if __name__ == '__main__':
             # Get tantalus sublibraries and indices
             tantalus_indices = set()
             tantalus_dataset_ids = []
+            tantalus_sequencing_centre = set()
             for dataset in lane_datasets[flowcell_lane]:
                 file_resources = list(tantalus_api.list('file_resource', sequencedataset__id=dataset['id']))
                 tantalus_indices.update(set([a['sequencefileinfo']['index_sequence'] for a in file_resources]))
                 tantalus_dataset_ids.append(dataset['id'])
+                tantalus_sequencing_centre.update([a['sequencing_centre'] for a in dataset['sequence_lanes']])
+
+            assert len(tantalus_sequencing_centre) == 1
+            tantalus_sequencing_centre = list(tantalus_sequencing_centre)[0]
 
             if len(colossus_indices - tantalus_indices) > 0:
-                print 'library {}, datasets {}: {} in colossus but not tantalus'.format(
-                    library_id, tantalus_dataset_ids, len(colossus_indices - tantalus_indices))
+                print('library {}, datasets {}, lane {}, sequencing_centre {}: {} in colossus but not tantalus'.format(
+                    library_id, tantalus_dataset_ids, flowcell_lane, tantalus_sequencing_centre,
+                    len(colossus_indices - tantalus_indices)))
 
             if len(tantalus_indices - colossus_indices) > 0:
-                print 'library {}, datasets {}: {} in tantalus but not colossus'.format(
-                    library_id, tantalus_dataset_ids, len(tantalus_indices - colossus_indices))
+                print('library {}, datasets {}, lane {}, sequencing_centre {}: {} in tantalus but not colossus'.format(
+                    library_id, tantalus_dataset_ids, flowcell_lane, tantalus_sequencing_centre,
+                    len(tantalus_indices - colossus_indices)))
 
             if tantalus_indices == colossus_indices:
-                print 'library {}, datasets {}: OK'.format(library_id, tantalus_dataset_ids)
+                print('library {}, datasets {}, lane {}, sequencing_centre {}: OK'.format(
+                    library_id, tantalus_dataset_ids, flowcell_lane, tantalus_sequencing_centre))
+

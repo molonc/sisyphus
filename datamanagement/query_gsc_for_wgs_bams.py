@@ -70,7 +70,7 @@ def add_compression_suffix(path, compression):
 
 def get_merge_bam_path(
     library_type, 
-    data_path, 
+    data_path,
     library_name, 
     num_lanes, 
     compression=None
@@ -248,7 +248,7 @@ def get_gsc_details(
 
         sample_id = library_info["external_identifier"]
 
-        if ' ' in identifier:
+        if ' ' in sample_id:
             raise ValueError('space in sample_id "{}"'.format(sample_id))
 
         sample = dict(sample_id=sample_id)

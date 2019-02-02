@@ -4,7 +4,6 @@ import logging
 import json
 from dbclients.tantalus import TantalusApi
 from dbclients.basicclient import NotFoundError
-from datamanagement.utils.runtime_args import parse_runtime_args
 import pandas as pd
 from sets import Set
 

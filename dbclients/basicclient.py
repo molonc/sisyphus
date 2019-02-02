@@ -6,7 +6,7 @@ from __future__ import division
 import coreapi
 import json
 from coreapi.codecs import JSONCodec
-from django.core.serializers.json import DjangoJSONEncoder
+from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from openapi_codec import OpenAPICodec
 import requests
 import pandas as pd
@@ -107,6 +107,13 @@ class BasicAPIClient(object):
             if field.name in fields:
                 get_params[field.name] = fields[field.name]
 
+        # Since we are not accepting related fields for checking
+        # they must be implemented as a filter for this endpoint
+        for field_name in fields:
+            if "__" in field_name and field_name not in get_params:
+                raise ValueError("field {} not accepted for {}".format(
+                    field_name, table_name))
+
         # Add in pagination params
         self.get_list_pagination_initial_params(get_params)
 
@@ -131,7 +138,7 @@ class BasicAPIClient(object):
                     # Response has nested foreign key relationship
                     try:
                         result_field = result[field_name]["id"]
-                    except TypeError:
+                    except (TypeError, KeyError):
                         pass
 
                     # Response has nested many to many
@@ -151,7 +158,7 @@ class BasicAPIClient(object):
 
                     # Response is a timestamp
                     try:
-                        if isinstance(result[field_name], basestring):
+                        if result[field_name] and isinstance(result[field_name], basestring):
                             result_field = pd.Timestamp(result[field_name])
                             field_value = pd.Timestamp(field_value)
                     except (ValueError, TypeError):
