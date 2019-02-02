@@ -51,7 +51,27 @@ def find_tnbc_datasets(library_ids_filename):
                 reference_genome__name='HG19',
             ))
 
-        datasets = filter(lambda d: d['is_complete'], datasets)
+        # Special case A30655 which did not have all the lanes in the GSC merge
+        if library_id == 'A30655':
+            lanes = [
+                ('HGFCJCCXY', '6'),
+                ('D2GEWACXX', '1'),
+                ('D2EYCACXX', '6'),
+                ('D291GACXX', '2'),
+                ('C2PV5ACXX', '2'),
+                ('C2PV5ACXX', '1'),
+            ]
+            def is_correct_lanes(d):
+                if len(d['sequence_lanes']) != len(lanes):
+                    return False
+                for l in d['sequence_lanes']:
+                    if (l['flowcell_id'], l['lane_number']) not in lanes:
+                        return False
+                return True
+            datasets = filter(is_correct_lanes, datasets)
+
+        else:
+            datasets = filter(lambda d: d['is_complete'], datasets)
 
         if len(datasets) != 1:
             logging.error('{} datasets for library {}'.format(len(datasets), library_id))
@@ -63,7 +83,8 @@ def find_tnbc_datasets(library_ids_filename):
 
         filenames = {}
         for file_resource in tantalus_api.list('file_resource', sequencedataset__id=dataset['id']):
-            filenames[file_resource['file_type']] = file_resource['filename']
+            extension = os.path.splitext(file_resource['filename'])[1]
+            filenames[extension] = file_resource['filename']
             storages = [instance['storage']['name'] for instance in file_resource['file_instances']]
             if 'singlecellblob' not in storages:
                 is_on_blob = False
@@ -72,8 +93,8 @@ def find_tnbc_datasets(library_ids_filename):
             dataset_pk=dataset['id'],
             library_id=library_id,
             sample_id=dataset['sample']['sample_id'],
-            bam_filename=filenames['BAM'],
-            bam_index_filename=filenames.get('BAI'),
+            bam_filename=filenames['bam'],
+            bam_index_filename=filenames.get('bai'),
             is_on_blob=is_on_blob,
         ))
 
