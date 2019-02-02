@@ -14,7 +14,7 @@ import launch_pipeline
 import generate_inputs
 from dbclients.tantalus import TantalusApi
 from workflows.utils import saltant_utils, file_utils, log_utils
-from workflow.utils.update_jira import update_jira
+from workflows.utils.update_jira import update_jira
 from datamanagement.transfer_files import transfer_dataset
 from dbclients.basicclient import NotFoundError
 
