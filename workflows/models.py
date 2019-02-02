@@ -721,8 +721,6 @@ class HmmcopyAnalysis(Analysis):
             if not datasets:
                 raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
 
-            # return [dataset["id"] for dataset in datasets]
-
             for dataset in datasets:
                 dataset_ids.add(dataset['id'])
             
