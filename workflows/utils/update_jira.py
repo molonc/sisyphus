@@ -27,6 +27,11 @@ def update_jira(jira_id, aligner, analysis_type):
             '(x) Upload to Montage',
         ]
 
+        description = '\n\n'.join(description)
+        issue = jira_api.issue(jira_id)
+
+        issue.update(notify=False, description=description)
+
     elif analysis_type == "hmmcopy":
         description = [
             '(/) Alignment with ' + aligner,
@@ -38,7 +43,7 @@ def update_jira(jira_id, aligner, analysis_type):
             '(x) Upload to Montage',
         ]
 
-    description = '\n\n'.join(description)
+        description = '\n\n'.join(description)
+        issue = jira_api.issue(jira_id)
 
-    issue = jira_api.issue(jira_id)
-    issue.update(notify=False, assignee={"name": "elaks"}, description=description)
+        issue.update(notify=False, assignee={"name": "elaks"}, description=description)
