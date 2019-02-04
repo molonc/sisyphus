@@ -147,7 +147,6 @@ def generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated):
             for read in reads:
                 filename =  "_".join([samplename, "S0EMPTY", "L00{}".format(lane_num), "R{}".format(read), "001.fastq.gz"])
                 file_names.append(filename)
-                print(filename)
 
     for filename in file_names:
         filepath = os.path.join(output_dir, filename)
@@ -197,7 +196,7 @@ def get_fastq_info(output_dir, flowcell_id, storage, storage_client):
 
 def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, output_dir, storage, storage_client):
     extension = ".gz"
-    logging.info("Tranferring fastq to {}.".format(storage))
+    logging.info("Tranferring fastq to {}.".format(storage["name"]))
     for filename in filenames:
         match = re.match(
             r"^(\w+)-(\w+)-R(\d+)-C(\d+)_S(\d+)(_L(\d+))?_R([12])_001.fastq.gz$",
