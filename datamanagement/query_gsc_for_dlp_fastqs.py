@@ -393,7 +393,7 @@ def check_library_id_and_add_lanes(sequencing, import_info):
             sequencing['id'],
             gsc_library_id=import_info['gsc_library_id'])
 
-    lanes_to_be_created = import_info['lanes']:
+    lanes_to_be_created = import_info['lanes']
     for lane in lanes_to_be_created:
         colossus_api.get_or_create("lane", sequencing=sequencing['id'], flow_cell_id=lane['flowcell_id'], sequencing_date=import_info["sequencing_date"])
 
@@ -437,7 +437,7 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
         sequencing_list = list(colossus_api.list('sequencing',  sequencing_center='BCCAGSC', gsc_library_id=import_info['gsc_library_id']))
 
         for sequencing in sequencing_list:
-            check_library_id_and_add_lanes(sequencing, import_info):
+            check_library_id_and_add_lanes(sequencing, import_info)
         
         return            
 
