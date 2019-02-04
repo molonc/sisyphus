@@ -412,6 +412,30 @@ class TantalusApi(BasicAPIClient):
 
         return file_resource, file_instance
 
+    def update_file(self, file_instance):
+        """
+        Update a file resource to match the file pointed
+        to by the given file instance.
+
+        Args:
+            file_instance (dict)
+
+        Returns:
+            file_instance (dict)
+        """
+        storage_client = self.get_storage_client(file_instance['storage']['name'])
+
+        file_resource = self.update(
+            'file_resource',
+            id=file_instance['file_resource']['id'],
+            created=storage_client.get_created_time(file_instance['file_resource']['filename']),
+            size=storage_client.get_size(file_instance['file_resource']['filename']),
+        )
+
+        file_instance['file_resource'] = file_resource
+
+        return file_instance
+
     def add_instance(self, file_resource, storage):
         """
         Add a file instance accounting for the possibility that we are replacing a deleted instance.
