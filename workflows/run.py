@@ -13,7 +13,8 @@ import datamanagement.templates as templates
 import launch_pipeline
 import generate_inputs
 from dbclients.tantalus import TantalusApi
-from workflows.utils import saltant_utils, file_utils, log_utils
+# from workflows.utils import saltant_utils
+from workflows.utils import file_utils, log_utils
 from workflows.utils.update_jira import update_jira
 from datamanagement.transfer_files import transfer_dataset
 from dbclients.basicclient import NotFoundError
@@ -188,6 +189,7 @@ def start_automation(
                 storages['remote_results'])
 
     analysis_info.update('{}_complete'.format(analysis_type))
+    analysis_info.update_results_path('blob_path', args['jira'])
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
