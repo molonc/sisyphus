@@ -463,7 +463,7 @@ def transfer_tagged_datasets(tag_name, from_storage_name, to_storage_name):
 @click.argument("tag_name")
 @click.argument("from_storage_name")
 @click.argument("cache_directory")
-@click.option("suffix_filter", required=False)
+@click.option("--suffix_filter", required=False)
 def cache_tagged_datasets_cmd(tag_name, from_storage_name, cache_directory, suffix_filter=None):
     cache_tagged_datasets(tag_name, from_storage_name, cache_directory, suffix_filter=suffix_filter)
 
