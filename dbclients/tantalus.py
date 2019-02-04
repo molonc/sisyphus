@@ -93,6 +93,7 @@ class BlobStorageClient(object):
             protocol="https",
             sas_token=sas_token,
         )
+        blob_url = blob_url.replace(' ', '%20')
         return blob_url
 
     def delete(self, blobname):
