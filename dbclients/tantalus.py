@@ -14,6 +14,7 @@ import time
 import datetime
 import urllib2
 import logging
+import shutil
 import pandas as pd
 
 from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
@@ -113,12 +114,13 @@ class BlobStorageClient(object):
     def write_data(self, blobname, stream):
         stream.seek(0)
         return self.blob_service.create_blob_from_stream(
-            self.storage_container, 
+            self.storage_container,
             blob_name=blobname,
             stream=stream)
         
     def create(self, blobname, filepath):
-        self.blob_service.create_blob_from_path(self.storage_container, 
+        self.blob_service.create_blob_from_path(
+            self.storage_container,
             blobname,
             filepath)
 
@@ -166,6 +168,12 @@ class ServerStorageClient(object):
             
         with open(filepath, "wb") as f:
             f.write(stream.getvalue())
+
+    def create(self, filename, filepath):
+        tantalus_filepath = os.path.join(self.storage_container, filename)
+        if not os.path.samefile(filepath, tantalus_filepath):
+            shutil.copy(filepath, tantalus_filepath)
+
 
 class TantalusApi(BasicAPIClient):
     """Tantalus API class."""
@@ -477,6 +485,8 @@ class TantalusApi(BasicAPIClient):
         """
         for file_instance in file_resource['file_instances']:
             if file_instance['storage']['name'] == storage_name:
+                file_instance = file_instance.copy()
+                file_instance['file_resource'] = file_resource
                 return file_instance
 
         raise NotFoundError

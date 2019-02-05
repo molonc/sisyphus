@@ -566,5 +566,18 @@ def cache_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, ca
         _transfer_files_with_retry(f_transfer, file_instance)
 
 
+def cache_file(tantalus_api, file_instance, cache_directory):
+    """ Cache a single file.
+    """
+    f_transfer = get_cache_function(tantalus_api, file_instance['storage'], cache_directory)
+
+    logging.info("starting caching {} from {} to {}".format(
+        file_instance['file_resource']['filename'], file_instance['storage']['name'], cache_directory))
+
+    _transfer_files_with_retry(f_transfer, file_instance)
+
+    return os.path.join(cache_directory, file_instance['file_resource']['filename'])
+
+
 if __name__ == "__main__":
     cli()
