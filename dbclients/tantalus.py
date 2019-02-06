@@ -528,6 +528,9 @@ class TantalusApi(BasicAPIClient):
             dataset (dict)
             storage_name (str)
 
+        KwArgs:
+            filters (dict): additional filters such as filename extension
+
         Returns:
             file_instances (list)
         """
