@@ -137,10 +137,10 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     '''
 
     if check_library:
-        logging.info('checking data for {}'.format(dlp_library_id))
+        logging.info('Checking data for {}'.format(dlp_library_id))
 
     else:
-        logging.info('importing data for {}'.format(dlp_library_id))
+        logging.info('Importing data for {}'.format(dlp_library_id))
 
     # Existing fastqs in tantalus as a set of tuples of
     # the form (flowcell_id, lane_number, index_sequence, read_end)
@@ -333,7 +333,6 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                     rsync_file(fastq_path, tantalus_path)
 
                 elif storage['storage_type'] == 'blob':
-                    logging.info("Creating blob {} from path {}".format(tantalus_filename, fastq_path))
                     storage_client = tantalus_api.get_storage_client(storage['name'])
                     storage_client.create(tantalus_filename, fastq_path)
 
@@ -380,6 +379,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     return import_info
 
 def check_library_id_and_add_lanes(colossus_api, sequencing, import_info):
+    logging.info("Adding/Updating lane to colossus.")
     if sequencing['gsc_library_id'] is not None:
         if sequencing['gsc_library_id'] != import_info['gsc_library_id']:
             raise Exception('gsc library id mismatch in sequencing {} '.format(sequencing_info['id']))
@@ -403,6 +403,15 @@ def check_library_id_and_add_lanes(colossus_api, sequencing, import_info):
                 sequencing_date=lane_to_create['sequencing_date']
             )
 
+    # Check if number_of_lanes_requested is equal to number of lanes
+    # Update number_of_lanes_requested if necessary
+    if sequencing['number_of_lanes_requested'] < len(lanes_to_created):
+        logging.info('Sequencing goal is less than total number of lanes. Updating.')
+        colossus_api.update(
+            'sequencing',
+            sequencing['id'],
+            number_of_lanes_requested=len(lanes_to_be_created)
+        )
 
 @click.command()
 @click.argument('storage_name', nargs=1)
