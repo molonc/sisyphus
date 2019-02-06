@@ -405,13 +405,17 @@ def check_library_id_and_add_lanes(colossus_api, sequencing, import_info):
 
     # Check if number_of_lanes_requested is equal to number of lanes
     # Update number_of_lanes_requested if necessary
-    if sequencing['number_of_lanes_requested'] < len(lanes_to_created):
+    if sequencing['number_of_lanes_requested'] < len(lanes_to_be_created):
         logging.info('Sequencing goal is less than total number of lanes. Updating.')
         colossus_api.update(
             'sequencing',
             sequencing['id'],
             number_of_lanes_requested=len(lanes_to_be_created)
         )
+
+    elif sequencing['number_of_lanes_requested'] > len(lanes_to_be_created):
+        logging.warning("Expected number of lanes is {} but total lanes imported is {}".format(
+            sequencing['number_of_lanes_requested'], len(lanes_to_be_created)))
 
 @click.command()
 @click.argument('storage_name', nargs=1)
