@@ -323,52 +323,28 @@ class TantalusApi(BasicAPIClient):
 
         Returns:
             file_resource, file_instance
+
+        For a file that does not exist, create the file resource and
+        file instance on the specific storage and return them.
+
+        If the file already exist in tantalus and the file being
+        added has the same properties, add_file will ensure an instance
+        exists on the given storage.
+
+        If the file already exists in tantalus and the file being added
+        has different properties, functionality will depend on the
+        update kwarg.  If update=False, fail with FieldMismatchError.
+        If update=True, update the file resource, create a file instance
+        on the given storage, and set all other file instances to
+        is_delete=True.
         """
         storage = self.get_storage(storage_name)
         storage_client = self.get_storage_client(storage_name)
 
         filename = self.get_file_resource_filename(storage_name, filepath)
 
-        try:
-            file_resource = self.get(
-                'file_resource',
-                filename=filename,
-            )
-        except NotFoundError:
-            file_resource = None
-
-        # For an existing file resource with no instances or
-        # a single deleted instance in this storage, update the file resource
-        # and create a new file instance that is not deleted
-        if file_resource is not None:
-            overwrite = False
-            if len(file_resource['file_instances']) == 0:
-                log.info('file resource has no instances, overwriting')
-                overwrite = True
-
-            one_deleted_instance = (
-                len(file_resource['file_instances']) == 1 and
-                file_resource['file_instances'][0]['storage']['name'] == storage_name and
-                file_resource['file_instances'][0]['is_deleted']
-            )
-
-            if one_deleted_instance:
-                log.info('file resource has one deleted instance on {}, overwriting'.format(storage_name))
-                overwrite = True
-
-            if overwrite:
-                file_resource = self.update(
-                    'file_resource',
-                    id=file_resource['id'],
-                    filename=filename,
-                    created=storage_client.get_created_time(filename),
-                    size=storage_client.get_size(filename),
-                )
-
-                file_instance = self.add_instance(file_resource, storage)
-
-                return file_resource, file_instance
-
+        # Try getting or creating the file resource, will
+        # fail if exists with different properties.
         try:
             file_resource = self.get_or_create(
                 'file_resource',
@@ -376,35 +352,40 @@ class TantalusApi(BasicAPIClient):
                 created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
             )
-
             log.info('file resource has id {}'.format(file_resource['id']))
-        except FieldMismatchError as e:
+        except FieldMismatchError:
             if not update:
-                log.info('file resource has different fields, not updating')
+                log.exception('file resource with id {} has different properties, not updating'.format(
+                    file_resource['id']))
                 raise
             file_resource = None
 
-        # File resource will be none if fields mismatched and
-        # we are given permission to update
+        # Creating a file did not succeed because it existed but with
+        # different properties.  Update the file.
         if file_resource is None:
-            log.warning('updating existing file resource with filename {}'.format(filename))
 
+            # Should have raised above if update=False
+            assert update
+
+            # Get existing file resource with different properties
             file_resource = self.get(
                 'file_resource',
                 filename=filename,
             )
+            log.info('updating file resource {}'.format(
+                file_resource['id']))
 
-            file_instances = self.list(
-                'file_instance',
-                file_resource=file_resource['id'],
-            )
+            # Delete all existing instances
+            for file_instance in file_resource['file_instances']:
+                file_instance = self.update(
+                    'file_instance',
+                    id=file_instance['id'],
+                    is_deleted=True,
+                )
+                log.info('deleted file instance {}'.format(
+                    file_instance['id']))
 
-            # Cannot update if there are other instances
-            for file_instance in file_instances:
-                if file_instance['storage']['id'] != storage['id']:
-                    raise Exception('file {} also exists on {}, cannot update'.format(
-                        filename, file_instance['storage']))
-
+            # Update the file properties
             file_resource = self.update(
                 'file_resource',
                 id=file_resource['id'],
@@ -413,11 +394,7 @@ class TantalusApi(BasicAPIClient):
                 size=storage_client.get_size(filename),
             )
 
-        file_instance = self.get_or_create(
-            'file_instance',
-            file_resource=file_resource['id'],
-            storage=storage['id'],
-        )
+        file_instance = self.add_instance(file_resource, storage)
 
         return file_resource, file_instance
 
