@@ -14,6 +14,7 @@ import time
 import datetime
 import urllib2
 import logging
+import shutil
 import pandas as pd
 
 from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
@@ -51,9 +52,10 @@ def get_storage_account_key(
 
 
 class BlobStorageClient(object):
-    def __init__(self, storage_account, storage_container):
+    def __init__(self, storage_account, storage_container, prefix):
         self.storage_account = storage_account
         self.storage_container = storage_container
+        self.prefix = prefix
 
         client_id = os.environ["CLIENT_ID"]
         secret_key = os.environ["SECRET_KEY"]
@@ -92,6 +94,7 @@ class BlobStorageClient(object):
             protocol="https",
             sas_token=sas_token,
         )
+        blob_url = blob_url.replace(' ', '%20')
         return blob_url
 
     def delete(self, blobname):
@@ -111,7 +114,7 @@ class BlobStorageClient(object):
     def write_data(self, blobname, stream):
         stream.seek(0)
         return self.blob_service.create_blob_from_stream(
-            self.storage_container, 
+            self.storage_container,
             blob_name=blobname,
             stream=stream)
         
@@ -123,11 +126,11 @@ class BlobStorageClient(object):
                 filepath)
         else:
             log.info("{} already exists on {}/{}".format(blobname, self.storage_account, self.storage_container))
-
-
+            
 class ServerStorageClient(object):
-    def __init__(self, storage_directory):
+    def __init__(self, storage_directory, prefix):
         self.storage_directory = storage_directory
+        self.prefix = prefix
 
     def get_size(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
@@ -167,6 +170,12 @@ class ServerStorageClient(object):
             
         with open(filepath, "wb") as f:
             f.write(stream.getvalue())
+
+    def create(self, filename, filepath):
+        tantalus_filepath = os.path.join(self.storage_container, filename)
+        if not os.path.samefile(filepath, tantalus_filepath):
+            shutil.copy(filepath, tantalus_filepath)
+
 
 class TantalusApi(BasicAPIClient):
     """Tantalus API class."""
@@ -277,7 +286,7 @@ class TantalusApi(BasicAPIClient):
         Returns:
             storage client object
         """
-        return ServerStorageClient(storage_directory)
+        return ServerStorageClient(storage_directory, storage_directory)
 
     def get_storage_client(self, storage_name):
         """ Retrieve a client for the given storage
@@ -294,9 +303,9 @@ class TantalusApi(BasicAPIClient):
         storage = self.get_storage(storage_name)
 
         if storage['storage_type'] == 'blob':
-            client = BlobStorageClient(storage['storage_account'], storage['storage_container'])
+            client = BlobStorageClient(storage['storage_account'], storage['storage_container'], storage['prefix'])
         elif storage['storage_type'] == 'server':
-            client = ServerStorageClient(storage['storage_directory'])
+            client = ServerStorageClient(storage['storage_directory'], storage['prefix'])
         else:
             return ValueError('unsupported storage type {}'.format(storage['storage_type']))
 
@@ -304,28 +313,12 @@ class TantalusApi(BasicAPIClient):
 
         return client
 
-    def get_file_compression(self, filepath):
-        compression_choices = {
-            ".gz":      "GZIP",
-            ".bzip2":   "BZIP2",
-            ".spec":    "SPEC",
-        }
-
-        extension = os.path.splitext(filepath)[1]
-        try:
-            return compression_choices[extension]
-        except KeyError:
-            return "UNCOMPRESSED"
-
-
     def add_file(self, storage_name, filepath, update=False):
         """ Create a file resource and file instance in the given storage.
 
         Args:
             storage_name: storage for file instance
             filepath: full path to file
-            file_type: type for file_resource
-            fields: additional fields for file_resource
 
         Kwargs:
             update: update the file if exists
@@ -337,12 +330,6 @@ class TantalusApi(BasicAPIClient):
         storage_client = self.get_storage_client(storage_name)
 
         filename = self.get_file_resource_filename(storage_name, filepath)
-
-        compression = self.get_file_compression(filename)
-        file_type = filename.split(".")[1].upper()
-
-        if file_type == 'FASTQ':
-            file_type = 'FQ'
 
         try:
             file_resource = self.get(
@@ -376,10 +363,8 @@ class TantalusApi(BasicAPIClient):
                     'file_resource',
                     id=file_resource['id'],
                     filename=filename,
-                    file_type=file_type,
                     created=storage_client.get_created_time(filename),
                     size=storage_client.get_size(filename),
-                    compression=compression,
                 )
 
                 file_instance = self.add_instance(file_resource, storage)
@@ -390,10 +375,8 @@ class TantalusApi(BasicAPIClient):
             file_resource = self.get_or_create(
                 'file_resource',
                 filename=filename,
-                file_type=file_type,
                 created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
-                compression=compression,
             )
 
             log.info('file resource has id {}'.format(file_resource['id']))
@@ -428,7 +411,6 @@ class TantalusApi(BasicAPIClient):
                 'file_resource',
                 id=file_resource['id'],
                 filename=filename,
-                file_type=file_type,
                 created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
             )
@@ -440,6 +422,30 @@ class TantalusApi(BasicAPIClient):
         )
 
         return file_resource, file_instance
+
+    def update_file(self, file_instance):
+        """
+        Update a file resource to match the file pointed
+        to by the given file instance.
+
+        Args:
+            file_instance (dict)
+
+        Returns:
+            file_instance (dict)
+        """
+        storage_client = self.get_storage_client(file_instance['storage']['name'])
+
+        file_resource = self.update(
+            'file_resource',
+            id=file_instance['file_resource']['id'],
+            created=storage_client.get_created_time(file_instance['file_resource']['filename']),
+            size=storage_client.get_size(file_instance['file_resource']['filename']),
+        )
+
+        file_instance['file_resource'] = file_resource
+
+        return file_instance
 
     def add_instance(self, file_resource, storage):
         """
@@ -481,6 +487,8 @@ class TantalusApi(BasicAPIClient):
         """
         for file_instance in file_resource['file_instances']:
             if file_instance['storage']['name'] == storage_name:
+                file_instance = file_instance.copy()
+                file_instance['file_resource'] = file_resource
                 return file_instance
 
         raise NotFoundError
@@ -521,6 +529,9 @@ class TantalusApi(BasicAPIClient):
         Args:
             dataset (dict)
             storage_name (str)
+
+        KwArgs:
+            filters (dict): additional filters such as filename extension
 
         Returns:
             file_instances (list)

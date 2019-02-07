@@ -83,7 +83,8 @@ def find_tnbc_datasets(library_ids_filename):
 
         filenames = {}
         for file_resource in tantalus_api.list('file_resource', sequencedataset__id=dataset['id']):
-            filenames[file_resource['file_type']] = file_resource['filename']
+            extension = os.path.splitext(file_resource['filename'])[1]
+            filenames[extension] = file_resource['filename']
             storages = [instance['storage']['name'] for instance in file_resource['file_instances']]
             if 'singlecellblob' not in storages:
                 is_on_blob = False
@@ -92,8 +93,8 @@ def find_tnbc_datasets(library_ids_filename):
             dataset_pk=dataset['id'],
             library_id=library_id,
             sample_id=dataset['sample']['sample_id'],
-            bam_filename=filenames['BAM'],
-            bam_index_filename=filenames.get('BAI'),
+            bam_filename=filenames['bam'],
+            bam_index_filename=filenames.get('bai'),
             is_on_blob=is_on_blob,
         ))
 

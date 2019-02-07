@@ -189,10 +189,12 @@ def get_tumour_bams():
     for file_instance in file_instances:
         file_resource = file_instance['file_resource']
 
-        if not file_resource['file_type'] in ('BAM', 'BAI'):
-            raise Exception('expected bams, found {}'.format(file_resource['file_type']))
+        extension = os.path.splitext(file_resource['filename'])[1]
 
-        if not file_resource['file_type'] == 'BAM':
+        if extension not in ('bam', 'bai'):
+            raise Exception('expected bams, found {}'.format(file_resource['filename']))
+
+        if extension != 'bam':
             continue
 
         index_sequence = str(file_resource['sequencefileinfo']['index_sequence'])
@@ -214,10 +216,12 @@ def get_normal_bam():
     for file_instance in file_instances:
         file_resource = file_instance['file_resource']
 
-        if not file_resource['file_type'] in ('BAM', 'BAI'):
-            raise Exception('expected bams, found {}'.format(file_resource['file_type']))
+        extension = os.path.splitext(file_resource['filename'])[1]
 
-        if not file_resource['file_type'] == 'BAM':
+        if extension not in ('bam', 'bai'):
+            raise Exception('expected bams, found {}'.format(file_resource['filename']))
+
+        if extension != 'bam':
             continue
 
         normal_filepath = file_instance['filepath']

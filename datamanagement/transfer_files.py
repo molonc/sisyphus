@@ -463,11 +463,12 @@ def transfer_tagged_datasets(tag_name, from_storage_name, to_storage_name):
 @click.argument("tag_name")
 @click.argument("from_storage_name")
 @click.argument("cache_directory")
-def cache_tagged_datasets_cmd(tag_name, from_storage_name, cache_directory):
-    cache_tagged_datasets(tag_name, from_storage_name, cache_directory)
+@click.option("--suffix_filter", required=False)
+def cache_tagged_datasets_cmd(tag_name, from_storage_name, cache_directory, suffix_filter=None):
+    cache_tagged_datasets(tag_name, from_storage_name, cache_directory, suffix_filter=suffix_filter)
 
 
-def cache_tagged_datasets(tag_name, from_storage_name, cache_directory):
+def cache_tagged_datasets(tag_name, from_storage_name, cache_directory, suffix_filter=None):
     """ Cache a set of tagged datasets
     """
 
@@ -476,10 +477,14 @@ def cache_tagged_datasets(tag_name, from_storage_name, cache_directory):
     tag = tantalus_api.get("tag", name=tag_name)
 
     for dataset_id in tag['sequencedataset_set']:
-        cache_dataset(tantalus_api, dataset_id, "sequencedataset", from_storage_name, cache_directory)
+        cache_dataset(
+            tantalus_api, dataset_id, "sequencedataset", from_storage_name,
+            cache_directory, suffix_filter=suffix_filter)
 
     for dataset_id in tag['resultsdataset_set']:
-        cache_dataset(tantalus_api, dataset_id, "resultsdataset", from_storage_name, cache_directory)
+        cache_dataset(
+            tantalus_api, dataset_id, "resultsdataset", from_storage_name,
+            cache_directory, suffix_filter=suffix_filter)
 
 
 RETRIES = 3
@@ -535,7 +540,7 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
         tantalus_api.add_instance(file_resource, to_storage)
 
 
-def cache_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, cache_directory):
+def cache_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, cache_directory, suffix_filter=None):
     """ Cache a dataset
     """
     assert dataset_model in ("sequencedataset", "resultsdataset")
@@ -549,11 +554,29 @@ def cache_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, ca
     file_instances = tantalus_api.get_dataset_file_instances(dataset_id, dataset_model, from_storage_name)
 
     for file_instance in file_instances:
-        logging.info(
-            "starting caching {} to {}".format(
-                file_instance["file_resource"]["filename"], cache_directory))
+        filename = file_instance["file_resource"]["filename"]
+
+        if suffix_filter is not None and not filename.endswith(suffix_filter):
+            logging.info("skipping caching of {}".format(filename))
+            continue
+
+        logging.info("starting caching {} to {}".format(
+                filename, cache_directory))
 
         _transfer_files_with_retry(f_transfer, file_instance)
+
+
+def cache_file(tantalus_api, file_instance, cache_directory):
+    """ Cache a single file.
+    """
+    f_transfer = get_cache_function(tantalus_api, file_instance['storage'], cache_directory)
+
+    logging.info("starting caching {} from {} to {}".format(
+        file_instance['file_resource']['filename'], file_instance['storage']['name'], cache_directory))
+
+    _transfer_files_with_retry(f_transfer, file_instance)
+
+    return os.path.join(cache_directory, file_instance['file_resource']['filename'])
 
 
 if __name__ == "__main__":
