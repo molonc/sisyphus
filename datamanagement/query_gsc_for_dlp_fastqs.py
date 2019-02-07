@@ -431,8 +431,6 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
     tantalus_api = TantalusApi()
 
     storage = tantalus_api.get("storage", name=storage_name)
-
-    sequencing_list_all = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC',))
     sequencing_list = list()
 
     # Importing a single library
@@ -457,9 +455,11 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
         return            
 
     elif all:
+        sequencing_list_all = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC',))
         sequencing_list = sequencing_list_all
 
     else:
+        sequencing_list_all = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC',))
         for sequencing in sequencing_list_all:
             if sequencing['number_of_lanes_requested'] != len(sequencing['dlplane_set']):
                 sequencing_list.append(sequencing)
