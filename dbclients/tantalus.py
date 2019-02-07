@@ -119,12 +119,14 @@ class BlobStorageClient(object):
             stream=stream)
         
     def create(self, blobname, filepath):
-        self.blob_service.create_blob_from_path(
-            self.storage_container,
-            blobname,
-            filepath)
-
-
+        if not self.exists(blobname):
+            log.info("Creating blob {} from path {}".format(blobname, filepath))
+            self.blob_service.create_blob_from_path(self.storage_container, 
+                blobname,
+                filepath)
+        else:
+            log.info("{} already exists on {}/{}".format(blobname, self.storage_account, self.storage_container))
+            
 class ServerStorageClient(object):
     def __init__(self, storage_directory, prefix):
         self.storage_directory = storage_directory
