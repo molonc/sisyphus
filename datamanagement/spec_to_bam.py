@@ -75,7 +75,8 @@ def get_uncompressed_bam_path(spec_path):
 
 def spec_to_bam(spec_path,
                 raw_reference_genome,
-                output_bam_path):
+                output_bam_path,
+                from_gsc=False):
     """Decompresses a SpEC compressed BamFile.
     Registers the new uncompressed file in the database.
     Args:
@@ -126,6 +127,10 @@ def spec_to_bam(spec_path,
     # Convert the SpEC to a BAM
     logging.info("Converting {} to {}".format(spec_path, output_bam_path))
 
+    hostname = socket.gethostname()
+    if from_gsc and hostname != "txshah":
+        spec_path = "thost:" + spec_path
+
     command = [SHAHLAB_SPEC2BAM_BINARY_PATH,
                '--in',
                spec_path,
@@ -160,7 +165,8 @@ def get_filepaths(spec_path, to_storage_prefix):
 def create_bam( spec_path, 
                 reference_genome, 
                 output_bam_path,
-                to_storage):
+                to_storage,
+                from_gsc):
     tantalus_api = TantalusApi()         
     output_bam_filename = output_bam_path[len(to_storage["prefix"]) + 1:] 
 
@@ -183,7 +189,8 @@ def create_bam( spec_path,
         spec_to_bam(
             spec_path=spec_path, 
             raw_reference_genome=reference_genome,
-            output_bam_path=output_bam_path
+            output_bam_path=output_bam_path,
+            from_gsc=from_gsc
         )
         created = True
     except BadReferenceGenomeError as e:
@@ -202,7 +209,8 @@ def create_bam( spec_path,
 @click.argument("spec_path")
 @click.argument("reference_genome")
 @click.argument("to_storage")
-def main(spec_path, reference_genome, to_storage):
+@click.option("--from_gsc", is_flag=True)
+def main(spec_path, reference_genome, to_storage, from_gsc):
 
     filename, output_bam_path = get_filepaths(spec_path, STORAGE_PREFIX_MAP[to_storage])
 
@@ -210,7 +218,9 @@ def main(spec_path, reference_genome, to_storage):
                 spec_path,
                 reference_genome,
                 output_bam_path,
-                to_storage)
+                to_storage,
+                from_gsc
+    )
 
 
 if __name__ == '__main__':

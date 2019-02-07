@@ -8,6 +8,9 @@ import sys
 import time
 import subprocess
 import click
+import paramiko
+import pwd
+import socket
 import pandas as pd
 from datetime import datetime
 from utils.constants import LOGGING_FORMAT
@@ -32,6 +35,7 @@ gsc_api = GSCAPI()
 
 protocol_id_map = {
     12: "WGS",
+    23: "WGS",
     73: "WGS",
     136: "WGS",
     140: "WGS",
@@ -42,7 +46,10 @@ protocol_id_map = {
     137: "RNASEQ",
 }
 
-solexa_run_type_map = {"Paired": "P"}
+solexa_run_type_map = {
+    "Paired": "P",
+    "Single": "S",
+}
 
 
 def convert_time(a):
@@ -66,6 +73,16 @@ def add_compression_suffix(path, compression):
         return path + ".spec"
     else:
         raise ValueError("unsupported compression {}".format(compression))
+
+
+def connect_to_client(hostname):
+    ssh_client = paramiko.SSHClient()
+    ssh_client.load_system_host_keys()
+
+    username = pwd.getpwuid(os.getuid()).pw_name
+    ssh_client.connect(hostname, username=username)
+
+    return ssh_client
 
 
 def get_merge_bam_path(
@@ -124,7 +141,7 @@ def get_tantalus_bam_filename(sample, library, lane_infos):
 
 
 def add_gsc_wgs_bam_dataset(
-    bam_path, storage, sample, library, lane_infos, is_spec=False
+    bam_path, storage, sample, library, lane_infos, sftp=None, is_spec=False
 ):
     transferred = False
 
@@ -143,47 +160,93 @@ def add_gsc_wgs_bam_dataset(
         storage["storage_directory"], tantalus_bai_filename
     )
 
+    #Check if the script is being run on thost
+    current_host = socket.gethostname()
+    if current_host != "txshah":
+        transfer_bam_path = "thost:" + bam_path
+        transfer_bai_path = "thost:" + bai_path
+    else:
+        transfer_bam_path = bam_path
+        transfer_bai_path = bai_path
+
     #If this is a spec file, create a bam file in the tantlus_bam_path destination
     if is_spec:
+        
         transferred = create_bam( 
                             bam_path, 
                             lane_infos[0]['reference_genome'], 
                             tantalus_bam_path,
-                            storage)                         
+                            storage,
+                            from_gsc=True)   
+                         
     #Otherwise, copy the bam and the bam index to the specified tantalus path
     else:
-        if not os.path.isfile(tantalus_bam_path):
-            rsync_file(bam_path, tantalus_bam_path)
-            transferred = True 
-            
-        elif os.path.getsize(bam_path) != os.path.getsize(tantalus_bam_path):
-            logging.info("The size of {} on the GSC does not match {}. Copying new file to {} ".format(
-                    bam_path,
-                    tantalus_bam_path,
-                    storage["name"]
-                    ))
-            rsync_file(bam_path, tantalus_bam_path)
-            transferred = True 
-            
-        else:
-            logging.info("The bam already exists at {}. Skipping import".format(tantalus_bam_path))
-            
 
-        if not os.path.isfile(tantalus_bai_path):
-            rsync_file(bai_path, tantalus_bai_path)
-            transferred = True 
-            
-        elif os.path.getsize(bai_path) != os.path.getsize(tantalus_bai_path):
-            logging.info("The size of {} on the GSC does not match {}. Copying new file to {} ".format(
-                    bai_path,
-                    tantalus_bai_path,
-                    storage["name"]
-                    ))
-            rsync_file(bai_path, tantalus_bai_path)
-            transferred = True 
-            
+        #If this is not run on thost, an sftp client will need to be used to check file size on /projects/
+        if current_host != "txshah":
+
+            if not os.path.isfile(tantalus_bam_path):
+                rsync_file(transfer_bam_path, tantalus_bam_path)
+                transferred = True 
+            else:
+                remote_file = sftp.stat(bam_path)
+                if remote_file.st_size != os.path.getsize(tantalus_bam_path):
+                    logging.info("The size of {} on the GSC does not match {}. Copying new file to {} ".format(
+                            bam_path,
+                            tantalus_bam_path,
+                            storage["name"]
+                            ))
+                    rsync_file(transfer_bam_path, tantalus_bam_path)
+                    transferred = True
+                else:
+                    logging.info("The bam already exists at {}. Skipping import".format(tantalus_bam_path))
+
+                
+            if not os.path.isfile(tantalus_bai_path):
+                rsync_file(transfer_bai_path, tantalus_bai_path)
+                transferred = True 
+            else:
+                remote_file = sftp.stat(bai_path)
+                if remote_file.st_size != os.path.getsize(tantalus_bai_path):
+                    logging.info("The size of {} on the GSC does not match {}. Copying new file to {} ".format(
+                            bai_path,
+                            tantalus_bai_path,
+                            storage["name"]
+                            ))
+                    rsync_file(transfer_bai_path, tantalus_bai_path)
+                    transferred = True
+                else:
+                    logging.info("The bai already exists at {}. Skipping import".format(tantalus_bai_path))
         else:
-            logging.info("The bam index already exists at {}. Skipping import".format(tantalus_bai_path))
+            if not os.path.isfile(tantalus_bam_path):
+                rsync_file(transfer_bam_path, tantalus_bam_path)
+                transferred = True 
+            elif os.path.getsize(bam_path) != os.path.getsize(tantalus_bam_path):
+                logging.info("The size of {} on the GSC does not match {}. Copying new file to {} ".format(
+                        bam_path,
+                        tantalus_bam_path,
+                        storage["name"]
+                        ))
+                rsync_file(transfer_bam_path, tantalus_bam_path)
+                transferred = True 
+                
+            else:
+                logging.info("The bam already exists at {}. Skipping import".format(tantalus_bam_path))
+                
+            if not os.path.isfile(tantalus_bai_path):
+                rsync_file(transfer_bai_path, tantalus_bai_path)
+                transferred = True 
+            elif os.path.getsize(bai_path) != os.path.getsize(tantalus_bai_path):
+                logging.info("The size of {} on the GSC does not match {}. Copying new file to {} ".format(
+                        bai_path,
+                        tantalus_bai_path,
+                        storage["name"]
+                        ))
+                rsync_file(transfer_bai_path, tantalus_bai_path)
+                transferred = True 
+                
+            else:
+                logging.info("The bam index already exists at {}. Skipping import".format(tantalus_bai_path))
 
     return tantalus_bam_path, transferred
     
@@ -231,6 +294,13 @@ def get_gsc_details(
     """
     details_list = []
     transferred = False
+
+    #If this isn't being run on thost, connect to an ssh client to access /projects/ files
+    if socket.gethostname() != "txshah":
+        ssh_client = connect_to_client("10.9.208.161")
+        sftp = ssh_client.open_sftp()
+    else:
+        sftp = None
 
     for library_info in library_infos:
         logging.info("importing %s", library_info["name"])
@@ -352,21 +422,45 @@ def get_gsc_details(
 
                 # Test for BAM path first, then BAM SpEC path if
                 # no BAM available
-                if os.path.exists(bam_path):
-                    bam_filepath, transferred = add_gsc_wgs_bam_dataset(
-                        bam_path, storage, sample, library, lane_infos
-                    )
-                elif os.path.exists(bam_spec_path):
-                    bam_filepath, transferred = add_gsc_wgs_bam_dataset(
-                        bam_spec_path,
-                        storage,
-                        sample,
-                        library,
-                        lane_infos,
-                        is_spec=True,
-                    )
+                if sftp:
+                    try:
+                        sftp.stat(bam_path)
+                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
+                            bam_path, storage, sample, library, lane_infos
+                        )
+                        continue
+                    except IOError:
+                        pass
+
+                    try:
+                        sftp.stat(bam_spec_path)
+                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
+                            bam_spec_path,
+                            storage,
+                            sample,
+                            library,
+                            lane_infos,
+                            is_spec=True,
+                        )
+                    except IOError:
+                        raise Exception("missing merged bam file {}".format(bam_path))
+
                 else:
-                    raise Exception("missing merged bam file {}".format(bam_path))
+                    if os.path.exists(bam_path):
+                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
+                            bam_path, storage, sample, library, lane_infos
+                        )
+                    elif os.path.exists(bam_spec_path):
+                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
+                            bam_spec_path,
+                            storage,
+                            sample,
+                            library,
+                            lane_infos,
+                            is_spec=True,
+                        )
+                    else:
+                        raise Exception("missing merged bam file {}".format(bam_path))
 
             list_temp = dict(
                 library_id=library_name,
@@ -459,23 +553,45 @@ def get_gsc_details(
 
                 # Test for BAM path first, then BAM SpEC path if
                 # no BAM available
-                if os.path.exists(bam_path):
-                    bam_filepath, transferred = add_gsc_wgs_bam_dataset(
-                        bam_path, storage, sample, library, lane_infos
-                    )
-                    
-                elif os.path.exists(bam_spec_path):
-                    bam_filepath, transferred = add_gsc_wgs_bam_dataset(
-                        bam_spec_path,
-                        storage,
-                        sample,
-                        library,
-                        lane_infos,
-                        is_spec=True,
-                    )
+                if sftp:
+                    try:
+                        sftp.stat(bam_path)
+                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
+                            bam_path, storage, sample, library, lane_infos
+                        )
+                        continue
+                    except IOError:
+                        pass
+
+                    try:
+                        sftp.stat(bam_spec_path)
+                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
+                            bam_spec_path,
+                            storage,
+                            sample,
+                            library,
+                            lane_infos,
+                            is_spec=True,
+                        )
+                    except IOError:
+                        raise Exception("missing merged bam file {}".format(bam_path))
 
                 else:
-                    raise Exception("missing lane bam file {}".format(bam_path))
+                    if os.path.exists(bam_path):
+                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
+                            bam_path, storage, sample, library, lane_infos
+                        )
+                    elif os.path.exists(bam_spec_path):
+                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
+                            bam_spec_path,
+                            storage,
+                            sample,
+                            library,
+                            lane_infos,
+                            is_spec=True,
+                        )
+                    else:
+                        raise Exception("missing merged bam file {}".format(bam_path))
     
             list_temp = dict(
                 library_id=library_name,
@@ -490,6 +606,7 @@ def get_gsc_details(
 
             details_list.append(list_temp)
     
+    ssh_client.close()
     return details_list
 
 
@@ -509,49 +626,41 @@ def valid_date(s):
 @click.option('--update', is_flag=True)
 @click.option('--skip_file_import', is_flag=True)
 @click.option('--query_only', is_flag=True)
-def main(
-    ids,
-    storage,
-    id_type,
-    skip_older_than,
-    tag_name, 
-    update,
-    skip_file_import,
-    query_only,
-):
+def main(**kwargs):
 
     # Convert the date to the format we want
-    if skip_older_than:
-        skip_older_than = valid_date(skip_older_than)
+    if kwargs["skip_older_than"]:
+        skip_older_than = valid_date(kwargs["skip_older_than"])
 
     # Connect to the Tantalus API (this requires appropriate environment
     # variables defined)
     tantalus_api = TantalusApi()
-    storage = tantalus_api.get("storage_server", name=storage)  
+    storage = tantalus_api.get("storage_server", name=kwargs["storage"])  
 
-    if not id_type:
+    #Check that an id type was specified
+    if not kwargs["id_type"]:
         raise Exception("Please specify an ID type (sample or library)")
 
     details = []
-    for identifier in ids:
-        infos = query_gsc(identifier, id_type)
+    for identifier in kwargs["ids"]:
+        infos = query_gsc(identifier, kwargs["id_type"])
 
         if not infos:
-            logging.info("No results for {} {}".format(id_type, identifier))
+            logging.info("No results for {} {}".format(kwargs["id_type"], identifier))
         else:
-            logging.info("{} {} exists on the GSC".format(id_type, identifier))
-            if query_only:
+            logging.info("{} {} exists on the GSC".format(kwargs["id_type"], identifier))
+            if kwargs["query_only"]:
                 break
 
             detail = get_gsc_details(
                 infos, 
                 storage, 
-                skip_file_import=skip_file_import,
-                skip_older_than=skip_older_than)
+                skip_file_import=kwargs["skip_file_import"],
+                skip_older_than=kwargs["skip_older_than"])
 
             #Add dataset to tantalus
             for instance in detail:
-                if not skip_file_import and instance["transferred"]:
+                if not kwargs["skip_file_import"] and instance["transferred"]:
                     logging.info("Importing {} to tantalus".format(instance["bam_filepath"]))
 
                     dataset = import_bam(
@@ -563,12 +672,12 @@ def main(
                         sequencing_centre=instance["sequencing_centre"],
                         index_format="N",
                         lane_info=instance["lane_info"],
-                        tag_name=tag_name,
-                        update=update
+                        tag_name=kwargs["tag_name"],
+                        update=kwargs["update"]
                     )
                     logging.info("Successfully added sequence dataset with ID {} to tantalus".format(dataset["id"]))
                 
-                elif skip_file_import:
+                elif kwargs["skip_file_import"]:
                     #Only add lanes, libraries, and samples to tantalus
                     for lane in instance["lane_info"]:
                         logging.info("Importing lanes for library {} to tantalus".format(instance["library_id"]))

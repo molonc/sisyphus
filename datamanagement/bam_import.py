@@ -9,11 +9,13 @@ import time
 import azure.storage.blob
 import pandas as pd
 import pysam
+import re
 import datamanagement.utils.constants
 from datamanagement.utils.utils import get_lanes_hash, get_lane_str
 import datamanagement.templates as templates
 from dbclients.tantalus import TantalusApi
 import click
+from dbclients.basicclient import FieldMismatchError
 
 
 def get_bam_ref_genome(bam_header):
@@ -41,7 +43,8 @@ def get_bam_aligner_name(bam_header):
     for pg in bam_header["PG"]:
         if "bwa" in pg["ID"] or "bwa" in pg["CL"]:
             if "sampe" in pg["CL"]:
-                return "bwa_aln"
+                version = pg["VN"].replace(".", "_")
+                return "BWA_ALN" + version
             if "mem" in pg["CL"]:
                 return "bwa_mem"
     raise Exception("no aligner name found")
