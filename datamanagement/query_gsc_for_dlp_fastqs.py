@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -21,9 +20,7 @@ from utils.runtime_args import parse_runtime_args
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 
-
 solexa_run_type_map = {"Paired": "P"}
-
 
 def reverse_complement(sequence):
     return str(sequence[::-1]).translate(string.maketrans("ACTGactg", "TGACtgac"))
@@ -136,12 +133,6 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     '''
 
-    if check_library:
-        logging.info('Checking data for {}'.format(dlp_library_id))
-
-    else:
-        logging.info('Importing data for {}'.format(dlp_library_id))
-
     # Existing fastqs in tantalus as a set of tuples of
     # the form (flowcell_id, lane_number, index_sequence, read_end)
     # skip if we are checking an existing library
@@ -180,6 +171,12 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     gsc_library_id = library_info["name"]
 
     gsc_fastq_infos = gsc_api.query("fastq?parent_library={}".format(gsc_library_id))
+
+    if check_library:
+        logging.info('Checking data for {}, {}'.format(dlp_library_id, gsc_library_id))
+
+    else:
+        logging.info('Importing data for {}, {}'.format(dlp_library_id, gsc_library_id))
 
     fastq_file_info = []
 
@@ -375,7 +372,6 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     return import_info
 
 def check_library_id_and_add_lanes(colossus_api, sequencing, import_info):
-    logging.info("Adding/Updating lane to colossus.")
     if sequencing['gsc_library_id'] is not None:
         if sequencing['gsc_library_id'] != import_info['gsc_library_id']:
             raise Exception('gsc library id mismatch in sequencing {} '.format(sequencing_info['id']))
@@ -388,9 +384,11 @@ def check_library_id_and_add_lanes(colossus_api, sequencing, import_info):
 
     lanes_to_be_created = import_info['lanes']
     for lane_to_create in lanes_to_be_created:
+        flowcell_id = "{}_{}".format(lane_to_create['flowcell_id'], lane_to_create['lane_number'])
+        logging.info("Adding/Updating lane {} to Colossus.".format(flowcell_id))
         lane = colossus_api.get_or_create(
             "lane", sequencing=sequencing['id'], 
-            flow_cell_id="{}_{}".format(lane_to_create['flowcell_id'], lane_to_create['lane_number']),
+            flow_cell_id=flowcell_id,
         )
         if lane['sequencing_date'] != lane_to_create['sequencing_date']:
             colossus_api.update(
@@ -455,8 +453,7 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
         return            
 
     elif all:
-        sequencing_list_all = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC',))
-        sequencing_list = sequencing_list_all
+        sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC',))
 
     else:
         sequencing_list_all = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC',))
