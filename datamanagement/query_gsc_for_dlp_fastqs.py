@@ -130,6 +130,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         tag_name: a tag to add to imported data
         update: update an existing dataset
         check_library: only check the library, dont load
+        dry_run: check for new lanes, dont import
 
     '''
 
@@ -431,6 +432,9 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
     storage = tantalus_api.get("storage", name=storage_name)
     sequencing_list = list()
 
+    if dry_run:
+        logging.info("This is a dry run. No lanes will be imported.")
+        
     # Importing a single library
     if dlp_library_id is not None:
         # Query GSC for FastQs for given library
@@ -446,6 +450,10 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
         )
 
         sequencing_list = list(colossus_api.list('sequencing',  sequencing_center='BCCAGSC', gsc_library_id=import_info['gsc_library_id']))
+
+        if len(sequencing_list) != 0:
+            logging.warning("No sequencing found for {}". format(import_info['gsc_library_id']))
+            # TODO: Add gsc library in to appropriate sequencing by querying library?
 
         for sequencing in sequencing_list:
             check_library_id_and_add_lanes(colossus_api, sequencing, import_info)
