@@ -10,7 +10,7 @@ from datamanagement.utils.utils import make_dirs
 log = logging.getLogger(__name__)
 
 
-def rsync_file(from_path, to_path):
+def rsync_file(from_path, to_path, sftp=None):
     make_dirs(os.path.dirname(to_path))
 
     subprocess_cmd = [
@@ -42,8 +42,16 @@ def rsync_file(from_path, to_path):
     if exitcode != 0:
         raise Exception("cmd '{}' returned {}".format(" ".join(subprocess_cmd), exitcode))
 
-    if os.path.getsize(to_path) != os.path.getsize(from_path):
-        raise Exception("copy failed for %s to %s", from_path, to_path)
+    if sftp:
+        try:
+            remote_file = ftp.stat(from_path)
+            if remote_file.st_size != os.path.getsize(to_path):
+                raise Exception("copy failed for %s to %s", from_path, to_path)
+        except IOError:
+            raise Exception("missing source file %s", from_path)
+    else:
+        if os.path.getsize(to_path) != os.path.getsize(from_path):
+            raise Exception("copy failed for %s to %s", from_path, to_path)
 
 
 def try_gzip(path):

@@ -44,9 +44,15 @@ def get_bam_aligner_name(bam_header):
         if "bwa" in pg["ID"] or "bwa" in pg["CL"]:
             if "sampe" in pg["CL"]:
                 version = pg["VN"].replace(".", "_")
-                return "BWA_ALN" + version
+                return "BWA_ALN_" + version
             if "mem" in pg["CL"]:
-                return "bwa_mem"
+                try:
+                    version = pg["VN"].replace(".", "_")
+                except KeyError:
+                    #If we get a bad header
+                    components = pg["CL"].split("\t")
+                    version = components[-1].replace(".", "_").strip("VN:").upper()
+                return "BWA_MEM_" + version
     raise Exception("no aligner name found")
 
 
@@ -92,16 +98,7 @@ def get_bam_header_info(header):
         "sequence_lanes": sequence_lanes,
     }
 
-@click.command()
-@click.argument("storage_name")
-@click.argument("library_type")
-@click.argument("bam_filename")
-@click.argument("read_type")
-@click.argument("sequencing_centre")
-@click.argument("index_format")
-@click.option("--update",is_flag=True)
-@click.option("--lane_info",default=None)
-@click.option("--tag_name",default=None)
+
 def import_bam(
     storage_name,
     library_type,
@@ -199,9 +196,22 @@ def import_bam(
     return sequence_dataset
 
 
-if __name__ == "__main__":
-
-    # Import BAMs
-    dataset = import_bam()
+@click.command()
+@click.argument("storage_name")
+@click.argument("library_type")
+@click.argument("bam_filename")
+@click.argument("read_type")
+@click.argument("sequencing_centre")
+@click.argument("index_format")
+@click.option("--update",is_flag=True)
+@click.option("--lane_info",default=None)
+@click.option("--tag_name",default=None)
+def main():
+    #Import bam
+    dataset = import_bam(**kwargs)
 
     print("dataset {}".format(dataset["id"]))
+
+
+if __name__ == "__main__":
+    main()

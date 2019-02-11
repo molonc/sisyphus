@@ -163,6 +163,7 @@ def add_gsc_wgs_bam_dataset(
     #Check if the script is being run on thost
     current_host = socket.gethostname()
     if current_host != "txshah":
+        username = pwd.getpwuid(os.getuid()).pw_name
         transfer_bam_path = "thost:" + bam_path
         transfer_bai_path = "thost:" + bai_path
     else:
@@ -171,14 +172,12 @@ def add_gsc_wgs_bam_dataset(
 
     #If this is a spec file, create a bam file in the tantlus_bam_path destination
     if is_spec:
-        
         transferred = create_bam( 
                             bam_path, 
                             lane_infos[0]['reference_genome'], 
                             tantalus_bam_path,
                             storage,
-                            from_gsc=True)   
-                         
+                            from_gsc=True)            
     #Otherwise, copy the bam and the bam index to the specified tantalus path
     else:
 
@@ -247,7 +246,7 @@ def add_gsc_wgs_bam_dataset(
                 
             else:
                 logging.info("The bam index already exists at {}. Skipping import".format(tantalus_bai_path))
-
+    transferred = True
     return tantalus_bam_path, transferred
     
 
@@ -267,6 +266,32 @@ def add_gsc_bam_lanes(sample, library, lane_infos):
         detail_list.append(lane)
 
     return detail_list
+
+
+def check_sftp_bams(sftp, bam_path, storage, sample, library, lane_infos):
+    try:
+        sftp.stat(bam_path)
+        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
+            bam_path, storage, sample, library, lane_infos, sftp
+        )
+        return bam_filepath, transferred
+    except IOError:
+        pass
+
+    try:
+        sftp.stat(bam_spec_path)
+        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
+            bam_spec_path,
+            storage,
+            sample,
+            library,
+            lane_infos,
+            sftp,
+            is_spec=True,
+        )
+        return bam_filepath, transferred
+    except IOError:
+        raise Exception("missing merged bam file {}".format(bam_path))
 
 
 def query_gsc(identifier, id_type):
@@ -364,14 +389,12 @@ def get_gsc_details(
                     libcore = aligned_libcore["libcore"]
                     run = libcore["run"]
                     primer = libcore["primer"]
-
                 elif merge_xref["object_type"] == "metadata.run":
                     run = gsc_api.query("run/{}".format(merge_xref["object_id"]))
                     libcores = gsc_api.query("libcore?run_id={}".format(merge_xref["object_id"]))
                     assert len(libcores) == 1
                     libcore = libcores[0]
                     primer = gsc_api.query("primer/{}".format(libcore["primer_id"]))
-
                 else:
                     raise Exception('unknown object type {}'.format(merge_xref["object_type"]))
 
@@ -398,7 +421,6 @@ def get_gsc_details(
             
             if skip_file_import:
                 bam_filepath = None
-            
             else:
                 if data_path is None:
                     raise Exception(
@@ -423,32 +445,19 @@ def get_gsc_details(
                 # Test for BAM path first, then BAM SpEC path if
                 # no BAM available
                 if sftp:
-                    try:
-                        sftp.stat(bam_path)
-                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
-                            bam_path, storage, sample, library, lane_infos
-                        )
-                        continue
-                    except IOError:
-                        pass
-
-                    try:
-                        sftp.stat(bam_spec_path)
-                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
-                            bam_spec_path,
-                            storage,
-                            sample,
-                            library,
-                            lane_infos,
-                            is_spec=True,
-                        )
-                    except IOError:
-                        raise Exception("missing merged bam file {}".format(bam_path))
+                    bam_filepath, transferred = check_sftp_bams(
+                            sftp, 
+                            bam_path, 
+                            storage, 
+                            sample, 
+                            library, 
+                            lane_infos
+                    )
 
                 else:
                     if os.path.exists(bam_path):
                         bam_filepath, transferred = add_gsc_wgs_bam_dataset(
-                            bam_path, storage, sample, library, lane_infos
+                            bam_path, storage, sample, library, lane_infos, sftp
                         )
                     elif os.path.exists(bam_spec_path):
                         bam_filepath, transferred = add_gsc_wgs_bam_dataset(
@@ -457,6 +466,7 @@ def get_gsc_details(
                             sample,
                             library,
                             lane_infos,
+                            sftp,
                             is_spec=True,
                         )
                     else:
@@ -532,7 +542,6 @@ def get_gsc_details(
             
             if skip_file_import:
                 bam_filepath = None
-            
             else:
                 bam_path = get_lane_bam_path(
                     library_type=library_type,
@@ -554,32 +563,18 @@ def get_gsc_details(
                 # Test for BAM path first, then BAM SpEC path if
                 # no BAM available
                 if sftp:
-                    try:
-                        sftp.stat(bam_path)
-                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
-                            bam_path, storage, sample, library, lane_infos
-                        )
-                        continue
-                    except IOError:
-                        pass
-
-                    try:
-                        sftp.stat(bam_spec_path)
-                        bam_filepath, transferred = add_gsc_wgs_bam_dataset(
-                            bam_spec_path,
-                            storage,
-                            sample,
-                            library,
-                            lane_infos,
-                            is_spec=True,
-                        )
-                    except IOError:
-                        raise Exception("missing merged bam file {}".format(bam_path))
-
+                    bam_filepath, transferred = check_sftp_bams(
+                            sftp, 
+                            bam_path, 
+                            storage, 
+                            sample, 
+                            library, 
+                            lane_infos
+                    )
                 else:
                     if os.path.exists(bam_path):
                         bam_filepath, transferred = add_gsc_wgs_bam_dataset(
-                            bam_path, storage, sample, library, lane_infos
+                            bam_path, storage, sample, library, lane_infos, sftp
                         )
                     elif os.path.exists(bam_spec_path):
                         bam_filepath, transferred = add_gsc_wgs_bam_dataset(
@@ -588,6 +583,7 @@ def get_gsc_details(
                             sample,
                             library,
                             lane_infos,
+                            sftp,
                             is_spec=True,
                         )
                     else:
@@ -606,7 +602,8 @@ def get_gsc_details(
 
             details_list.append(list_temp)
     
-    ssh_client.close()
+    if sftp:
+    	ssh_client.close()
     return details_list
 
 
@@ -664,7 +661,6 @@ def main(**kwargs):
                     logging.info("Importing {} to tantalus".format(instance["bam_filepath"]))
 
                     dataset = import_bam(
-                        tantalus_api=tantalus_api,
                         storage_name=instance["storage_name"],
                         library_type=instance["library_type"],
                         bam_filename=instance["bam_filepath"],
