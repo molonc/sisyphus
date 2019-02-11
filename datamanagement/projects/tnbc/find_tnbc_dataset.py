@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
 import sys
 import logging
 import click
@@ -79,11 +80,16 @@ def find_tnbc_datasets(library_ids_filename):
 
         dataset = datasets[0]
 
+        # Set as is_production=True
+        dataset = tantalus_api.update('sequencedataset', id=dataset['id'], is_production=True)
+
         is_on_blob = True
 
         filenames = {}
         for file_resource in tantalus_api.list('file_resource', sequencedataset__id=dataset['id']):
             extension = os.path.splitext(file_resource['filename'])[1]
+            if extension == '.spec':
+                extension = '.bam'
             filenames[extension] = file_resource['filename']
             storages = [instance['storage']['name'] for instance in file_resource['file_instances']]
             if 'singlecellblob' not in storages:
@@ -93,8 +99,8 @@ def find_tnbc_datasets(library_ids_filename):
             dataset_pk=dataset['id'],
             library_id=library_id,
             sample_id=dataset['sample']['sample_id'],
-            bam_filename=filenames['bam'],
-            bam_index_filename=filenames.get('bai'),
+            bam_filename=filenames['.bam'],
+            bam_index_filename=filenames.get('.bai'),
             is_on_blob=is_on_blob,
         ))
 
