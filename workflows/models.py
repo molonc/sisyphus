@@ -794,13 +794,14 @@ class PseudoBulkAnalysis(Analysis):
 
         return dataset_ids
 
-    def generate_inputs_yaml(self, inputs_yaml_filename, storage_name):
+    def generate_inputs_yaml(self, args, inputs_yaml_filename):
         """ Generates a YAML file of input information
 
         Args:
             inputs_yaml_filename: the directory to which the YAML file should be saved
             storage_name: Which tantalus storage to look at
         """
+        print(inputs_yaml_filename)
         make_dirs(os.path.dirname(inputs_yaml_filename))
 
         input_info = {'normal': {}, 'tumour': {}}

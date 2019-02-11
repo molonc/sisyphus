@@ -64,7 +64,7 @@ def start_automation(
     elif analysis_type == 'hmmcopy':
         tantalus_analysis = HmmcopyAnalysis(args, storages=storages, update=args['update'])
     elif analysis_type == 'pseudobulk':
-        tantalus_analysis = PseudoBulkAnalysis(args, update=args['update'])
+        tantalus_analysis = PseudoBulkAnalysis(args, storages=storages, update=args['update'])
     else:
         raise ValueError()
 
