@@ -119,12 +119,21 @@ class BlobStorageClient(object):
             stream=stream)
         
     def create(self, blobname, filepath):
-        self.blob_service.create_blob_from_path(
-            self.storage_container,
-            blobname,
-            filepath)
+        if self.exists(blobname):
+            filesize_on_azure = self.get_size(blobname)
+            filesize = os.path.getsize(filepath)
 
+            if size_on_blob != size_of_file:
+                raise Exception("Size mismatch: {} on Azure but file has size {}".format(filesize_on_azure, filesize))
 
+            log.info("{} already exists on {}/{}".format(blobname, self.storage_account, self.storage_container))
+
+        else:
+            log.info("Creating blob {} from path {}".format(blobname, filepath))
+            self.blob_service.create_blob_from_path(self.storage_container, 
+                blobname,
+                filepath)
+            
 class ServerStorageClient(object):
     def __init__(self, storage_directory, prefix):
         self.storage_directory = storage_directory
