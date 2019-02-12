@@ -488,7 +488,7 @@ def check_library_id_and_add_lanes(colossus_api, sequencing, import_info):
         raise Exception("Expected number of lanes is {} but total lanes imported is {}".format(
             sequencing['number_of_lanes_requested'], len(lanes_to_be_created)))
 
-def import_library_status():
+def write_import_statuses():
     import_status_path = os.path.join(os.environ['DATAMANAGEMENT_DIR'], 'import_statuses.txt')
     
     if os.path.exists(import_status_path):
@@ -497,13 +497,6 @@ def import_library_status():
     file = open(import_status_path, 'a+')
 
     file.write("Successful imports: \n")
-    # for successful_lib in successful_libs:
-    #     for lib in successful_lib.keys():
-    #         file.write("\n{}: \n".format(lib))
-    #         for lane in successful_lib[lib]:
-    #             flowcell = "{}_{}".format(lane['flowcell_id'], lane['lane_number'])
-    #             lane_message = "Flowcell: {}, Sequencing Date: {} \n".format(flowcell, lane['sequencing_date'])
-    #             file.write(lane_message)
 
     for successful_lib in successful_libs:
         file.write('\n{}, {} \n'.format(successful_lib['dlp_library_id'], successful_lib['gsc_library_id']))
@@ -513,12 +506,7 @@ def import_library_status():
             file.write(lane_message)   
         file.write('Sequencing submitted on {}'.format(successful_lib['submission_date']))   
 
-
     file.write("\nFailed imports: \n")
-    # for failed_lib in failed_libs:
-    #     for lib in failed_lib.keys():
-    #         file.write("{}: {} \n".format(lib, failed_lib[lib]))
-
     for failed_lib in failed_libs:
         file.write("{}: {}; sequencing submitted on {}\n".format(failed_lib['dlp_library_id'], failed_lib['error'], failed_lib['submission_date']))
     file.close()
@@ -629,7 +617,7 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
     # Sort lists by date in descending order
     successful_libs.sort(key=lambda x: datetime.datetime.strptime(x['submission_date'], '%Y-%m-%d'), reverse=True)
     failed_libs.sort(key=lambda x: datetime.datetime.strptime(x['submission_date'], '%Y-%m-%d'), reverse=True)
-    import_library_status()
+    write_import_statuses()
 
 if __name__ == "__main__":
     main()
