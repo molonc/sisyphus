@@ -76,25 +76,13 @@ def start_automation(
     else:
         raise ValueError()
 
-    input_dataset_ids = sentinel(
-        'Searching for input datasets',
-        tantalus_analysis.search_input_datasets,
-        args,
-    )
-
-    input_results_ids = sentinel(
-        'Searching for input results',
-        tantalus_analysis.search_input_results,
-        args,
-    )
-
     if storages["working_inputs"] != storages["remote_inputs"]:  
         sentinel(
             'Transferring input datasets from {} to {}'.format(
                 storages["remote_inputs"], storages["working_inputs"]),
             transfer_inputs,
-            input_dataset_ids,
-            input_results_ids,
+            tantalus_analysis.get_input_datasets(),
+            tantalus_analysis.get_input_results(),
             storages["remote_inputs"],
             storages["working_inputs"],
         )

@@ -235,21 +235,15 @@ class Analysis(object):
 
         return analysis
 
-    def get_input_file_instances(self, storage_name):
-        """ Get file instances for input datasets.
-
-        Args:
-            storage_name: name of storage for which we want file instances
-
-        Returns:
-            input_file_instances: list of nested dictionaries for file instances
+    def get_input_datasets(self):
+        """ Get input dataset ids
         """
+        return self.analysis['input_datasets']
 
-        input_file_instances = []
-        for dataset_id in self.analysis['input_datasets']:
-            dataset = self.get_dataset(dataset_id)
-            input_file_instances.extend(tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name))
-        return input_file_instances
+    def get_input_results(self):
+        """ Get input results ids
+        """
+        return self.analysis['input_results']
 
     def add_inputs_yaml(self, inputs_yaml, update=False):
         """
@@ -464,6 +458,22 @@ class AlignAnalysis(Analysis):
                 lanes, input_lanes
             ))
 
+    def _get_input_file_instances(self, storage_name):
+        """ Get file instances for input datasets.
+
+        Args:
+            storage_name: name of storage for which we want file instances
+
+        Returns:
+            input_file_instances: list of nested dictionaries for file instances
+        """
+
+        input_file_instances = []
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+            input_file_instances.extend(tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name))
+        return input_file_instances
+
     def _generate_cell_metadata(self, args, storage_name):
         """ Generates per cell metadata
 
@@ -487,7 +497,7 @@ class AlignAnalysis(Analysis):
         if sample_info['cell_id'].duplicated().any():
             raise Exception('Duplicate cell ids in sample info.')
 
-        file_instances = self.get_input_file_instances(storage_name)
+        file_instances = self._get_input_file_instances(storage_name)
         lanes = self.get_lanes()
 
         # Sort by index_sequence, lane id, read end
