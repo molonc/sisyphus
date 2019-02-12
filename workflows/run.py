@@ -33,6 +33,17 @@ log.propagate = False
 
 tantalus_api = TantalusApi()
 
+
+def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
+    tantalus_api = TantalusApi()
+
+    for dataset_id in dataset_ids:
+        transfer_dataset(tantalus_api, dataset_id, 'sequencedataset', from_storage_name, to_storage_name)
+
+    for results_id in results_ids:
+        transfer_dataset(tantalus_api, results_id, 'resultsdataset', from_storage_name, to_storage_name)
+
+
 def start_automation(
         args,
         config,
@@ -56,9 +67,6 @@ def start_automation(
     args['job_subdir'] = job_subdir
     args["library_id"] = library_id
 
-    results_ids = set()
-
-
     if analysis_type == 'align':
         tantalus_analysis = AlignAnalysis(args, storages=storages, update=args['update'])
     elif analysis_type == 'hmmcopy':
@@ -68,28 +76,28 @@ def start_automation(
     else:
         raise ValueError()
 
-    try:
-        # FIXME: if inputs exist in working_inputs, then we iterate over the file instances twice
-        input_file_instances = tantalus_analysis.get_input_file_instances(storages["working_inputs"])
-    except NotFoundError:
-        # Start a file transfer to get the inputs
-        tag_name = '_'.join([args['jira'], storages['remote_inputs'], "import"])
-        tantalus_api.tag(
-            tag_name,
-            sequencedataset_set=tantalus_analysis.search_input_datasets(args))
+    input_dataset_ids = sentinel(
+        'Searching for input datasets',
+        tantalus_analysis.search_input_datasets,
+        args,
+    )
 
-        if storages["working_inputs"] != storages["remote_inputs"]:  
-            input_datasets_ids = tantalus_analysis.search_input_datasets(args)
+    input_results_ids = sentinel(
+        'Searching for input results',
+        tantalus_analysis.search_input_results,
+        args,
+    )
 
-            for dataset_id in input_datasets_ids:
-                sentinel(
-                    'Transferring {} input datasets from {} to {}'.format(
-                        analysis_type, storages["remote_inputs"], storages["working_inputs"]),
-                    transfer_dataset,
-                    dataset_id, 
-                    storages["remote_inputs"],
-                    storages["working_inputs"],
-                )
+    if storages["working_inputs"] != storages["remote_inputs"]:  
+        sentinel(
+            'Transferring input datasets from {} to {}'.format(
+                storages["remote_inputs"], storages["working_inputs"]),
+            transfer_inputs,
+            input_dataset_ids,
+            input_results_ids,
+            storages["remote_inputs"],
+            storages["working_inputs"],
+        )
 
     if args['inputs_yaml'] is None:
         local_results_storage = tantalus_api.get(
@@ -141,55 +149,33 @@ def start_automation(
         tantalus_analysis.set_error_status()
         raise
 
-    tag_name = "_".join([args["jira"], storages["working_inputs"], "bams"])
+    tantalus_analysis.set_complete_status()
 
-    sentinel(
+    output_dataset_ids = sentinel(
         'Creating output datasets',
         tantalus_analysis.create_output_datasets,
         update=args['update'],
         tag_name=tag_name,
     )
 
-    output_datasets_ids = tantalus_analysis.get_output_datasets()
-
-    if storages["working_inputs"] != storages["remote_inputs"] and output_datasets_ids != []:
-        for dataset_id in output_datasets_ids:
-        # Should not transfer for hmmcopy since no output datasets
-            sentinel(
-                "Transferring output datasets from {} to {}".format(
-                    storages["working_inputs"], storages["remote_inputs"]),
-                transfer_dataset,
-                dataset_id,
-                storages["working_inputs"],
-                storages["remote_inputs"])
-
-
-    tantalus_results = tantalus_analysis.create_output_results(
-        pipeline_dir,
+    output_result_ids = sentinel(
+        'Creating output results',
+        tantalus_analysis.create_output_results,
         update=args['update'],
     )
 
-    results_ids.add(tantalus_results.get_id())
-    tantalus_analysis.set_complete_status()
+    if storages["working_inputs"] != storages["remote_inputs"] and output_datasets_ids != []:
+        sentinel(
+            'Transferring input datasets from {} to {}'.format(
+                storages["working_inputs"], storages["remote_inputs"]),
+            transfer_inputs,
+            output_dataset_ids,
+            output_results_ids,
+            storages["remote_inputs"],
+            storages["working_inputs"],
+        )
 
-    tag_name = '_'.join([args['jira'], storages['working_results'], "results"])
-    tantalus_api.tag(
-        tag_name,
-        resultsdataset_set=list(results_ids),
-    )
-
-    if storages["working_results"] != storages["remote_results"]:
-        for result_id in results_ids:  
-            sentinel(
-                "Transferring results from {} to {}".format(
-                    storages["working_results"], storages['remote_results']),
-                result_id,
-                tag_name,
-                storages['working_results'],
-                storages['remote_results'])
-
-    analysis_info.update('{}_complete'.format(analysis_type))
-    analysis_info.update_results_path('blob_path', args['jira'])
+    analysis_info.set_finish_status()
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 

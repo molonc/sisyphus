@@ -58,8 +58,6 @@ def start_automation(
 
     args['job_subdir'] = job_subdir
 
-    results_ids = set()
-
     tantalus_analysis = PseudoBulkAnalysis(args, storages=storages, update=args['update'])
 
     input_dataset_ids = sentinel(
