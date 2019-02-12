@@ -92,12 +92,12 @@ def run_pipeline(
     config_override_string = ''#get_config_string(analysis_info)
     
     run_cmd = [
-        'single_cell',          tantalus_analysis.analysis_type,
+        'single_cell',          'multi_sample_pseudo_bulk', #tantalus_analysis.analysis_type,
         '--input_yaml',         inputs_yaml,
         '--out_dir',            results_dir,
         #HACK
         #'--library_id',         args['library_id'],
-        '--config_override',    config_override_string,
+        #'--config_override',    config_override_string,
         '--tmpdir',             tmp_dir,
         '--maxjobs',            str(max_jobs),
         '--nocleanup',
