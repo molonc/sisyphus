@@ -81,6 +81,7 @@ def run_pipeline(
         tantalus_analysis,
         analysis_info,
         inputs_yaml,
+        context_config_file,
         docker_env_file,
         max_jobs='400',
         dirs=()):
@@ -100,6 +101,7 @@ def run_pipeline(
         '--sentinal_only',
         '--loglevel',           'DEBUG',
         '--pipelinedir',        scpipeline_dir,
+        '--context_config',     context_config_file,
     ]
 
     if args['local_run']:

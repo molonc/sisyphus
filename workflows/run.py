@@ -13,9 +13,9 @@ import datamanagement.templates as templates
 import launch_pipeline
 import generate_inputs
 from dbclients.tantalus import TantalusApi
-from workflows.utils import saltant_utils
-from workflows.utils import file_utils
-from workflows.utils import log_utils
+# from workflows.utils import saltant_utils
+from workflows.utils import file_utils, log_utils
+from workflows.utils.update_jira import update_jira
 from datamanagement.transfer_files import transfer_dataset
 from dbclients.basicclient import NotFoundError
 
@@ -133,6 +133,7 @@ def start_automation(
             tantalus_analysis=tantalus_analysis,
             analysis_info=analysis_info,
             inputs_yaml=inputs_yaml,
+            context_config_file=config['context_config_file'],
             docker_env_file=config['docker_env_file'],
             dirs=dirs,
         )
@@ -187,10 +188,13 @@ def start_automation(
                 storages['working_results'],
                 storages['remote_results'])
 
-    analysis_info.set_finish_status()
+    analysis_info.update('{}_complete'.format(analysis_type))
+    analysis_info.update_results_path('blob_path', args['jira'])
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
+    # Update Jira ticket
+    update_jira(args['jira'], args['aligner'], analysis_type)
 
 def main(args):
     if not templates.JIRA_ID_RE.match(args['jira']):
