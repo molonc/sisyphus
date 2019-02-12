@@ -155,7 +155,6 @@ def start_automation(
         'Creating output datasets',
         tantalus_analysis.create_output_datasets,
         update=args['update'],
-        tag_name=tag_name,
     )
 
     output_result_ids = sentinel(
