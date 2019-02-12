@@ -343,14 +343,13 @@ class Analysis(object):
         """
         raise NotImplementedError
 
-    def create_output_results(self, pipeline_dir, update=False):
+    def create_output_results(self, update=False):
         """
         Create the set of output results produced by this analysis.
         """
         tantalus_results = Results(
             self,
             self.storages['working_results'],
-            pipeline_dir,
             update=update,
         )
 
@@ -366,6 +365,17 @@ class Analysis(object):
             dataset = self.get_dataset(dataset_id)
             input_samples.add(dataset['sample']['id'])
         return list(input_samples)
+
+    def get_input_libraries(self):
+        """
+        Get the primary keys for the libraries associated with 
+        the input datasets.
+        """
+        input_libraries = set()
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+            input_libraries.add(dataset['library']['id'])
+        return list(input_libraries)
 
     def get_results_filenames(self):
         """
@@ -403,33 +413,26 @@ class AlignAnalysis(Analysis):
             dataset_type='FQ',
         )
 
-        if args['integrationtest']:
-            # Skip checking of lanes and just return the dataset ids at this point,
-            # since we're only considering a subset of lanes for testing
-            return [dataset["id"] for dataset in datasets]
-
         if not datasets:
             raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
 
         dataset_ids = set()
 
         for dataset in datasets:
-            sequencing_centre = tantalus_utils.get_sequencing_centre_from_dataset(dataset)
-            sequencing_instrument = tantalus_utils.get_sequencing_instrument_from_dataset(dataset)
+            if len(dataset['sequence_lanes']) != 1:
+                raise Exception('sequence dataset {} has {} lanes'.format(
+                    dataset['id'], len(dataset['sequence_lanes'])))
 
-            lanes = tantalus_utils.get_lanes_from_dataset(dataset)
-            if len(lanes) != 1:
-                raise Exception('sequence dataset {} has {} lanes'.format(dataset['id'], len(lanes)))
+            sequencing_centre = dataset['sequence_lanes'][0]['sequencing_centre']
+            sequencing_instrument = dataset['sequence_lanes'][0]['sequencing_instrument']
 
-            lane_id = lanes.pop()  # One lane per fastq
+            lane_id = '{}_{}'.format(
+                dataset['sequence_lanes'][0]['flowcell_id'],
+                dataset['sequence_lanes'][0]['lane_number'],
+            )
+
             if filter_lanes and (lane_id not in filter_lanes):
                 continue
-
-            if 'gsc' in sequencing_centre.lower():
-                # If the FASTQ was sequenced at the GSC, check that the lane id
-                # is in the correct format
-                # TODO: make sure the regular expression matches [flowcell_id]_[lane_number]
-                tantalus_utils.check_gsc_lane_id(lane_id)
 
             dataset_ids.add(dataset['id'])
 
@@ -474,11 +477,9 @@ class AlignAnalysis(Analysis):
         }
 
         inverted_ref_genome_map = dict([[v,k] for k,v in reference_genome_choices.items()])
-        library_id = args["library_id"]
-        if args["integrationtest"]:
-            library_id = library_id.strip("TEST")
 
-        sample_info = generate_inputs.generate_sample_info(library_id)
+        sample_info = generate_inputs.generate_sample_info(
+            args["library_id"], test_run=args.get("integrationtest", True))
 
         if sample_info['index_sequence'].duplicated().any():
             raise Exception('Duplicate index sequences in sample info.')
@@ -519,11 +520,12 @@ class AlignAnalysis(Analysis):
             for lane_id, lane in lanes.iteritems():
                 sequencing_centre = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_centre']
                 sequencing_instrument = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_instrument']
+                read_type = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['read_type']
                 lane_fastqs[lane_id]['fastq_1'] = str(fastq_file_instances[(index_sequence, lane_id, 1)]['filepath'])
                 lane_fastqs[lane_id]['fastq_2'] = str(fastq_file_instances[(index_sequence, lane_id, 2)]['filepath'])
                 lane_fastqs[lane_id]['sequencing_center'] = str(sequencing_centre)
                 lane_fastqs[lane_id]['sequencing_instrument'] = str(sequencing_instrument)
-
+                lane_fastqs[lane_id]['read_type'] = str(read_type)
 
             if len(lane_fastqs) == 0:
                 raise Exception('No fastqs for cell_id {}, index_sequence {}'.format(
@@ -541,7 +543,7 @@ class AlignAnalysis(Analysis):
 
             sample_id = row['sample_id']
             if args['integrationtest']:
-               sample_id += "TEST"
+               assert 'TEST' in sample_id
 
             input_info[str(row['cell_id'])] = {
                 'fastqs':       dict(lane_fastqs),
@@ -601,11 +603,14 @@ class AlignAnalysis(Analysis):
         for lane_id, lane in self.get_lanes().iteritems():
 
             if self.args["integrationtest"]:
-                lane["flowcell_id"] += "TEST"
+                assert 'TEST' in lane["flowcell_id"]
 
             sequence_lanes.append(dict(
                 flowcell_id=lane["flowcell_id"],
-                lane_number=lane["lane_number"]))
+                lane_number=lane["lane_number"],
+                sequencing_centre=lane["sequencing_centre"],
+                read_type=lane["read_type"],
+            ))
 
         output_file_info = []
         for cell_id, metadata in cell_metadata.iteritems():
@@ -952,7 +957,6 @@ class Results:
             self,
             tantalus_analysis,
             storage_name,
-            pipeline_dir,
             update=False,
         ):
         """
@@ -965,6 +969,7 @@ class Results:
         self.analysis = self.tantalus_analysis.get_id()
         self.analysis_type = self.tantalus_analysis.analysis_type
         self.samples = self.tantalus_analysis.get_input_samples()
+        self.libraries = self.tantalus_analysis.get_input_libraries()
         self.pipeline_version = self.tantalus_analysis.version
         self.last_updated = datetime.datetime.now().isoformat()
 
@@ -1018,6 +1023,7 @@ class Results:
                 'analysis':         self.analysis,
                 'file_resources':   self.file_resources,
                 'samples':          self.samples,
+                'libraries':        self.libraries,
             }
 
             # TODO: created timestamp for results
