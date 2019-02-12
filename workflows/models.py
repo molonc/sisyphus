@@ -479,7 +479,7 @@ class AlignAnalysis(Analysis):
         inverted_ref_genome_map = dict([[v,k] for k,v in reference_genome_choices.items()])
 
         sample_info = generate_inputs.generate_sample_info(
-            args["library_id"], test_run=args.get("integrationtest", True))
+            args["library_id"], test_run=args.get("integrationtest", False))
 
         if sample_info['index_sequence'].duplicated().any():
             raise Exception('Duplicate index sequences in sample info.')
