@@ -10,6 +10,7 @@ import time
 import collections
 import click
 import pandas as pd
+import datetime
 from collections import defaultdict
 from datamanagement.utils.constants import LOGGING_FORMAT
 from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
@@ -562,7 +563,6 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
             dry_run=dry_run,
         )
 
-        # TODO: Search by dlp library id
         sequencing_list = list(colossus_api.list('sequencing',  sequencing_center='BCCAGSC', library__pool_id=dlp_library_id))
 
         if len(sequencing_list) != 0:
@@ -595,7 +595,6 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
                 check_library=check_library,
                 dry_run=dry_run)
         except Exception as e:
-            # failed_libs.append({"{}".format(sequencing["library"]) : "{}; sequencing submitted on {}".format(str(e), submission_date)})
             failed_libs.append(dict(
                 dlp_library_id=sequencing["library"],
                 submission_date=submission_date,
@@ -608,12 +607,9 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
         if import_info is not None:
             try:
                 check_library_id_and_add_lanes(colossus_api, sequencing, import_info)
-                # successful_libs.append({"{}, {}".format(sequencing["library"], import_info['gsc_library_id']): import_info['lanes'],
-                #     'submission_date' : submission_date})
                 import_info['submission_date'] = submission_date
                 successful_libs.append(import_info)
             except Exception as e:
-                # failed_libs.append({"{}".format(sequencing["library"]) : "{}; sequencing submitted on{}".format(str(e), submission_date)})
                 failed_libs.append(dict(
                     dlp_library_id=sequencing["library"],
                     submission_date=submission_date,
@@ -623,7 +619,6 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
                 continue
 
         else:
-            # failed_libs.append({"{}".format(sequencing["library"]) : "Doesn't exist in GSC; sequencing submitted on {}".format(submission_date)})
             failed_libs.append(dict(
                 dlp_library_id=sequencing["library"],
                 submission_date=submission_date,
