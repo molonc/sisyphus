@@ -827,14 +827,12 @@ class PseudoBulkAnalysis(Analysis):
             sample_id = dataset['sample']['sample_id']
 
             if sample_id == args['matched_normal_sample']:
-                for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name):
-                    extension = os.path.splitext(file_instance['file_resource']['filename'])[1]
+                file_instances = tantalus_api.get_dataset_file_instances(
+                    dataset_id, 'sequencedataset', storage_name,
+                    filters={'filename__endswith': '.bam'})
 
-                    if not extension == 'bam':
-                        continue
-
+                for file_instance in file_instances:
                     filepath = str(file_instance['filepath'])
-
                     assert 'bam' not in input_info['normal']
                     input_info['normal'] = {'bam': filepath}
 
@@ -842,12 +840,11 @@ class PseudoBulkAnalysis(Analysis):
                 sample_info = generate_inputs.generate_sample_info(library_id)
                 cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
 
-                for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name):
-                    extension = os.path.splitext(file_instance['file_resource']['filename'])[1]
+                file_instances = tantalus_api.get_dataset_file_instances(
+                    dataset_id, 'sequencedataset', storage_name,
+                    filters={'filename__endswith': '.bam'})
 
-                    if not extension == 'bam':
-                        continue
-
+                for file_instance in file_instances:
                     index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])
                     cell_id = str(cell_ids[index_sequence])
                     filepath = str(file_instance['filepath'])
@@ -859,6 +856,12 @@ class PseudoBulkAnalysis(Analysis):
                         input_info['tumour'][sample_id][cell_id] = {}
 
                     input_info['tumour'][sample_id][cell_id] = {'bam': filepath}
+
+        if 'normal' not in input_info:
+            raise ValueError('unable to find normal {}'.format(args['matched_normal_sample']))
+
+        if 'tumour' not in input_info:
+            raise ValueError('no tumour cells found')
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
