@@ -248,7 +248,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                     logging.warning('failed to gunzip')
                     continue
                 else:
-                    comment = """Failed to import: \n \n
+                    comment = """Failed to import: \n
                         Lane: {}_{}
                         Sequencing Date: {}
                         GSC library ID: {}
@@ -297,7 +297,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             )
 
             if read_end is None:
-                comment = """Failed to import: \n \n
+                comment = """Failed to import: \n
                     Lane: {}_{}
                     Sequencing Date: {}
                     GSC library ID: {}
@@ -320,7 +320,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             try:
                 cell_sample_id = cell_samples[index_sequence]
             except KeyError:
-                comment = """Failed to import: \n \n
+                comment = """Failed to import: \n 
                     Lane: {}_{}
                     Sequencing Date: {}
                     GSC library ID: {}
@@ -406,7 +406,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     # Check that all fastq files refer to indices known in colossus
     for info in fastq_file_info:
         if info['index_sequence'] not in cell_index_sequences:
-            comment = """Failed to import: \n \n
+            comment = """Failed to import: \n 
                 GSC library ID: {}
                 Link to sequencing: {}
                 Reason: Fastq {} with index {}, flowcell {}, lane {} with index not in colossus""".format(
@@ -433,7 +433,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     for flowcell_lane in fastq_lane_index_sequences:
         for index_sequence in cell_index_sequences:
             if index_sequence not in fastq_lane_index_sequences[flowcell_lane]:
-                comment = """ Failed to import: \n \n
+                comment = """ Failed to import: \n
                     GSC library ID: {}
                     Link to sequencing: {}
                     Reason: No fastq found for index sequence {}, flowcell {}, lane {}""".format(
