@@ -5,6 +5,7 @@ import os
 import re
 import collections
 import yaml
+import subprocess
 
 from datamanagement.utils import dlp
 import dbclients.tantalus
@@ -489,7 +490,7 @@ class AlignAnalysis(Analysis):
         inverted_ref_genome_map = dict([[v,k] for k,v in reference_genome_choices.items()])
 
         sample_info = generate_inputs.generate_sample_info(
-            args["library_id"], test_run=args.get("integrationtest", False))
+            args["library_id"], test_run=args.get("is_test_run", False))
 
         if sample_info['index_sequence'].duplicated().any():
             raise Exception('Duplicate index sequences in sample info.')
@@ -518,7 +519,7 @@ class AlignAnalysis(Analysis):
         for idx, row in sample_info.iterrows():
             index_sequence = row['index_sequence']
 
-            if args["integrationtest"] and (index_sequence not in tantalus_index_sequences):
+            if args["is_test_run"] and (index_sequence not in tantalus_index_sequences):
                 # Skip index sequences that are not found in the Tantalus dataset, since
                 # we need to refer to the original library in Colossus for metadata, but
                 # we don't want to iterate through all the cells present in that library
@@ -552,7 +553,7 @@ class AlignAnalysis(Analysis):
             bam_filepath = str(tantalus_api.get_filepath(storage_name, bam_filename))
 
             sample_id = row['sample_id']
-            if args['integrationtest']:
+            if args['is_test_run']:
                assert 'TEST' in sample_id
 
             input_info[str(row['cell_id'])] = {
@@ -612,7 +613,7 @@ class AlignAnalysis(Analysis):
 
         for lane_id, lane in self.get_lanes().iteritems():
 
-            if self.args["integrationtest"]:
+            if self.args["is_test_run"]:
                 assert 'TEST' in lane["flowcell_id"]
 
             sequence_lanes.append(dict(
@@ -799,13 +800,16 @@ class PseudoBulkAnalysis(Analysis):
         pseudobulk analysis.
         """
 
-        jira = args['jira']
+        tag_name = args['inputs_tag_name']
 
         datasets = tantalus_api.list(
             'sequence_dataset',
-            tags__name=jira)
+            tags__name=tag_name)
 
         dataset_ids = [dataset['id'] for dataset in datasets]
+
+        if len(dataset_ids) == 0:
+            raise Exception('no datasets found with tag {}'.format(tag_name))
 
         return dataset_ids
 
@@ -816,9 +820,13 @@ class PseudoBulkAnalysis(Analysis):
             inputs_yaml_filename: the directory to which the YAML file should be saved
             storage_name: Which tantalus storage to look at
         """
+        storage_name = self.storages['working_inputs']
+
         make_dirs(os.path.dirname(inputs_yaml_filename))
 
         input_info = {'normal': {}, 'tumour': {}}
+
+        assert len(self.analysis['input_datasets']) > 0
 
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
@@ -837,7 +845,9 @@ class PseudoBulkAnalysis(Analysis):
                     input_info['normal'] = {'bam': filepath}
 
             else:
-                sample_info = generate_inputs.generate_sample_info(library_id)
+                sample_info = generate_inputs.generate_sample_info(
+                    library_id, test_run=args.get("is_test_run", False))
+
                 cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
 
                 file_instances = tantalus_api.get_dataset_file_instances(
@@ -860,7 +870,7 @@ class PseudoBulkAnalysis(Analysis):
         if 'normal' not in input_info:
             raise ValueError('unable to find normal {}'.format(args['matched_normal_sample']))
 
-        if 'tumour' not in input_info:
+        if 'tumour' not in input_info or len(input_info['tumour']) == 0:
             raise ValueError('no tumour cells found')
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
@@ -908,31 +918,18 @@ class PseudoBulkAnalysis(Analysis):
             if storage['storage_type'] == 'server':
                 dirs.append(storage['storage_directory'])
 
-        sentinel(
-            'Running single_cell {}'.format(analysis_type),
-            tantalus_analysis.run_pipeline,
-            results_dir=results_dir,
-            scpipeline_dir=scpipeline_dir,
-            tmp_dir=tmp_dir,
-            tantalus_analysis=tantalus_analysis,
-            inputs_yaml=inputs_yaml,
-            context_config_file=config['context_config_file'],
-            docker_env_file=config['docker_env_file'],
-            dirs=dirs,
-        )
-        
         run_cmd = [
             'single_cell',
             'multi_sample_pseudo_bulk',
             '--input_yaml', inputs_yaml,
             '--out_dir', results_dir,
             '--tmpdir', tmp_dir,
-            '--maxjobs', str(max_jobs),
+            '--maxjobs', '1000',
             '--nocleanup',
             '--sentinal_only',
             '--loglevel', 'DEBUG',
             '--pipelinedir', scpipeline_dir,
-            '--context_config', context_config_file,
+            '--context_config', config['context_config_file'],
         ]
 
         if self.args['local_run']:
@@ -951,7 +948,7 @@ class PseudoBulkAnalysis(Analysis):
             '-v', '/var/run/docker.sock:/var/run/docker.sock',
             '-v', '/usr/bin/docker:/usr/bin/docker',
             '--rm',
-            '--env-file', docker_env_file,
+            '--env-file', config['docker_env_file'],
         ]
 
         for d in dirs:
