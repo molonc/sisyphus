@@ -79,7 +79,8 @@ def run_pipeline(
         scpipeline_dir,
         tmp_dir,
         tantalus_analysis,
-        analysis_info,
+        #HACK
+        #analysis_info,
         inputs_yaml,
         context_config_file,
         docker_env_file,
@@ -87,13 +88,15 @@ def run_pipeline(
         dirs=()):
 
     args = tantalus_analysis.args
-    config_override_string = get_config_string(analysis_info)
+    #HACK
+    config_override_string = ''#get_config_string(analysis_info)
     
     run_cmd = [
         'single_cell',          tantalus_analysis.analysis_type,
         '--input_yaml',         inputs_yaml,
         '--out_dir',            results_dir,
-        '--library_id',         args['library_id'],
+        #HACK
+        #'--library_id',         args['library_id'],
         '--config_override',    config_override_string,
         '--tmpdir',             tmp_dir,
         '--maxjobs',            str(max_jobs),
