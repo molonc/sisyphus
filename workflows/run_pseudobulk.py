@@ -103,32 +103,22 @@ def start_automation(
     try:
         tantalus_analysis.set_run_status()
 
-        run_pipeline = tantalus_analysis.run_pipeline(args)
+        if args["skip_pipeline"]:
+            log.info("skipping pipeline")
 
-        dirs = [
-            pipeline_dir, 
-            config['docker_path'],
-            config['docker_sock_path'],
-        ]
+        else:
+            sentinel(
+                'Running single_cell {}'.format(analysis_type),
+                tantalus_analysis.run_pipeline,
+                args,
+                results_dir,
+                pipeline_dir,
+                scpipeline_dir,
+                tmp_dir,
+                inputs_yaml,
+                config,
+            )
 
-        # Pass all server storages to docker
-        for storage_name in storages.itervalues():
-            storage = tantalus_api.get('storage', name=storage_name)
-            if storage['storage_type'] == 'server':
-                dirs.append(storage['storage_directory'])
-
-        sentinel(
-            'Running single_cell {}'.format(analysis_type),
-            run_pipeline,
-            results_dir=results_dir,
-            scpipeline_dir=scpipeline_dir,
-            tmp_dir=tmp_dir,
-            tantalus_analysis=tantalus_analysis,
-            inputs_yaml=inputs_yaml,
-            context_config_file=config['context_config_file'],
-            docker_env_file=config['docker_env_file'],
-            dirs=dirs,
-        )
     except Exception:
         tantalus_analysis.set_error_status()
         raise
@@ -141,7 +131,7 @@ def start_automation(
         update=args['update'],
     )
 
-    output_result_ids = sentinel(
+    output_results_ids = sentinel(
         'Creating output results',
         tantalus_analysis.create_output_results,
         update=args['update'],
@@ -158,7 +148,6 @@ def start_automation(
             storages["working_inputs"],
         )
 
-    analysis_info.set_finish_status()
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 

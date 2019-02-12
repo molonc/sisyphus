@@ -882,11 +882,85 @@ class PseudoBulkAnalysis(Analysis):
 
         return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
 
-    def run_pipeline(self, args):
-        if args["skip_pipeline"]:
-            return launch_pipeline.run_pipeline2
+    def run_pipeline(self, args, results_dir, pipeline_dir, scpipeline_dir, tmp_dir, inputs_yaml, config):
+        dirs = [
+            pipeline_dir, 
+            config['docker_path'],
+            config['docker_sock_path'],
+        ]
+
+        # Pass all server storages to docker
+        for storage_name in self.storages.itervalues():
+            storage = tantalus_api.get('storage', name=storage_name)
+            if storage['storage_type'] == 'server':
+                dirs.append(storage['storage_directory'])
+
+        sentinel(
+            'Running single_cell {}'.format(analysis_type),
+            tantalus_analysis.run_pipeline,
+            results_dir=results_dir,
+            scpipeline_dir=scpipeline_dir,
+            tmp_dir=tmp_dir,
+            tantalus_analysis=tantalus_analysis,
+            inputs_yaml=inputs_yaml,
+            context_config_file=config['context_config_file'],
+            docker_env_file=config['docker_env_file'],
+            dirs=dirs,
+        )
+        
+        run_cmd = [
+            'single_cell',
+            'multi_sample_pseudo_bulk',
+            '--input_yaml', inputs_yaml,
+            '--out_dir', results_dir,
+            '--tmpdir', tmp_dir,
+            '--maxjobs', str(max_jobs),
+            '--nocleanup',
+            '--sentinal_only',
+            '--loglevel', 'DEBUG',
+            '--pipelinedir', scpipeline_dir,
+            '--context_config', context_config_file,
+        ]
+
+        if self.args['local_run']:
+            run_cmd += ["--submit", "local"]
+
         else:
-            return launch_pipeline.run_pipeline
+            run_cmd += [
+                '--submit', 'azurebatch',
+                '--storage', 'azureblob',
+            ]
+
+        # Append docker command to the beginning
+        docker_cmd = [
+            'docker', 'run', '-w', '$PWD',
+            '-v', '$PWD:$PWD',
+            '-v', '/var/run/docker.sock:/var/run/docker.sock',
+            '-v', '/usr/bin/docker:/usr/bin/docker',
+            '--rm',
+            '--env-file', docker_env_file,
+        ]
+
+        for d in dirs:
+            docker_cmd.extend([
+                '-v', '{d}:{d}'.format(d=d),
+            ])
+
+        docker_cmd.append(
+            'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(self.args['version'])
+        )
+
+        run_cmd = docker_cmd + run_cmd
+
+        if self.args['sc_config'] is not None:
+            run_cmd += ['--config_file', self.args['sc_config']]
+        if self.args['interactive']:
+            run_cmd += ['--interactive']
+
+        run_cmd_string = r' '.join(run_cmd)
+        log.debug(run_cmd_string)
+        subprocess.check_call(run_cmd_string, shell=True)
+
 
 class CNCloneAnalysis(Analysis):
     """
