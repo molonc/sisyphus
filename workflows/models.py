@@ -806,7 +806,6 @@ class PseudoBulkAnalysis(Analysis):
             inputs_yaml_filename: the directory to which the YAML file should be saved
             storage_name: Which tantalus storage to look at
         """
-        print(inputs_yaml_filename)
         make_dirs(os.path.dirname(inputs_yaml_filename))
 
         input_info = {'normal': {}, 'tumour': {}}
