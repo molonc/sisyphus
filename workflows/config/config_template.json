@@ -8,6 +8,7 @@
         "remote_results": "singlecellblob_results", 
         "remote_inputs": "singlecellblob"
     },
+    "context_config_file": "path/to/context_config_file/",
     "docker_env_file": "/home/jpham/set-docker-credentials.sh", 
     "user": "jpham",
     "docker_sock_path": "/var/run/docker.sock",
