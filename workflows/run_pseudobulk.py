@@ -6,6 +6,7 @@ import time
 import logging
 import subprocess
 import traceback
+import click
 from itertools import chain
 
 import arguments
@@ -58,6 +59,8 @@ def start_automation(
 
     args['job_subdir'] = job_subdir
 
+    analysis_type = 'multi_sample_pseudo_bulk'
+
     tantalus_analysis = PseudoBulkAnalysis(args, storages=storages, update=args['update'])
 
     input_dataset_ids = sentinel(
@@ -107,6 +110,7 @@ def start_automation(
             config['docker_path'],
             config['docker_sock_path'],
         ]
+
         # Pass all server storages to docker
         for storage_name in storages.itervalues():
             storage = tantalus_api.get('storage', name=storage_name)
@@ -120,8 +124,8 @@ def start_automation(
             scpipeline_dir=scpipeline_dir,
             tmp_dir=tmp_dir,
             tantalus_analysis=tantalus_analysis,
-            analysis_info=analysis_info,
             inputs_yaml=inputs_yaml,
+            context_config_file=config['context_config_file'],
             docker_env_file=config['docker_env_file'],
             dirs=dirs,
         )
@@ -159,23 +163,35 @@ def start_automation(
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
 
-default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json'),
+default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
 
 
 @click.command()
-@click.argument('jira_ticket', nargs=-1)
-@click.argument('inputs_tag_name', nargs=1)
-@click.option('--config_filename', default=default_config)
+@click.argument('jira_ticket')
+@click.argument('version')
+@click.argument('inputs_tag_name')
+@click.option('--config_filename')
 @click.option('--clean', is_flag=True)
 @click.option('--sisyphus_interactive', is_flag=True)
+@click.option('--skip_pipeline', is_flag=True)
 @click.option('--update', is_flag=True)
+@click.option('--local_run', is_flag=True)
+@click.option('--interactive', is_flag=True)
+@click.option('--sc_config')
 def run_pseudobulk(
         jira_ticket,
+        version,
         inputs_tag_name,
         config_filename=None,
         **args
 ):
+    if config_filename is None:
+        config_filename = default_config
+
     config = file_utils.load_json(config_filename)
+
+    args['jira'] = jira_ticket
+    args['version'] = version
 
     job_subdir = jira_ticket
 
