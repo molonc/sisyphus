@@ -59,7 +59,7 @@ def start_automation(
     start = time.time()
 
     library_id = analysis_info.chip_id
-    if args["integrationtest"]:
+    if args["is_test_run"]:
         library_id += "TEST"
 
     args['ref_genome'] = analysis_info.reference_genome

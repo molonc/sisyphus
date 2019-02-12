@@ -44,7 +44,7 @@ def get_args(arglist=None):
     )
 
     parser.add_argument(
-        '--integrationtest',
+        '--is_test_run',
         default=False,
         action='store_true',
         help='Run pipeline on shahlab15, rather than on Azure.'
