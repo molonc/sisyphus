@@ -45,9 +45,6 @@ def generate_sample_info(library_id, test_run=False):
 
         cell_id = '-'.join([sample_id, library_id, 'R' + row, 'C' + col])
 
-        # TODO: revert
-        cell_id = cell_id.replace('TEST', '')
-
         row = {
             'library_id':       library_id,
             'sample_id':        sample_id,
