@@ -11,10 +11,8 @@ import pprint
 
 import pandas as pd
 
-from datamanagement.utils.gsc import GSCAPI
 from datamanagement.utils.constants import LOGGING_FORMAT
 from dbclients.tantalus import TantalusApi
-from dbclients.basicclient import NotFoundError
 
 
 def get_dataset(tantalus_api, sample_id, library_id):
