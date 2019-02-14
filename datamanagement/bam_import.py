@@ -186,6 +186,7 @@ def import_bam(
                 name=dataset_name,
                 dataset_type="BAM",
                 sample=sample_pk,
+                library=library_pk,
                 sequence_lanes=sequence_lane_pks,
                 reference_genome=ref_genome,
                 aligner=aligner_name,
