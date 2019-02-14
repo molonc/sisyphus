@@ -578,7 +578,7 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
 
         sequencing_list = list(colossus_api.list('sequencing',  sequencing_center='BCCAGSC', library__pool_id=dlp_library_id))
 
-        if len(sequencing_list) != 0:
+        if len(sequencing_list) == 0:
             raise Exception("No sequencing found for {}". format(dlp_library_id))
 
         for sequencing in sequencing_list:
