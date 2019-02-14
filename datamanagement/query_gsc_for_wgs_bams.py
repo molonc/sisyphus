@@ -17,7 +17,7 @@ from utils.constants import LOGGING_FORMAT
 from utils.gsc import get_sequencing_instrument, GSCAPI
 from utils.runtime_args import parse_runtime_args
 from dbclients.tantalus import TantalusApi
-from datamanagement.utils.utils import get_lanes_hash
+from datamanagement.utils.utils import get_lanes_hash, make_dirs
 import datamanagement.templates as templates
 from spec_to_bam import create_bam
 from bam_import import import_bam
