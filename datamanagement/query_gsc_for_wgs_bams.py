@@ -14,7 +14,6 @@ import socket
 import pandas as pd
 from datetime import datetime
 from utils.constants import LOGGING_FORMAT
-from utils.filecopy import rsync_file
 from utils.gsc import get_sequencing_instrument, GSCAPI
 from utils.runtime_args import parse_runtime_args
 from dbclients.tantalus import TantalusApi
@@ -50,6 +49,29 @@ solexa_run_type_map = {
     "Paired": "P",
     "Single": "S",
 }
+
+def rsync_file(from_path, to_path, sftp=None):
+    make_dirs(os.path.dirname(to_path))
+
+    subprocess_cmd = [
+        "rsync",
+        "-avPL",
+        "--chmod=D555",
+        "--chmod=F444",
+        from_path,
+        to_path,
+    ]
+
+    if sftp:
+        try:
+            remote_file = ftp.stat(from_path)
+            if remote_file.st_size != os.path.getsize(to_path):
+                raise Exception("copy failed for %s to %s", from_path, to_path)
+        except IOError:
+            raise Exception("missing source file %s", from_path)
+    else:
+        if os.path.getsize(to_path) != os.path.getsize(from_path):
+            raise Exception("copy failed for %s to %s", from_path, to_path)
 
 
 def convert_time(a):
@@ -177,6 +199,7 @@ def add_gsc_wgs_bam_dataset(
                             lane_infos[0]['reference_genome'], 
                             tantalus_bam_path,
                             storage,
+                            library["library_id"],
                             from_gsc=True)            
     #Otherwise, copy the bam and the bam index to the specified tantalus path
     else:
@@ -246,7 +269,7 @@ def add_gsc_wgs_bam_dataset(
                 
             else:
                 logging.info("The bam index already exists at {}. Skipping import".format(tantalus_bai_path))
-    transferred = True
+    
     return tantalus_bam_path, transferred
     
 
@@ -268,7 +291,7 @@ def add_gsc_bam_lanes(sample, library, lane_infos):
     return detail_list
 
 
-def check_sftp_bams(sftp, bam_path, storage, sample, library, lane_infos):
+def check_sftp_bams(sftp, bam_path, bam_spec_path, storage, sample, library, lane_infos):
     try:
         sftp.stat(bam_path)
         bam_filepath, transferred = add_gsc_wgs_bam_dataset(
@@ -291,7 +314,9 @@ def check_sftp_bams(sftp, bam_path, storage, sample, library, lane_infos):
         )
         return bam_filepath, transferred
     except IOError:
-        raise Exception("missing merged bam file {}".format(bam_path))
+        #raise Exception("missing merged bam file {}".format(bam_path))
+        logging.error("Missing merged bam file {}".format(bam_path))
+        return None, False
 
 
 def query_gsc(identifier, id_type):
@@ -318,7 +343,6 @@ def get_gsc_details(
     Copy GSC libraries to a storage and return metadata json.
     """
     details_list = []
-    transferred = False
 
     #If this isn't being run on thost, connect to an ssh client to access /projects/ files
     if socket.gethostname() != "txshah":
@@ -363,6 +387,7 @@ def get_gsc_details(
         merged_lanes = set()
 
         for merge_info in merge_infos:
+            transferred = False
             data_path = merge_info["data_path"]
             num_lanes = len(merge_info["merge_xrefs"])
 
@@ -447,7 +472,8 @@ def get_gsc_details(
                 if sftp:
                     bam_filepath, transferred = check_sftp_bams(
                             sftp, 
-                            bam_path, 
+                            bam_path,
+                            bam_spec_path, 
                             storage, 
                             sample, 
                             library, 
@@ -470,7 +496,10 @@ def get_gsc_details(
                             is_spec=True,
                         )
                     else:
-                        raise Exception("missing merged bam file {}".format(bam_path))
+                        #raise Exception("missing merged bam file {}".format(bam_path))
+                        logging.error("Missing merged bam file {}".format(bam_path))
+                        bam_filepath = None
+                        transferred = False
 
             list_temp = dict(
                 library_id=library_name,
@@ -490,6 +519,7 @@ def get_gsc_details(
         )
 
         for libcore in libcores:
+            transferred = False
             created_date = convert_time(libcore["created"])
 
             logging.info(
@@ -566,6 +596,7 @@ def get_gsc_details(
                     bam_filepath, transferred = check_sftp_bams(
                             sftp, 
                             bam_path, 
+                            bam_spec_path,
                             storage, 
                             sample, 
                             library, 
@@ -587,7 +618,10 @@ def get_gsc_details(
                             is_spec=True,
                         )
                     else:
-                        raise Exception("missing merged bam file {}".format(bam_path))
+                        #raise Exception("missing merged bam file {}".format(bam_path))
+                        logging.error("Missing merged bam file {}".format(bam_path))
+                        bam_filepath = None
+                        trasnferred = False
     
             list_temp = dict(
                 library_id=library_name,

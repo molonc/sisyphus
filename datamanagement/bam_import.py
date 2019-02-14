@@ -15,14 +15,14 @@ from datamanagement.utils.utils import get_lanes_hash, get_lane_str
 import datamanagement.templates as templates
 from dbclients.tantalus import TantalusApi
 import click
-from dbclients.basicclient import FieldMismatchError
+from dbclients.basicclient import FieldMismatchError, NotFoundError
 
 
 def get_bam_ref_genome(bam_header):
     sq_as = bam_header["SQ"][0]["AS"]
     found_match = False
 
-    for ref, regex_list in datamanagement.utils.constants.REF_GENOME_MAP.iteritems():
+    for ref, regex_list in datamanagement.utils.constants.REF_GENOME_REGEX_MAP.iteritems():
         for regex in regex_list:
             if re.search(regex, sq_as, flags=re.I):
                 # Found a match
@@ -52,7 +52,7 @@ def get_bam_aligner_name(bam_header):
                     #If we get a bad header
                     components = pg["CL"].split("\t")
                     version = components[-1].replace(".", "_").strip("VN:").upper()
-                return "BWA_MEM_" + version
+                return "BWA_MEM_" + version.upper()
     raise Exception("no aligner name found")
 
 
@@ -180,18 +180,39 @@ def import_bam(
         reference_genome=ref_genome,
     )
 
-    sequence_dataset = tantalus_api.get_or_create(
-        "sequence_dataset",
-        name=dataset_name,
-        dataset_type="BAM",
-        sample=sample_pk,
-        library=library_pk,
-        sequence_lanes=sequence_lane_pks,
-        file_resources=file_resource_pks,
-        reference_genome=ref_genome,
-        aligner=aligner_name,
-        tags=tags,
-    )
+    try:
+        sequence_dataset = tantalus_api.get(
+                "sequence_dataset",
+                name=dataset_name,
+                dataset_type="BAM",
+                sample=sample_pk,
+                sequence_lanes=sequence_lane_pks,
+                reference_genome=ref_genome,
+                aligner=aligner_name,
+        )
+
+        file_resource_ids = file_resource_pks + sequence_dataset["file_resources"]
+        tag_ids = tags + sequence_dataset["tags"]
+
+        sequence_dataset = tantalus_api.update(
+                "sequence_dataset",
+                id=sequence_dataset["id"],
+                file_resources=file_resource_ids,
+                tags=tag_ids,
+        )
+    except NotFoundError:
+        sequence_dataset = tantalus_api.create(
+                "sequence_dataset",
+                name=dataset_name,
+                dataset_type="BAM",
+                sample=sample_pk,
+                library=library_pk,
+                sequence_lanes=sequence_lane_pks,
+                file_resources=file_resource_pks,
+                reference_genome=ref_genome,
+                aligner=aligner_name,
+                tags=tags,
+        )
 
     return sequence_dataset
 
@@ -206,7 +227,7 @@ def import_bam(
 @click.option("--update",is_flag=True)
 @click.option("--lane_info",default=None)
 @click.option("--tag_name",default=None)
-def main():
+def main(**kwargs):
     #Import bam
     dataset = import_bam(**kwargs)
 

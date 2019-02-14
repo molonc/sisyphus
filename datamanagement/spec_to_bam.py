@@ -8,62 +8,64 @@ import re
 import socket
 import subprocess
 import sys
+import click
+import datetime
+import paramiko
+import pwd
+
+import pypeliner.helpers
+from pypeliner.execqueue.qsub import AsyncQsubJobQueue
 from dbclients.tantalus import TantalusApi
 from dbclients import basicclient
-import click
-from utils.constants import LOGGING_FORMAT
+
+from utils.constants import (LOGGING_FORMAT,
+                             REF_GENOME_REGEX_MAP,
+                             SHAHLAB_TANTALUS_SERVER_NAME,
+                             SHAHLAB_HOSTNAME,
+                             SHAHLAB_SPEC_TO_BAM_BINARY_PATH,
+                             HUMAN_REFERENCE_GENOMES_MAP,
+                             STORAGE_PREFIX_MAP,
+                             STORAGE_PREFIX_REGEX_MAP,
+                             DEFAULT_NATIVESPEC)
 
 
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
-# Useful Shahlab-specific variables
-SHAHLAB_TANTALUS_SERVER_NAME = 'shahlab'
-SHAHLAB_HOSTNAME = 'node0515'
-SHAHLAB_SPEC2BAM_BINARY_PATH = r'/gsc/software/linux-x86_64-centos6/spec-1.3.2/spec2bam'
-
-# This dictionary maps a (Tantalus) BamFile's reference genome field to
-# the path of the reference genome FASTA files on Shahlab. We only care
-# about the reference genomes that BamFile cares about (currently HG18
-# and HG19).
-HUMAN_REFERENCE_GENOMES_MAP = {
-    'hg18': r'/shahlab/pipelines/reference/gsc_hg18.fa',
-    'hg19': r'/shahlab/pipelines/reference/gsc_hg19a.fa',}
-
-# These are regular expressions for identifying which human reference
-# genome to use. See https://en.wikipedia.org/wiki/Reference_genome for
-# more details on the common standards and how they relate to each
-# other. All of these should be run with a case-insensitive regex
-# matcher.
-HUMAN_REFERENCE_GENOMES_REGEX_MAP = {
-    'hg18': [r'hg[-_ ]?18',                 # hg18
-             r'ncbi[-_ ]?build[-_ ]?36.1',  # NCBI-Build-36.1
-            ],
-    'hg19': [r'hg[-_ ]?19',                 # hg19
-             r'grc[-_ ]?h[-_ ]?37',         # grch37
-            ],}
-
-
-STORAGE_PREFIX_MAP = {
-    'shahlab': r'/shahlab/archive',
-    'gsc': r'/projects/analysis',
-    'singlecell_blob': r'singlecell/data',
-    'rocks': r'/share/lustre/archive'
-}
-
-STORAGE_PREFIX_REGEX_MAP = {
-    'shahlab': r'^/shahlab/archive/(.+)',
-    'gsc': r'^/projects/analysis/(.+)',
-    'singlecell_blob': r'^singlecell/data/(.+)',
-    'rocks': r'^/share/lustre/archive/(.+)'
-}
 
 class BadReferenceGenomeError(Exception):
     pass
 
+
 class BadSpecStorageError(Exception):
     pass
 
+
+class Job(object):
+    def __init__(self, thread, spec_path, ref, out_path, binary):
+        self.ctx = {}
+        self.thread = str(thread)
+        self.spec_path = spec_path
+        self.ref = ref
+        self.out_path = out_path
+        self.binary = binary
+        self.finished = False
+    
+    def __call__(self, **kwargs):
+        cmd = [
+            self.binary,
+            "--thread",
+            self.thread,
+            "--in",
+            self.spec_path, 
+            "--ref",
+            self.ref,
+            "--out",
+            self.out_path
+        ]
+        subprocess.check_call(cmd)
+        self.finished = True 
+   
 
 def get_uncompressed_bam_path(spec_path):
     """Get path of corresponding BAM file given a SpEC path.
@@ -76,6 +78,7 @@ def get_uncompressed_bam_path(spec_path):
 def spec_to_bam(spec_path,
                 raw_reference_genome,
                 output_bam_path,
+                library,
                 from_gsc=False):
     """Decompresses a SpEC compressed BamFile.
     Registers the new uncompressed file in the database.
@@ -101,7 +104,7 @@ def spec_to_bam(spec_path,
 
     found_match = False
 
-    for ref, regex_list in HUMAN_REFERENCE_GENOMES_REGEX_MAP.iteritems():
+    for ref, regex_list in REF_GENOME_REGEX_MAP.iteritems():
         for regex in regex_list:
             if re.search(regex, raw_reference_genome, flags=re.I):
                 # Found a match
@@ -127,49 +130,77 @@ def spec_to_bam(spec_path,
     # Convert the SpEC to a BAM
     logging.info("Converting {} to {}".format(spec_path, output_bam_path))
 
+    # Check if the script is not being run on thost. If its not, copy the spec to local
     hostname = socket.gethostname()
     if from_gsc and hostname != "txshah":
-        spec_path = "thost:" + spec_path
-
-    command = [SHAHLAB_SPEC2BAM_BINARY_PATH,
-               '--in',
-               spec_path,
-               '--ref',
-               HUMAN_REFERENCE_GENOMES_MAP[reference_genome],
-               '--out',
-               output_bam_path,
-              ]
-
-    subprocess.check_call(command)
-
-
-def get_filepaths(spec_path, to_storage_prefix):
-    found_match = False
-
-    for ref, regex in STORAGE_PREFIX_REGEX_MAP.iteritems():
-        if re.match(regex, spec_path, re.IGNORECASE):
-            filename = re.search(regex, spec_path, re.IGNORECASE).group(1)
-            found_match = True
-            break
-
-    if not found_match:
-        raise BadSpecStorageError(
-            'Can not find a matching storage for ' + spec_path)
+        # Connect to thost via SSH client
+        ssh_client = paramiko.SSHClient()
+        ssh_client.load_system_host_keys()
         
-    output_spec_path = os.path.join(to_storage_prefix, filename)
-    output_bam_path = get_uncompressed_bam_path(output_spec_path)
+        username = pwd.getpwuid(os.getuid()).pw_name
+        ssh_client.connect("10.9.208.161", username=username)
+        
+        sftp_client = ssh_client.open_sftp()
+
+        spec_name = spec_path.split('/')[-1]
+        local_spec_path = os.path.join(output_path, spec_name)
+        cmd = [
+            "rsync",
+            "-avPL",
+            "thost:" + spec_path,
+            local_spec_path
+        ]
+        remote_file = sftp_client.stat(spec_path)
+        
+        # Check if the file has been successfully transferred before
+        if not os.path.isfile(local_spec_path):
+            logging.info("Copying spec to {}".format(local_spec_path))
+            subprocess.check_call(cmd)
+        elif os.path.getsize(local_spec_path) != remote_file.st_size:
+            logging.info("Copying spec to {}".format(local_spec_file))
+            subprocess.check_call(cmd)
+        spec_path = local_spec_path
+        
+    # Create the pypeliner queue object to submit the job
+    queue = AsyncQsubJobQueue(modules=(sys.modules[__name__], ), native_spec=DEFAULT_NATIVESPEC)
     
-    return filename, output_bam_path
+    # Create the job to perform the spec decompression
+    job = Job('10', spec_path, HUMAN_REFERENCE_GENOMES_MAP[reference_genome], output_bam_path, SHAHLAB_SPEC_TO_BAM_BINARY_PATH)
+    
+    current_time = datetime.datetime.now().strftime('%d-%m-%Y_%S-%M-%H')
+    dir_name = library + "_" + current_time
+
+    # Create the temp directory for all output logs
+    temps_dir = os.path.join('tmp', dir_name)
+    pypeliner.helpers.makedirs(temps_dir)
+    
+    logging.info("Submitting decompression job to the cluster")
+    queue.send({'mem': 10}, 'spec_decompression', job, temps_dir)
+    job_name = None
+    
+    # Wait for the job to finish
+    while True:
+        job_name = queue.wait()
+        if job_name is not None:
+            break
+        os.sleep(10)
+    
+    result = queue.receive(job_name)
+    
+    assert result.finished == True
+
+    logging.info("Successfully created bam at {}".format(output_bam_path))
 
     
 def create_bam( spec_path, 
                 reference_genome, 
                 output_bam_path,
                 to_storage,
+                library,
                 from_gsc):
     tantalus_api = TantalusApi()         
     output_bam_filename = output_bam_path[len(to_storage["prefix"]) + 1:] 
-
+    
     try:
         file_resource = tantalus_api.get(
                 "file_resource",
@@ -182,7 +213,7 @@ def create_bam( spec_path,
     #Check if the file exists on the to_storage, and if it exists in Tantalus with the same size
     if os.path.isfile(output_bam_path):
         if os.path.getsize(output_bam_path) == file_size:
-            logging.warning("An uncompressed BAM file already exists at {}. Skipping decompression of spec file".format(output_bam_path))
+            logging.warning("An uncompressed BAM file already exists at {} Skipping decompression of spec file".format(output_bam_path))
             return False
 
     try:
@@ -190,6 +221,7 @@ def create_bam( spec_path,
             spec_path=spec_path, 
             raw_reference_genome=reference_genome,
             output_bam_path=output_bam_path,
+            library=library,
             from_gsc=from_gsc
         )
         created = True
@@ -204,25 +236,3 @@ def create_bam( spec_path,
     subprocess.check_call(cmd)
 
     return created
-
-@click.command()
-@click.argument("spec_path")
-@click.argument("reference_genome")
-@click.argument("to_storage")
-@click.option("--from_gsc", is_flag=True)
-def main(spec_path, reference_genome, to_storage, from_gsc):
-
-    filename, output_bam_path = get_filepaths(spec_path, STORAGE_PREFIX_MAP[to_storage])
-
-    created = create_bam(
-                spec_path,
-                reference_genome,
-                output_bam_path,
-                to_storage,
-                from_gsc
-    )
-
-
-if __name__ == '__main__':
-    # Run the script
-    main()
