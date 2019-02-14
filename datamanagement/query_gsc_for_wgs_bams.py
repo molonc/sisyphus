@@ -62,6 +62,8 @@ def rsync_file(from_path, to_path, sftp=None):
         to_path,
     ]
 
+    subprocess.check_call(subprocess_cmd)
+
     if sftp:
         try:
             remote_file = ftp.stat(from_path)
