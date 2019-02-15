@@ -50,8 +50,11 @@ solexa_run_type_map = {
     "Single": "S",
 }
 
-def rsync_file(from_path, to_path, sftp=None):
+def rsync_file(from_path, to_path, sftp=None, remote_host=None):
     make_dirs(os.path.dirname(to_path))
+
+    if remote_host:
+        from_path = remote_host + from_path
 
     subprocess_cmd = [
         "rsync",
@@ -66,7 +69,7 @@ def rsync_file(from_path, to_path, sftp=None):
 
     if sftp:
         try:
-            remote_file = ftp.stat(from_path)
+            remote_file = sftp.stat(from_path)
             if remote_file.st_size != os.path.getsize(to_path):
                 raise Exception("copy failed for %s to %s", from_path, to_path)
         except IOError:
@@ -186,13 +189,6 @@ def add_gsc_wgs_bam_dataset(
 
     #Check if the script is being run on thost
     current_host = socket.gethostname()
-    if current_host != "txshah":
-        username = pwd.getpwuid(os.getuid()).pw_name
-        transfer_bam_path = "thost:" + bam_path
-        transfer_bai_path = "thost:" + bai_path
-    else:
-        transfer_bam_path = bam_path
-        transfer_bai_path = bai_path
 
     #If this is a spec file, create a bam file in the tantlus_bam_path destination
     if is_spec:
@@ -210,7 +206,7 @@ def add_gsc_wgs_bam_dataset(
         if current_host != "txshah":
 
             if not os.path.isfile(tantalus_bam_path):
-                rsync_file(transfer_bam_path, tantalus_bam_path)
+                rsync_file(bam_path, tantalus_bam_path, sftp=sftp, remote_host="thost:")
                 transferred = True 
             else:
                 remote_file = sftp.stat(bam_path)
@@ -220,58 +216,58 @@ def add_gsc_wgs_bam_dataset(
                             tantalus_bam_path,
                             storage["name"]
                             ))
-                    rsync_file(transfer_bam_path, tantalus_bam_path)
+                    rsync_file(bam_path, tantalus_bam_path, sftp=sftp, remote_host="thost:")
                     transferred = True
                 else:
-                    logging.info("The bam already exists at {}. Skipping import".format(tantalus_bam_path))
+                    logging.info("The bam already exists at {} Skipping import".format(tantalus_bam_path))
 
                 
             if not os.path.isfile(tantalus_bai_path):
-                rsync_file(transfer_bai_path, tantalus_bai_path)
+                rsync_file(bai_path, tantalus_bai_path)
                 transferred = True 
             else:
                 remote_file = sftp.stat(bai_path)
                 if remote_file.st_size != os.path.getsize(tantalus_bai_path):
-                    logging.info("The size of {} on the GSC does not match {}. Copying new file to {} ".format(
+                    logging.info("The size of {} on the GSC does not match {} Copying new file to {} ".format(
                             bai_path,
                             tantalus_bai_path,
                             storage["name"]
                             ))
-                    rsync_file(transfer_bai_path, tantalus_bai_path)
+                    rsync_file(bai_path, tantalus_bai_path, sftp=sftp, remote_host="thost:")
                     transferred = True
                 else:
-                    logging.info("The bai already exists at {}. Skipping import".format(tantalus_bai_path))
+                    logging.info("The bai already exists at {} Skipping import".format(tantalus_bai_path))
         else:
             if not os.path.isfile(tantalus_bam_path):
-                rsync_file(transfer_bam_path, tantalus_bam_path)
+                rsync_file(bam_path, tantalus_bam_path)
                 transferred = True 
             elif os.path.getsize(bam_path) != os.path.getsize(tantalus_bam_path):
-                logging.info("The size of {} on the GSC does not match {}. Copying new file to {} ".format(
+                logging.info("The size of {} on the GSC does not match {} Copying new file to {} ".format(
                         bam_path,
                         tantalus_bam_path,
                         storage["name"]
                         ))
-                rsync_file(transfer_bam_path, tantalus_bam_path)
+                rsync_file(bam_path, tantalus_bam_path)
                 transferred = True 
                 
             else:
-                logging.info("The bam already exists at {}. Skipping import".format(tantalus_bam_path))
+                logging.info("The bam already exists at {} Skipping import".format(tantalus_bam_path))
                 
             if not os.path.isfile(tantalus_bai_path):
-                rsync_file(transfer_bai_path, tantalus_bai_path)
+                rsync_file(bai_path, tantalus_bai_path)
                 transferred = True 
             elif os.path.getsize(bai_path) != os.path.getsize(tantalus_bai_path):
-                logging.info("The size of {} on the GSC does not match {}. Copying new file to {} ".format(
+                logging.info("The size of {} on the GSC does not match {} Copying new file to {} ".format(
                         bai_path,
                         tantalus_bai_path,
                         storage["name"]
                         ))
-                rsync_file(transfer_bai_path, tantalus_bai_path)
+                rsync_file(bai_path, tantalus_bai_path)
                 transferred = True 
                 
             else:
-                logging.info("The bam index already exists at {}. Skipping import".format(tantalus_bai_path))
-    
+                logging.info("The bam index already exists at {} Skipping import".format(tantalus_bai_path))
+
     return tantalus_bam_path, transferred
     
 
