@@ -252,7 +252,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                         Lane: {}_{}
                         Sequencing Date: {}
                         GSC library ID: {}
-                        Link to sequencing: {}
+                        {}
                         Reasoning: Failed to gunzip {}""".format(
                         flowcell_id, 
                         lane_number, 
@@ -301,7 +301,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                     Lane: {}_{}
                     Sequencing Date: {}
                     GSC library ID: {}
-                    Link to sequencing: {}
+                    {}
                     Reason: Unrecognized file type: {}""".format(
                     flowcell_id, 
                     lane_number,
@@ -324,7 +324,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                     Lane: {}_{}
                     Sequencing Date: {}
                     GSC library ID: {}
-                    Link to sequencing: {}
+                    {}
                     Reason: Unable to find index {} for flowcell lane {}""".format(
                     flowcell_id, 
                     lane_number,
@@ -408,7 +408,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         if info['index_sequence'] not in cell_index_sequences:
             comment = """Failed to import: \n 
                 GSC library ID: {}
-                Link to sequencing: {}
+                {}
                 Reason: Fastq {} with index {}, flowcell {}, lane {} with index not in colossus""".format(
                 gsc_library_id,
                 sequencing_colossus_path,
@@ -434,8 +434,8 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         for index_sequence in cell_index_sequences:
             if index_sequence not in fastq_lane_index_sequences[flowcell_lane]:
                 comment = """ Failed to import: \n
-                    GSC library ID: {}
-                    Link to sequencing: {}
+                    GSC library ID: {} 
+                    {} 
                     Reason: No fastq found for index sequence {}, flowcell {}, lane {}""".format(
                     index_sequence, 
                     flowcell_lane[0], 
@@ -455,15 +455,15 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     comment = "Import successful: \n"
     for lane in lanes:
         if lane['new'] == True:
-            comment += """\nLane: {}_{}
-                Sequencing Date: {}""".format(
+            comment += """\nLane: {}_{} 
+                Sequencing Date: {} """.format(
                 lane["flowcell_id"], 
                 lane["lane_number"],
                 sequencing_date,
             )
 
-    comment += """GSC library ID: {}
-        Link to sequencing: {}""".format(
+    comment += """\nGSC library ID: {} 
+        {}""".format(
         gsc_library_id,
         sequencing_colossus_path
     )
@@ -531,7 +531,7 @@ def write_import_statuses(successful_libs, failed_libs):
             file.write(lane_message)   
         file.write('Sequencing submitted on {}'.format(successful_lib['submission_date']))   
 
-    file.write("\nFailed imports: \n")
+    file.write("\n \nFailed imports: \n")
     for failed_lib in failed_libs:
         file.write("{}: {}; sequencing submitted on {}\n".format(failed_lib['dlp_library_id'], failed_lib['error'], failed_lib['submission_date']))
     file.close()
@@ -578,7 +578,7 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
 
         sequencing_list = list(colossus_api.list('sequencing',  sequencing_center='BCCAGSC', library__pool_id=dlp_library_id))
 
-        if len(sequencing_list) != 0:
+        if len(sequencing_list) == 0:
             raise Exception("No sequencing found for {}". format(dlp_library_id))
 
         for sequencing in sequencing_list:
