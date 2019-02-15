@@ -2,6 +2,8 @@ from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
 from collections import defaultdict
 from dbclients.basicclient import NotFoundError
+from datetime import datetime
+from jira import JIRA, JIRAError
 import logging
 
 tantalus_api = TantalusApi()
@@ -32,7 +34,6 @@ def search_for_unaligned_data():
                 logging.info("Unaligned data for library_id {}, flowcell_id {}, lane_number {}".format(library_id, flowcell_id, lane_number))
                 unaligned_lanes.append('{}_{}'.format(lane['flowcell_id'], lane['lane_number']))
 
-    logging.info("unaligned_lanes {} ".format(unaligned_lanes))
     # Might just be double check
     sequencing_ids_from_lanes = set()
     for lane in unaligned_lanes:
@@ -47,7 +48,6 @@ def search_for_unaligned_data():
             for lane_info in lane_infos:
                 sequencing_ids_from_lanes.add(lane_info['sequencing'])
 
-    logging.info("sequencings {} ".format(sequencing_ids_from_lanes))
     unaligned_data = get_analyses_to_run(sequencing_ids_from_lanes, 'align')
 
     return unaligned_data
@@ -98,7 +98,7 @@ def get_analyses_to_run(sequencing_ids, analysis_type):
     for sequencing_id in sequencing_ids:
         sequencing = colossus_api.get('sequencing', id=sequencing_id)
         dlp_library_id = sequencing['library'] 
-        logging.info("Comparing sequencing dates and analysis dates for library {} for {} analysis".format(dlp_library_id, analysis_type))
+        logging.info("\nComparing sequencing dates and analysis dates for library {} for {} analysis".format(dlp_library_id, analysis_type))
 
         latest_sequencing_date = ""
         # Check: Sequencing dates may not have been set
@@ -110,7 +110,7 @@ def get_analyses_to_run(sequencing_ids, analysis_type):
         if not latest_sequencing_date:
             # Maybe: Raise exception vs logging warning
             # raise Exception("Sequencing date is not set")
-            logging.warning("Lanes do not have sequencing_dates for sequencing id {}".format(sequencing_id))
+            logging.info("Lanes do not have sequencing dates for sequencing id {}".format(sequencing_id))
             continue
 
         # TODO: Compare latest sequencing date to analysis date
@@ -141,19 +141,66 @@ def get_analyses_to_run(sequencing_ids, analysis_type):
             latest_analysis_date = analysis_dates[0]
 
         if not latest_analysis_date:
-            logging.info("No completed analysis for library {}".format(dlp_library_id))
+            logging.info("No completed analysis for library {}; adding to analyses to run".format(dlp_library_id))
             analyses_to_run.append(dict(library_id=dlp_library_id))
             continue
 
         if latest_sequencing_date > latest_analysis_date:
-            logging.info("Latest sequencing date for library {} was on {} but latest analysis was {} \n".format(
+            logging.info("Latest sequencing date for library {} was on {} but latest analysis was {}".format(
                 dlp_library_id, latest_sequencing_date, latest_analysis_date))
             analyses_to_run.append(dict(library_id=dlp_library_id))
 
         else:
-            logging.info("Library {} does not need {} analysis \n".format(dlp_library_id, analysis_type))
+            logging.info("Library {} does not need {} analysis".format(dlp_library_id, analysis_type))
 
-    return analyses_to_run               
+    return analyses_to_run
+
+def create_analysis_ticket(libraries):
+    """
+    Given a list of dictionaries with dlp library ids, create analysis ticket 
+    """
+    taxonomy_id_to_ref_genome = {
+        "9606"  : "grch37",
+        "10090" : "mm10",
+    }
+
+    for library in libraries:
+        for dlp_library_id in library.keys():
+            library_info = colossus_api.get("library", pool_id=library[dlp_library_id])
+            library_jira_ticket = library_info['jira_ticket'] 
+            dlpsequencing_set = library_info['dlpsequencing_set']
+            sequencing_ids = [sequencing['id'] for sequencing in dlpsequencing_set]
+            taxonomy_id = library_info['sample']['taxonomy_id']
+            reference_genome = taxonomy_id_to_ref_genome[taxonomy_id]
+            # analysis_jira_ticket = ""
+            # analysis_submission_date = str(datetime.now())
+            # sequencings = sequencing_ids
+            analysis_run = dict(
+                id = ,
+                run_status = "idle",
+                log_file = "",
+                sftp_path = "",
+                blob_path = "",
+                dlpanalysisinformation = , # analysis info id
+                last_updated =,
+            )
+
+            analysis_info = dict(
+                library = library_info,
+                # FIXME: Find out where priority level comes from
+                priority_level = "L",
+                # analysis_jira_ticket = 
+                version = "v0.2.7",
+                analysis_submission_date = str(datetime.now()),
+                sequencings = sequencing_ids,
+                reference_genome = taxonomy_id_to_ref_genome[taxonomy_id],
+                analysis_run = analysis_run,
+                aligner = "A",                                
+                smoothing = "M",
+            )
+
+            co
+
                 
 
 if __name__ == '__main__':
