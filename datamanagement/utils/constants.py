@@ -12,3 +12,5 @@ REF_GENOME_MAP = {
              r'grc[-_ ]?h[-_ ]?37',        
              r'ncbi[-_ ]?build[-_ ]?37'
             ],}
+            
+DEFAULT_NATIVESPEC = "-q shahlab.q -V -cwd -o tmp -e tmp -l mem_token={mem}G,mem_free={mem}G,h_vmem={mem}G"

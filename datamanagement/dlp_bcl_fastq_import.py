@@ -19,6 +19,10 @@ from utils.runtime_args import parse_runtime_args
 from utils.filecopy import rsync_file
 from utils.utils import make_dirs
 import datamanagement.templates as templates
+import pypeliner.helpers
+from pypeliner.execqueue.qsub import AsyncQsubJobQueue
+from utils.constants import DEFAULT_NATIVESPEC
+import datetime
 
 
 # Set up the root logger
@@ -31,6 +35,27 @@ BRC_LIBRARY_TYPE = "SC_WGS"
 BRC_READ_TYPE = "P"
 BRC_SEQ_CENTRE = "BRC"
 
+class Job(object):
+    def __init__(self, thread, bcl_dir, samplesheet_filename, output_dir):
+        self.ctx = {}
+        self.thread = str(thread)
+        self.bcl_dir = bcl_dir
+        self.samplesheet_filename = samplesheet_filename
+        self.output_dir = output_dir
+        self.finished = False
+    
+    def __call__(self, **kwargs):
+        cmd = [
+            'bcl2fastq',
+            "--processing-threads", self.thread,
+            "--runfolder-dir",      self.bcl_dir, 
+            "--sample-sheet",       self.samplesheet_filename,
+            "--output-dir",         self.output_dir
+        ]
+
+        import subprocess
+        subprocess.check_call(cmd)
+        self.finished = True 
 
 def query_colossus_dlp_cell_info(library_id):
 
@@ -292,14 +317,34 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
 
     get_samplesheet(samplesheet_filename, flowcell_id)
 
-    cmd = [
-        'bcl2fastq',
-        '--runfolder-dir', bcl_dir,
-        '--sample-sheet', samplesheet_filename,
-        '--output-dir', output_dir]
+    queue = AsyncQsubJobQueue(modules=(sys.modules[__name__], ), native_spec=DEFAULT_NATIVESPEC)
+    
+    # Create the job to perform bcl2fastq
+    job = Job('16', bcl_dir, samplesheet_filename, output_dir)
+    
+    current_time = datetime.datetime.now().strftime('%d-%m-%Y_%S-%M-%H')
+    dir_name =  flowcell_id + "_" + current_time
 
-    subprocess.check_call(cmd)
+    # Create the temp directory for all output logs
+    temps_dir = os.path.join('tmp', dir_name)
+    pypeliner.helpers.makedirs(temps_dir)
+    
+    logging.info("Submitting bcl2fastq job to the cluster")
+    queue.send({'mem': 10}, 'bcl2fastq', job, temps_dir)
+    job_name = None
+    
+    # Wait for the job to finish
+    while True:
+        job_name = queue.wait()
+        if job_name is not None:
+            break
+        os.sleep(10)
+    
+    result = queue.receive(job_name)
+    
+    assert result.finished == True
 
+    logging.info("Job finished successfully.")
 
 @click.command()
 @click.argument('storage_name',  nargs=1)
@@ -326,7 +371,6 @@ def main(storage_name, temp_output_dir, flowcell_id, bcl_dir, tag_name=None, upd
         logging.warning("found dataset {}".format(','.join([str(d["id"]) for d in datasets])))
 
     if not no_bcl2fastq:
-        # Run bcl to fastq
         run_bcl2fastq(
             flowcell_id,
             bcl_dir,
