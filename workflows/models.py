@@ -519,7 +519,7 @@ class AlignAnalysis(Analysis):
         for idx, row in sample_info.iterrows():
             index_sequence = row['index_sequence']
 
-            if args["is_test_run"] and (index_sequence not in tantalus_index_sequences):
+            if args.get("is_test_run", False) and (index_sequence not in tantalus_index_sequences):
                 # Skip index sequences that are not found in the Tantalus dataset, since
                 # we need to refer to the original library in Colossus for metadata, but
                 # we don't want to iterate through all the cells present in that library
@@ -553,7 +553,7 @@ class AlignAnalysis(Analysis):
             bam_filepath = str(tantalus_api.get_filepath(storage_name, bam_filename))
 
             sample_id = row['sample_id']
-            if args['is_test_run']:
+            if args.get("is_test_run", False):
                assert 'TEST' in sample_id
 
             input_info[str(row['cell_id'])] = {
@@ -613,7 +613,7 @@ class AlignAnalysis(Analysis):
 
         for lane_id, lane in self.get_lanes().iteritems():
 
-            if self.args["is_test_run"]:
+            if self.args.get("is_test_run", False):
                 assert 'TEST' in lane["flowcell_id"]
 
             sequence_lanes.append(dict(
