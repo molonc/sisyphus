@@ -348,7 +348,7 @@ class Analysis(object):
             update=update,
         )
 
-        return tantalus_results
+        return [tantalus_results.get_id()]
 
     def get_input_samples(self):
         """
@@ -417,9 +417,6 @@ class AlignAnalysis(Analysis):
             if len(dataset['sequence_lanes']) != 1:
                 raise Exception('sequence dataset {} has {} lanes'.format(
                     dataset['id'], len(dataset['sequence_lanes'])))
-
-            sequencing_centre = dataset['sequence_lanes'][0]['sequencing_centre']
-            sequencing_instrument = dataset['sequence_lanes'][0]['sequencing_instrument']
 
             lane_id = '{}_{}'.format(
                 dataset['sequence_lanes'][0]['flowcell_id'],
