@@ -1,5 +1,7 @@
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
+import logging
+
 
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
@@ -26,8 +28,14 @@ if __name__ == '__main__':
             lanes = []
 
             for lane in analysis_lane_dict[key]:
-                if list(colossus_api.list('lane', flow_cell_id=lane)):
-                    lanes.append(next(colossus_api.list('lane',flow_cell_id=lane))['id'])
+                try:
+                    colossus_api.get('lane', flow_cell_id=lane)
+                    lanes.append(colossus_api.get('lane',flow_cell_id=lane)['id'])
+                except Exception,e:
+                    print str(e)
+                    lanes= []
+                    break
+
 
             colossus_api.update('analysis_information', id=analysis['id'], lanes=lanes)
 
