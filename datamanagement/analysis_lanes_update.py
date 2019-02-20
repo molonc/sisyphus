@@ -11,8 +11,6 @@ if __name__ == '__main__':
 
     analysis_lane_dict = {}
 
-    #for all analyses in tantalus, analysis type align:
-    #find lanes for input datasets
     for analysis in tantalus_analyses:
         lane_set = set()
         for input_dataset in analysis['input_datasets']:
@@ -23,8 +21,6 @@ if __name__ == '__main__':
         analysis_lane_dict[analysis['name']] = lane_set
         print str(analysis['id']) + " " + analysis['name']
         print lane_set
-
-    print analysis_lane_dict.keys()
 
     for analysis in colossus_analyses:
         key = analysis['analysis_jira_ticket'] + '_align'
