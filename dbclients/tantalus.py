@@ -123,7 +123,7 @@ class BlobStorageClient(object):
             filesize_on_azure = self.get_size(blobname)
             filesize = os.path.getsize(filepath)
 
-            if size_on_blob != size_of_file:
+            if filesize_on_azure != filesize:
                 raise Exception("Size mismatch: {} on Azure but file has size {}".format(filesize_on_azure, filesize))
 
             log.info("{} already exists on {}/{}".format(blobname, self.storage_account, self.storage_container))
