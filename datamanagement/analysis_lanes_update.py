@@ -19,33 +19,16 @@ if __name__ == '__main__':
                 lane_set.add(str(lane['flowcell_id'] + "_" + str(lane['lane_number'])))
 
         analysis_lane_dict[analysis['name']] = lane_set
-        print str(analysis['id']) + " " + analysis['name']
-        print lane_set
 
     for analysis in colossus_analyses:
         key = analysis['analysis_jira_ticket'] + '_align'
-        print "Colossus Id" + str(analysis['id'])
-        print key
         if key in analysis_lane_dict.keys():
-            print list(analysis_lane_dict[key])
             lanes = []
 
             for lane in analysis_lane_dict[key]:
-
                 if list(colossus_api.list('lane', flow_cell_id=lane)):
-                    print "searching for"
-                    print lane
                     lanes.append(next(colossus_api.list('lane',flow_cell_id=lane))['id'])
-                elif list(colossus_api.list('lane',flow_cell_id=lane[:-2])):
-                    print "searching instead for"
-                    print lane[:-2]
-                    lanes.append(next(colossus_api.list('lane',flow_cell_id=lane[:-2]))['id'])
-                else:
-                    print "no match"
-                print lanes
 
             colossus_api.update('analysis_information', id=analysis['id'], lanes=lanes)
-        else:
-            print "NONE"
-            colossus_api.update('analysis_information',id=analysis['id'],lanes=[])
+
 
