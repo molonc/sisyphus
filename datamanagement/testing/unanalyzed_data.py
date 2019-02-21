@@ -154,55 +154,7 @@ def get_analyses_to_run(sequencing_ids, analysis_type):
             logging.info("Library {} does not need {} analysis".format(dlp_library_id, analysis_type))
 
     return analyses_to_run
-
-def create_analysis_ticket(libraries):
-    """
-    Given a list of dictionaries with dlp library ids, create analysis ticket 
-    """
-    taxonomy_id_to_ref_genome = {
-        "9606"  : "grch37",
-        "10090" : "mm10",
-    }
-
-    for library in libraries:
-        for dlp_library_id in library.keys():
-            library_info = colossus_api.get("library", pool_id=library[dlp_library_id])
-            library_jira_ticket = library_info['jira_ticket'] 
-            dlpsequencing_set = library_info['dlpsequencing_set']
-            sequencing_ids = [sequencing['id'] for sequencing in dlpsequencing_set]
-            taxonomy_id = library_info['sample']['taxonomy_id']
-            reference_genome = taxonomy_id_to_ref_genome[taxonomy_id]
-            # analysis_jira_ticket = ""
-            # analysis_submission_date = str(datetime.now())
-            # sequencings = sequencing_ids
-            analysis_run = dict(
-                id = ,
-                run_status = "idle",
-                log_file = "",
-                sftp_path = "",
-                blob_path = "",
-                dlpanalysisinformation = , # analysis info id
-                last_updated =,
-            )
-
-            analysis_info = dict(
-                library = library_info,
-                # FIXME: Find out where priority level comes from
-                priority_level = "L",
-                # analysis_jira_ticket = 
-                version = "v0.2.7",
-                analysis_submission_date = str(datetime.now()),
-                sequencings = sequencing_ids,
-                reference_genome = taxonomy_id_to_ref_genome[taxonomy_id],
-                analysis_run = analysis_run,
-                aligner = "A",                                
-                smoothing = "M",
-            )
-
-            co
-
                 
-
 if __name__ == '__main__':
     no_hmmcopy_data = search_for_no_hmmcopy_data()
     unaligned_data = search_for_unaligned_data()
