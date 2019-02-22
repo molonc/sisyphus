@@ -118,7 +118,7 @@ def get_analyses_to_run(sequencing_ids, analysis_type):
         analyses = list(colossus_api.list('analysis_information', library__pool_id=dlp_library_id))
 
         if len(analyses) == 0:
-            analyses_to_run.append(dict(library_id=dlp_library_id))
+            analyses_to_run.append(dict(library_id=dlp_library_id, sequencing_date=latest_sequencing_date))
             logging.info("No analysis information for library {}; adding to analyses to run".format(dlp_library_id))
             continue
 
@@ -142,65 +142,63 @@ def get_analyses_to_run(sequencing_ids, analysis_type):
 
         if not latest_analysis_date:
             logging.info("No completed analysis for library {}; adding to analyses to run".format(dlp_library_id))
-            analyses_to_run.append(dict(library_id=dlp_library_id))
+            analyses_to_run.append(dict(library_id=dlp_library_id, sequencing_date=latest_sequencing_date))
             continue
 
         if latest_sequencing_date > latest_analysis_date:
             logging.info("Latest sequencing date for library {} was on {} but latest analysis was {}".format(
                 dlp_library_id, latest_sequencing_date, latest_analysis_date))
-            analyses_to_run.append(dict(library_id=dlp_library_id))
+
+            analyses_to_run.append(dict(library_id=dlp_library_id, sequencing_date=latest_sequencing_date))
 
         else:
             logging.info("Library {} does not need {} analysis".format(dlp_library_id, analysis_type))
 
     return analyses_to_run
 
-def create_analysis_ticket(libraries):
-    """
-    Given a list of dictionaries with dlp library ids, create analysis ticket 
-    """
-    taxonomy_id_to_ref_genome = {
-        "9606"  : "grch37",
-        "10090" : "mm10",
-    }
+# def create_analysis_ticket(libraries):
+#     """
+#     Given a list of dictionaries with dlp library ids, create analysis ticket 
+#     """
+#     taxonomy_id_to_ref_genome = {
+#         "9606"  : "grch37",
+#         "10090" : "mm10",
+#     }
 
-    for library in libraries:
-        for dlp_library_id in library.keys():
-            library_info = colossus_api.get("library", pool_id=library[dlp_library_id])
-            library_jira_ticket = library_info['jira_ticket'] 
-            dlpsequencing_set = library_info['dlpsequencing_set']
-            sequencing_ids = [sequencing['id'] for sequencing in dlpsequencing_set]
-            taxonomy_id = library_info['sample']['taxonomy_id']
-            reference_genome = taxonomy_id_to_ref_genome[taxonomy_id]
-            # analysis_jira_ticket = ""
-            # analysis_submission_date = str(datetime.now())
-            # sequencings = sequencing_ids
-            analysis_run = dict(
-                id = ,
-                run_status = "idle",
-                log_file = "",
-                sftp_path = "",
-                blob_path = "",
-                dlpanalysisinformation = , # analysis info id
-                last_updated =,
-            )
+#     for library in libraries:
+#         for dlp_library_id in library.keys():
+#             library_info = colossus_api.get("library", pool_id=library[dlp_library_id])
+#             library_jira_ticket = library_info['jira_ticket'] 
+#             dlpsequencing_set = library_info['dlpsequencing_set']
+#             sequencing_ids = [sequencing['id'] for sequencing in dlpsequencing_set]
+#             taxonomy_id = library_info['sample']['taxonomy_id']
+#             reference_genome = taxonomy_id_to_ref_genome[taxonomy_id]
+#             # analysis_jira_ticket = ""
+#             # analysis_submission_date = str(datetime.now())
+#             # sequencings = sequencing_ids
+#             analysis_run = dict(
+#                 id = ,
+#                 run_status = "idle",
+#                 log_file = "",
+#                 sftp_path = "",
+#                 blob_path = "",
+#                 dlpanalysisinformation = , # analysis info id
+#                 last_updated =,
+#             )
 
-            analysis_info = dict(
-                library = library_info,
-                # FIXME: Find out where priority level comes from
-                priority_level = "L",
-                # analysis_jira_ticket = 
-                version = "v0.2.7",
-                analysis_submission_date = str(datetime.now()),
-                sequencings = sequencing_ids,
-                reference_genome = taxonomy_id_to_ref_genome[taxonomy_id],
-                analysis_run = analysis_run,
-                aligner = "A",                                
-                smoothing = "M",
-            )
-
-            co
-
+#             analysis_info = dict(
+#                 library = library_info,
+#                 # FIXME: Find out where priority level comes from
+#                 priority_level = "L",
+#                 # analysis_jira_ticket = 
+#                 version = "v0.2.7",
+#                 analysis_submission_date = str(datetime.now()),
+#                 sequencings = sequencing_ids,
+#                 reference_genome = taxonomy_id_to_ref_genome[taxonomy_id],
+#                 analysis_run = analysis_run,
+#                 aligner = "A",                                
+#                 smoothing = "M",
+#             )
                 
 
 if __name__ == '__main__':
@@ -208,10 +206,11 @@ if __name__ == '__main__':
     unaligned_data = search_for_unaligned_data()
 
     for data in no_hmmcopy_data:
-        for lib in data.keys():
-            logging.info("Need to create hmmcopy analysis for {}".format(data[lib]))
+        print("Need to run hmmcopy analysis for {}; latest sequencing date {}".format(data['library_id'], data['sequencing_date']))
 
     for data in unaligned_data:
-        for lib in data.keys():
-            logging.info("Need to create align analysis for {}".format(data[lib]))
+        print("Need to run align analysis for {}; latest sequencing date {}".format(data['library_id'], data['sequencing_date']))
+
+    
+
 
