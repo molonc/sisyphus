@@ -156,60 +156,61 @@ def get_analyses_to_run(sequencing_ids, analysis_type):
 
     return analyses_to_run
 
-# def create_analysis_ticket(libraries):
-#     """
-#     Given a list of dictionaries with dlp library ids, create analysis ticket 
-#     """
-#     taxonomy_id_to_ref_genome = {
-#         "9606"  : "grch37",
-#         "10090" : "mm10",
-#     }
+def create_analysis_jira_ticket(info):
+    """
+    Create jira ticket and return JIRA ticket id
+    """
+    library = colossus_api.get('library', data['library_id'])
+    sample_id = library['sample']['sample_id']
+    library_jira_ticket = library['jira_ticket']
+    issue = jira_api.issue(library_jira_ticket)
+    
+    print('Creating analysis JIRA ticket as sub task for {}'.format(library_jira_ticket))
 
-#     for library in libraries:
-#         for dlp_library_id in library.keys():
-#             library_info = colossus_api.get("library", pool_id=library[dlp_library_id])
-#             library_jira_ticket = library_info['jira_ticket'] 
-#             dlpsequencing_set = library_info['dlpsequencing_set']
-#             sequencing_ids = [sequencing['id'] for sequencing in dlpsequencing_set]
-#             taxonomy_id = library_info['sample']['taxonomy_id']
-#             reference_genome = taxonomy_id_to_ref_genome[taxonomy_id]
-#             # analysis_jira_ticket = ""
-#             # analysis_submission_date = str(datetime.now())
-#             # sequencings = sequencing_ids
-#             analysis_run = dict(
-#                 id = ,
-#                 run_status = "idle",
-#                 log_file = "",
-#                 sftp_path = "",
-#                 blob_path = "",
-#                 dlpanalysisinformation = , # analysis info id
-#                 last_updated =,
-#             )
+    sub_task = {
+        'project': {'key': 'SC'},
+        'summary': 'Analysis of LIB_{}_{}'.format(sample_id, data['library_id']),
+        'issuetype' : { 'name' : 'Sub-task' },
+        'parent': {'id': issue.key}
+    }
 
-#             analysis_info = dict(
-#                 library = library_info,
-#                 # FIXME: Find out where priority level comes from
-#                 priority_level = "L",
-#                 # analysis_jira_ticket = 
-#                 version = "v0.2.7",
-#                 analysis_submission_date = str(datetime.now()),
-#                 sequencings = sequencing_ids,
-#                 reference_genome = taxonomy_id_to_ref_genome[taxonomy_id],
-#                 analysis_run = analysis_run,
-#                 aligner = "A",                                
-#                 smoothing = "M",
-#             )
+    sub_task_issue = jira_api.create_issue(fields=sub_task)
+    analysis_jira_ticket = sub_task_issue.key
+    print('Created analysis ticket {} for library {}'.format(analysis_jira_ticket, data['library_id']))
+
+    return analysis_jira_ticket
+
                 
 if __name__ == '__main__':
     no_hmmcopy_data = search_for_no_hmmcopy_data()
     unaligned_data = search_for_unaligned_data()
 
-    for data in no_hmmcopy_data:
-        print("Need to run hmmcopy analysis for {}; latest sequencing date {}".format(data['library_id'], data['sequencing_date']))
+    analyses_tickets = []
 
     for data in unaligned_data:
         print("Need to run align analysis for {}; latest sequencing date {}".format(data['library_id'], data['sequencing_date']))
+        analysis_ticket = create_analysis_jira_ticket(data)
+        analyses_tickets.append(analysis_ticket)
 
+    for data in no_hmmcopy_data:
+        print("Need to run hmmcopy analysis for {}; latest sequencing date {}".format(data['library_id'], data['sequencing_date']))
+        analysis_ticket = create_analysis_jira_ticket(data)
+        analyses_tickets.append(analysis_ticket)
+
+# issue = jira_api.issue('MIS-332')
+
+# sub_task = {
+#     'project': {'key': 'MIS'},
+#     'summary': 'Subtask Test',
+#     'issuetype' : { 'name' : 'Sub-task' },
+#     'parent': {'id': issue.key}
+# }
+
+# task = {
+#     'project': {'key': 'MIS'},
+#     'summary': 'Test2',
+#     'issuetype' : { 'name' : 'Task' },
+# }
     
 
 
