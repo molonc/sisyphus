@@ -200,7 +200,6 @@ def get_analyses_to_run(sequencing_ids, analysis_type):
 #                 smoothing = "M",
 #             )
                 
-
 if __name__ == '__main__':
     no_hmmcopy_data = search_for_no_hmmcopy_data()
     unaligned_data = search_for_unaligned_data()
