@@ -85,16 +85,18 @@ def query_colossus_dlp_rev_comp_override(colossus_api, library_id):
 
 # Mapping from filename pattern to read end, pass/fail
 filename_pattern_map = {
-    "_1.fastq.gz": (1, True),
-    "_1_*.concat_chastity_passed.fastq.gz": (1, True),
-    "_1_chastity_passed.fastq.gz": (1, True),
-    "_1_chastity_failed.fastq.gz": (1, False),
-    "_1_*bp.concat.fastq.gz": (1, True),
-    "_2.fastq.gz": (2, True),
-    "_2_*.concat_chastity_passed.fastq.gz": (2, True),
-    "_2_chastity_passed.fastq.gz": (2, True),
-    "_2_chastity_failed.fastq.gz": (2, False),
-    "_2_*bp.concat.fastq.gz": (2, True),
+	"_1.fastq.gz": (1, True),
+	"_1_*.concat_chastity_passed.fastq.gz": (1, True),
+	"_1_*bp.concat_chastity_passed.fastq.gz": (1, True),
+	"_1_chastity_passed.fastq.gz": (1, True),
+	"_1_chastity_failed.fastq.gz": (1, False),
+	"_1_*bp.concat.fastq.gz": (1, True),
+	"_2.fastq.gz": (2, True),
+	"_2_*.concat_chastity_passed.fastq.gz": (2, True),
+	"_2_*bp.concat_chastity_passed.fastq.gz": (2, True),
+	"_2_chastity_passed.fastq.gz": (2, True),
+	"_2_chastity_failed.fastq.gz": (2, False),
+	"_2_*bp.concat.fastq.gz": (2, True),
 }
 
 
