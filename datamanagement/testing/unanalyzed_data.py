@@ -18,6 +18,7 @@ def get_lanes_from_bams_datasets():
 
     return bam_lanes
 
+
 def search_for_unaligned_data():
     bam_lanes = get_lanes_from_bams_datasets()
 
@@ -51,6 +52,7 @@ def search_for_unaligned_data():
     unaligned_data = get_analyses_to_run(sequencing_ids_from_lanes, 'align')
 
     return unaligned_data
+
 
 def search_for_no_hmmcopy_data():
     bam_lanes = get_lanes_from_bams_datasets()
@@ -91,7 +93,20 @@ def search_for_no_hmmcopy_data():
 
     return no_hmmcopy_data
 
+
 def get_analyses_to_run(sequencing_ids, analysis_type):
+    ''' 
+    Get analyses to run by comparing latest sequencing date to latest complete analysis date
+
+    Args:
+    sequencing_ids: List of sequencing ids
+    analysis_type: String containing either 'align' or 'hmmcopy'
+
+    Returns:
+    analyses_to_run: List of dictionaries with keys library_id, sequencing_date (maybe remove), and analysis_type
+    '''
+
+    # MAYBE FIX: dictionaries in analyses_to_run contain sequencing dates for printing purposes only; can remove
     analyses_to_run = []
     complete_statuses = ('complete', '{}_complete'.format(analysis_type))
 
@@ -118,7 +133,7 @@ def get_analyses_to_run(sequencing_ids, analysis_type):
         analyses = list(colossus_api.list('analysis_information', library__pool_id=dlp_library_id))
 
         if len(analyses) == 0:
-            analyses_to_run.append(dict(library_id=dlp_library_id, sequencing_date=latest_sequencing_date))
+            analyses_to_run.append(dict(library_id=dlp_library_id, sequencing_date=latest_sequencing_date, analysis_type=analysis_type))
             logging.info("No analysis information for library {}; adding to analyses to run".format(dlp_library_id))
             continue
 
@@ -142,60 +157,92 @@ def get_analyses_to_run(sequencing_ids, analysis_type):
 
         if not latest_analysis_date:
             logging.info("No completed analysis for library {}; adding to analyses to run".format(dlp_library_id))
-            analyses_to_run.append(dict(library_id=dlp_library_id, sequencing_date=latest_sequencing_date))
+            analyses_to_run.append(dict(library_id=dlp_library_id, sequencing_date=latest_sequencing_date, analysis_type=analysis_type))
             continue
 
         if latest_sequencing_date > latest_analysis_date:
             logging.info("Latest sequencing date for library {} was on {} but latest analysis was {}".format(
                 dlp_library_id, latest_sequencing_date, latest_analysis_date))
 
-            analyses_to_run.append(dict(library_id=dlp_library_id, sequencing_date=latest_sequencing_date))
+            analyses_to_run.append(dict(library_id=dlp_library_id, sequencing_date=latest_sequencing_date, analysis_type=analysis_type))
 
         else:
             logging.info("Library {} does not need {} analysis".format(dlp_library_id, analysis_type))
 
     return analyses_to_run
 
+
 def create_analysis_jira_ticket(info):
-    """
-    Create jira ticket and return JIRA ticket id
-    """
-    library = colossus_api.get('library', data['library_id'])
+    '''
+    Create analysis jira ticket as subtask of library jira ticket
+
+    Returns:
+        analysis_info: Dictionary with keys sample_id, library_id, jira_ticket
+    '''
+
+    # Search if pending analysis ticket already exists
+    existing_analyses = colossus_api.list('analysis_information', library__pool_id=info['library_id'])
+
+    for analysis in existing_analyses:
+        status = analysis['analysis_run']['run_status']
+        if analysis['analysis_submission_date'] > info['sequencing_date'] and 'complete' not in status:
+
+            analysis_info  = dict(
+                sample_id = sample_id,
+                library_id = info['library_id'],
+                jira_ticket = analysis['analysis_jira_ticket'],
+            )
+
+            return analysis_info
+
+    library = colossus_api.get('library', info['library_id'])
     sample_id = library['sample']['sample_id']
     library_jira_ticket = library['jira_ticket']
     issue = jira_api.issue(library_jira_ticket)
     
-    print('Creating analysis JIRA ticket as sub task for {}'.format(library_jira_ticket))
+    print('Creating analysis JIRA ticket for {} as sub task for {}'.format(info['library_id'], library_jira_ticket))
 
     sub_task = {
         'project': {'key': 'SC'},
-        'summary': 'Analysis of LIB_{}_{}'.format(sample_id, data['library_id']),
+        'summary': 'Analysis of LIB_{}_{}'.format(sample_id, info['library_id']),
         'issuetype' : { 'name' : 'Sub-task' },
         'parent': {'id': issue.key}
     }
 
     sub_task_issue = jira_api.create_issue(fields=sub_task)
     analysis_jira_ticket = sub_task_issue.key
-    print('Created analysis ticket {} for library {}'.format(analysis_jira_ticket, data['library_id']))
+    print('Created analysis ticket {} for library {}'.format(analysis_jira_ticket, info['library_id']))
 
-    return analysis_jira_ticket
+    analysis_info  = dict(
+        sample_id = sample_id,
+        library_id = info['library_id'],
+        jira_ticket = analysis_jira_ticket,
+    )
 
-                
+    return analysis_info
+
+
+def create_analysis_objects(analyses_tickets):
+    pass
+
+
 if __name__ == '__main__':
-    no_hmmcopy_data = search_for_no_hmmcopy_data()
+
+    # MAYBE: put this in run.py
     unaligned_data = search_for_unaligned_data()
+    no_hmmcopy_data = search_for_no_hmmcopy_data()
 
     analyses_tickets = []
 
     for data in unaligned_data:
         print("Need to run align analysis for {}; latest sequencing date {}".format(data['library_id'], data['sequencing_date']))
-        analysis_ticket = create_analysis_jira_ticket(data)
-        analyses_tickets.append(analysis_ticket)
+        # analysis_ticket = create_analysis_jira_ticket(data)
+        # analyses_tickets.append(analysis_ticket)
 
     for data in no_hmmcopy_data:
         print("Need to run hmmcopy analysis for {}; latest sequencing date {}".format(data['library_id'], data['sequencing_date']))
-        analysis_ticket = create_analysis_jira_ticket(data)
-        analyses_tickets.append(analysis_ticket)
+        # analysis_ticket = create_analysis_jira_ticket(data)
+        # analyses_tickets.append(analysis_ticket)
 
 # issue = jira_api.issue('MIS-332')
 
