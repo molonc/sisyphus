@@ -7,9 +7,18 @@ from saltant.client import Client
 from saltant.constants import SUCCESSFUL, FAILED
 from workflows.utils import tantalus_utils
 
-SALTANT_API_URL = os.environ.get('SALTANT_API_URL', 'https://shahlabjobs.ca/api/')
-SALTANT_API_TOKEN = os.environ['SALTANT_API_TOKEN']
-CLIENT = Client(base_api_url=SALTANT_API_URL, auth_token=SALTANT_API_TOKEN)
+
+client = None
+def get_client():
+    global client
+    if client is None:
+        client = Client(
+            # base_api_url=os.environ.get('SALTANT_API_URL', 'https://shahlabjobs.ca/api/'),
+            # auth_token=os.environ['SALTANT_API_TOKEN'],
+            base_api_url='https://shahlabjobs.ca/api/',
+            auth_token='p0gch4mp101fy451do9uod1s1x9i4a'
+        )
+    return client
 
 
 log = logging.getLogger('sisyphus')
@@ -19,14 +28,14 @@ def get_task_instance_status(uuid):
     """
     Get the status of task instance given a unique identifier.
     """
-    return CLIENT.executable_task_instances.get(uuid=uuid).state
+    return get_client().executable_task_instances.get(uuid=uuid).state
 
 
 def get_task_type_id(task_type_name):
     """
     Get the id of a task type given its name.
     """
-    task_type = CLIENT.executable_task_types.get(name=task_type_name)
+    task_type = get_client().executable_task_types.get(name=task_type_name)
     return task_type.id
 
 
@@ -34,7 +43,7 @@ def get_task_queue_id(task_queue_name):
     """
     Get the id of a task queue given its name.
     """
-    task_queue = CLIENT.task_queues.get(name=task_queue_name)
+    task_queue = get_client().task_queues.get(name=task_queue_name)
     return task_queue.id
 
 
@@ -80,12 +89,12 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name)
     params = {'name': name, 'user__username': user}
 
     # Kill all running task instances
-    task_instance_list = CLIENT.executable_task_instances.list(params)
+    task_instance_list = get_client().executable_task_instances.list(params)
     for task_instance in task_instance_list:
         if get_task_instance_status(task_instance.uuid) == 'running':
             task_instance.terminate()
 
-    new_task_instance = CLIENT.executable_task_instances.create(
+    new_task_instance = get_client().executable_task_instances.create(
         name=name,
         arguments=args,
         task_queue_id=get_task_queue_id(task_queue_name),
@@ -159,3 +168,25 @@ def transfer_files(jira, config, tag_name, from_storage, to_storage):
 
     task_type_id = get_task_type_id("File transfer")
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
+
+def run_align(jira, version, config, skip_pipeline=False):
+    name = "{}_{}_align".format(jira, version)
+    queue_name = config['headnode_task_queue']
+    args = {
+        'jira':     jira,
+        'version':  version,
+    }
+    task_type_id = get_task_type_id("Run Align")
+    get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
+
+
+def run_hmmcopy(jira, version, config):
+    name = "{}_{}_hmmcopy".format(jira, version)
+    queue_name = config['headnode_task_queue']
+    args = {
+        'jira':     jira,
+        'version':  version,
+    }
+    task_type_id = get_task_type_id("Run Hmmcopy")
+    get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
+
