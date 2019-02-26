@@ -148,6 +148,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.argument('version')
 @click.argument('inputs_tag_name')
 @click.argument('matched_normal_sample')
+@click.argument('matched_normal_library')
 @click.option('--config_filename')
 @click.option('--clean', is_flag=True)
 @click.option('--sisyphus_interactive', is_flag=True)
@@ -162,6 +163,7 @@ def run_pseudobulk(
         version,
         inputs_tag_name,
         matched_normal_sample,
+        matched_normal_library,
         config_filename=None,
         **args
 ):
@@ -174,6 +176,7 @@ def run_pseudobulk(
     args['version'] = version
     args['inputs_tag_name'] = inputs_tag_name
     args['matched_normal_sample'] = matched_normal_sample
+    args['matched_normal_library'] = matched_normal_library
 
     job_subdir = jira_ticket
 

@@ -831,7 +831,7 @@ class PseudoBulkAnalysis(Analysis):
             library_id = dataset['library']['library_id']
             sample_id = dataset['sample']['sample_id']
 
-            if sample_id == args['matched_normal_sample']:
+            if sample_id == args['matched_normal_sample'] and library_id == args['matched_normal_library']:
                 file_instances = tantalus_api.get_dataset_file_instances(
                     dataset_id, 'sequencedataset', storage_name,
                     filters={'filename__endswith': '.bam'})
@@ -865,7 +865,8 @@ class PseudoBulkAnalysis(Analysis):
                     input_info['tumour'][sample_id][cell_id] = {'bam': filepath}
 
         if 'normal' not in input_info:
-            raise ValueError('unable to find normal {}'.format(args['matched_normal_sample']))
+            raise ValueError('unable to find normal {}, {}'.format(
+                args['matched_normal_sample'], args['matched_normal_library']))
 
         if 'tumour' not in input_info or len(input_info['tumour']) == 0:
             raise ValueError('no tumour cells found')
@@ -880,21 +881,24 @@ class PseudoBulkAnalysis(Analysis):
             self.args["job_subdir"],
             "results")
 
-        # TODO: get sample ids helper
-        sample_ids = set()
+        filenames = []
+
+        filenames.append('haplotypes.tsv')
+
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
-            sample_ids.add(dataset['sample']['sample_id'])
 
-        filenames = []
-        filenames.append('haplotypes.tsv')
-        for sample_id in sample_ids:
-            if sample_id == self.args['matched_normal_sample']:
+            library_id = dataset['library']['library_id']
+            sample_id = dataset['sample']['sample_id']
+
+            if sample_id == self.args['matched_normal_sample'] and library_id == self.args['matched_normal_library']:
                 continue
+
             filenames.append('{}_allele_counts.csv'.format(sample_id))
             filenames.append('{}_snv_annotations.h5'.format(sample_id))
             filenames.append('{}_snv_counts.h5'.format(sample_id))
             filenames.append('{}_destruct.h5'.format(sample_id))
+
             for snv_caller in ('museq', 'strelka_snv', 'strelka_indel'):
                 filenames.append('{}_{}.vcf.gz'.format(sample_id, snv_caller))
                 filenames.append('{}_{}.vcf.gz.csi'.format(sample_id, snv_caller))
