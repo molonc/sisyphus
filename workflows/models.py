@@ -831,40 +831,35 @@ class PseudoBulkAnalysis(Analysis):
             library_id = dataset['library']['library_id']
             sample_id = dataset['sample']['sample_id']
 
-            if sample_id == args['matched_normal_sample'] and library_id == args['matched_normal_library']:
-                file_instances = tantalus_api.get_dataset_file_instances(
-                    dataset_id, 'sequencedataset', storage_name,
-                    filters={'filename__endswith': '.bam'})
+            is_normal = (
+                sample_id == args['matched_normal_sample'] and
+                library_id == args['matched_normal_library'])
 
-                for file_instance in file_instances:
-                    filepath = str(file_instance['filepath'])
-                    assert 'bam' not in input_info['normal']
-                    input_info['normal'] = {'bam': filepath}
+            dataset_class = ('tumour', 'normal')[is_normal]
 
-            else:
-                sample_info = generate_inputs.generate_sample_info(
-                    library_id, test_run=args.get("is_test_run", False))
+            sample_info = generate_inputs.generate_sample_info(
+                library_id, test_run=args.get("is_test_run", False))
 
-                cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
+            cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
 
-                file_instances = tantalus_api.get_dataset_file_instances(
-                    dataset_id, 'sequencedataset', storage_name,
-                    filters={'filename__endswith': '.bam'})
+            file_instances = tantalus_api.get_dataset_file_instances(
+                dataset_id, 'sequencedataset', storage_name,
+                filters={'filename__endswith': '.bam'})
 
-                for file_instance in file_instances:
-                    index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])
-                    cell_id = str(cell_ids[index_sequence])
-                    filepath = str(file_instance['filepath'])
+            for file_instance in file_instances:
+                index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])
+                cell_id = str(cell_ids[index_sequence])
+                filepath = str(file_instance['filepath'])
 
-                    if sample_id not in input_info['tumour']:
-                        input_info['tumour'][sample_id] = {}
+                if sample_id not in input_info[dataset_class]:
+                    input_info[dataset_class][sample_id] = {}
 
-                    if cell_id not in input_info['tumour'][sample_id]:
-                        input_info['tumour'][sample_id][cell_id] = {}
+                if cell_id not in input_info[dataset_class][sample_id]:
+                    input_info[dataset_class][sample_id][cell_id] = {}
 
-                    input_info['tumour'][sample_id][cell_id] = {'bam': filepath}
+                input_info[dataset_class][sample_id][cell_id] = {'bam': filepath}
 
-        if 'normal' not in input_info:
+        if 'normal' not in input_info or len(input_info['normal']) == 0:
             raise ValueError('unable to find normal {}, {}'.format(
                 args['matched_normal_sample'], args['matched_normal_library']))
 
