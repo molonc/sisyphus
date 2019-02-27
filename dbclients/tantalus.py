@@ -364,7 +364,7 @@ class TantalusApi(BasicAPIClient):
             log.info('file resource has id {}'.format(file_resource['id']))
         except FieldMismatchError:
             if not update:
-                log.exception('file resource with filename has different properties, not updating'.format(
+                log.exception('file resource with filename {} has different properties, not updating'.format(
                     filename))
                 raise
             file_resource = None
@@ -511,7 +511,8 @@ class TantalusApi(BasicAPIClient):
         to the file_instances
 
         Args:
-            dataset (dict)
+            dataset_id (int)
+            dataset_model (str)
             storage_name (str)
 
         KwArgs:
@@ -561,6 +562,59 @@ class TantalusApi(BasicAPIClient):
                 return False
 
         return True
+
+    def add_dataset(self, dataset_model, fields, update=False):
+        """ Add a dataset to tantalus, with the ability to update.
+
+        Args:
+            dataset_model (str): sequencedataset or resultsdataset
+            fields (dict): fields for dataset model
+
+        Kwargs:
+            update: update the file if exists
+
+        Returns:
+            dataset (dict)
+
+        For a dataset that does not exist, create the dataset and return.
+
+        If the dataset exists with different fields and update is False,
+        raise FieldMismatchError.  If the dataset exists and update is True,
+        update the dataset model.
+        """
+        # Try getting or creating the dataset, will
+        # fail if exists with different properties.
+        try:
+            dataset = tantalus_api.get_or_create(dataset_model, **fields)
+        except FieldMismatchError:
+            if not update:
+                log.exception('{} model with name {} has different properties, not updating'.format(
+                    dataset_model, fields['name']))
+                raise
+            dataset = None
+
+        # Creating a dataset did not succeed because it existed but with
+        # different properties.  Update the dataset.
+        if dataset is None:
+
+            # Should have raised above if update=False
+            assert update
+
+            # Get existing dataset with different properties
+            dataset = self.get(
+                dataset_model,
+                name=fields['name'],
+            )
+
+            # Update the dataset
+            log.info('updating dataset {}'.format(
+                dataset['id']))
+            dataset = self.update(
+                dataset_model,
+                id=dataset['id'],
+                **fields)
+
+        return dataset
 
     def tag(self, name, sequencedataset_set=(), resultsdataset_set=()):
         """

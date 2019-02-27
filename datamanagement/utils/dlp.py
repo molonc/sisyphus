@@ -158,18 +158,7 @@ def create_sequence_dataset_models(
 
             sequence_dataset["file_resources"].append(file_resource["id"])
 
-        try:
-            dataset_id = tantalus_api.get("sequence_dataset", name=sequence_dataset["name"])["id"]
-        except NotFoundError:
-            dataset_id = None
-
-        if update and dataset_id is not None:
-            log.warning("sequence dataset {} has changed, updating".format(sequence_dataset["name"]))
-            dataset = tantalus_api.update("sequence_dataset", id=dataset_id, **sequence_dataset)
-
-        else:
-            log.info("creating sequence dataset {}".format(sequence_dataset["name"]))
-            dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
+        dataset = tantalus_api.add_dataset("sequencedataset", sequence_dataset, update=update)
 
         if tag_name is not None:
             tantalus_api.tag(tag_name, sequencedataset_set=[dataset['id']]) 
