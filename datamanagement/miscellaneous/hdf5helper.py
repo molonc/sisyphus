@@ -38,10 +38,10 @@ def read_python2_hdf5_dataframe(h5_filepath, key):
     for col in data:
         try:
             newcol = data[col].str.decode('utf-8')
-            if not newcol.isnan().any():
-                data[col] = newcol
         except AttributeError:
-            pass
+            continue
+        if not newcol.isnull().any():
+            data[col] = newcol
 
     return data
 
