@@ -2,6 +2,8 @@ import pandas as pd
 import sys
 import os
 
-output_msgpack = sys.argv[1] + "." + sys.argv[2] + ".msgpack"
-store = pd.HDFStore(sys.argv[1], 'r')
-store[sys.argv[2]].to_msgpack(output_msgpack)
+h5_filepath = sys.argv[1]
+key = sys.argv[2]
+msgpack_filepath = h5_filepath + '.' + key.replace('/', '_') + ".msgpack"
+store = pd.HDFStore(h5_filepath, 'r')
+store[key].to_msgpack(msgpack_filepath)
