@@ -1,0 +1,8 @@
+certifi==2018.11.29
+numexpr==2.6.9
+numpy==1.16.2
+pandas==0.24.1
+python-dateutil==2.8.0
+pytz==2018.9
+six==1.12.0
+tables==3.4.4
