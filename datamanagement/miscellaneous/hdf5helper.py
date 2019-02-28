@@ -30,8 +30,20 @@ def read_python2_hdf5_dataframe(h5_filepath, key):
         )
     else:
         logging.info('msgpack file {} exists'.format(msgpack_filepath))
-    output = pd.read_msgpack(msgpack_filepath)
-    return output
+
+    data = pd.read_msgpack(msgpack_filepath)
+
+    # Fix columns names and string columns that are bytes
+    data.columns = data.columns.astype(str)
+    for col in data:
+        try:
+            newcol = data[col].str.decode('utf-8')
+            if not newcol.isnan().any():
+                data[col] = newcol
+        except AttributeError:
+            pass
+
+    return data
 
 
 if __name__ == '__main__':
@@ -39,7 +51,10 @@ if __name__ == '__main__':
     print(data)
     with pd.HDFStore('test.h5', 'w') as store:
         store.put('test', data, format='table')
-    print(read_python2_hdf5_dataframe('test.h5', 'test'))
-    print(read_python2_hdf5_dataframe('test.h5', 'test'))
+    data = read_python2_hdf5_dataframe('test.h5', 'test')
+    print(data)
+    print(data.dtypes)
+    data = read_python2_hdf5_dataframe('test.h5', 'test')
+    print(data)
 
 
