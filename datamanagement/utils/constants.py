@@ -37,4 +37,27 @@ STORAGE_PREFIX_REGEX_MAP = {
     'rocks': r'^/share/lustre/archive/(.+)'
 }
 
+PROTOCOL_ID_MAP = {
+    12: "WGS",
+    23: "WGS",
+    73: "WGS",
+    136: "WGS",
+    140: "WGS",
+    123: "WGS",
+    179: "WGS",
+    96: "EXOME",
+    80: "RNASEQ",
+    137: "RNASEQ",
+}
+
+SOLEXA_RUN_TYPE_MAP = {
+    "Paired": "P",
+    "Single": "S",
+}
+
+SEQUENCING_CENTRE_MAP = {
+    "BCCAGSC": "GSC",
+    "UBCBRC": "BRC"
+}
+
 DEFAULT_NATIVESPEC = "-q shahlab.q -V -cwd -o tmp -e tmp -l mem_token={mem}G,mem_free={mem}G,h_vmem={mem}G"
