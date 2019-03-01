@@ -5,7 +5,7 @@ import os
 import re
 import collections
 import yaml
-
+import hashlib
 from datamanagement.utils import dlp
 import dbclients.tantalus
 import dbclients.colossus
@@ -189,7 +189,9 @@ class Analysis(object):
                 lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
                 lanes.add(lane)
 
-        lanes_hashed = hash(''.join(list(lanes)))
+        lanes = ", ".join(sorted(lanes))
+        lanes = hashlib.md5(lanes)
+        lanes_hashed = "{}".format(lanes.hexdigest()[:8])
 
         # MAYBE: Add this to templates?
         name = "sc_{}_{}_{}_{}_{}".format(
