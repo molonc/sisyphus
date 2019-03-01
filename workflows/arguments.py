@@ -20,6 +20,11 @@ def get_args(arglist=None):
     )
 
     parser.add_argument(
+        'analysis_type',
+        help="Type of analysis, e.g. align",
+    )
+
+    parser.add_argument(
         "--skip_pipeline",
         default=False,
         action="store_true"
@@ -39,7 +44,7 @@ def get_args(arglist=None):
     )
 
     parser.add_argument(
-        '--integrationtest',
+        '--is_test_run',
         default=False,
         action='store_true',
         help='Run pipeline on shahlab15, rather than on Azure.'
@@ -115,20 +120,6 @@ def get_args(arglist=None):
 
 
     # SINGLE CELL PIPELINE OPTIONS #
-    parser.add_argument(
-        '--no_align',
-        default=False,
-        action='store_true',
-        help='Skip alignment step of single cell pipeline.'
-    )
-
-    parser.add_argument(
-        '--no_hmmcopy',
-        default=False,
-        action='store_true',
-        help='Skip hmmcopy step of single cell pipeline.'
-    )
-
     parser.add_argument(
         '--alignment_metrics',
         default=None,

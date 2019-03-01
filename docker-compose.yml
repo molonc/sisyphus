@@ -1,0 +1,16 @@
+version: '2.1'
+
+services:
+    django:
+      build:
+        context: .
+        dockerfile: Dockerfile
+      container_name: sisyphus
+      image: docker_sisyphus
+      stdin_open: true
+      network_mode: "host"
+      tty: true
+      command: docker/docker_commands.sh
+      volumes:
+        - .:/sisyphus
+

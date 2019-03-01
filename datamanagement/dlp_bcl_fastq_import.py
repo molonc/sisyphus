@@ -261,10 +261,8 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
                         read_type=BRC_READ_TYPE,
                     )
                 ],
-                file_type="FQ",
                 read_end=read_end,
                 index_sequence=index_sequence,
-                compression="GZIP",
                 filepath=tantalus_path,
             )
         )

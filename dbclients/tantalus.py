@@ -14,9 +14,10 @@ import time
 import datetime
 import urllib2
 import logging
+import shutil
 import pandas as pd
 
-from django.core.serializers.json import DjangoJSONEncoder
+from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
 
 import azure.storage.blob
@@ -51,9 +52,10 @@ def get_storage_account_key(
 
 
 class BlobStorageClient(object):
-    def __init__(self, storage):
-        self.storage_account = storage['storage_account']
-        self.storage_container = storage['storage_container']
+    def __init__(self, storage_account, storage_container, prefix):
+        self.storage_account = storage_account
+        self.storage_container = storage_container
+        self.prefix = prefix
 
         client_id = os.environ["CLIENT_ID"]
         secret_key = os.environ["SECRET_KEY"]
@@ -68,8 +70,6 @@ class BlobStorageClient(object):
             account_name=self.storage_account,
             account_key=storage_key)
         self.blob_service.MAX_BLOCK_SIZE = 64 * 1024 * 1024
-
-        self.prefix = storage['prefix']
 
     def get_size(self, blobname):
         properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
@@ -94,6 +94,7 @@ class BlobStorageClient(object):
             protocol="https",
             sas_token=sas_token,
         )
+        blob_url = blob_url.replace(' ', '%20')
         return blob_url
 
     def delete(self, blobname):
@@ -113,20 +114,30 @@ class BlobStorageClient(object):
     def write_data(self, blobname, stream):
         stream.seek(0)
         return self.blob_service.create_blob_from_stream(
-            self.storage_container, 
+            self.storage_container,
             blob_name=blobname,
             stream=stream)
         
     def create(self, blobname, filepath):
-        self.blob_service.create_blob_from_path(self.storage_container, 
-            blobname,
-            filepath)
+        if self.exists(blobname):
+            filesize_on_azure = self.get_size(blobname)
+            filesize = os.path.getsize(filepath)
 
+            if filesize_on_azure != filesize:
+                raise Exception("Size mismatch: {} on Azure but file has size {}".format(filesize_on_azure, filesize))
 
+            log.info("{} already exists on {}/{}".format(blobname, self.storage_account, self.storage_container))
+
+        else:
+            log.info("Creating blob {} from path {}".format(blobname, filepath))
+            self.blob_service.create_blob_from_path(self.storage_container, 
+                blobname,
+                filepath)
+            
 class ServerStorageClient(object):
-    def __init__(self, storage):
-        self.storage_directory = storage['storage_directory']
-        self.prefix = storage['prefix']
+    def __init__(self, storage_directory, prefix):
+        self.storage_directory = storage_directory
+        self.prefix = prefix
 
     def get_size(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
@@ -166,6 +177,12 @@ class ServerStorageClient(object):
             
         with open(filepath, "wb") as f:
             f.write(stream.getvalue())
+
+    def create(self, filename, filepath):
+        tantalus_filepath = os.path.join(self.storage_container, filename)
+        if not os.path.samefile(filepath, tantalus_filepath):
+            shutil.copy(filepath, tantalus_filepath)
+
 
 class TantalusApi(BasicAPIClient):
     """Tantalus API class."""
@@ -267,6 +284,17 @@ class TantalusApi(BasicAPIClient):
 
         return storage
 
+    def get_cache_client(self, storage_directory):
+        """ Retrieve a client for the given cache
+
+        Args:
+            storage_directory: directory in which the files are cached
+
+        Returns:
+            storage client object
+        """
+        return ServerStorageClient(storage_directory, storage_directory)
+
     def get_storage_client(self, storage_name):
         """ Retrieve a client for the given storage
 
@@ -282,9 +310,9 @@ class TantalusApi(BasicAPIClient):
         storage = self.get_storage(storage_name)
 
         if storage['storage_type'] == 'blob':
-            client = BlobStorageClient(storage)
+            client = BlobStorageClient(storage['storage_account'], storage['storage_container'], storage['prefix'])
         elif storage['storage_type'] == 'server':
-            client = ServerStorageClient(storage)
+            client = ServerStorageClient(storage['storage_directory'], storage['prefix'])
         else:
             return ValueError('unsupported storage type {}'.format(storage['storage_type']))
 
@@ -292,142 +320,116 @@ class TantalusApi(BasicAPIClient):
 
         return client
 
-    def get_file_compression(self, filepath):
-        compression_choices = {
-            ".gz":      "GZIP",
-            ".bzip2":   "BZIP2",
-            ".spec":    "SPEC",
-        }
-
-        extension = os.path.splitext(filepath)[1]
-        try:
-            return compression_choices[extension]
-        except KeyError:
-            return "UNCOMPRESSED"
-
-
     def add_file(self, storage_name, filepath, update=False):
         """ Create a file resource and file instance in the given storage.
 
         Args:
             storage_name: storage for file instance
             filepath: full path to file
-            file_type: type for file_resource
-            fields: additional fields for file_resource
 
         Kwargs:
             update: update the file if exists
 
         Returns:
             file_resource, file_instance
+
+        For a file that does not exist, create the file resource and
+        file instance on the specific storage and return them.
+
+        If the file already exist in tantalus and the file being
+        added has the same properties, add_file will ensure an instance
+        exists on the given storage.
+
+        If the file already exists in tantalus and the file being added
+        has different properties, functionality will depend on the
+        update kwarg.  If update=False, fail with FieldMismatchError.
+        If update=True, update the file resource, create a file instance
+        on the given storage, and set all other file instances to
+        is_delete=True.
         """
         storage = self.get_storage(storage_name)
         storage_client = self.get_storage_client(storage_name)
 
         filename = self.get_file_resource_filename(storage_name, filepath)
 
-        compression = self.get_file_compression(filename)
-        file_type = filename.split(".")[1].upper()
-
-        if file_type == 'FASTQ':
-            file_type = 'FQ'
-
-        try:
-            file_resource = self.get(
-                'file_resource',
-                filename=filename,
-            )
-        except NotFoundError:
-            file_resource = None
-
-        # For an existing file resource with no instances or
-        # a single deleted instance in this storage, update the file resource
-        # and create a new file instance that is not deleted
-        if file_resource is not None:
-            overwrite = False
-            if len(file_resource['file_instances']) == 0:
-                log.info('file resource has no instances, overwriting')
-                overwrite = True
-
-            one_deleted_instance = (
-                len(file_resource['file_instances']) == 1 and
-                file_resource['file_instances'][0]['storage']['name'] == storage_name and
-                file_resource['file_instances'][0]['is_deleted']
-            )
-
-            if one_deleted_instance:
-                log.info('file resource has one deleted instance on {}, overwriting'.format(storage_name))
-                overwrite = True
-
-            if overwrite:
-                file_resource = self.update(
-                    'file_resource',
-                    id=file_resource['id'],
-                    filename=filename,
-                    file_type=file_type,
-                    created=storage_client.get_created_time(filename),
-                    size=storage_client.get_size(filename),
-                    compression=compression,
-                )
-
-                file_instance = self.add_instance(file_resource, storage)
-
-                return file_resource, file_instance
-
+        # Try getting or creating the file resource, will
+        # fail if exists with different properties.
         try:
             file_resource = self.get_or_create(
                 'file_resource',
                 filename=filename,
-                file_type=file_type,
                 created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
-                compression=compression,
             )
-
             log.info('file resource has id {}'.format(file_resource['id']))
-        except FieldMismatchError as e:
+        except FieldMismatchError:
             if not update:
-                log.info('file resource has different fields, not updating')
+                log.exception('file resource with filename has different properties, not updating'.format(
+                    filename))
                 raise
             file_resource = None
 
-        # File resource will be none if fields mismatched and
-        # we are given permission to update
+        # Creating a file did not succeed because it existed but with
+        # different properties.  Update the file.
         if file_resource is None:
-            log.warning('updating existing file resource with filename {}'.format(filename))
 
+            # Should have raised above if update=False
+            assert update
+
+            # Get existing file resource with different properties
             file_resource = self.get(
                 'file_resource',
                 filename=filename,
             )
+            log.info('updating file resource {}'.format(
+                file_resource['id']))
 
-            file_instances = self.list(
-                'file_instance',
-                file_resource=file_resource['id'],
-            )
+            # Delete all existing instances
+            for file_instance in file_resource['file_instances']:
+                file_instance = self.update(
+                    'file_instance',
+                    id=file_instance['id'],
+                    is_deleted=True,
+                )
+                log.info('deleted file instance {}'.format(
+                    file_instance['id']))
 
-            # Cannot update if there are other instances
-            for file_instance in file_instances:
-                if file_instance['storage']['id'] != storage['id']:
-                    raise Exception('file {} also exists on {}, cannot update'.format(
-                        filename, file_instance['storage']))
-
+            # Update the file properties
             file_resource = self.update(
                 'file_resource',
                 id=file_resource['id'],
                 filename=filename,
-                file_type=file_type,
                 created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
             )
 
-        file_instance = self.get_or_create(
-            'file_instance',
-            file_resource=file_resource['id'],
-            storage=storage['id'],
-        )
+        file_instance = self.add_instance(file_resource, storage)
 
         return file_resource, file_instance
+
+    def update_file(self, file_instance):
+        """
+        Update a file resource to match the file pointed
+        to by the given file instance.
+
+        Args:
+            file_instance (dict)
+
+        Returns:
+            file_instance (dict)
+        """
+        storage_client = self.get_storage_client(file_instance['storage']['name'])
+
+        file_resource = self.update(
+            'file_resource',
+            id=file_instance['file_resource']['id'],
+            created=storage_client.get_created_time(file_instance['file_resource']['filename']),
+            size=storage_client.get_size(file_instance['file_resource']['filename']),
+        )
+
+        file_instance['file_resource'] = file_resource
+
+        return file_instance
 
     def add_instance(self, file_resource, storage):
         """
@@ -469,6 +471,8 @@ class TantalusApi(BasicAPIClient):
         """
         for file_instance in file_resource['file_instances']:
             if file_instance['storage']['name'] == storage_name:
+                file_instance = file_instance.copy()
+                file_instance['file_resource'] = file_resource
                 return file_instance
 
         raise NotFoundError
@@ -494,6 +498,46 @@ class TantalusApi(BasicAPIClient):
             file_instance = self.get_file_instance(file_resource, storage_name)
             file_instance['file_resource'] = file_resource
             file_instance['sequence_dataset'] = dataset
+
+            file_instances.append(file_instance)
+
+        return file_instances
+
+    def get_dataset_file_instances(self, dataset_id, dataset_model, storage_name, filters=None):
+        """
+        Given a dataset get all file instances.
+
+        Note: file_resource and sequence_dataset are added as fields
+        to the file_instances
+
+        Args:
+            dataset (dict)
+            storage_name (str)
+
+        KwArgs:
+            filters (dict): additional filters such as filename extension
+
+        Returns:
+            file_instances (list)
+        """
+        if filters is None:
+            filters = {}
+
+        file_instances = []
+
+        if dataset_model == 'sequencedataset':
+            file_resources = self.list('file_resource', sequencedataset__id=dataset_id, **filters)
+
+        elif dataset_model == 'resultsdataset':
+            file_resources = self.list('file_resource', resultsdataset__id=dataset_id, **filters)
+
+        else:
+            raise ValueError('unrecognized dataset model {}'.format(dataset_model))
+
+        for file_resource in file_resources:
+
+            file_instance = self.get_file_instance(file_resource, storage_name)
+            file_instance['file_resource'] = file_resource
 
             file_instances.append(file_instance)
 

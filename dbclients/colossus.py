@@ -48,11 +48,14 @@ class ColossusApi(BasicAPIClient):
         """
         params["page"] += 1
 
-    def get_colossus_sublibraries_from_library_id(self, library_id):
+    def get_colossus_sublibraries_from_library_id(self, library_id, brief=False):
         """ Gets the sublibrary information from a library id.
         """
+        endpoint = "sublibraries"
+        if brief:
+            endpoint += "_brief"
 
-        return list(self.list("sublibraries", library__pool_id=library_id))
+        return list(self.list(endpoint, library__pool_id=library_id))
 
     def query_libraries_by_library_id(self, library_id):
         """ Gets a library by its library_id.
