@@ -2,10 +2,11 @@ import os
 import time
 import logging
 import contextlib
-
+import sys
 from saltant.client import Client
 from saltant.constants import SUCCESSFUL, FAILED
 from workflows.utils import tantalus_utils
+from workflows import arguments
 
 
 client = None
@@ -13,10 +14,8 @@ def get_client():
     global client
     if client is None:
         client = Client(
-            # base_api_url=os.environ.get('SALTANT_API_URL', 'https://shahlabjobs.ca/api/'),
-            # auth_token=os.environ['SALTANT_API_TOKEN'],
-            base_api_url='https://shahlabjobs.ca/api/',
-            auth_token='p0gch4mp101fy451do9uod1s1x9i4a'
+            base_api_url=os.environ.get('SALTANT_API_URL', 'https://shahlabjobs.ca/api/'),
+            auth_token=os.environ['SALTANT_API_TOKEN'],
         )
     return client
 
@@ -86,18 +85,23 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name)
 
     log.debug(task_queue_name)
 
+    client = get_client()
+    executable_task_instances = client.executable_task_instances
+    
+    task_queue_id = get_task_queue_id(task_queue_name)
+
     params = {'name': name, 'user__username': user}
 
     # Kill all running task instances
-    task_instance_list = get_client().executable_task_instances.list(params)
+    task_instance_list = executable_task_instances.list(params)
     for task_instance in task_instance_list:
         if get_task_instance_status(task_instance.uuid) == 'running':
             task_instance.terminate()
 
-    new_task_instance = get_client().executable_task_instances.create(
+    new_task_instance = executable_task_instances.create(
         name=name,
         arguments=args,
-        task_queue_id=get_task_queue_id(task_queue_name),
+        task_queue_id=task_queue_id,
         task_type_id=task_type_id,
     )
 
@@ -169,13 +173,15 @@ def transfer_files(jira, config, tag_name, from_storage, to_storage):
     task_type_id = get_task_type_id("File transfer")
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 
-def run_align(jira, version, config, skip_pipeline=False):
+
+def run_align(jira, version, config):
     name = "{}_{}_align".format(jira, version)
     queue_name = config['headnode_task_queue']
-    args = {
-        'jira':     jira,
-        'version':  version,
-    }
+    required_args = [jira, version, "align"]
+    
+    args = arguments.get_args(required_args)
+    args['skip_pipeline'] = True
+
     task_type_id = get_task_type_id("Run Align")
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 
@@ -183,10 +189,20 @@ def run_align(jira, version, config, skip_pipeline=False):
 def run_hmmcopy(jira, version, config):
     name = "{}_{}_hmmcopy".format(jira, version)
     queue_name = config['headnode_task_queue']
-    args = {
-        'jira':     jira,
-        'version':  version,
-    }
+    required_args = [jira, version, "hmmcopy"]
+
+    args = arguments.get_args(required_args)
+    args['skip_pipeline'] = True
     task_type_id = get_task_type_id("Run Hmmcopy")
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
+
+
+def test(name, config):
+    queue_name = config['headnode_task_queue']
+    args = {}
+    task_type_id = get_task_type_id("Test task")
+
+    get_or_create_task_instance(name, config['user'], args, task_type_id, "jphamvm")
+
+
 
