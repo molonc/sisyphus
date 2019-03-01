@@ -30,7 +30,7 @@ class AnalysisInfo:
     A class representing an analysis information object in Colossus,
     containing settings for the analysis run.
     """
-    def __init__(self, jira, log_file, args, update=False):
+    def __init__(self, jira, log_file, version, update=False):
         self.jira = jira
         self.status = 'idle'
 
@@ -50,7 +50,7 @@ class AnalysisInfo:
         }
 
         self.analysis_info = colossus_api.get('analysis_information', analysis_jira_ticket=jira)
-        self.args = args
+        self.version = version
 
         self.aligner = self.get_aligner()
         self.smoothing = self.get_smoothing()
@@ -76,18 +76,18 @@ class AnalysisInfo:
         if version_str.startswith('Single Cell Pipeline'):
             version_str = version_str.replace('Single Cell Pipeline', '').replace('_', '.')
 
-        if version_str != self.args['version']:
+        if version_str != self.version:
             log.warning('Version for Analysis Information {} changed, previously {} now {}'.format(
-                self.analysis_info['id'], version_str, self.args['version']))
+                self.analysis_info['id'], version_str, self.version))
 
             if update:
                 colossus_api.update(
                     'analysis_information', 
                     id=self.analysis_info['id'], 
-                    version=self.args['version'])
+                    version=self.version)
                 analysis_info = colossus_api.get('analysis_information', id=self.analysis_info['id'])
 
-        return self.args['version']
+        return self.version
 
     def get_aligner(self):
         if 'aligner' in self.analysis_info:
@@ -138,7 +138,7 @@ class Analysis(object):
     """
     A class representing an Analysis model in Tantalus.
     """
-    def __init__(self, analysis_type, args, storages, update=False):
+    def __init__(self, analysis_type, jira, version, args, storages, update=False):
         """
         Create an Analysis object in Tantalus.
         """
@@ -147,7 +147,7 @@ class Analysis(object):
 
         self.analysis_type = analysis_type
 
-        self.analysis = self.get_or_create_analysis(args, analysis_type, update=update)
+        self.analysis = self.get_or_create_analysis(jira, version, args, analysis_type, update=update)
 
         self.storages = storages
 
@@ -161,7 +161,7 @@ class Analysis(object):
 
     @property
     def jira(self):
-        return self.args['jira']
+        return self.analysis['jira_ticket']
 
     @property
     def status(self):
@@ -171,15 +171,13 @@ class Analysis(object):
     def version(self):
         return self.analysis['version']
 
-    def get_or_create_analysis(self, args, analysis_type, update=False):
+    def get_or_create_analysis(self, jira, version, args, analysis_type, update=False):
         """
         Get the analysis by querying Tantalus. Create the analysis
         if it doesn't exist. Set the input dataset ids.
         """
 
-        jira = args['jira']
         name = '{}_{}'.format(jira, self.analysis_type)
-        version = args['version']
 
         log.info('Searching for existing analysis {}'.format(name))
 
@@ -383,8 +381,8 @@ class AlignAnalysis(Analysis):
     """
     A class representing an alignment analysis in Tantalus.
     """
-    def __init__(self, args, run_options, **kwargs):
-        super(AlignAnalysis, self).__init__('align', args, **kwargs)
+    def __init__(self, jira, version, args, run_options, **kwargs):
+        super(AlignAnalysis, self).__init__('align', jira, version, args, **kwargs)
         self.run_options = run_options
 
     @staticmethod
@@ -685,8 +683,8 @@ class HmmcopyAnalysis(Analysis):
     """
     A class representing an hmmcopy analysis in Tantalus.
     """
-    def __init__(self, args, run_options, **kwargs):
-        super(HmmcopyAnalysis, self).__init__('hmmcopy', args, **kwargs)
+    def __init__(self, jira, version, args, run_options, **kwargs):
+        super(HmmcopyAnalysis, self).__init__('hmmcopy', jira, version, args, **kwargs)
         self.run_options = run_options
 
     @staticmethod
@@ -790,8 +788,8 @@ class PseudoBulkAnalysis(Analysis):
     """
     A class representing an pseudobulk analysis in Tantalus.
     """
-    def __init__(self, args, run_options, **kwargs):
-        super(PseudoBulkAnalysis, self).__init__('pseudobulk', args, **kwargs)
+    def __init__(self, jira, version, args, run_options, **kwargs):
+        super(PseudoBulkAnalysis, self).__init__('pseudobulk', jira, version, args, **kwargs)
         self.run_options = run_options
 
     @staticmethod

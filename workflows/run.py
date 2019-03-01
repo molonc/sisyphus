@@ -45,7 +45,10 @@ def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
 
 
 def start_automation(
+        jira,
+        version,
         args,
+        run_options,
         config,
         pipeline_dir,
         results_dir,
@@ -59,20 +62,18 @@ def start_automation(
     start = time.time()
 
     library_id = analysis_info.chip_id
-    if args["is_test_run"]:
+    if run_options["is_test_run"]:
         library_id += "TEST"
 
+    args = {}
     args['ref_genome'] = analysis_info.reference_genome
     args['aligner'] = analysis_info.aligner
-    args['job_subdir'] = job_subdir
-    args["library_id"] = library_id
+    args['library_id'] = library_id
 
     if analysis_type == 'align':
-        tantalus_analysis = AlignAnalysis(args, storages=storages, update=args['update'])
+        tantalus_analysis = AlignAnalysis(jira, version, args, run_options, storages=storages, update=run_options['update'])
     elif analysis_type == 'hmmcopy':
-        tantalus_analysis = HmmcopyAnalysis(args, storages=storages, update=args['update'])
-    elif analysis_type == 'pseudobulk':
-        tantalus_analysis = PseudoBulkAnalysis(args, storages=storages, update=args['update'])
+        tantalus_analysis = HmmcopyAnalysis(jira, version, args, run_options, storages=storages, update=run_options['update'])
     else:
         raise ValueError()
 
@@ -87,7 +88,7 @@ def start_automation(
             storages["working_inputs"],
         )
 
-    if args['inputs_yaml'] is None:
+    if run_options['inputs_yaml'] is None:
         local_results_storage = tantalus_api.get(
             'storage', 
             name=storages['local_results'])['storage_directory']
@@ -96,18 +97,17 @@ def start_automation(
         sentinel(
             'Generating inputs yaml',
             tantalus_analysis.generate_inputs_yaml,
-            args,
             inputs_yaml,
         )
     else:
-        inputs_yaml = args['inputs_yaml']
+        inputs_yaml = run_options['inputs_yaml']
 
-    tantalus_analysis.add_inputs_yaml(inputs_yaml, update=args['update'])
+    tantalus_analysis.add_inputs_yaml(inputs_yaml, update=run_options['update'])
 
     try:
         tantalus_analysis.set_run_status()
 
-        run_pipeline = tantalus_analysis.run_pipeline(args)
+        run_pipeline = tantalus_analysis.run_pipeline()
 
         dirs = [
             pipeline_dir, 
@@ -142,13 +142,13 @@ def start_automation(
     output_dataset_ids = sentinel(
         'Creating output datasets',
         tantalus_analysis.create_output_datasets,
-        update=args['update'],
+        update=run_options['update'],
     )
 
     output_result_ids = sentinel(
         'Creating output results',
         tantalus_analysis.create_output_results,
-        update=args['update'],
+        update=run_options['update'],
     )
 
     if storages["working_inputs"] != storages["remote_inputs"] and output_datasets_ids != []:
@@ -167,15 +167,52 @@ def start_automation(
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
     # Update Jira ticket
-    update_jira(args['jira'], args['aligner'], analysis_type)
+    update_jira(jira, args['aligner'], analysis_type)
 
-def main(args):
-    if not templates.JIRA_ID_RE.match(args['jira']):
-        raise Exception('Invalid SC ID:'.format(args['jira']))
 
-    config = file_utils.load_json(args['config'])
+default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
 
-    job_subdir = args['jira'] + args['tag']
+
+@click.command()
+@click.argument('jira')
+@click.argument('version')
+@click.argument('analysis_type')
+@click.option('--gsc_lanes', multiple=True)
+@click.option('--brc_flowcell_ids', multiple=True)
+@click.option('--config_filename')
+@click.option('--skip_pipeline', is_flag=True)
+@click.option('--local_run', is_flag=True)
+@click.option('--update', is_flag=True)
+@click.option('--is_test_run', is_flag=True)
+@click.option('--sc_config')
+@click.option('--inputs_yaml')
+@click.option('--index_sequences', multiple=True)
+@click.option('--clean', is_flag=True)
+@click.option('--tag')
+@click.option('--interactive', is_flag=True)
+@click.option('--sisyphus_interactive', is_flag=True)
+@click.option('--alignment_metrics')
+@click.option('--jobs', type=int, default=1000)
+def main(
+        jira,
+        version,
+        analysis_type,
+        gsc_lanes=None,
+        brc_flowcell_ids=None,
+        config_filename=None,
+        **run_options
+):
+    if config_filename is None:
+        config_filename = default_config
+
+    if not templates.JIRA_ID_RE.match(jira):
+        raise Exception('Invalid SC ID:'.format(jira))
+
+    config = file_utils.load_json(run_options['config'])
+
+    job_subdir = jira + run_options['tag']
+
+    run_options['job_subdir'] = job_subdir
 
     pipeline_dir = os.path.join(
         tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], 
@@ -187,34 +224,36 @@ def main(args):
 
     tmp_dir = os.path.join('singlecelldata', 'temp', job_subdir)
 
-    # Shahlab
-    # - local: shahlab
-    # - working: shahlab
-    # - remote: singlecellblob
-    # Blob
-    # - local: headnode
-    # - working: singlecellblob
-    # - remote: singlecellblob
-
-    log_utils.init_pl_dir(pipeline_dir, args['clean'])
+    log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
 
     log_file = log_utils.init_log_files(pipeline_dir)
-    log_utils.setup_sentinel(args['sisyphus_interactive'], pipeline_dir)
-    analysis_info = AnalysisInfo(
-        args['jira'],
-        log_file,
-        args,
-        update=args['update'],
-    )
+    log_utils.setup_sentinel(run_options['sisyphus_interactive'], pipeline_dir)
 
-    analysis_type = args['analysis_type']
+    analysis_info = AnalysisInfo(
+        jira,
+        log_file,
+        version,
+        update=run_options['update'],
+    )
 
     log.info('Library ID: {}'.format(analysis_info.chip_id))
     
-    start_automation(args, config, pipeline_dir, results_dir, scpipeline_dir, tmp_dir, analysis_info, analysis_type, config['storages'], job_subdir)
-
+    start_automation(
+        jira,
+        version,
+        args,
+        run_options,
+        config,
+        pipeline_dir,
+        results_dir,
+        scpipeline_dir,
+        tmp_dir,
+        analysis_info,
+        analysis_type,
+        config['storages'],
+        job_subdir,
+    )
 
 
 if __name__ == '__main__':
-    args = arguments.get_args()
-    main(args)
+    main()
