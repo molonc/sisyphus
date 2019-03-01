@@ -1,9 +1,0 @@
-docker:
-    server: 'shahlab.azurecr.io'
-    username: 'TENANT_ID'
-    password: 'SECRET_KEY'
-    mounts:
-      refdata: /refdata
-      datadrive: /datadrive
-      mnt: /mnt
-      home: /home
