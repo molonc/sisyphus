@@ -1,6 +1,6 @@
 docker:
     server: 'shahlab.azurecr.io'
-    username: <ENTER TENANT_ID>
+    username: <ENTER CLIENT_ID>
     password: <ENTER SECRET_KEY>
     mounts:
       refdata: /refdata
