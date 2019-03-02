@@ -34,6 +34,16 @@ def get_lanes_from_sequencings(sequencing_id_list):
 
 
 def check_library_for_analysis(library_id, aligner, analysis_type):
+    '''
+    Given a library, check if library is included in analysis and has all data imported. 
+    If so, check if for existing analysis. Otherwise create analysis jira ticket.
+
+    Args: 
+        library_id (str): Library/pool id
+        aligner (str): Either BWA_ALN_0_5_7 or BWA_MEM_0_7_6A (as 03/01/2019)
+        analysis_type (str): Either align or hmmcopy (as 03/01/2019)
+    '''
+
     library_info = colossus_api.get('library', pool_id=library_id)
 
     if library_info['exclude_from_analysis'] == True:
@@ -88,7 +98,6 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
             analysis_created = True,
         )
     except NotFoundError:
-        raise Exception('ok.')
         # Create jira ticket   
         jira_ticket = create_analysis_jira_ticket(library_id) 
         analysis_info = dict(
@@ -105,10 +114,10 @@ def create_analysis_jira_ticket(library_id):
     Create analysis jira ticket as subtask of library jira ticket
 
     Args:
-        info: Dictionary with keys library_id
+        info (dict): Keys: library_id
 
     Returns:
-        analysis_jira_ticket: jira ticket
+        analysis_jira_ticket: jira ticket id (ex. SC-1234)
     '''
 
     JIRA_USER = os.environ['JIRA_USER']
@@ -140,6 +149,12 @@ def create_analysis_jira_ticket(library_id):
 def create_tantalus_analysis(name, jira_ticket, library_id, analysis_type):
     '''
     Create analysis objects on Tantalus
+
+    Args:
+        name (str): Name of analysis (should be in form sc_<analysis_type>_<aligner>_<ref_genome>_<library_id>_<hashed_lanes>)
+        jira_ticket (str): Jira ticket id (ex. SC-1234)
+        version (str): Version of pipeline
+        analysis_type (str): Either align or hmmcopy (as of 03/01/2019)
     '''
     print('Creating analysis object {} on tantalus'.format(name))
     data = dict(
@@ -157,6 +172,11 @@ def create_tantalus_analysis(name, jira_ticket, library_id, analysis_type):
 def create_colossus_analysis(library_id, jira_ticket, version):
     '''
     Create analysis objects on Colossus
+
+    Args:
+        library_id (str): Library/Pool id
+        jira_ticket (str): Jira ticket id (ex. SC-1234)
+        version (str): Version of pipeline
     '''
 
     taxonomy_id_map = {
@@ -215,7 +235,7 @@ def get_analyses_to_run(version, aligner):
             # TODO: Create analysis object on tantalus
             if analysis_info['analysis_created'] == False:
                 tantalus_analysis = create_tantalus_analysis(analysis_info['name'], jira_ticket, analysis_info['library_id'], 'align')
-                colossus_analysis = create_colossus_analysis()
+                colossus_analysis = create_colossus_analysis(analysis_info['library_id'], jira_ticket, version)
 
     for library_id in no_hmmcopy_data_libraries:
         analysis_info = check_library_for_analysis(library_id, aligner, 'hmmcopy')
@@ -227,23 +247,34 @@ def get_analyses_to_run(version, aligner):
             # TODO: Create analysis object on tantalus
             if analysis_info['analysis_created'] == False:
                 tantalus_analysis = create_tantalus_analysis(analysis_info['name'], jira_ticket, analysis_info['library_id'], 'hmmcopy')
+                colossus_analysis = create_colossus_analysis(analysis_info['library_id'], jira_ticket, version)
 
 
 if __name__ == '__main__':
 
-    # version = sys.argv[1] # may need to change
-    # aligner = sys.argv[2]
+    version = sys.argv[1] # may need to change
+    aligner = sys.argv[2]
+
+    aligner_map = {
+        'A': 'BWA_ALN_0_5_7',
+        'M': 'BWA_MEM_0_7_6A',
+    }
+
+    if aligner not in aligner_map.keys():
+        raise Exception('Invalid aligner; choose A or M')
+
+    aligner = aligner_map[aligner]
 
     config_path = os.path.join(os.environ['HEADNODE_AUTOMATION_DIR'], 'workflows/config/normal_config.json')
     config = file_utils.load_json(config_path)
 
-    test_names = ["test_{}".format(i) for i in range(3)]
+    # test_names = ["test_{}".format(i) for i in range(3)]
 
-    for name in test_names:
-        print("Running {} at {}".format(name, datetime.now()))
-        saltant_utils.test(name, config)
+    # for name in test_names:
+    #     print("Running {} at {}".format(name, datetime.now()))
+    #     saltant_utils.test(name, config)
 
-    raise Exception('done')
+    # raise Exception('done')
 
     analyses_to_run = get_analyses_to_run(version, aligner)
 
