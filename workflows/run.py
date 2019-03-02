@@ -6,9 +6,9 @@ import time
 import logging
 import subprocess
 import traceback
+import click
 from itertools import chain
 
-import arguments
 import datamanagement.templates as templates
 import launch_pipeline
 import generate_inputs
@@ -60,15 +60,6 @@ def start_automation(
         job_subdir,
 ):
     start = time.time()
-
-    library_id = analysis_info.chip_id
-    if run_options["is_test_run"]:
-        library_id += "TEST"
-
-    args = {}
-    args['ref_genome'] = analysis_info.reference_genome
-    args['aligner'] = analysis_info.aligner
-    args['library_id'] = library_id
 
     if analysis_type == 'align':
         tantalus_analysis = AlignAnalysis(jira, version, args, run_options, storages=storages, update=run_options['update'])
@@ -167,7 +158,8 @@ def start_automation(
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
     # Update Jira ticket
-    update_jira(jira, args['aligner'], analysis_type)
+    if not run_options["is_test_run"]:
+        update_jira(jira, args['aligner'], analysis_type)
 
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
@@ -177,8 +169,8 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.argument('jira')
 @click.argument('version')
 @click.argument('analysis_type')
-@click.option('--gsc_lanes', multiple=True)
-@click.option('--brc_flowcell_ids', multiple=True)
+@click.option('--gsc_lanes')
+@click.option('--brc_flowcell_ids')
 @click.option('--config_filename')
 @click.option('--skip_pipeline', is_flag=True)
 @click.option('--local_run', is_flag=True)
@@ -188,7 +180,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.option('--inputs_yaml')
 @click.option('--index_sequences', multiple=True)
 @click.option('--clean', is_flag=True)
-@click.option('--tag')
+@click.option('--tag', type=str, default='')
 @click.option('--interactive', is_flag=True)
 @click.option('--sisyphus_interactive', is_flag=True)
 @click.option('--alignment_metrics')
@@ -208,7 +200,13 @@ def main(
     if not templates.JIRA_ID_RE.match(jira):
         raise Exception('Invalid SC ID:'.format(jira))
 
-    config = file_utils.load_json(run_options['config'])
+    if gsc_lanes is not None:
+        gsc_lanes = gsc_lanes.split(',')
+
+    if brc_flowcell_ids is not None:
+        brc_flowcell_ids = brc_flowcell_ids.split(',')
+
+    config = file_utils.load_json(config_filename)
 
     job_subdir = jira + run_options['tag']
 
@@ -238,6 +236,17 @@ def main(
 
     log.info('Library ID: {}'.format(analysis_info.chip_id))
     
+    library_id = analysis_info.chip_id
+    if run_options["is_test_run"]:
+        library_id += "TEST"
+
+    args = {}
+    args['ref_genome'] = analysis_info.reference_genome
+    args['aligner'] = analysis_info.aligner
+    args['library_id'] = library_id
+    args['gsc_lanes'] = gsc_lanes
+    args['brc_flowcell_ids'] = brc_flowcell_ids
+
     start_automation(
         jira,
         version,

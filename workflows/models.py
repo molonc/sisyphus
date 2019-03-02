@@ -14,10 +14,10 @@ from dbclients.basicclient import NotFoundError
 from datamanagement.utils.utils import make_dirs
 from datamanagement.transfer_files import transfer_dataset
 
-from . import generate_inputs
-from . import launch_pipeline
+import generate_inputs
+import launch_pipeline
 import datamanagement.templates as templates
-from .utils import tantalus_utils, file_utils
+from utils import tantalus_utils, file_utils
 
 log = logging.getLogger('sisyphus')
 
@@ -868,6 +868,12 @@ class PseudoBulkAnalysis(Analysis):
         if 'tumour' not in input_info or len(input_info['tumour']) == 0:
             raise ValueError('no tumour cells found')
 
+        # WORKAROUND: input yaml doesnt contain normal id until new pipeline
+        # release (>v0.2.9)
+        assert len(input_info['normal']) == 1
+        normal_id = input_info['normal'].keys()[0]
+        input_info['normal'] = input_info['normal'].pop(normal_id)
+
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
 
@@ -955,7 +961,7 @@ class PseudoBulkAnalysis(Analysis):
             ])
 
         docker_cmd.append(
-            'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(self.args['version'])
+            'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(self.version)
         )
 
         run_cmd = docker_cmd + run_cmd
@@ -964,6 +970,8 @@ class PseudoBulkAnalysis(Analysis):
             run_cmd += ['--config_file', self.run_options['sc_config']]
         if self.run_options['interactive']:
             run_cmd += ['--interactive']
+
+        run_cmd += ['--config_override', '\'{"bigdisk":true}\'']
 
         run_cmd_string = r' '.join(run_cmd)
         log.debug(run_cmd_string)

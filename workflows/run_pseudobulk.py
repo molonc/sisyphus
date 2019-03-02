@@ -48,8 +48,8 @@ def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
 def start_automation(
         jira_ticket,
         version,
-        run_options,
         args,
+        run_options,
         config,
         pipeline_dir,
         results_dir,
@@ -68,7 +68,7 @@ def start_automation(
         args,
         run_options,
         storages=storages,
-        update=run_options['update'],
+        update=run_options.get('update', False),
     )
 
     if storages["working_inputs"] != storages["remote_inputs"]:  
@@ -184,7 +184,9 @@ def run_pseudobulk(
         matched_normal_library=matched_normal_library,
     )
 
-    run_options['job_subdir'] = jira_ticket
+    job_subdir = jira_ticket
+
+    run_options['job_subdir'] = job_subdir
 
     pipeline_dir = os.path.join(
         tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], 
