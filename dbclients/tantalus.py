@@ -12,10 +12,14 @@ import json
 import os
 import time
 import datetime
-import urllib2
 import logging
 import shutil
 import pandas as pd
+
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib2 import urlopen
 
 from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
@@ -102,7 +106,7 @@ class BlobStorageClient(object):
 
     def open_file(self, blobname):
         url = self.get_url(blobname)
-        return urllib2.urlopen(url)
+        return urlopen(url)
 
     def exists(self, blobname):
         return self.blob_service.exists(self.storage_container, blob_name=blobname)
