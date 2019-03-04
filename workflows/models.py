@@ -839,33 +839,51 @@ class PseudoBulkAnalysis(Analysis):
             # inputs yaml
             sample_library_id = sample_id + '_' + library_id
 
+            if sample_library_id not in input_info[dataset_class]:
+                input_info[dataset_class][sample_library_id] = {}
+
             is_normal = (
                 sample_id == self.args['matched_normal_sample'] and
                 library_id == self.args['matched_normal_library'])
 
             dataset_class = ('tumour', 'normal')[is_normal]
 
-            sample_info = generate_inputs.generate_sample_info(
-                library_id, test_run=self.run_options.get("is_test_run", False))
-
-            cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
+            library_type = dataset['library']['library_type']
 
             file_instances = tantalus_api.get_dataset_file_instances(
                 dataset_id, 'sequencedataset', storage_name,
                 filters={'filename__endswith': '.bam'})
 
-            for file_instance in file_instances:
-                index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])
-                cell_id = str(cell_ids[index_sequence])
+            if library_type == 'WGS':
+                if not is_normal:
+                    raise ValueError('WGS only supported for normal')
+
+                file_instances = list(file_instances)
+                if len(file_instances) != 1:
+                    raise ValueError('expected 1 file got {}'.format(len(file_instances)))
+
+                file_instance = file_instances[0]
                 filepath = str(file_instance['filepath'])
+                input_info[dataset_class][sample_library_id] = {'bam': filepath}
 
-                if sample_library_id not in input_info[dataset_class]:
-                    input_info[dataset_class][sample_library_id] = {}
+            elif library_type == 'SC_WGS':
+                sample_info = generate_inputs.generate_sample_info(
+                    library_id, test_run=self.run_options.get("is_test_run", False))
 
-                if cell_id not in input_info[dataset_class][sample_library_id]:
-                    input_info[dataset_class][sample_library_id][cell_id] = {}
+                cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
 
-                input_info[dataset_class][sample_library_id][cell_id] = {'bam': filepath}
+                for file_instance in file_instances:
+                    index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])
+                    cell_id = str(cell_ids[index_sequence])
+                    filepath = str(file_instance['filepath'])
+
+                    if cell_id not in input_info[dataset_class][sample_library_id]:
+                        input_info[dataset_class][sample_library_id][cell_id] = {}
+
+                    input_info[dataset_class][sample_library_id][cell_id] = {'bam': filepath}
+            
+            else:
+                raise ValueError('unknown library type {}'.format(library_type))
 
         if 'normal' not in input_info or len(input_info['normal']) == 0:
             raise ValueError('unable to find normal {}, {}'.format(
