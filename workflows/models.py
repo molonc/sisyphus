@@ -833,6 +833,12 @@ class PseudoBulkAnalysis(Analysis):
             library_id = dataset['library']['library_id']
             sample_id = dataset['sample']['sample_id']
 
+            # WORKAROUND: the single cell pipeline doesnt take
+            # both sample and library specific cell info so use a
+            # a concatenation of sample and library in the
+            # inputs yaml
+            sample_library_id = sample_id + '_' + library_id
+
             is_normal = (
                 sample_id == self.args['matched_normal_sample'] and
                 library_id == self.args['matched_normal_library'])
@@ -853,13 +859,13 @@ class PseudoBulkAnalysis(Analysis):
                 cell_id = str(cell_ids[index_sequence])
                 filepath = str(file_instance['filepath'])
 
-                if sample_id not in input_info[dataset_class]:
-                    input_info[dataset_class][sample_id] = {}
+                if sample_library_id not in input_info[dataset_class]:
+                    input_info[dataset_class][sample_library_id] = {}
 
-                if cell_id not in input_info[dataset_class][sample_id]:
-                    input_info[dataset_class][sample_id][cell_id] = {}
+                if cell_id not in input_info[dataset_class][sample_library_id]:
+                    input_info[dataset_class][sample_library_id][cell_id] = {}
 
-                input_info[dataset_class][sample_id][cell_id] = {'bam': filepath}
+                input_info[dataset_class][sample_library_id][cell_id] = {'bam': filepath}
 
         if 'normal' not in input_info or len(input_info['normal']) == 0:
             raise ValueError('unable to find normal {}, {}'.format(
