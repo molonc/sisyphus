@@ -46,7 +46,10 @@ def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
 
 
 def start_automation(
+        jira_ticket,
+        version,
         args,
+        run_options,
         config,
         pipeline_dir,
         results_dir,
@@ -57,11 +60,16 @@ def start_automation(
 ):
     start = time.time()
 
-    args['job_subdir'] = job_subdir
-
     analysis_type = 'multi_sample_pseudo_bulk'
 
-    tantalus_analysis = PseudoBulkAnalysis(args, storages=storages, update=args['update'])
+    tantalus_analysis = PseudoBulkAnalysis(
+        jira_ticket,
+        version,
+        args,
+        run_options,
+        storages=storages,
+        update=run_options.get('update', False),
+    )
 
     if storages["working_inputs"] != storages["remote_inputs"]:  
         sentinel(
@@ -82,23 +90,21 @@ def start_automation(
     sentinel(
         'Generating inputs yaml',
         tantalus_analysis.generate_inputs_yaml,
-        args,
         inputs_yaml,
     )
 
-    tantalus_analysis.add_inputs_yaml(inputs_yaml, update=args['update'])
+    tantalus_analysis.add_inputs_yaml(inputs_yaml, update=run_options['update'])
 
     try:
         tantalus_analysis.set_run_status()
 
-        if args["skip_pipeline"]:
+        if run_options["skip_pipeline"]:
             log.info("skipping pipeline")
 
         else:
             sentinel(
                 'Running single_cell {}'.format(analysis_type),
                 tantalus_analysis.run_pipeline,
-                args,
                 results_dir,
                 pipeline_dir,
                 scpipeline_dir,
@@ -116,13 +122,13 @@ def start_automation(
     output_dataset_ids = sentinel(
         'Creating output datasets',
         tantalus_analysis.create_output_datasets,
-        update=args['update'],
+        update=run_options['update'],
     )
 
     output_results_ids = sentinel(
         'Creating output results',
         tantalus_analysis.create_output_results,
-        update=args['update'],
+        update=run_options['update'],
     )
 
     if storages["working_inputs"] != storages["remote_inputs"] and output_datasets_ids != []:
@@ -165,20 +171,22 @@ def run_pseudobulk(
         matched_normal_sample,
         matched_normal_library,
         config_filename=None,
-        **args
+        **run_options
 ):
     if config_filename is None:
         config_filename = default_config
 
     config = file_utils.load_json(config_filename)
 
-    args['jira'] = jira_ticket
-    args['version'] = version
-    args['inputs_tag_name'] = inputs_tag_name
-    args['matched_normal_sample'] = matched_normal_sample
-    args['matched_normal_library'] = matched_normal_library
+    args = dict(
+        inputs_tag_name=inputs_tag_name,
+        matched_normal_sample=matched_normal_sample,
+        matched_normal_library=matched_normal_library,
+    )
 
     job_subdir = jira_ticket
+
+    run_options['job_subdir'] = job_subdir
 
     pipeline_dir = os.path.join(
         tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], 
@@ -190,21 +198,24 @@ def run_pseudobulk(
 
     tmp_dir = os.path.join('singlecelldata', 'temp', job_subdir)
 
-    # Shahlab
-    # - local: shahlab
-    # - working: shahlab
-    # - remote: singlecellblob
-    # Blob
-    # - local: headnode
-    # - working: singlecellblob
-    # - remote: singlecellblob
-
-    log_utils.init_pl_dir(pipeline_dir, args['clean'])
+    log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
 
     log_file = log_utils.init_log_files(pipeline_dir)
-    log_utils.setup_sentinel(args['sisyphus_interactive'], pipeline_dir)
+    log_utils.setup_sentinel(run_options['sisyphus_interactive'], pipeline_dir)
     
-    start_automation(args, config, pipeline_dir, results_dir, scpipeline_dir, tmp_dir, config['storages'], job_subdir)
+    start_automation(
+        jira_ticket,
+        version,
+        args,
+        run_options,
+        config,
+        pipeline_dir,
+        results_dir,
+        scpipeline_dir,
+        tmp_dir,
+        config['storages'],
+        job_subdir,
+    )
 
 
 if __name__ == '__main__':
