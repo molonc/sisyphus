@@ -72,7 +72,7 @@ def wait_for_task_instance(task_instance):
             task_instance.terminate()
 
 
-def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name):
+def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name, wait=False):
     """
     Create a new task instance in saltant and return its
     unique identifier.
@@ -110,8 +110,9 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name)
         task_queue_name
     ))
 
-    with wait_for_task_instance(new_task_instance):
-        wait_for_finish(new_task_instance.uuid)
+    if wait == True:
+        with wait_for_task_instance(new_task_instance):
+            wait_for_finish(new_task_instance.uuid)
 
 
 def dlp_bam_import(jira, config, bam_paths, storage_name, storage_type, analysis_id, blob_container_name=None):
