@@ -211,26 +211,29 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     for (flowcell_id, lane_number, sequencing_date, sequencing_instrument) in gsc_lane_fastq_file_infos.keys():
         sequencing_instrument = sequencing_instrument_map[sequencing_instrument]
+
+        # Check if lanes are in Tantalus
+        if (flowcell_id, lane_number) in existing_data:
+            logging.info('Skipping fastqs with flowcell id {}, lane number {}'.format(
+                flowcell_id, lane_number))
+            new = False
+
+        else:
+            logging.info("Importing lane {}_{}.".format(flowcell_id, lane_number))
+            new = True
+
         lanes.append(
             {
                 "flowcell_id" :             flowcell_id,
                 "lane_number" :             lane_number,
                 "sequencing_date" :         sequencing_date,
                 "sequencing_instrument":    sequencing_instrument,
-                "new":                      True,
+                "new":                      new,
             }
         )
-        # Check if lanes are in Tantalus
-        if (flowcell_id, lane_number) in existing_data:
-            logging.info('Skipping fastqs with flowcell id {}, lane number {}'.format(
-                flowcell_id, lane_number))
-            # Update status of last added flowcell if flowcell already imported
-            lanes[-1]["new"] = False
 
+        if not new:
             continue
-
-        else:
-            logging.info("Importing lane {}_{}.".format(flowcell_id, lane_number))
 
         if dry_run:
             continue
@@ -453,20 +456,23 @@ def update_colossus_lane(colossus_api, sequencing, lane_to_update):
             )
 
 
-def check_lanes(sequencing, lanes):
-    # Check if number_of_lanes_requested is equal to number of lanes
-    # Update number_of_lanes_requested if necessary
-    if sequencing['number_of_lanes_requested'] < len(lanes):
+def check_lanes(sequencing, num_lanes):
+    """ Check if number_of_lanes_requested is equal to number of lanes.
+
+    Updates number_of_lanes_requested if necessary
+    """
+
+    if sequencing['number_of_lanes_requested'] < num_lanes:
         logging.info('Sequencing goal is less than total number of lanes. Updating.')
         colossus_api.update(
             'sequencing',
             sequencing['id'],
-            number_of_lanes_requested=len(lanes)
+            number_of_lanes_requested=num_lanes
         )
 
-    elif sequencing['number_of_lanes_requested'] > len(lanes):
+    elif sequencing['number_of_lanes_requested'] > num_lanes:
         raise Exception("Expected number of lanes is {} but total lanes imported is {}".format(
-            sequencing['number_of_lanes_requested'], len(lanes)))
+            sequencing['number_of_lanes_requested'], num_lanes))
 
 
 def write_import_statuses(successful_libs, failed_libs):
@@ -534,11 +540,13 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
         sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC'))
         sequencing_list = list(filter(lambda s: s['number_of_lanes_requested'] != len(s['dlplane_set']), sequencing_list))
 
+    # Create a nested dictionary of sequencings keyed by library
+    # then instrument
     library_list = defaultdict(dict)
     for sequencing in sequencing_list:
         library = sequencing['library']
-        sequencing_instrument = sequencing['sequencing_instrument']
-        library_list[library][sequencing_instrument] = sequencing
+        instrument = sequencing['sequencing_instrument']
+        library_list[library][instrument] = sequencing
 
     for library_id in library_list:
         try:
@@ -561,18 +569,42 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
                 )
                 continue
 
+            # List of lanes returned from the query, keyed by instrument
+            instrument_lanes = defaultdict(list)
+
+            # For each lane returned from the query, match to a colossus
+            # sequencing based on sequencing instrument
             for lane in import_info['lanes']:
                 instrument = lane['sequencing_instrument']
+
                 if instrument  not in library_list[library_id]:
                     raise Exception('no sequencing with instrument {} for library {}'.format(
                         lane['sequencing_instrument'], library))
 
+                instrument_lanes[instrument].append(lane)
+
+                # Update colossus with informatioin returned for this lane
                 sequencing = library_list[library_id][instrument]
                 update_colossus_gsc_library_id(colossus_api, sequencing, import_info['gsc_library_id'])
                 update_colossus_lane(colossus_api, sequencing, lane)
 
+            # Check each colossus sequencing for each list of lanes of the
+            # matching sequencing instrument
             for sequencing in library_list[library_id].values():
-                check_lanes(sequencing, import_info['lanes'])
+                instrument = sequencing['sequencing_instrument']
+
+                try:
+                    check_lanes(sequencing, len(instrument_lanes[instrument]))
+                except Exception as e:
+                    failed_libs.append(dict(
+                        dlp_library_id=sequencing["library"],
+                        submission_date=submission_date,
+                        error=str(e),
+                        )
+                    )
+                    logging.warning(("Library {} failed lane check: {}".format(sequencing["library"], e)))
+                    continue
+
                 import_info['submission_date'] = sequencing['submission_date']
                 successful_libs.append(import_info)
 
