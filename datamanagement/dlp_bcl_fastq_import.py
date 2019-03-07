@@ -60,11 +60,12 @@ def load_brc_fastqs(
     storage_client,
     tag_name=None,
     update=False,
+    threshold,
 ):
     if not os.path.isdir(output_dir):
         raise Exception("output directory {} not a directory".format(output_dir))
 
-    fastq_file_info = get_fastq_info(output_dir, flowcell_id, storage, storage_client)
+    fastq_file_info = get_fastq_info(output_dir, flowcell_id, storage, storage_client, threshold)
 
     fastq_paired_end_check(fastq_file_info)
 
@@ -84,7 +85,7 @@ def _update_info(info, key, value):
         info[key] = value
 
 
-def check_fastqs(library_id, fastq_file_info):
+def check_fastqs(library_id, fastq_file_info, threshold):
     logging.info("Checking if BCL2FASTQ generated complete set of fastqs.")
 
     # Get indices from colossus
@@ -100,7 +101,6 @@ def check_fastqs(library_id, fastq_file_info):
         index_sequences = colossus_index_sequences
 
     fastqs_to_be_generated = dict()
-    threshold = 20
 
     for index in index_sequences:
         fastqs_containing_index = [fastq for fastq in fastq_file_info if fastq["index_sequence"]==index]
@@ -111,6 +111,9 @@ def check_fastqs(library_id, fastq_file_info):
             fastq_lane_numbers_to_be_generated = fastq_lane_numbers_to_be_generated - set([lane_number])
 
         fastqs_to_be_generated[index] = list(fastq_lane_numbers_to_be_generated)
+
+    if len(fastqs_to_be_generated) > threshold:
+        raise Exception("Number of empty fastqs to be generated exceeded threshold")
 
     return fastqs_to_be_generated
 
@@ -148,13 +151,14 @@ def generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated):
         filepath = os.path.join(output_dir, filename)
         if not os.path.exists(filepath):
             logging.info("Creating empty file {} at {}.".format(filename, filepath))
-            with open(filepath, 'wb') as f:
+            # with open(filepath, 'wb') as f:
+            with gzip.open(filepath, mode='wb') as f:
                 f.write("")
 
     return file_names
 
 
-def get_fastq_info(output_dir, flowcell_id, storage, storage_client):
+def get_fastq_info(output_dir, flowcell_id, storage, storage_client, threshold):
     """ Retrieve fastq filenames and metadata from output directory.
     """
     filenames = os.listdir(output_dir)
@@ -180,7 +184,7 @@ def get_fastq_info(output_dir, flowcell_id, storage, storage_client):
     library_id = fastq_file_info[0]["library_id"] # TODO: Maybe make library_id an argument
 
     # Run through list of fastqs and check if bcl2fastqs skipped over indices or skipped lanes/reads 
-    fastqs_to_be_generated = check_fastqs(library_id, fastq_file_info)
+    fastqs_to_be_generated = check_fastqs(library_id, fastq_file_info, threshold)
 
     if fastqs_to_be_generated:
         logging.info("BCL2FASTQ failed to generate complete set of fastqs. Generating missing fastqs.")
@@ -261,8 +265,10 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
                         read_type=BRC_READ_TYPE,
                     )
                 ],
+                file_type="FQ",
                 read_end=read_end,
                 index_sequence=index_sequence,
+                compression="GZIP",
                 filepath=tantalus_path,
             )
         )
@@ -305,7 +311,8 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
 @click.option('--tag_name')
 @click.option('--update', is_flag=True)
 @click.option('--no_bcl2fastq', is_flag=True)
-def main(storage_name, temp_output_dir, flowcell_id, bcl_dir, tag_name=None, update=False, no_bcl2fastq=False):
+@click.option('--threshold', type=int, default=20)
+def main(storage_name, temp_output_dir, flowcell_id, bcl_dir, tag_name=None, update=False, no_bcl2fastq=False, threshold):
     tantalus_api = TantalusApi()
 
     storage = tantalus_api.get("storage", name=storage_name)
@@ -337,7 +344,8 @@ def main(storage_name, temp_output_dir, flowcell_id, bcl_dir, tag_name=None, upd
         tantalus_api,
         storage_client,
         tag_name=tag_name,
-        update=update
+        update=update,
+        threshold=threshold,
     )
 
 
