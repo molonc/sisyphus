@@ -839,14 +839,14 @@ class PseudoBulkAnalysis(Analysis):
             # inputs yaml
             sample_library_id = sample_id + '_' + library_id
 
-            if sample_library_id not in input_info[dataset_class]:
-                input_info[dataset_class][sample_library_id] = {}
-
             is_normal = (
                 sample_id == self.args['matched_normal_sample'] and
                 library_id == self.args['matched_normal_library'])
 
             dataset_class = ('tumour', 'normal')[is_normal]
+
+            if sample_library_id not in input_info[dataset_class]:
+                input_info[dataset_class][sample_library_id] = {}
 
             library_type = dataset['library']['library_type']
 
