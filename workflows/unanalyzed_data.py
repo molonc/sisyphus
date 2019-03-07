@@ -34,6 +34,8 @@ def search_for_unaligned_data():
     Return:
         libraries_to_analyze: list of library ids
     '''
+
+    print('Searching for unaligned data')
     bam_lanes = get_lanes_from_bams_datasets()
 
     fastq_lanes = []
@@ -46,7 +48,7 @@ def search_for_unaligned_data():
             flowcell_id = lane['flowcell_id']
             lane_number = lane['lane_number']
             if (flowcell_id, lane_number) not in bam_lanes:
-                print("Unaligned data for library_id {}, flowcell_id {}, lane_number {}".format(library_id, flowcell_id, lane_number))
+                # print("Unaligned data for library_id {}, flowcell_id {}, lane_number {}".format(library_id, flowcell_id, lane_number))
                 unaligned_lanes.append('{}_{}'.format(lane['flowcell_id'], lane['lane_number']))
 
     sequencing_ids_from_lanes = set()
@@ -65,10 +67,10 @@ def search_for_unaligned_data():
     # Get libraries associated with library
     libraries_to_analyze = set()
     for sequencing_id in sequencing_ids_from_lanes:
-        sequencing = tantalus_api.get('sequencing', id=sequencing_id)
-        libraries_to_analyze.add(sequencing['library__pool_id'])
+        sequencing = colossus_api.get('sequencing', id=sequencing_id)
+        libraries_to_analyze.add(sequencing['library'])
 
-    return libraries_to_analyze
+    return list(libraries_to_analyze)
 
 
 def search_for_no_hmmcopy_data():
@@ -79,6 +81,7 @@ def search_for_no_hmmcopy_data():
     Return:
         libraries_to_analyze: list of library ids
     '''
+    print('Searching for no hmmcopy data')
     bam_lanes = get_lanes_from_bams_datasets()
 
     hmmcopy_lane_inputs = []
@@ -114,8 +117,8 @@ def search_for_no_hmmcopy_data():
     # Get libraries associated with library
     libraries_to_analyze = set()
     for sequencing_id in sequencing_ids_from_lanes:
-        sequencing = tantalus_api.get('sequencing', id=sequencing_id)
-        libraries_to_analyze.add(sequencing['library__pool_id'])
+        sequencing = colossus_api.get('sequencing', id=sequencing_id)
+        libraries_to_analyze.add(sequencing['library'])
 
-    return libraries_to_analyze
+    return list(libraries_to_analyze)
 
