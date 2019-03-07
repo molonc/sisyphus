@@ -20,7 +20,6 @@ from workflows.utils import log_utils
 from datamanagement.transfer_files import transfer_dataset
 from dbclients.basicclient import NotFoundError
 
-from utils.log_utils import sentinel
 from models import PseudoBulkAnalysis, Results
 
 
@@ -72,7 +71,7 @@ def start_automation(
     )
 
     if storages["working_inputs"] != storages["remote_inputs"]:  
-        sentinel(
+        log_utils.sentinel(
             'Transferring input datasets from {} to {}'.format(
                 storages["remote_inputs"], storages["working_inputs"]),
             transfer_inputs,
@@ -87,7 +86,7 @@ def start_automation(
         name=storages['local_results'])['storage_directory']
 
     inputs_yaml = os.path.join(local_results_storage, job_subdir, 'inputs.yaml')
-    sentinel(
+    log_utils.sentinel(
         'Generating inputs yaml',
         tantalus_analysis.generate_inputs_yaml,
         inputs_yaml,
@@ -102,7 +101,7 @@ def start_automation(
             log.info("skipping pipeline")
 
         else:
-            sentinel(
+            log_utils.sentinel(
                 'Running single_cell {}'.format(analysis_type),
                 tantalus_analysis.run_pipeline,
                 results_dir,
@@ -119,20 +118,20 @@ def start_automation(
 
     tantalus_analysis.set_complete_status()
 
-    output_dataset_ids = sentinel(
+    output_dataset_ids = log_utils.sentinel(
         'Creating output datasets',
         tantalus_analysis.create_output_datasets,
         update=run_options['update'],
     )
 
-    output_results_ids = sentinel(
+    output_results_ids = log_utils.sentinel(
         'Creating output results',
         tantalus_analysis.create_output_results,
         update=run_options['update'],
     )
 
     if storages["working_inputs"] != storages["remote_inputs"] and output_datasets_ids != []:
-        sentinel(
+        log_utils.sentinel(
             'Transferring input datasets from {} to {}'.format(
                 storages["working_inputs"], storages["remote_inputs"]),
             transfer_inputs,
