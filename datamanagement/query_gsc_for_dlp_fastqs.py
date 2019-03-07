@@ -439,6 +439,8 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                     GSC library ID: {} 
                     {} 
                     Reason: No fastq found for index sequence {}, flowcell {}, lane {}""".format(
+                    gsc_library_id,
+                    sequencing_colossus_path,
                     index_sequence, 
                     flowcell_lane[0], 
                     flowcell_lane[1],
