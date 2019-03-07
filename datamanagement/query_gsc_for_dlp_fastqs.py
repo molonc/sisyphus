@@ -422,7 +422,7 @@ def update_colossus_gsc_library_id(colossus_api, sequencing, gsc_library_id):
 
     if sequencing['gsc_library_id'] is not None:
         if sequencing['gsc_library_id'] != gsc_library_id:
-            raise Exception('gsc library id mismatch in sequencing {} '.format(sequencing_info['id']))
+            raise Exception('gsc library id mismatch in sequencing {} '.format(sequencing['id']))
 
     else:
         colossus_api.update(
@@ -431,44 +431,42 @@ def update_colossus_gsc_library_id(colossus_api, sequencing, gsc_library_id):
             gsc_library_id=gsc_library_id)
 
 
-def update_colossus_lanes(colossus_api, sequencing, lanes):
+def update_colossus_lane(colossus_api, sequencing, lane_to_update):
     """ Update the colosssus lanes for a sequencing
 
     Raises an exception if fewer lanes imported than were expected.
     """
 
-    for lane_to_create in lanes:
-        if sequencing['sequencing_instrument'] != lane_to_create['sequencing_instrument']:
-            continue
+    if lane_to_update['new']:
+        flowcell_id = "{}_{}".format(lane_to_update['flowcell_id'], lane_to_update['lane_number'])
+        logging.info("Adding lane {} to Colossus.".format(flowcell_id))
+        lane = colossus_api.get_or_create(
+            "lane", sequencing=sequencing['id'], 
+            flow_cell_id=flowcell_id,
+        )
 
-        if lane_to_create['new']:
-            flowcell_id = "{}_{}".format(lane_to_create['flowcell_id'], lane_to_create['lane_number'])
-            logging.info("Adding lane {} to Colossus.".format(flowcell_id))
-            lane = colossus_api.get_or_create(
-                "lane", sequencing=sequencing['id'], 
-                flow_cell_id=flowcell_id,
+        if lane['sequencing_date'] != lane_to_update['sequencing_date']:
+            colossus_api.update(
+                'lane',
+                lane['id'],
+                sequencing_date=lane_to_update['sequencing_date']
             )
 
-            if lane['sequencing_date'] != lane_to_create['sequencing_date']:
-                colossus_api.update(
-                    'lane',
-                    lane['id'],
-                    sequencing_date=lane_to_create['sequencing_date']
-                )
 
+def check_lanes(sequencing, lanes):
     # Check if number_of_lanes_requested is equal to number of lanes
     # Update number_of_lanes_requested if necessary
-    if sequencing['number_of_lanes_requested'] < len(lanes_to_be_created):
+    if sequencing['number_of_lanes_requested'] < len(lanes):
         logging.info('Sequencing goal is less than total number of lanes. Updating.')
         colossus_api.update(
             'sequencing',
             sequencing['id'],
-            number_of_lanes_requested=len(lanes_to_be_created)
+            number_of_lanes_requested=len(lanes)
         )
 
-    elif sequencing['number_of_lanes_requested'] > len(lanes_to_be_created):
+    elif sequencing['number_of_lanes_requested'] > len(lanes):
         raise Exception("Expected number of lanes is {} but total lanes imported is {}".format(
-            sequencing['number_of_lanes_requested'], len(lanes_to_be_created)))
+            sequencing['number_of_lanes_requested'], len(lanes)))
 
 
 def write_import_statuses(successful_libs, failed_libs):
@@ -571,8 +569,10 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
 
                 sequencing = library_list[library_id][instrument]
                 update_colossus_gsc_library_id(colossus_api, sequencing, import_info['gsc_library_id'])
-                update_colossus_lanes(colossus_api, sequencing, import_info['lanes'])
+                update_colossus_lane(colossus_api, sequencing, lane)
 
+            for sequencing in library_list[library_id].values():
+                check_lanes(sequencing, import_info['lanes'])
                 import_info['submission_date'] = sequencing['submission_date']
                 successful_libs.append(import_info)
 
