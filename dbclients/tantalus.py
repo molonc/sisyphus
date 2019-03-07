@@ -31,7 +31,7 @@ from azure.common.credentials import ServicePrincipalCredentials
 
 log = logging.getLogger('sisyphus')
 
-TANTALUS_API_URL = "http://tantalus.bcgsc.ca/api/"
+TANTALUS_API_URL = "https://tantalus.canadacentral.cloudapp.azure.com/api/"
 
 
 def get_storage_account_key(
