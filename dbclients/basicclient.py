@@ -227,7 +227,7 @@ class BasicAPIClient(object):
             raise Exception('failed with error: "{}", reason: "{}", data: "{}"'.format(
                 r.reason, r.text, payload))
 
-        return r.json()
+        return self.get(table_name, id=id)
 
     def delete(self, table_name, id=None):
         if id is None:

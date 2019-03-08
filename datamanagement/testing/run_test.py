@@ -66,7 +66,7 @@ def test_run_pipeline(mock_run_pipeline, config_filename, jira=None, version=Non
     # Create fake results instead of running pipeline
     mock_run_pipeline.side_effect = create_fake_results 
 
-    arglist = [jira, version, "--update", "--integrationtest"]
+    arglist = [jira, version, "--update", "--is_test_run"]
     args = workflows.arguments.get_args(arglist=arglist)
     workflows.run.main(args)
 
