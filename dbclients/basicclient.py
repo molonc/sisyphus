@@ -123,7 +123,7 @@ class BasicAPIClient(object):
             )
 
             for result in list_results["results"]:
-                for field_name, field_value in fields.iteritems():
+                for field_name, field_value in fields.items():
                     # Currently no support for checking related model fields
                     if "__" in field_name:
                         continue
@@ -158,7 +158,7 @@ class BasicAPIClient(object):
 
                     # Response is a timestamp
                     try:
-                        if result[field_name] and isinstance(result[field_name], basestring):
+                        if result[field_name] and isinstance(result[field_name], str):
                             result_field = pd.Timestamp(result[field_name])
                             field_value = pd.Timestamp(field_value)
                     except (ValueError, TypeError):
