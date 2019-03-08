@@ -563,7 +563,7 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
             if import_info is None:
                 failed_libs.append(dict(
                         dlp_library_id=sequencing["library"],
-                        submission_date=submission_date,
+                        submission_date=sequencing['submission_date'],
                         error="Doesn't exist on GSC",
                     )
                 )
@@ -598,7 +598,7 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
                 except Exception as e:
                     failed_libs.append(dict(
                         dlp_library_id=sequencing["library"],
-                        submission_date=submission_date,
+                        submission_date=sequencing['submission_date'],
                         error=str(e),
                         )
                     )
@@ -611,7 +611,7 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
         except Exception as e:
             failed_libs.append(dict(
                 dlp_library_id=sequencing["library"],
-                submission_date=submission_date,
+                submission_date=sequencing['submission_date'],
                 error=str(e),
                 )
             )
