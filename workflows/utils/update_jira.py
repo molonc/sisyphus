@@ -46,4 +46,4 @@ def update_jira(jira_id, aligner, analysis_type):
         description = '\n\n'.join(description)
         issue = jira_api.issue(jira_id)
 
-        issue.update(notify=False, assignee={"name": "elaks"}, description=description)
+        issue.update(notify=False, assignee={"name": "jbiele"}, description=description)
