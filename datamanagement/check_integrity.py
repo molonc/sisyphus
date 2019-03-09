@@ -8,7 +8,7 @@ from sets import Set
 
 def check_files_for_given_dataset(dataset, library_id_set):
 	print("Checking Dataset {}".format(dataset['id']))
-	temp = tantalus_api.get_sequence_dataset_file_instances(dataset, 'shahlab')
+	temp = tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', 'shahlab')
 	for file_instance in temp:
 		storage_client = tantalus_api.get_storage_client(file_instance['storage']['name'])
 
