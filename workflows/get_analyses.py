@@ -1,3 +1,8 @@
+import logging
+import hashlib
+import os
+import sys
+import click
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
 from collections import defaultdict
@@ -9,10 +14,6 @@ from workflows.utils import file_utils, log_utils
 import unanalyzed_data
 import arguments
 from jira import JIRA, JIRAError
-import logging
-import hashlib
-import os
-import sys
 
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
@@ -34,10 +35,66 @@ def get_lanes_from_sequencings(sequencing_id_list):
     return list(lanes)
 
 
+def get_analyses_to_run(version, aligner, check=False):
+    unaligned_data_libraries = unanalyzed_data.search_for_unaligned_data()
+    no_hmmcopy_data_libraries = unanalyzed_data.search_for_no_hmmcopy_data()
+
+    analyses_tickets = dict(
+        align = [], 
+        hmmcopy = [],
+    )
+
+    if check:
+        print("Finding analyses to run only.")
+        print("Unaligned data: {}".format(unaligned_data_libraries))
+        print("No hmmcopy data: {}".format(no_hmmcopy_data_libraries))
+
+    else:
+        for library_id in unaligned_data_libraries:
+            analysis_info = check_library_for_analysis(library_id, aligner, 'align')
+
+            if analysis_info is not None:
+                jira_ticket = analysis_info['jira_ticket']
+                analyses_tickets['align'].append(jira_ticket)     
+
+                # TODO: Create analysis object on tantalus
+                if analysis_info['analysis_created'] == False:
+                    tantalus_analysis = create_tantalus_analysis(
+                        analysis_info['name'], 
+                        jira_ticket, 
+                        analysis_info['library_id'], 
+                        'align', 
+                        version
+                    )
+
+                    colossus_analysis = create_colossus_analysis(analysis_info['library_id'], jira_ticket, version)
+
+        for library_id in no_hmmcopy_data_libraries:
+            analysis_info = check_library_for_analysis(library_id, aligner, 'hmmcopy')
+
+            if analysis_info is not None:
+                jira_ticket = analysis_info['jira_ticket']
+                analyses_tickets['hmmcopy'].append(jira_ticket)     
+
+                # TODO: Create analysis object on tantalus
+                if analysis_info['analysis_created'] == False:
+                    tantalus_analysis = create_tantalus_analysis(
+                        analysis_info['name'], 
+                        jira_ticket, 
+                        analysis_info['library_id'], 
+                        'hmmcopy', 
+                        version,
+                    )
+
+                    colossus_analysis = create_colossus_analysis(analysis_info['library_id'], jira_ticket, version)
+
+    return analyses_tickets
+
+
 def check_library_for_analysis(library_id, aligner, analysis_type):
     '''
     Given a library, check if library is included in analysis and has all data imported. 
-    If so, check if for existing analysis. Otherwise create analysis jira ticket.
+    If so, check for existing analysis. Otherwise create analysis jira ticket.
 
     Args: 
         library_id (str): Library/pool id
@@ -251,61 +308,12 @@ def create_colossus_analysis(library_id, jira_ticket, version):
 
     return analysis['id']
 
-def get_analyses_to_run(version, aligner):
-    unaligned_data_libraries = unanalyzed_data.search_for_unaligned_data()
-    # no_hmmcopy_data_libraries = unanalyzed_data.search_for_no_hmmcopy_data()
 
-    analyses_tickets = dict(
-        align = [], 
-        hmmcopy = [],
-    )
-
-    for library_id in unaligned_data_libraries:
-        analysis_info = check_library_for_analysis(library_id, aligner, 'align')
-
-        if analysis_info is not None:
-            jira_ticket = analysis_info['jira_ticket']
-            analyses_tickets['align'].append(jira_ticket)     
-
-            # TODO: Create analysis object on tantalus
-            if analysis_info['analysis_created'] == False:
-                tantalus_analysis = create_tantalus_analysis(
-                    analysis_info['name'], 
-                    jira_ticket, 
-                    analysis_info['library_id'], 
-                    'align', 
-                    version
-                )
-
-                colossus_analysis = create_colossus_analysis(analysis_info['library_id'], jira_ticket, version)
-
-    # for library_id in no_hmmcopy_data_libraries:
-    #     analysis_info = check_library_for_analysis(library_id, aligner, 'hmmcopy')
-
-    #     if analysis_info is not None:
-    #         jira_ticket = analysis_info['jira_ticket']
-    #         analyses_tickets['hmmcopy'].append(jira_ticket)     
-
-    #         # TODO: Create analysis object on tantalus
-    #         if analysis_info['analysis_created'] == False:
-    #             tantalus_analysis = create_tantalus_analysis(
-    #                 analysis_info['name'], 
-    #                 jira_ticket, 
-    #                 analysis_info['library_id'], 
-    #                 'hmmcopy', 
-    #                 version,
-    #             )
-
-    #             colossus_analysis = create_colossus_analysis(analysis_info['library_id'], jira_ticket, version)
-
-    return analyses_tickets
-
-
-if __name__ == '__main__':
-
-    version = sys.argv[1] # may need to change
-    aligner = sys.argv[2]
-
+@click.command()
+@click.argument('version')
+@click.argument('aligner')
+@click.option('--check', is_flag=True)
+def main(version, aligner, check=False):
     aligner_map = {
         'A': 'BWA_ALN_0_5_7',
         'M': 'BWA_MEM_0_7_6A',
@@ -321,8 +329,7 @@ if __name__ == '__main__':
 
     print('version: {}, aligner: {}'.format(version, aligner))
 
-    # Commented out for testing purposes
-    analyses_to_run = get_analyses_to_run(version, aligner)
+    analyses_to_run = get_analyses_to_run(version, aligner, check=check)
 
     # TODO: iterate through analyses tickets and use saltant to run analyses
 
@@ -339,3 +346,8 @@ if __name__ == '__main__':
     # print('TESTING: Running hmmcopy for SC-9999')
     # saltant_utils.run_align('SC-9999', version, config)
     # saltant_utils.run_hmmcopy('SC-9999', version, config)
+
+
+if __name__ == '__main__':
+    main()
+
