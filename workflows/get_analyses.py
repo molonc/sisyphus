@@ -145,14 +145,16 @@ def create_analysis_jira_ticket(library_id):
     analysis_jira_ticket = sub_task_issue.key
 
     # Add watchers
-    jira_api.add_watcher(issue, JIRA_USER)
-    jira_api.add_watcher(issue, 'jedwards')
-    jira_api.add_watcher(issue,'jbiele')
-    jira_api.add_watcher(issue, 'jbwang')
-    jira_api.add_watcher(issue, 'elaks')
+    jira_api.add_watcher(analysis_jira_ticket, JIRA_USER)
+    jira_api.add_watcher(analysis_jira_ticket, 'jedwards')
+    jira_api.add_watcher(analysis_jira_ticket,'jbiele')
+    jira_api.add_watcher(analysis_jira_ticket, 'jbwang')
+    jira_api.add_watcher(analysis_jira_ticket, 'elaks')
+
 
     # Assign task to myself
-    issue.update(assignee={'name': JIRA_USER})
+    analysis_issue = jira_api.issue(analysis_jira_ticket)
+    analysis_issue.update(assignee={'name': JIRA_USER})
 
     print('Created analysis ticket {} for library {}'.format(analysis_jira_ticket, library_id))
 
@@ -277,26 +279,24 @@ def get_analyses_to_run(version, aligner):
 
                 colossus_analysis = create_colossus_analysis(analysis_info['library_id'], jira_ticket, version)
 
-                return analyses_tickets
+    # for library_id in no_hmmcopy_data_libraries:
+    #     analysis_info = check_library_for_analysis(library_id, aligner, 'hmmcopy')
 
-    for library_id in no_hmmcopy_data_libraries:
-        analysis_info = check_library_for_analysis(library_id, aligner, 'hmmcopy')
+    #     if analysis_info is not None:
+    #         jira_ticket = analysis_info['jira_ticket']
+    #         analyses_tickets['hmmcopy'].append(jira_ticket)     
 
-        if analysis_info is not None:
-            jira_ticket = analysis_info['jira_ticket']
-            analyses_tickets['hmmcopy'].append(jira_ticket)     
+    #         # TODO: Create analysis object on tantalus
+    #         if analysis_info['analysis_created'] == False:
+    #             tantalus_analysis = create_tantalus_analysis(
+    #                 analysis_info['name'], 
+    #                 jira_ticket, 
+    #                 analysis_info['library_id'], 
+    #                 'hmmcopy', 
+    #                 version,
+    #             )
 
-            # TODO: Create analysis object on tantalus
-            if analysis_info['analysis_created'] == False:
-                tantalus_analysis = create_tantalus_analysis(
-                    analysis_info['name'], 
-                    jira_ticket, 
-                    analysis_info['library_id'], 
-                    'hmmcopy', 
-                    version,
-                )
-
-                colossus_analysis = create_colossus_analysis(analysis_info['library_id'], jira_ticket, version)
+    #             colossus_analysis = create_colossus_analysis(analysis_info['library_id'], jira_ticket, version)
 
     return analyses_tickets
 
@@ -322,18 +322,20 @@ if __name__ == '__main__':
     print('version: {}, aligner: {}'.format(version, aligner))
 
     # Commented out for testing purposes
-    # analyses_to_run = get_analyses_to_run(version, aligner)
+    analyses_to_run = get_analyses_to_run(version, aligner)
 
     # TODO: iterate through analyses tickets and use saltant to run analyses
 
-    # for align_analysis in analyses_to_run['align']:
-    #     saltant_utils.run_align(align_analysis, version, config)
+    for align_analysis in analyses_to_run['align']:
+        print("Running align for {}".format(align_analysis))
+        saltant_utils.run_align(align_analysis, version, config)
 
     # TODO: Add completed align analyses to hmmcopy analysis list
     
     # for hmmcopy_analysis in analyses_to_run['hmmcopy']:
+        
     #     saltant_utils.run_hmmcopy(hmmcopy_analysis['jira_ticket'], version, config)
 
-    print('TESTING: Running align for SC-9999')
-    saltant_utils.run_align('SC-9999', version, config)
-
+    # print('TESTING: Running hmmcopy for SC-9999')
+    # saltant_utils.run_align('SC-9999', version, config)
+    # saltant_utils.run_hmmcopy('SC-9999', version, config)
