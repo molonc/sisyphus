@@ -455,24 +455,6 @@ class AlignAnalysis(Analysis):
                 lanes, input_lanes
             ))
 
-    def _get_input_file_instances(self, storage_name):
-        """ Get file instances for input datasets.
-
-        Args:
-            storage_name: name of storage for which we want file instances
-
-        Returns:
-            input_file_instances: list of nested dictionaries for file instances
-        """
-
-        input_file_instances = []
-        for dataset_id in self.analysis['input_datasets']:
-            dataset = self.get_dataset(dataset_id)
-            input_file_instances.extend(
-                tantalus_api.get_dataset_file_instances(
-                    dataset['id'], '`sequencedataset`', storage_name))
-        return input_file_instances
-
     def _generate_cell_metadata(self, storage_name):
         """ Generates per cell metadata
 
@@ -496,7 +478,6 @@ class AlignAnalysis(Analysis):
         if sample_info['cell_id'].duplicated().any():
             raise Exception('Duplicate cell ids in sample info.')
 
-        file_instances = self._get_input_file_instances(storage_name)
         lanes = self.get_lanes()
 
         # Sort by index_sequence, lane id, read end
@@ -505,12 +486,19 @@ class AlignAnalysis(Analysis):
         tantalus_index_sequences = set()
         colossus_index_sequences = set()
 
-        for file_instance in file_instances:
-            lane_id = tantalus_utils.get_flowcell_lane(file_instance['sequence_dataset']['sequence_lanes'][0])
-            read_end = file_instance['file_resource']['sequencefileinfo']['read_end']
-            index_sequence = file_instance['file_resource']['sequencefileinfo']['index_sequence']
-            tantalus_index_sequences.add(index_sequence)
-            fastq_file_instances[(index_sequence, lane_id, read_end)] = file_instance
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+
+            file_instances = tantalus_api.get_dataset_file_instances(
+                    dataset['id'], 'sequencedataset', storage_name)
+
+            for file_instance in file_instances:
+                file_instance['sequence_dataset'] = dataset
+                lane_id = tantalus_utils.get_flowcell_lane(dataset['sequence_lanes'][0])
+                read_end = file_instance['file_resource']['sequencefileinfo']['read_end']
+                index_sequence = file_instance['file_resource']['sequencefileinfo']['index_sequence']
+                tantalus_index_sequences.add(index_sequence)
+                fastq_file_instances[(index_sequence, lane_id, read_end)] = file_instance
 
         input_info = {}
 
