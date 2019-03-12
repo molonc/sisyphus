@@ -83,8 +83,6 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name,
         queue_id (int)
     """
 
-    log.debug(task_queue_name)
-
     client = get_client()
     executable_task_instances = client.executable_task_instances
     

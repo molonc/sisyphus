@@ -1,14 +1,16 @@
+import os
+import logging
+from jira import JIRA, JIRAError
+from datetime import datetime
+from collections import defaultdict
+
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
-from collections import defaultdict
-from datetime import datetime
 from dbclients.basicclient import NotFoundError
-from jira import JIRA, JIRAError
-import logging
-import os
 
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
+
 
 def get_lanes_from_bams_datasets():
     '''
@@ -35,7 +37,7 @@ def search_for_unaligned_data():
         libraries_to_analyze: list of library ids
     '''
 
-    print('Searching for unaligned data')
+    logging.info('Searching for unaligned data')
     bam_lanes = get_lanes_from_bams_datasets()
 
     fastq_lanes = []
@@ -48,25 +50,25 @@ def search_for_unaligned_data():
             flowcell_id = lane['flowcell_id']
             lane_number = lane['lane_number']
             if (flowcell_id, lane_number) not in bam_lanes:
-                # print("Unaligned data for library_id {}, flowcell_id {}, lane_number {}".format(library_id, flowcell_id, lane_number))
+                logging.info("Unaligned data for library_id {}, flowcell_id {}, lane_number {}".format(library_id, flowcell_id, lane_number))
                 unaligned_lanes.append('{}_{}'.format(lane['flowcell_id'], lane['lane_number']))
 
-    sequencing_ids_from_lanes = set()
+    sequencing_ids = set()
     for lane in unaligned_lanes:
         try:
             lane_infos = list(colossus_api.list('lane', flow_cell_id=lane))
         except NotFoundError as e:
-            print(e)
+            logging.info(e)
             lane_infos = None 
             continue
         # Get sequencing associated with lanes
         if lane_infos is not None:
             for lane_info in lane_infos:
-                sequencing_ids_from_lanes.add(lane_info['sequencing'])
+                sequencing_ids.add(lane_info['sequencing'])
 
     # Get libraries associated with library
     libraries_to_analyze = set()
-    for sequencing_id in sequencing_ids_from_lanes:
+    for sequencing_id in sequencing_ids:
         sequencing = colossus_api.get('sequencing', id=sequencing_id)
         libraries_to_analyze.add(sequencing['library'])
 
@@ -81,7 +83,7 @@ def search_for_no_hmmcopy_data():
     Return:
         libraries_to_analyze: list of library ids
     '''
-    print('Searching for no hmmcopy data')
+    logging.info('Searching for no hmmcopy data')
     bam_lanes = get_lanes_from_bams_datasets()
 
     hmmcopy_lane_inputs = []
@@ -95,28 +97,27 @@ def search_for_no_hmmcopy_data():
     no_hmmcopy_lanes = []
     for lane in bam_lanes:
         if lane not in hmmcopy_lane_inputs:
-            # TODO: print library id and jira ticket as well??
-            print("Data for flowcell_id {} and lane_number {} has not been run with hmmcopy".format(
+            logging.info("Data for flowcell_id {} and lane_number {} has not been run with hmmcopy".format(
                 lane[0], lane[1]))
             no_hmmcopy_lanes.append("{}_{}".format(lane[0], lane[1]))
 
-    sequencing_ids_from_lanes = set()
+    sequencing_ids = set()
     for lane in no_hmmcopy_lanes:
         try:
             lane_infos = list(colossus_api.list('lane', flow_cell_id=lane))
         except NotFoundError as e:
-            print(e)
+            logging.info(e)
             lane_infos = None 
             continue
 
         # Get sequencing associated with lanes
         if lane_infos is not None:
             for lane_info in lane_infos:
-                sequencing_ids_from_lanes.add(lane_info['sequencing'])
+                sequencing_ids.add(lane_info['sequencing'])
 
     # Get libraries associated with library
     libraries_to_analyze = set()
-    for sequencing_id in sequencing_ids_from_lanes:
+    for sequencing_id in sequencing_ids:
         sequencing = colossus_api.get('sequencing', id=sequencing_id)
         libraries_to_analyze.add(sequencing['library'])
 
