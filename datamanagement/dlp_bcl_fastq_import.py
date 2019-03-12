@@ -186,8 +186,9 @@ def get_fastq_info(output_dir, flowcell_id, storage, storage_client, threshold):
 
     # Run through list of fastqs and check if bcl2fastqs skipped over indices or skipped lanes/reads 
     fastqs_to_be_generated = check_fastqs(library_id, fastq_file_info, threshold)
+    number_of_fastqs_to_generate = sum(len(fastqs_to_be_generated[index]) for index in fastqs_to_be_generated)
 
-    if fastqs_to_be_generated:
+    if number_of_fastqs_to_generate != 0:
         logging.info("BCL2FASTQ failed to generate complete set of fastqs. Generating missing fastqs.")
         new_filenames = generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated)
 
