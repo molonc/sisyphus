@@ -487,7 +487,9 @@ class AlignAnalysis(Analysis):
         input_file_instances = []
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
-            input_file_instances.extend(tantalus_api.get_sequence_dataset_file_instances(dataset, storage_name))
+            input_file_instances.extend(
+                tantalus_api.get_dataset_file_instances(
+                    dataset['id'], '`sequencedataset`', storage_name))
         return input_file_instances
 
     def _generate_cell_metadata(self, storage_name):
@@ -858,14 +860,14 @@ class PseudoBulkAnalysis(Analysis):
             # inputs yaml
             sample_library_id = sample_id + '_' + library_id
 
-            if sample_library_id not in input_info[dataset_class]:
-                input_info[dataset_class][sample_library_id] = {}
-
             is_normal = (
                 sample_id == self.args['matched_normal_sample'] and
                 library_id == self.args['matched_normal_library'])
 
             dataset_class = ('tumour', 'normal')[is_normal]
+
+            if sample_library_id not in input_info[dataset_class]:
+                input_info[dataset_class][sample_library_id] = {}
 
             library_type = dataset['library']['library_type']
 
