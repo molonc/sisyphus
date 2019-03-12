@@ -12,6 +12,15 @@ tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
 
 
+log = logging.getLogger('sisyphus')
+log.setLevel(logging.DEBUG)
+stream_handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+stream_handler.setFormatter(formatter)
+log.addHandler(stream_handler)
+log.propagate = False
+
+
 def get_lanes_from_bams_datasets():
     '''
     Get lanes of all bam datasets
