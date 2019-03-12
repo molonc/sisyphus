@@ -60,7 +60,7 @@ def load_brc_fastqs(
     storage_client,
     tag_name=None,
     update=False,
-    threshold,
+    threshold=20,
 ):
     if not os.path.isdir(output_dir):
         raise Exception("output directory {} not a directory".format(output_dir))
@@ -112,8 +112,9 @@ def check_fastqs(library_id, fastq_file_info, threshold):
 
         fastqs_to_be_generated[index] = list(fastq_lane_numbers_to_be_generated)
 
-    if len(fastqs_to_be_generated) > threshold:
-        raise Exception("Number of empty fastqs to be generated exceeded threshold")
+    number_of_fastqs_to_generate = sum(len(fastqs_to_be_generated[index]) for index in fastqs_to_be_generated)
+    if number_of_fastqs_to_generate > threshold:
+        raise Exception("Number of empty fastqs to be generated ({}) exceeded threshold ({})".format(number_of_fastqs_to_generate, threshold))
 
     return fastqs_to_be_generated
 
@@ -198,7 +199,7 @@ def get_fastq_info(output_dir, flowcell_id, storage, storage_client, threshold):
 
 def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, output_dir, storage, storage_client):
     extension = ".gz"
-    logging.info("Tranferring fastq to {}.".format(storage["name"]))
+    logging.info("Transferrings fastq to {}.".format(storage["name"]))
     for filename in filenames:
         match = re.match(
             r"^(\w+)-(\w+)-R(\d+)-C(\d+)_S(\d+)(_L(\d+))?_R([12])_001.fastq.gz$",
@@ -312,7 +313,7 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
 @click.option('--update', is_flag=True)
 @click.option('--no_bcl2fastq', is_flag=True)
 @click.option('--threshold', type=int, default=20)
-def main(storage_name, temp_output_dir, flowcell_id, bcl_dir, tag_name=None, update=False, no_bcl2fastq=False, threshold):
+def main(storage_name, temp_output_dir, flowcell_id, bcl_dir, tag_name=None, update=False, no_bcl2fastq=False, threshold=20):
     tantalus_api = TantalusApi()
 
     storage = tantalus_api.get("storage", name=storage_name)
