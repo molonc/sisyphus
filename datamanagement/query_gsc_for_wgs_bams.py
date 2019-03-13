@@ -339,10 +339,7 @@ def rename_bam_paths(bam_detail, storage, sftp=None):
         )
 
     # Create bai path 
-    if compression:
-        source_bai_path = bam_path[:-5] + ".bai"
-    else:
-        source_bai_path = bam_path + ".bai"
+    source_bai_path = bam_path + ".bai"
 
     # Check the source bam exists, and then transfer
     if sftp:
@@ -362,7 +359,7 @@ def rename_bam_paths(bam_detail, storage, sftp=None):
         except IOError:
             source_bai_path = None
     else:
-        if not os.path.exists(bai_path):
+        if not os.path.exists(source_bai_path):
             source_bai_path = None
 
     logging.info("Bam file exists at {}".format(source_bam_path))

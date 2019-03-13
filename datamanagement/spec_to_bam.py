@@ -12,7 +12,7 @@ import click
 import paramiko
 import pwd
 
-from qsub_job_submission import SpecToBamJob, submit_qsub_job
+from utils.qsub_job_submission import SpecToBamJob, submit_qsub_job
 from datamanagement.utils.utils import parse_ref_genome, connect_to_client
 from dbclients.tantalus import TantalusApi
 from dbclients import basicclient
@@ -96,10 +96,10 @@ def spec_to_bam(spec_path,
         spec_path = local_spec_path
         
     # Create the job to perform the spec decompression
-    job = Job('10', spec_path, HUMAN_REFERENCE_GENOMES_MAP[reference_genome], output_bam_path, SHAHLAB_SPEC_TO_BAM_BINARY_PATH)
+    job = SpecToBamJob('10', spec_path, HUMAN_REFERENCE_GENOMES_MAP[reference_genome], output_bam_path, SHAHLAB_SPEC_TO_BAM_BINARY_PATH)
 
     # Submit the job to the cluster and wait for it to finish
-    submit_qsub_job(job, DEFAULT_NATIVESPEC)
+    submit_qsub_job(job, DEFAULT_NATIVESPEC, title=library)
 
     logging.info("Successfully created bam at {}".format(output_bam_path))
 

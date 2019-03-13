@@ -37,7 +37,33 @@ class SpecToBamJob(object):
         self.finished = True 
 
 
-def submit_qsub_job(job, native_spec):
+class Bcl2FastqJob(object):
+    def __init__(self, thread, run_dir, sample_sheet, out_dir):
+        self.ctx = {}
+        self.thread = str(thread)
+        self.run_dir = run_dir
+        self.sample_sheet = sample_sheet
+        self.out_dir = out_dir
+        self.finished = False
+        self.name = "bcl2fastq"
+    
+    def __call__(self, **kwargs):
+        cmd = [
+            'bcl2fastq',
+            "--processing-threads",
+            self.thread,
+            "--runfolder-dir",
+            self.run_dir, 
+            "--sample-sheet",
+            self.sample_sheet,
+            "--output-dir",
+            self.out_dir
+        ]
+        subprocess.check_call(cmd)
+        self.finished = True 
+
+
+def submit_qsub_job(job, native_spec, **kwargs):
     """
     Creates a queue and submits the job to the cluster. Waits for the job to 
     successfully finish
@@ -50,13 +76,13 @@ def submit_qsub_job(job, native_spec):
     queue = AsyncQsubJobQueue(modules=(sys.modules[__name__], ), native_spec=native_spec)
     
     current_time = datetime.datetime.now().strftime('%d-%m-%Y_%S-%M-%H')
-    dir_name = library + "_" + current_time
+    dir_name = kwargs["title"] + "_" + current_time
 
     # Create the temp directory for all output logs
     temps_dir = os.path.join('tmp', dir_name)
     pypeliner.helpers.makedirs(temps_dir)
     
-    logging.info("Submitting decompression job to the cluster")
+    logging.info("Submitting job to the cluster")
     queue.send({'mem': 10}, job.name, job, temps_dir)
     job_name = None
     
