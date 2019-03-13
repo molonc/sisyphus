@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 import datetime
+import subprocess
 import pypeliner.helpers
 from pypeliner.execqueue.qsub import AsyncQsubJobQueue
 from datamanagement.utils.constants import LOGGING_FORMAT
