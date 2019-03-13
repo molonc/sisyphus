@@ -481,7 +481,10 @@ class AlignAnalysis(Analysis):
         lanes = self.get_lanes()
 
         # Sort by index_sequence, lane id, read end
-        fastq_file_instances = dict()
+        fastq_filepaths = dict()
+
+        # Lane info
+        lane_info = dict()
 
         tantalus_index_sequences = set()
         colossus_index_sequences = set()
@@ -489,16 +492,23 @@ class AlignAnalysis(Analysis):
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
 
+            if len(dataset['sequence_lanes']) != 1:
+                raise ValueError('unexpected lane count {} for dataset {}'.format(
+                    len(dataset['sequence_lanes']), dataset_id))
+
+            lane_id = tantalus_utils.get_flowcell_lane(dataset['sequence_lanes'][0])
+            lane_info[lane_id]['sequencing_centre'] = str(dataset['sequence_lanes'][0]['sequencing_centre'])
+            lane_info[lane_id]['sequencing_instrument'] = str(dataset['sequence_lanes'][0]['sequencing_instrument'])
+            lane_info[lane_id]['read_type'] = str(dataset['sequence_lanes'][0]['read_type'])
+
             file_instances = tantalus_api.get_dataset_file_instances(
-                    dataset['id'], 'sequencedataset', storage_name)
+                dataset['id'], '`sequencedataset`', storage_name)
 
             for file_instance in file_instances:
-                file_instance['sequence_dataset'] = dataset
-                lane_id = tantalus_utils.get_flowcell_lane(dataset['sequence_lanes'][0])
                 read_end = file_instance['file_resource']['sequencefileinfo']['read_end']
                 index_sequence = file_instance['file_resource']['sequencefileinfo']['index_sequence']
                 tantalus_index_sequences.add(index_sequence)
-                fastq_file_instances[(index_sequence, lane_id, read_end)] = file_instance
+                fastq_filepaths[(index_sequence, lane_id, read_end)] = str(file_instance['filepath'])
 
         input_info = {}
 
@@ -515,14 +525,11 @@ class AlignAnalysis(Analysis):
             
             lane_fastqs = collections.defaultdict(dict)
             for lane_id, lane in lanes.items():
-                sequencing_centre = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_centre']
-                sequencing_instrument = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_instrument']
-                read_type = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['read_type']
-                lane_fastqs[lane_id]['fastq_1'] = str(fastq_file_instances[(index_sequence, lane_id, 1)]['filepath'])
-                lane_fastqs[lane_id]['fastq_2'] = str(fastq_file_instances[(index_sequence, lane_id, 2)]['filepath'])
-                lane_fastqs[lane_id]['sequencing_center'] = str(sequencing_centre)
-                lane_fastqs[lane_id]['sequencing_instrument'] = str(sequencing_instrument)
-                lane_fastqs[lane_id]['read_type'] = str(read_type)
+                lane_fastqs[lane_id]['fastq_1'] = fastq_filepaths[(index_sequence, lane_id, 1)]
+                lane_fastqs[lane_id]['fastq_2'] = fastq_filepaths[(index_sequence, lane_id, 2)]
+                lane_fastqs[lane_id]['sequencing_center'] = lane_info[lane_id]['sequencing_centre']
+                lane_fastqs[lane_id]['sequencing_instrument'] = lane_info[lane_id]['sequencing_instrument']
+                lane_fastqs[lane_id]['read_type'] = lane_info[lane_id]['read_type']
 
             if len(lane_fastqs) == 0:
                 raise Exception('No fastqs for cell_id {}, index_sequence {}'.format(
