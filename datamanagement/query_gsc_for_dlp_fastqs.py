@@ -398,7 +398,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         return import_info
 
     fastq_paired_end_check(fastq_file_info)
-    
+
     cell_index_sequences = set(cell_samples.keys())
 
     fastq_lane_index_sequences = collections.defaultdict(set)
