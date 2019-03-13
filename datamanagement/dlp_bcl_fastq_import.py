@@ -152,9 +152,8 @@ def generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated):
         filepath = os.path.join(output_dir, filename)
         if not os.path.exists(filepath):
             logging.info("Creating empty file {} at {}.".format(filename, filepath))
-            # with open(filepath, 'wb') as f:
             with gzip.open(filepath, mode='wb') as f:
-                f.write("")
+                pass
 
     return file_names
 
