@@ -12,7 +12,8 @@ import click
 import paramiko
 import pwd
 
-from utils.qsub_job_submission import SpecToBamJob, submit_qsub_job
+from utils.qsub_job_submission import submit_qsub_job
+from utils.qsub_jobs import SpecToBamJob
 from datamanagement.utils.utils import parse_ref_genome, connect_to_client
 from dbclients.tantalus import TantalusApi
 from dbclients import basicclient
