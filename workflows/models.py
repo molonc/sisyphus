@@ -489,7 +489,7 @@ class AlignAnalysis(Analysis):
             dataset = self.get_dataset(dataset_id)
             input_file_instances.extend(
                 tantalus_api.get_dataset_file_instances(
-                    dataset['id'], '`sequencedataset`', storage_name))
+                    dataset['id'], 'sequencedataset', storage_name))
         return input_file_instances
 
     def _generate_cell_metadata(self, storage_name):
