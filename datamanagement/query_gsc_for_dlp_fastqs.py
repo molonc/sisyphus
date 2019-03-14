@@ -90,11 +90,13 @@ filename_pattern_map = {
     "_1_chastity_passed.fastq.gz": (1, True),
     "_1_chastity_failed.fastq.gz": (1, False),
     "_1_*bp.concat.fastq.gz": (1, True),
+    "_1_*bp.concat_chastity_passed.fastq.gz": (1, True),
     "_2.fastq.gz": (2, True),
     "_2_*.concat_chastity_passed.fastq.gz": (2, True),
     "_2_chastity_passed.fastq.gz": (2, True),
     "_2_chastity_failed.fastq.gz": (2, False),
     "_2_*bp.concat.fastq.gz": (2, True),
+    "_2_*bp.concat_chastity_passed.fastq.gz": (2, True),
 }
 
 
@@ -207,10 +209,10 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
         sequencing_instrument = get_sequencing_instrument(
                 fastq_info["libcore"]["run"]["machine"]
             )
+        sequencing_instrument = sequencing_instrument_map[sequencing_instrument]
         gsc_lane_fastq_file_infos[(flowcell_id, lane_number, sequencing_date, sequencing_instrument)].append(fastq_info)
 
     for (flowcell_id, lane_number, sequencing_date, sequencing_instrument) in gsc_lane_fastq_file_infos.keys():
-        sequencing_instrument = sequencing_instrument_map[sequencing_instrument]
 
         # Check if lanes are in Tantalus
         if (flowcell_id, lane_number) in existing_data:
@@ -456,7 +458,7 @@ def update_colossus_lane(colossus_api, sequencing, lane_to_update):
             )
 
 
-def check_lanes(sequencing, num_lanes):
+def check_lanes(colossus_api, sequencing, num_lanes):
     """ Check if number_of_lanes_requested is equal to number of lanes.
 
     Updates number_of_lanes_requested if necessary
@@ -482,6 +484,7 @@ def write_import_statuses(successful_libs, failed_libs):
         os.remove(import_status_path)
 
     file = open(import_status_path, 'w+')
+    file.write("Date: {}".format(str(datetime.datetime.now())))
 
     file.write("Successful imports: \n")
 
@@ -594,7 +597,7 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
                 instrument = sequencing['sequencing_instrument']
 
                 try:
-                    check_lanes(sequencing, len(instrument_lanes[instrument]))
+                    check_lanes(colossus_api, sequencing, len(instrument_lanes[instrument]))
                 except Exception as e:
                     failed_libs.append(dict(
                         dlp_library_id=sequencing["library"],
