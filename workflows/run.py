@@ -105,7 +105,7 @@ def start_automation(
             config['docker_sock_path'],
         ]
         # Pass all server storages to docker
-        for storage_name in storages.itervalues():
+        for storage_name in storages.values():
             storage = tantalus_api.get('storage', name=storage_name)
             if storage['storage_type'] == 'server':
                 dirs.append(storage['storage_directory'])

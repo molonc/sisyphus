@@ -72,7 +72,7 @@ def get_config_string(analysis_info):
 
 
 def run_pipeline2(*args, **kwargs):
-    print args, kwargs
+    print(args, kwargs)
 
 def run_pipeline(
         results_dir,
