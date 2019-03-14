@@ -5,8 +5,8 @@ import os
 import re
 import collections
 import yaml
+import hashlib
 import subprocess
-
 from datamanagement.utils import dlp
 import dbclients.tantalus
 import dbclients.colossus
@@ -30,7 +30,7 @@ class AnalysisInfo:
     A class representing an analysis information object in Colossus,
     containing settings for the analysis run.
     """
-    def __init__(self, jira, log_file, version, update=False):
+    def __init__(self, jira, log_file, version, analysis_type, update=False):
         self.jira = jira
         self.status = 'idle'
 
@@ -105,7 +105,7 @@ class AnalysisInfo:
             chip_ids.add(colossus_api.get('sequencing', id=sequencing_id)['library'])
         return chip_ids.pop()
 
-    def set_run_status(self, analysis_type):
+    def set_run_status(self):
         self.update('running')
 
     def set_archive_status(self):
@@ -114,8 +114,8 @@ class AnalysisInfo:
     def set_error_status(self):
         self.update('error')
 
-    def set_finish_status(self):
-        self.update('complete')
+    def set_finish_status(self, analysis_type):
+        self.update('{}_complete'.format(analysis_type))
 
     def update(self, status):
         data = {
@@ -177,7 +177,29 @@ class Analysis(object):
         if it doesn't exist. Set the input dataset ids.
         """
 
-        name = '{}_{}'.format(jira, self.analysis_type)
+        input_datasets = self.search_input_datasets(args)
+        input_results = self.search_input_results(args)
+
+        lanes = set()
+
+        for input_dataset in input_datasets:
+            dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
+            for sequence_lane in dataset['sequence_lanes']:
+                lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
+                lanes.add(lane)
+
+        lanes = ", ".join(sorted(lanes))
+        lanes = hashlib.md5(lanes)
+        lanes_hashed = "{}".format(lanes.hexdigest()[:8])
+
+        # MAYBE: Add this to templates?
+        name = "sc_{}_{}_{}_{}_{}".format(
+            analysis_type, 
+            args['aligner'], 
+            args['ref_genome'], 
+            args['library_id'],
+            lanes_hashed,
+        )
 
         log.info('Searching for existing analysis {}'.format(name))
 
@@ -185,9 +207,6 @@ class Analysis(object):
             analysis = tantalus_api.get('analysis', name=name, jira_ticket=jira)
         except NotFoundError:
             analysis = None
-
-        input_datasets = self.search_input_datasets(args)
-        input_results = self.search_input_results(args)
 
         if analysis is not None:
             log.info('Found existing analysis {}'.format(name))
@@ -455,6 +474,24 @@ class AlignAnalysis(Analysis):
                 lanes, input_lanes
             ))
 
+    def _get_input_file_instances(self, storage_name):
+        """ Get file instances for input datasets.
+
+        Args:
+            storage_name: name of storage for which we want file instances
+
+        Returns:
+            input_file_instances: list of nested dictionaries for file instances
+        """
+
+        input_file_instances = []
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+            input_file_instances.extend(
+                tantalus_api.get_dataset_file_instances(
+                    dataset['id'], '`sequencedataset`', storage_name))
+        return input_file_instances
+
     def _generate_cell_metadata(self, storage_name):
         """ Generates per cell metadata
 
@@ -478,13 +515,11 @@ class AlignAnalysis(Analysis):
         if sample_info['cell_id'].duplicated().any():
             raise Exception('Duplicate cell ids in sample info.')
 
+        file_instances = self._get_input_file_instances(storage_name)
         lanes = self.get_lanes()
 
         # Sort by index_sequence, lane id, read end
-        fastq_filepaths = dict()
-
-        # Lane info
-        lane_info = dict()
+        fastq_file_instances = dict()
 
         tantalus_index_sequences = set()
         colossus_index_sequences = set()
@@ -528,11 +563,14 @@ class AlignAnalysis(Analysis):
             
             lane_fastqs = collections.defaultdict(dict)
             for lane_id, lane in lanes.items():
-                lane_fastqs[lane_id]['fastq_1'] = fastq_filepaths[(index_sequence, lane_id, 1)]
-                lane_fastqs[lane_id]['fastq_2'] = fastq_filepaths[(index_sequence, lane_id, 2)]
-                lane_fastqs[lane_id]['sequencing_center'] = lane_info[lane_id]['sequencing_centre']
-                lane_fastqs[lane_id]['sequencing_instrument'] = lane_info[lane_id]['sequencing_instrument']
-                lane_fastqs[lane_id]['read_type'] = lane_info[lane_id]['read_type']
+                sequencing_centre = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_centre']
+                sequencing_instrument = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_instrument']
+                read_type = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['read_type']
+                lane_fastqs[lane_id]['fastq_1'] = str(fastq_file_instances[(index_sequence, lane_id, 1)]['filepath'])
+                lane_fastqs[lane_id]['fastq_2'] = str(fastq_file_instances[(index_sequence, lane_id, 2)]['filepath'])
+                lane_fastqs[lane_id]['sequencing_center'] = str(sequencing_centre)
+                lane_fastqs[lane_id]['sequencing_instrument'] = str(sequencing_instrument)
+                lane_fastqs[lane_id]['read_type'] = str(read_type)
 
             if len(lane_fastqs) == 0:
                 raise Exception('No fastqs for cell_id {}, index_sequence {}'.format(
