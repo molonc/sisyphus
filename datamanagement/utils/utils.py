@@ -19,7 +19,7 @@ def get_lanes_hash(lanes):
         raise ValueError("bam with no lanes")
 
     lanes = ", ".join(sorted([get_lane_str(a) for a in lanes]))
-    lanes = hashlib.md5(lanes)
+    lanes = hashlib.md5(lanes.encode('utf-8'))
     return "{}".format(lanes.hexdigest()[:8])
 
 
