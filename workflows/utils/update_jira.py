@@ -47,3 +47,6 @@ def update_jira(jira_id, aligner, analysis_type):
         issue = jira_api.issue(jira_id)
 
         issue.update(notify=False, assignee={"name": "jbiele"}, description=description)
+
+    # Remove self as watcher
+    jira_api.remove_watcher(issue, JIRA_USER)
