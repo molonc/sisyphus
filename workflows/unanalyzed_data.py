@@ -11,15 +11,7 @@ from dbclients.basicclient import NotFoundError
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
 
-
 log = logging.getLogger('sisyphus')
-log.setLevel(logging.DEBUG)
-stream_handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-stream_handler.setFormatter(formatter)
-log.addHandler(stream_handler)
-log.propagate = False
-
 
 def get_lanes_from_bams_datasets():
     '''
@@ -46,7 +38,7 @@ def search_for_unaligned_data():
         libraries_to_analyze: list of library ids
     '''
 
-    logging.info('Searching for unaligned data')
+    log.info('Searching for unaligned data')
     bam_lanes = get_lanes_from_bams_datasets()
 
     fastq_lanes = []
@@ -59,7 +51,7 @@ def search_for_unaligned_data():
             flowcell_id = lane['flowcell_id']
             lane_number = lane['lane_number']
             if (flowcell_id, lane_number) not in bam_lanes:
-                logging.info("Unaligned data for library_id {}, flowcell_id {}, lane_number {}".format(library_id, flowcell_id, lane_number))
+                log.info("Unaligned data for library_id {}, flowcell_id {}, lane_number {}".format(library_id, flowcell_id, lane_number))
                 unaligned_lanes.append('{}_{}'.format(lane['flowcell_id'], lane['lane_number']))
 
     sequencing_ids = set()
@@ -67,7 +59,7 @@ def search_for_unaligned_data():
         try:
             lane_infos = list(colossus_api.list('lane', flow_cell_id=lane))
         except NotFoundError as e:
-            logging.info(e)
+            log.info(e)
             lane_infos = None 
             continue
         # Get sequencing associated with lanes
@@ -92,9 +84,12 @@ def search_for_no_hmmcopy_data():
     Return:
         libraries_to_analyze: list of library ids
     '''
-    logging.info('Searching for no hmmcopy data')
+    log.info('Searching for no hmmcopy data')
     bam_lanes = get_lanes_from_bams_datasets()
 
+
+    # TODO: Filter for complete hmmcopy analysis only
+    # Filtering for all hmmcopy will not catch all lanes that need hmmcopy
     hmmcopy_lane_inputs = []
     hmmcopy_analyses = tantalus_api.list('analysis', analysis_type__name="hmmcopy")
     for hmmcopy_analysis in hmmcopy_analyses:
@@ -106,7 +101,7 @@ def search_for_no_hmmcopy_data():
     no_hmmcopy_lanes = []
     for lane in bam_lanes:
         if lane not in hmmcopy_lane_inputs:
-            logging.info("Data for flowcell_id {} and lane_number {} has not been run with hmmcopy".format(
+            log.info("Data for flowcell_id {} and lane_number {} has not been run with hmmcopy".format(
                 lane[0], lane[1]))
             no_hmmcopy_lanes.append("{}_{}".format(lane[0], lane[1]))
 
@@ -115,7 +110,7 @@ def search_for_no_hmmcopy_data():
         try:
             lane_infos = list(colossus_api.list('lane', flow_cell_id=lane))
         except NotFoundError as e:
-            logging.info(e)
+            log.info(e)
             lane_infos = None 
             continue
 
