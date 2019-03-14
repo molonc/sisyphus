@@ -22,6 +22,8 @@ log.setLevel(logging.DEBUG)
 stream_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 stream_handler.setFormatter(formatter)
+log.addHandler(stream_handler)
+log.propagate = False
 
 
 def get_sequencings(library_id):
@@ -128,7 +130,7 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
 
     library_info = colossus_api.get('library', pool_id=library_id)
 
-    if library_info['exclude_from_analysis'] == True:
+    if library_info['exclude_from_analysis']:
         log.info('Library {} is excluded from analysis; skipping'.format(library_id))
         return None
 
@@ -151,8 +153,8 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
         sequencing = colossus_api.get('sequencing', id=sequencing_id)
 
         # Check if all lanes have been imported
-        if sequencing['number_of_lanes_requested'] != 0 and len(sequencing['dlplane_set']) != sequencing['number_of_lanes_requested']:
-            log.info("Not all data has been imported; skipping")
+        if sequencing['number_of_lanes_requested'] != 0 and len(sequencing['dlplane_set']) < sequencing['number_of_lanes_requested']:
+            log.info("Either no lanes requested or not all data has been imported; skipping")
             return None
 
         for lane in sequencing['dlplane_set']:
@@ -192,13 +194,14 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
 
             jira_ticket = check_existing_align_analysis(align_analysis_name)
 
-        log.info("Analysis ticket {} already exists for {}; tantalus analysis name: {}".format(jira_ticket, library_id, analysis_name))
-        analysis_info = dict(
-            name = analysis_name,
-            library_id = library_id,
-            jira_ticket = jira_ticket,
-            analysis_created = True,
-        )
+        if jira_ticket is not None:
+            log.info("Analysis ticket {} already exists for {}; tantalus analysis name: {}".format(jira_ticket, library_id, analysis_name))
+            analysis_info = dict(
+                name = analysis_name,
+                library_id = library_id,
+                jira_ticket = jira_ticket,
+                analysis_created = True,
+            )
         
     except NotFoundError:
         # Create jira ticket
@@ -210,7 +213,6 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
             jira_ticket = jira_ticket,
             analysis_created = False,
         )
-
 
     return analysis_info
 
@@ -231,8 +233,14 @@ def check_existing_align_analysis(align_analysis_name):
     if align_analysis["status"] == "complete":
         log.info("Completed analysis exists with ticket {}".format(align_analysis["jira_ticket"]))
         jira_ticket = align_analysis["jira_ticket"]
+        return jira_ticket
 
-    return jira_ticket
+    if align_analysis["status"] == "error":
+        log.info("Analysis {} failed with error; running again".format(align_analysis["jira_ticket"]))
+        return jira_ticket
+
+    # FIX: if analysis is idle, align should've been ran and cause error since analysis info wont be defined
+    return None
 
 
 def create_analysis_jira_ticket(library_id):
@@ -409,7 +417,6 @@ def main(version, aligner, check=False):
     for hmmcopy_analysis in analyses_to_run['hmmcopy']:
         log.info("Running hmmcopy for {}".format(hmmcopy_analysis))
         saltant_utils.run_hmmcopy(hmmcopy_analysis, version, config)
-
 
 if __name__ == '__main__':
     main()
