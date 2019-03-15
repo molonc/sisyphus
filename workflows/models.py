@@ -824,6 +824,9 @@ class PseudoBulkAnalysis(Analysis):
         super(PseudoBulkAnalysis, self).__init__('pseudobulk', jira, version, args, **kwargs)
         self.run_options = run_options
 
+    def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+        return '{}_{}'.format(jira, self.analysis_type)
+
     @staticmethod
     def search_input_datasets(args):
         """
