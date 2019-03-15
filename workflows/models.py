@@ -5,6 +5,7 @@ import os
 import re
 import collections
 import yaml
+import hashlib
 import subprocess
 
 from datamanagement.utils import dlp
@@ -177,7 +178,29 @@ class Analysis(object):
         if it doesn't exist. Set the input dataset ids.
         """
 
-        name = '{}_{}'.format(jira, self.analysis_type)
+        input_datasets = self.search_input_datasets(args)
+        input_results = self.search_input_results(args)
+
+        lanes = set()
+
+        for input_dataset in input_datasets:
+            dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
+            for sequence_lane in dataset['sequence_lanes']:
+                lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
+                lanes.add(lane)
+
+        lanes = ", ".join(sorted(lanes))
+        lanes = hashlib.md5(lanes)
+        lanes_hashed = "{}".format(lanes.hexdigest()[:8])
+
+        # MAYBE: Add this to templates?
+        name = "sc_{}_{}_{}_{}_{}".format(
+            analysis_type, 
+            args['aligner'], 
+            args['ref_genome'], 
+            args['library_id'],
+            lanes_hashed,
+        )
 
         log.info('Searching for existing analysis {}'.format(name))
 
@@ -185,9 +208,6 @@ class Analysis(object):
             analysis = tantalus_api.get('analysis', name=name, jira_ticket=jira)
         except NotFoundError:
             analysis = None
-
-        input_datasets = self.search_input_datasets(args)
-        input_results = self.search_input_results(args)
 
         if analysis is not None:
             log.info('Found existing analysis {}'.format(name))
