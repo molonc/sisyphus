@@ -91,7 +91,7 @@ def search_for_no_hmmcopy_data():
     # TODO: Filter for complete hmmcopy analysis only
     # Filtering for all hmmcopy will not catch all lanes that need hmmcopy
     hmmcopy_lane_inputs = []
-    hmmcopy_analyses = tantalus_api.list('analysis', analysis_type__name="hmmcopy")
+    hmmcopy_analyses = tantalus_api.list('analysis', analysis_type__name="hmmcopy", status="complete")
     for hmmcopy_analysis in hmmcopy_analyses:
         for dataset_id in hmmcopy_analysis['input_datasets']:
             dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
