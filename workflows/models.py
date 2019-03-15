@@ -409,7 +409,7 @@ class AlignHmmcopyMixin(object):
         return name
 
 
-class AlignAnalysis(Analysis, AlignHmmcopyMixin):
+class AlignAnalysis(AlignHmmcopyMixin, Analysis):
     """
     A class representing an alignment analysis in Tantalus.
     """
@@ -711,7 +711,7 @@ class AlignAnalysis(Analysis, AlignHmmcopyMixin):
             return launch_pipeline.run_pipeline
 
 
-class HmmcopyAnalysis(Analysis, AlignHmmcopyMixin):
+class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
     """
     A class representing an hmmcopy analysis in Tantalus.
     """
