@@ -797,8 +797,92 @@ class HmmcopyAnalysis(Analysis):
             return launch_pipeline.run_pipeline
 
     def generate_inputs_yaml(self, inputs_yaml_filename):
-        log.info("inputs.yaml should already exists from align analysis.")
-        pass
+
+        if os.path.isfile(inputs_yaml_filename):
+            log.info("inputs.yaml should already exists from align analysis.")
+            pass
+
+        log.info('Generating cell metadata')
+        reference_genome_choices = {
+            'grch37': 'HG19',
+            'mm10': 'MM10',
+        }
+
+        inverted_ref_genome_map = dict([[v,k] for k,v in reference_genome_choices.items()])
+
+        sample_info = generate_inputs.generate_sample_info(
+            self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
+
+        if sample_info['index_sequence'].duplicated().any():
+            raise Exception('Duplicate index sequences in sample info.')
+
+        if sample_info['cell_id'].duplicated().any():
+            raise Exception('Duplicate cell ids in sample info.')
+
+        file_instances = self._get_input_file_instances(self.storages['working_inputs'])
+        lanes = self.get_lanes()
+
+        # Sort by index_sequence, lane id, read end
+        fastq_file_instances = dict()
+
+        tantalus_index_sequences = set()
+        colossus_index_sequences = set()
+
+        for file_instance in file_instances:
+            lane_id = tantalus_utils.get_flowcell_lane(file_instance['sequence_dataset']['sequence_lanes'][0])
+            read_end = file_instance['file_resource']['sequencefileinfo']['read_end']
+            index_sequence = file_instance['file_resource']['sequencefileinfo']['index_sequence']
+            tantalus_index_sequences.add(index_sequence)
+            fastq_file_instances[(index_sequence, lane_id, read_end)] = file_instance
+
+        input_info = {}
+
+        for idx, row in sample_info.iterrows():
+            index_sequence = row['index_sequence']
+
+            if self.run_options.get("is_test_run", False) and (index_sequence not in tantalus_index_sequences):
+                # Skip index sequences that are not found in the Tantalus dataset, since
+                # we need to refer to the original library in Colossus for metadata, but
+                # we don't want to iterate through all the cells present in that library
+                continue
+
+            colossus_index_sequences.add(index_sequence)
+
+            bam_filename = templates.SC_WGS_BAM_TEMPLATE.format(
+                library_id=self.args['library_id'],
+                ref_genome=inverted_ref_genome_map[self.args['ref_genome']],
+                aligner_name=self.args['aligner'],
+                number_lanes=len(lanes),
+                cell_id=row['cell_id'],
+            )
+
+            bam_filepath = str(tantalus_api.get_filepath(self.storages['working_inputs'], bam_filename))
+
+            sample_id = row['sample_id']
+            if self.run_options.get("is_test_run", False):
+               assert 'TEST' in sample_id
+
+            input_info[str(row['cell_id'])] = {
+                'bam':          bam_filepath,
+                'pick_met':     str(row['pick_met']),
+                'condition':    str(row['condition']),
+                'primer_i5':    str(row['primer_i5']),
+                'index_i5':     str(row['index_i5']),
+                'primer_i7':    str(row['primer_i7']),
+                'index_i7':     str(row['index_i7']),
+                'img_col':      int(row['img_col']),
+                'column':       int(row['column']),
+                'row':          int(row['row']),
+                'sample_type':  'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
+                'index_sequence': str(row['primer_i7']) + '-' + str(row['primer_i5']),
+                'sample_id':    str(sample_id),
+            }
+
+        if colossus_index_sequences != tantalus_index_sequences:
+            raise Exception("index sequences in Colossus and Tantalus do not match")
+
+        with open(inputs_yaml_filename, 'w') as inputs_yaml:
+            yaml.dump(input_info, inputs_yaml, default_flow_style=False)
 
     def create_output_datasets(self, tag_name=None, update=False):
         log.info("No outputs need to be created for hmmcopy analysis.")
