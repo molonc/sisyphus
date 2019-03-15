@@ -188,6 +188,7 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
         library_id,
         lanes_hashed,
     )
+    analysis_name = align_analysis_name
 
     if analysis_type == "hmmcopy":
         hmmcopy_analysis_name = "sc_hmmcopy_{}_{}_{}_{}".format(
@@ -196,6 +197,7 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
             library_id,
             lanes_hashed,
         )
+        analysis_name = hmmcopy_analysis_name
     else:
         hmmcopy_analysis_name = None
 
@@ -227,7 +229,6 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
             jira_ticket = jira_ticket,
             analysis_created = False,
         )
-
 
     # try:
     #     if analysis_type == "align":
