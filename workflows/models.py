@@ -147,9 +147,7 @@ class Analysis(object):
             raise Exception("no storages specified for Analysis")
 
         self.analysis_type = analysis_type
-
-        self.analysis = self.get_or_create_analysis(jira, version, args, analysis_type, update=update)
-
+        self.analysis = self.get_or_create_analysis(jira, version, args, update=update)
         self.storages = storages
 
     @property
@@ -172,7 +170,10 @@ class Analysis(object):
     def version(self):
         return self.analysis['version']
 
-    def get_or_create_analysis(self, jira, version, args, analysis_type, update=False):
+    def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+        raise NotImplementedError()
+
+    def get_or_create_analysis(self, jira, version, args, update=False):
         """
         Get the analysis by querying Tantalus. Create the analysis
         if it doesn't exist. Set the input dataset ids.
@@ -181,26 +182,7 @@ class Analysis(object):
         input_datasets = self.search_input_datasets(args)
         input_results = self.search_input_results(args)
 
-        lanes = set()
-
-        for input_dataset in input_datasets:
-            dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
-            for sequence_lane in dataset['sequence_lanes']:
-                lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
-                lanes.add(lane)
-
-        lanes = ", ".join(sorted(lanes))
-        lanes = hashlib.md5(lanes.encode('utf-8'))
-        lanes_hashed = "{}".format(lanes.hexdigest()[:8])
-
-        # MAYBE: Add this to templates?
-        name = "sc_{}_{}_{}_{}_{}".format(
-            analysis_type, 
-            args['aligner'], 
-            args['ref_genome'], 
-            args['library_id'],
-            lanes_hashed,
-        )
+        name = self.generate_unique_name(jira, version, args, input_datasets, input_results)
 
         log.info('Searching for existing analysis {}'.format(name))
 
@@ -397,7 +379,37 @@ class Analysis(object):
         raise NotImplementedError
 
 
-class AlignAnalysis(Analysis):
+class AlignHmmcopyMixin(object):
+    """
+    Common functionality for both Align and Hmmcopy analyses.
+    """
+
+    def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+        lanes = set()
+
+        for input_dataset in input_datasets:
+            dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
+            for sequence_lane in dataset['sequence_lanes']:
+                lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
+                lanes.add(lane)
+
+        lanes = ", ".join(sorted(lanes))
+        lanes = hashlib.md5(lanes.encode('utf-8'))
+        lanes_hashed = "{}".format(lanes.hexdigest()[:8])
+
+        # MAYBE: Add this to templates?
+        name = "sc_{}_{}_{}_{}_{}".format(
+            self.analysis_type, 
+            args['aligner'], 
+            args['ref_genome'], 
+            args['library_id'],
+            lanes_hashed,
+        )
+
+        return name
+
+
+class AlignAnalysis(Analysis, AlignHmmcopyMixin):
     """
     A class representing an alignment analysis in Tantalus.
     """
@@ -699,7 +711,7 @@ class AlignAnalysis(Analysis):
             return launch_pipeline.run_pipeline
 
 
-class HmmcopyAnalysis(Analysis):
+class HmmcopyAnalysis(Analysis, AlignHmmcopyMixin):
     """
     A class representing an hmmcopy analysis in Tantalus.
     """
