@@ -190,7 +190,7 @@ class Analysis(object):
                 lanes.add(lane)
 
         lanes = ", ".join(sorted(lanes))
-        lanes = hashlib.md5(lanes)
+        lanes = hashlib.md5(lanes.encode('utf-8'))
         lanes_hashed = "{}".format(lanes.hexdigest()[:8])
 
         # MAYBE: Add this to templates?
