@@ -330,11 +330,11 @@ class Analysis(object):
         """
         return []
 
-    def create_output_datasets(self):
+    def create_output_datasets(self, update=False):
         """
         Create the set of output sequence datasets produced by this analysis.
         """
-        raise NotImplementedError
+        return []
 
     def create_output_results(self, update=False):
         """
@@ -497,12 +497,15 @@ class AlignAnalysis(Analysis):
                     len(dataset['sequence_lanes']), dataset_id))
 
             lane_id = tantalus_utils.get_flowcell_lane(dataset['sequence_lanes'][0])
-            lane_info[lane_id]['sequencing_centre'] = str(dataset['sequence_lanes'][0]['sequencing_centre'])
-            lane_info[lane_id]['sequencing_instrument'] = str(dataset['sequence_lanes'][0]['sequencing_instrument'])
-            lane_info[lane_id]['read_type'] = str(dataset['sequence_lanes'][0]['read_type'])
+
+            lane_info[lane_id] = {
+                'sequencing_centre': dataset['sequence_lanes'][0]['sequencing_centre'],
+                'sequencing_instrument': dataset['sequence_lanes'][0]['sequencing_instrument'],
+                'read_type': dataset['sequence_lanes'][0]['read_type'],
+            }
 
             file_instances = tantalus_api.get_dataset_file_instances(
-                dataset['id'], '`sequencedataset`', storage_name)
+                dataset['id'], 'sequencedataset', storage_name)
 
             for file_instance in file_instances:
                 read_end = file_instance['file_resource']['sequencefileinfo']['read_end']
@@ -820,15 +823,19 @@ class PseudoBulkAnalysis(Analysis):
 
         make_dirs(os.path.dirname(inputs_yaml_filename))
 
-        input_info = {'normal': {}, 'tumour': {}}
+        input_info = {}
 
         assert len(self.analysis['input_datasets']) > 0
+
+        # Type of dataset for normal
+        normal_library_type = None
 
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
 
             library_id = dataset['library']['library_id']
             sample_id = dataset['sample']['sample_id']
+            library_type = dataset['library']['library_type']
 
             # WORKAROUND: the single cell pipeline doesnt take
             # both sample and library specific cell info so use a
@@ -842,10 +849,15 @@ class PseudoBulkAnalysis(Analysis):
 
             dataset_class = ('tumour', 'normal')[is_normal]
 
+            if dataset_class == 'normal':
+                assert normal_library_type is None
+                normal_library_type = library_type
+
+            if dataset_class not in input_info:
+                input_info[dataset_class] = {}
+
             if sample_library_id not in input_info[dataset_class]:
                 input_info[dataset_class][sample_library_id] = {}
-
-            library_type = dataset['library']['library_type']
 
             file_instances = tantalus_api.get_dataset_file_instances(
                 dataset_id, 'sequencedataset', storage_name,
@@ -889,11 +901,18 @@ class PseudoBulkAnalysis(Analysis):
         if 'tumour' not in input_info or len(input_info['tumour']) == 0:
             raise ValueError('no tumour cells found')
 
-        # WORKAROUND: input yaml doesnt contain normal id until new pipeline
-        # release (>v0.2.9)
-        assert len(input_info['normal']) == 1
-        normal_id = input_info['normal'].keys()[0]
-        input_info['normal'] = input_info['normal'].pop(normal_id)
+        # Fix up input key names dependent on library type
+        if normal_library_type == 'SC_WGS':
+            normal_sample_ids = list(input_info['normal'].keys())
+            assert len(normal_sample_ids) == 1
+            normal_info = input_info.pop('normal')
+            input_info['normal_cells'] = normal_info[normal_sample_ids[0]]
+        elif normal_library_type == 'WGS':
+            input_info['normal_wgs'] = input_info.pop('normal')
+        else:
+            raise Exception('normal library type {}'.format(normal_library_type))
+
+        input_info['tumour_cells'] = input_info.pop('tumour')
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
@@ -918,15 +937,15 @@ class PseudoBulkAnalysis(Analysis):
             if sample_id == self.args['matched_normal_sample'] and library_id == self.args['matched_normal_library']:
                 continue
 
-            filenames.append('{}_allele_counts.csv'.format(sample_id))
-            filenames.append('{}_snv_annotations.h5'.format(sample_id))
-            filenames.append('{}_snv_counts.h5'.format(sample_id))
-            filenames.append('{}_destruct.h5'.format(sample_id))
+            filenames.append('{}_{}_allele_counts.csv'.format(sample_id, library_id))
+            filenames.append('{}_{}_snv_annotations.h5'.format(sample_id, library_id))
+            filenames.append('{}_{}_snv_counts.h5'.format(sample_id, library_id))
+            filenames.append('{}_{}_destruct.h5'.format(sample_id, library_id))
 
             for snv_caller in ('museq', 'strelka_snv', 'strelka_indel'):
-                filenames.append('{}_{}.vcf.gz'.format(sample_id, snv_caller))
-                filenames.append('{}_{}.vcf.gz.csi'.format(sample_id, snv_caller))
-                filenames.append('{}_{}.vcf.gz.tbi'.format(sample_id, snv_caller))
+                filenames.append('{}_{}_{}.vcf.gz'.format(sample_id, library_id, snv_caller))
+                filenames.append('{}_{}_{}.vcf.gz.csi'.format(sample_id, library_id, snv_caller))
+                filenames.append('{}_{}_{}.vcf.gz.tbi'.format(sample_id, library_id, snv_caller))
 
         return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
 
@@ -991,6 +1010,8 @@ class PseudoBulkAnalysis(Analysis):
             run_cmd += ['--config_file', self.run_options['sc_config']]
         if self.run_options['interactive']:
             run_cmd += ['--interactive']
+
+        run_cmd += ['--call_variants', '--call_haps']
 
         run_cmd += ['--config_override', '\'{"bigdisk":true}\'']
 
