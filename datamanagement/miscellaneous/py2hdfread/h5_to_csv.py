@@ -4,7 +4,7 @@ import logging
 import pandas as pd
 import numpy as np
 
-#import ruamel.yaml as yaml
+# import ruamel.yaml as yaml
 import yaml as yaml
 from pandas.testing import assert_frame_equal
 from ruamel.yaml.scanner import ScannerError
@@ -21,8 +21,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("")
 
-#root = "/path/to/data/files"
-#root = "~/w/bccrc/tt"
+# root = "/path/to/data/files"
+# root = "~/w/bccrc/tt"
 root = "/Users/ogolovko/w/bccrc/tt"
 
 pandas2std_types = {
@@ -58,11 +58,15 @@ class Timeit:
         logger.info("Block %s; t=%f (s)" % (self.name, self.t))
 
 
-def logerr(msg=''):
-    logger.error("%s; %s;" %(msg,pp.pformat(traceback.format_list(traceback.extract_stack()))))
+def logerr(msg=""):
+    logger.error(
+        "%s; %s;" % (msg, pp.pformat(traceback.format_list(traceback.extract_stack())))
+    )
+
 
 def diffs(x):
     return "{}+".format(x[0]) if x[0] == x[1] else "{}; {}".format(x[0], x[0] - x[1])
+
 
 # https://stackoverflow.com/questions/17095101/outputting-difference-in-two-pandas-dataframes-side-by-side-highlighting-the-d
 def show_diff(df0, df1):
@@ -110,14 +114,14 @@ def compare_df(df0, df1):
     return l
 
 
-def read_csv_with_types(dir,basefilename):
+def read_csv_with_types(dir, basefilename):
     """
     Args:
         basefilename(str): filename ends with '.csv' or '.csv.gz'
     Returns:
         DataFrame
     """
-    filename = os.path.join(dir,basefilename)
+    filename = os.path.join(dir, basefilename)
     ynm = "%s%s" % (filename, suff_yaml)
     logger.info("yaml: %s" % (ynm))
     with open(ynm, "r") as f:
@@ -127,8 +131,8 @@ def read_csv_with_types(dir,basefilename):
         yml = yml["__HEADER__"]
     types = {k: std2pandas_types[v] for (k, v) in yml["field_types"].iteritems()}
     df = pd.read_csv(filename, dtype=types, index_col=False)
-    #creating uncompressed file for testing
-    #df.to_csv(filename + ".xx", sep=",", encoding="utf-8", index=False)  # debug
+    # creating uncompressed file for testing
+    # df.to_csv(filename + ".xx", sep=",", encoding="utf-8", index=False)  # debug
     return df
 
 
@@ -150,37 +154,48 @@ def write_csv_with_types(data, dir, filename, index=False, encoding="utf-8"):
     """
 
     if len(data.columns) != len(data.columns.unique()):
-        raise ValueError('duplicate columns not supported')
+        raise ValueError("duplicate columns not supported")
 
-    fullname = os.path.join(dir,filename)
-    yamlfile = filename + suff_yaml #file name without dir
+    fullname = os.path.join(dir, filename)
+    yamlfile = filename + suff_yaml  # file name without dir
 
-    logger.info("write_csv_with_types(); dir: %s; file: %s; full: %s;" % (dir,filename,fullname))
+    logger.info(
+        "write_csv_with_types(); dir: %s; file: %s; full: %s;"
+        % (dir, filename, fullname)
+    )
     if not os.path.exists(os.path.dirname(fullname)):
-        logger.info("write_csv_with_types(); dir: %s; full: %s; creating directory: %s;" %
-            (dir,fullname,os.path.dirname(fullname)))
+        logger.info(
+            "write_csv_with_types(); dir: %s; full: %s; creating directory: %s;"
+            % (dir, fullname, os.path.dirname(fullname))
+        )
         try:
             os.makedirs(os.path.dirname(fullname))
-        except OSError as e: # Guard against race condition
+        except OSError as e:  # Guard against race condition
             if e.errno != errno.EEXIST:
                 raise
-    data.to_csv(fullname, sep=",", encoding=encoding, index=index)  # ,compression='gzip')
+    data.to_csv(
+        fullname, sep=",", encoding=encoding, index=index
+    )  # ,compression='gzip')
 
     error = 1
     try:
-        #could be exception
-        typeinfo = {"field_types":
-            {column:pandas2std_types[str(dtype)] for (column,dtype) in data.dtypes.iteritems()}
+        # could be exception
+        typeinfo = {
+            "field_types": {
+                column: pandas2std_types[str(dtype)]
+                for (column, dtype) in data.dtypes.iteritems()
+            }
         }
     except Exception as e:
-        #logerr(e)
+        # logerr(e)
         raise e
-    with open(os.path.join(dir,yamlfile), 'w') as f:
+    with open(os.path.join(dir, yamlfile), "w") as f:
         yaml.dump(typeinfo, f, default_flow_style=False)
     error = 0
-    return (error,yamlfile,filename)
+    return (error, yamlfile, filename)
 
-def create_filename(isHmm,dir_up,file_pref,key):
+
+def create_filename(isHmm, dir_up, file_pref, key):
     """
     returns
         SC-1037/results/results +
@@ -189,12 +204,17 @@ def create_filename(isHmm,dir_up,file_pref,key):
     """
     a = key.split("/")
 
-    s = (os.path.join(dir_up,"hmmcopy_autoploidy","multiplier_" + a[-1],file_pref + "_" + a[-2])
-            if isHmm else
-         os.path.join(dir_up,"alignment",file_pref + "_" + a[-1])) + suff_new
+    s = (
+        os.path.join(
+            dir_up, "hmmcopy_autoploidy", "multiplier_" + a[-1], file_pref + "_" + a[-2]
+        )
+        if isHmm
+        else os.path.join(dir_up, "alignment", file_pref + "_" + a[-1])
+    ) + suff_new
     return s
 
-def convert1(dir,hdf5_filename):
+
+def convert1(dir, hdf5_filename):
     """
     converts, writes and tests one hdf5 file
     _hmmcopy.h5 and _alignment_metrics.h5 processed differently
@@ -256,13 +276,15 @@ def convert1(dir,hdf5_filename):
             error -- error code, if OK then 0 else 1
             filenames -- union of yaml and csv file names without dir
     """
-    fullname = os.path.join(dir,hdf5_filename)
+    fullname = os.path.join(dir, hdf5_filename)
 
     # one step up from SC-1497/results/results/alignment : cd ../
-    dir_up = os.path.dirname(hdf5_filename)[:-len("/alignment")]
+    dir_up = os.path.dirname(hdf5_filename)[: -len("/alignment")]
 
     pref = os.path.basename(hdf5_filename).split("_")[0]
-    logging.info("convert1(); full: %s; dir_up: %s; pref: %s;" % (fullname,dir_up,pref))
+    logging.info(
+        "convert1(); full: %s; dir_up: %s; pref: %s;" % (fullname, dir_up, pref)
+    )
     isHmm = hdf5_filename.endswith("_hmmcopy.h5")
 
     ds = pd.HDFStore(path=fullname, mode="r")
@@ -272,31 +294,32 @@ def convert1(dir,hdf5_filename):
     filenames = set({})
 
     for k in keys:
-        logger.info("trying: %s; %s;" % (hdf5_filename,k))
-        with Timeit("{}; select({})".format(hdf5_filename,k)):
+        logger.info("trying: %s; %s;" % (hdf5_filename, k))
+        with Timeit("{}; select({})".format(hdf5_filename, k)):
             df = ds.select(k)
         # create filename without path
-        csv_filename = create_filename(isHmm,dir_up,pref,k)
+        csv_filename = create_filename(isHmm, dir_up, pref, k)
         with Timeit("convert-write; file: {};".format(csv_filename)):
             # returning filenames are relative to dir
-            (rc,yml,csv) = write_csv_with_types(df, dir, csv_filename)
+            (rc, yml, csv) = write_csv_with_types(df, dir, csv_filename)
 
         if 0 == rc:
             # testing if result is equivalent to the original
             # csv is filename relative to dir
-            df_test = read_csv_with_types(dir,csv)
+            df_test = read_csv_with_types(dir, csv)
             with Timeit("compare; {}".format(csv_filename)):
                 rc = not compare_df(df, df_test)
                 if 0 != rc:
                     break
             filenames.add(csv)
             filenames.add(yml)
-    return (rc,filenames)
+    return (rc, filenames)
+
 
 def main():
     # convert1(os.path.join(root,'_alignment_metrics.h5'))
     # convert1(root, "_hmmcopy.h5")
-    #convert1(root, "SC-1497/results/results/alignment/A96199B_hmmcopy.h5")
+    # convert1(root, "SC-1497/results/results/alignment/A96199B_hmmcopy.h5")
     convert1(root, "SC-1497/results/results/alignment/A96199B_alignment_metrics.h5")
 
 
@@ -323,14 +346,16 @@ def compare_df_test(isOk, a, b, msg):
     )
     return res
 
+
 def df_rw_test(a):
     dfa = pd.DataFrame(a)
     datfile = "xx/yy/a.csv.gz"
-    rc = write_csv_with_types(dfa,root,datfile)
-    df = read_csv_with_types(root,datafile)
-    l = compare_df(dfa,df)
+    rc = write_csv_with_types(dfa, root, datfile)
+    df = read_csv_with_types(root, datafile)
+    l = compare_df(dfa, df)
     logging.info("df_rw_test(); res={}; {}".format(l, "OK" if l else "ERROR"))
     return l
+
 
 def main_test():
     """
@@ -377,6 +402,6 @@ def main_test():
     return res
 
 
-if __name__ == '__main__':
-    #assert(main_test())
+if __name__ == "__main__":
+    # assert(main_test())
     main()
