@@ -230,66 +230,20 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
             analysis_created = False,
         )
 
-    # try:
-    #     if analysis_type == "align":
-    #         analysis_name = "sc_{}_{}_{}_{}_{}".format(
-    #             analysis_type,
-    #             aligner,
-    #             reference_genome,
-    #             library_id,
-    #             lanes_hashed,
-    #         )
-    #         analysis = tantalus_api.get('analysis', name=analysis_name)
-    #         jira_ticket = analysis['jira_ticket']
-    #
-    #     elif analysis_type == "hmmcopy":
-    #         align_analysis_name = "sc_align_{}_{}_{}_{}".format(
-    #             aligner,
-    #             reference_genome,
-    #             library_id,
-    #             lanes_hashed,
-    #         )
-    #
-    #         analysis_name = "sc_{}_{}_{}_{}_{}".format(
-    #             analysis_type,
-    #             aligner,
-    #             reference_genome,
-    #             library_id,
-    #             lanes_hashed,
-    #         )
-    #
-    #         jira_ticket = check_existing_align_analysis(align_analysis_name)
-    #
-    #     if jira_ticket is not None:
-    #         log.info("""Analysis ticket {} already exists for {}; tantalus
-    #             analysis name: {}""".format(
-    #                 jira_ticket,
-    #                 library_id,
-    #                 analysis_name
-    #             )
-    #         )
-    #         analysis_info = dict(
-    #             name = analysis_name,
-    #             library_id = library_id,
-    #             jira_ticket = jira_ticket,
-    #             analysis_created = True,
-    #         )
-    #
-    # except NotFoundError:
-    #     # Create jira ticket
-    #     log.info("JIRA ticket needs to be created for {} analysis".format(analysis_type))
-    #     jira_ticket = create_analysis_jira_ticket(library_id)
-    #     analysis_info = dict(
-    #         name = analysis_name,
-    #         library_id = library_id,
-    #         jira_ticket = jira_ticket,
-    #         analysis_created = False,
-    #     )
-
     return analysis_info
 
 
 def find_analysis(align_analysis_name, hmmcopy_analysis_name=None):
+    '''
+    Searches tantalus for existing analyses. 
+
+    Args:
+        align_analysis_name (str): Name of align analysis
+        hmmcopy_analysis_name (str): Name of hmmcopy analysis; default None
+
+    Returns:
+        jira_ticket (str): jira ticket id
+    '''
 
     try:
         if hmmcopy_analysis_name is not None:
@@ -306,37 +260,6 @@ def find_analysis(align_analysis_name, hmmcopy_analysis_name=None):
         raise NotFoundError
 
     return jira_ticket
-
-
-def check_existing_align_analysis(align_analysis_name):
-    '''
-    Checks if existing align analysis object exists on Tantalus
-
-    Args:
-        align_analysis_name (str): Name of analysis object to be searched
-
-    Returns:
-        jira_ticket (str or None)
-    '''
-    log.info("Searching for align analysis {}".format(align_analysis_name))
-    align_analysis = tantalus_api.get("analysis", name=align_analysis_name)
-
-    if align_analysis["status"] == "complete":
-        log.info("Completed analysis exists with ticket {}".format(
-            align_analysis["jira_ticket"])
-        )
-        jira_ticket = align_analysis["jira_ticket"]
-        return jira_ticket
-
-    if align_analysis["status"] == "error":
-        log.info("Analysis {} failed with error; running again".format(
-            align_analysis["jira_ticket"])
-        )
-        return jira_ticket
-
-    # FIX: if analysis is idle, align should've been ran and cause error since
-    # analysis info wont be defined
-    return None
 
 
 def create_analysis_jira_ticket(library_id):
