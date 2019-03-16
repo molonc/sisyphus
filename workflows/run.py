@@ -229,7 +229,9 @@ def main(
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
 
     log_file = log_utils.init_log_files(pipeline_dir)
-    log_utils.setup_sentinel(run_options['sisyphus_interactive'], pipeline_dir)
+    log_utils.setup_sentinel(
+        run_options['sisyphus_interactive'],
+        os.path.join(pipeline_dir, analysis_type))
 
     analysis_info = AnalysisInfo(
         jira,
