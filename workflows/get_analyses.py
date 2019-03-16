@@ -132,6 +132,27 @@ def get_analyses_to_run(version, aligner, check=False):
     return analyses_tickets
 
 
+def search_input_datasets(library_id, analysis_type):
+
+    if analysis_type == "align":
+        datasets = tantalus_api.list(
+            'sequence_dataset',
+            library__library_id=library_id,
+            dataset_type='BAM',
+        )
+
+    elif analysis_type == "hmmcopy":
+        datasets = tantalus_api.list(
+            'sequence_dataset',
+            library__library_id=library_id,
+            dataset_type='BAM',
+        )
+
+    dataset_ids = set([dataset["id"] for dataset in datasets])
+
+    return list(dataset_ids)
+
+
 def check_library_for_analysis(library_id, aligner, analysis_type):
     '''
     Given a library, check if library is included in analysis and has all data imported.
@@ -159,24 +180,13 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
     taxonomy_id = library_info['sample']['taxonomy_id']
     reference_genome = taxonomy_id_map[taxonomy_id]
 
-    sequencing_ids = get_sequencings(library_id)
+    input_datasets = search_input_datasets(library_id, analysis_type)
 
-    if not sequencing_ids:
-        log.info('Library {} has no sequencings; skipping'.format(library_id))
-        pass
-
-    lanes = set()
-    for sequencing_id in sequencing_ids:
-        sequencing = colossus_api.get('sequencing', id=sequencing_id)
-
-        # Check if all lanes have been imported
-        if (sequencing['number_of_lanes_requested'] != 0 and
-            len(sequencing['dlplane_set']) < sequencing['number_of_lanes_requested']):
-            log.info("Either no lanes requested or not all data has been imported; skipping")
-            return None
-
-        for lane in sequencing['dlplane_set']:
-            lanes.add(lane['flow_cell_id'])
+    for input_dataset in input_datasets:
+        dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
+        for sequence_lane in dataset['sequence_lanes']:
+            lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
+            lanes.add(lane)
 
     lanes = ", ".join(sorted(lanes))
     lanes = hashlib.md5(lanes)
@@ -235,7 +245,7 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
 
 def find_analysis(align_analysis_name, hmmcopy_analysis_name=None):
     '''
-    Searches tantalus for existing analyses. 
+    Searches tantalus for existing analyses.
 
     Args:
         align_analysis_name (str): Name of align analysis
