@@ -4,11 +4,15 @@ import logging
 import pandas as pd
 import numpy as np
 
-import ruamel.yaml as yaml
+#import ruamel.yaml as yaml
+import yaml as yaml
 from pandas.testing import assert_frame_equal
 from ruamel.yaml.scanner import ScannerError
 import logging
+import errno
 
+import pprint as pp
+import traceback
 
 logging.basicConfig(
     format="%(levelname)s:%(asctime)s:%(message)s",
@@ -17,7 +21,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("")
 
-root = "/path/to/data/files"
+#root = "/path/to/data/files"
+#root = "~/w/bccrc/tt"
+root = "/Users/ogolovko/w/bccrc/tt"
 
 pandas2std_types = {
     "bool": "boolean",
@@ -32,15 +38,6 @@ std2pandas_types = {
     "float": "float64",
     "str": "object",
 }
-
-yaml_pref = """
-__PIPELINE_INFO__:
-  data_type: generic
-__HEADER__:
-  caller: single_cell_hmmcopy_bin
-  sample_id: SAMPLE_ID_HERE
-  file_format: csv
-"""
 
 gz = ".gz"
 csv = ".csv"
@@ -61,9 +58,11 @@ class Timeit:
         logger.info("Block %s; t=%f (s)" % (self.name, self.t))
 
 
+def logerr(msg=''):
+    logger.error("%s; %s;" %(msg,pp.pformat(traceback.format_list(traceback.extract_stack()))))
+
 def diffs(x):
     return "{}+".format(x[0]) if x[0] == x[1] else "{}; {}".format(x[0], x[0] - x[1])
-
 
 # https://stackoverflow.com/questions/17095101/outputting-difference-in-two-pandas-dataframes-side-by-side-highlighting-the-d
 def show_diff(df0, df1):
@@ -111,87 +110,208 @@ def compare_df(df0, df1):
     return l
 
 
-def read_csv_with_types(filename):
+def read_csv_with_types(dir,basefilename):
     """
     Args:
-        filename(str): filename ends with '.csv' or '.csv.gz'
+        basefilename(str): filename ends with '.csv' or '.csv.gz'
     Returns:
         DataFrame
     """
-    fnm = (
-        filename[: -len(csv)] if filename.endswith(csv) else filename[: -len(suff_new)]
-    )
-    ynm = "%s%s" % (fnm, suff_yaml)
-    print("yaml: %s" % (ynm))
+    filename = os.path.join(dir,basefilename)
+    ynm = "%s%s" % (filename, suff_yaml)
+    logger.info("yaml: %s" % (ynm))
     with open(ynm, "r") as f:
         l = "\n".join(f.readlines())
     yml = yaml.load(l)
-    print(yml)
     if "__HEADER__" in yml:
         yml = yml["__HEADER__"]
     types = {k: std2pandas_types[v] for (k, v) in yml["field_types"].iteritems()}
     df = pd.read_csv(filename, dtype=types, index_col=False)
-    df.to_csv(filename + ".xx", sep=",", encoding="utf-8", index=False)  # debug
+    #creating uncompressed file for testing
+    #df.to_csv(filename + ".xx", sep=",", encoding="utf-8", index=False)  # debug
     return df
 
 
-def write_csv_with_types(df, filename, index=False, encoding="utf-8"):
+def write_csv_with_types(data, dir, filename, index=False, encoding="utf-8"):
     """
     writes df to gzipped or raw csv depending on extension
     see pandas to_csv()
+    if filename contains directories then creates them
     Args:
-        df: DataFrame
+        data: DataFrame
+        dir: str -- output directory
         filename: str -- csv filename ends with '.csv' or '.csv.gz'
         rest as in pandas to_csv()
     Returns:
-
+        (error,yaml,csv) : (int,str,str)
+            error -- error code, if OK then 0 else 1
+            yamlfile  -- yaml file name without dir
+            csv   -- csv file name without dir
     """
-    csv = ".csv"
-    yaml = "%s.yaml" % (
-        filename[: -len(csv)]
-        if filename.endswith(csv)
-        else filename[: -len(csv + ".gz")]
-    )
-    df.to_csv(filename, sep=",", encoding=encoding, index=index)  # ,compression='gzip')
-    with open(yaml, "w") as fo:
-        fo.write("field_types:\n")
+
+    if len(data.columns) != len(data.columns.unique()):
+        raise ValueError('duplicate columns not supported')
+
+    fullname = os.path.join(dir,filename)
+    yamlfile = filename + suff_yaml #file name without dir
+
+    logger.info("write_csv_with_types(); dir: %s; file: %s; full: %s;" % (dir,filename,fullname))
+    if not os.path.exists(os.path.dirname(fullname)):
+        logger.info("write_csv_with_types(); dir: %s; full: %s; creating directory: %s;" %
+            (dir,fullname,os.path.dirname(fullname)))
         try:
-            for k, v in df.dtypes.iteritems():
-                print(k, v, pandas2std_types[v.name])
-                fo.write("    %s        : %s\n" % (k, pandas2std_types[v.name]))
-        except Exception as e:
-            print(e)
-            pass
+            os.makedirs(os.path.dirname(fullname))
+        except OSError as e: # Guard against race condition
+            if e.errno != errno.EEXIST:
+                raise
+    data.to_csv(fullname, sep=",", encoding=encoding, index=index)  # ,compression='gzip')
 
+    error = 1
+    try:
+        #could be exception
+        typeinfo = {"field_types":
+            {column:pandas2std_types[str(dtype)] for (column,dtype) in data.dtypes.iteritems()}
+        }
+    except Exception as e:
+        #logerr(e)
+        raise e
+    with open(os.path.join(dir,yamlfile), 'w') as f:
+        yaml.dump(typeinfo, f, default_flow_style=False)
+    error = 0
+    return (error,yamlfile,filename)
 
-def convert1(hdf5_filename):
+def create_filename(isHmm,dir_up,file_pref,key):
     """
-    args:
-        full file name of the file to convert
+    returns
+        SC-1037/results/results +
+            /alignment/A96224A_xxx.csv.gz if key == /alighnment/xxx  -- case alignment_metrics
+            /multiplier_0/A96224A_yyy.csv.gz if key == /hmmcopy/yyy/3   -- case hmmcopy
     """
-    ds = pd.HDFStore(path=hdf5_filename, mode="r")
+    a = key.split("/")
+
+    s = (os.path.join(dir_up,"hmmcopy_autoploidy","multiplier_" + a[-1],file_pref + "_" + a[-2])
+            if isHmm else
+         os.path.join(dir_up,"alignment",file_pref + "_" + a[-1])) + suff_new
+    return s
+
+def convert1(dir,hdf5_filename):
+    """
+    converts, writes and tests one hdf5 file
+    _hmmcopy.h5 and _alignment_metrics.h5 processed differently
+    _hmmcopy.h5 tree structure:
+       /
+           |--hmmcopy
+               |--reads
+               |   |--0   # these nodes contain data
+               |   |--1
+               |   ...
+               |--segments
+               |   |--0   # these nodes contains data
+               |   |--1
+               |   ...
+               |--metrics
+               |   |--0   # these nodes contains data
+               |   |--1
+               |   ...
+
+       i.e. data is in /hmmcopy/reads/0
+
+    _alignment_metrics.h5 tree structure:
+       /
+           |--alignment
+               |--metrics     # data is here
+               |--gc_metrics  # data is here
+
+    output example:
+    --------------------
+    singlecelldata -> results -> SC-1037 -> results -> results -> alignment -> A96224A_alignment_metrics.h5
+
+    maps to
+
+    singlecelldata -> results -> SC-1037 -> results -> results -> alignment -> A96224A_alignment_metrics.csv.gz
+    singlecelldata -> results -> SC-1037 -> results -> results -> alignment -> A96224A_alignment_metrics.yaml
+    singlecelldata -> results -> SC-1037 -> results -> results -> alignment -> A96224A_gc_metrics.csv.gz
+    singlecelldata -> results -> SC-1037 -> results -> results -> alignment -> A96224A_gc_metrics.yaml
+
+    --------------------
+    singlecelldata -> results -> SC-1037 -> results -> results -> alignment -> A96224A_hmmcopy.h5
+
+    maps to
+
+    singlecelldata -> results -> SC-1037 -> results -> results -> hmmcopy_autoploidy -> multiplier_0 -> A96224A_reads.csv.gz
+    singlecelldata -> results -> SC-1037 -> results -> results -> hmmcopy_autoploidy -> multiplier_0 -> A96224A_reads.csv.gz.yaml
+    singlecelldata -> results -> SC-1037 -> results -> results -> hmmcopy_autoploidy -> multiplier_0 -> A96224A_segments.csv.gz
+    singlecelldata -> results -> SC-1037 -> results -> results -> hmmcopy_autoploidy -> multiplier_0 -> A96224A_segments.csv.gz.yaml
+    ...
+    singlecelldata -> results -> SC-1037 -> results -> results -> hmmcopy_autoploidy -> multiplier_1 -> A96224A_reads.csv.gz
+    singlecelldata -> results -> SC-1037 -> results -> results -> hmmcopy_autoploidy -> multiplier_1 -> A96224A_reads.csv.gz.yaml
+    ...
+    --------------------
+
+    Args:
+        dir -- root directory
+        hdf5_filename -- file name of the file to convert with path starting from the root directory
+    Returns:
+        (error,filenames) : (int,set[str])
+            error -- error code, if OK then 0 else 1
+            filenames -- union of yaml and csv file names without dir
+    """
+    fullname = os.path.join(dir,hdf5_filename)
+
+    # one step up from SC-1497/results/results/alignment : cd ../
+    dir_up = os.path.dirname(hdf5_filename)[:-len("/alignment")]
+
+    pref = os.path.basename(hdf5_filename).split("_")[0]
+    logging.info("convert1(); full: %s; dir_up: %s; pref: %s;" % (fullname,dir_up,pref))
+    isHmm = hdf5_filename.endswith("_hmmcopy.h5")
+
+    ds = pd.HDFStore(path=fullname, mode="r")
     keys = ds.keys()
-    fnm_old = hdf5_filename[: -len(suff_old)]
-    print("all: %s;" % (keys))
-    for k in keys:
-        print("trying: %s;" % (k))
-        fnm = "%s%s" % (fnm_old, k.replace("/", "_"))
-        csv_filename = "%s%s" % (fnm, suff_new)
-        with Timeit("select({})".format(fnm)):
-            df = ds.select(k)
-        with Timeit("convert-write; {}".format(csv_filename)):
-            write_csv_with_types(df, csv_filename)
-        df_test = read_csv_with_types(csv_filename)
-        with Timeit("compare; {}".format(csv_filename)):
-            assert compare_df(df, df_test)
 
+    fnm_old = hdf5_filename[: -len(suff_old)]
+    filenames = set({})
+
+    for k in keys:
+        logger.info("trying: %s; %s;" % (hdf5_filename,k))
+        with Timeit("{}; select({})".format(hdf5_filename,k)):
+            df = ds.select(k)
+        # create filename without path
+        csv_filename = create_filename(isHmm,dir_up,pref,k)
+        with Timeit("convert-write; file: {};".format(csv_filename)):
+            # returning filenames are relative to dir
+            (rc,yml,csv) = write_csv_with_types(df, dir, csv_filename)
+
+        if 0 == rc:
+            # testing if result is equivalent to the original
+            # csv is filename relative to dir
+            df_test = read_csv_with_types(dir,csv)
+            with Timeit("compare; {}".format(csv_filename)):
+                rc = not compare_df(df, df_test)
+                if 0 != rc:
+                    break
+            filenames.add(csv)
+            filenames.add(yml)
+    return (rc,filenames)
 
 def main():
     # convert1(os.path.join(root,'_alignment_metrics.h5'))
-    convert1(os.path.join(root, "_hmmcopy.h5"))
+    # convert1(root, "_hmmcopy.h5")
+    #convert1(root, "SC-1497/results/results/alignment/A96199B_hmmcopy.h5")
+    convert1(root, "SC-1497/results/results/alignment/A96199B_alignment_metrics.h5")
 
 
 def compare_df_test(isOk, a, b, msg):
+    """
+    tests compare_df function, success depends on isOk,
+    if isOk True then DataFrames are equal and comparison result should be True
+    if isOk False then DataFrames are not equal and comparison result should be False
+    Args:
+        isOk: bool
+        a,b : DataFrame -- DataFrames to compare
+        msg : string -- logging message
+    Returns:
+        bool -- True if isOk == compare_result else False
+    """
     dfa = pd.DataFrame(a)
     dfb = pd.DataFrame(b)
     l = compare_df(dfa, dfb)
@@ -203,8 +323,19 @@ def compare_df_test(isOk, a, b, msg):
     )
     return res
 
+def df_rw_test(a):
+    dfa = pd.DataFrame(a)
+    datfile = "xx/yy/a.csv.gz"
+    rc = write_csv_with_types(dfa,root,datfile)
+    df = read_csv_with_types(root,datafile)
+    l = compare_df(dfa,df)
+    logging.info("df_rw_test(); res={}; {}".format(l, "OK" if l else "ERROR"))
+    return l
 
 def main_test():
+    """
+    entry point for tests
+    """
     a = {"f1": [1, 2, 3], "f2": [1.0, 2.0, 3.0], "f3": ["a", "b", "c"]}
     xx = {
         "different int": {
@@ -241,7 +372,11 @@ def main_test():
     res = compare_df_test(1, a, a, "equal")
     for k, v in xx.iteritems():
         res &= compare_df_test(0, a, v, k)
+    res &= df_rw_test(a)
     logging.info("============== test: {}".format("OK" if res else "ERROR"))
+    return res
 
 
-main_test()
+if __name__ == '__main__':
+    #assert(main_test())
+    main()
