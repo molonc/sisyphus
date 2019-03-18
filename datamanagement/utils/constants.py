@@ -13,7 +13,6 @@ REF_GENOME_REGEX_MAP = {
              r'ncbi[-_ ]?build[-_ ]?37'
             ],}
 
-
 # Useful Shahlab-specific variables
 SHAHLAB_TANTALUS_SERVER_NAME = 'shahlab'
 SHAHLAB_HOSTNAME = 'node0515'

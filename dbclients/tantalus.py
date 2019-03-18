@@ -12,10 +12,14 @@ import json
 import os
 import time
 import datetime
-import urllib2
 import logging
 import shutil
 import pandas as pd
+
+try:
+    from urllib.request import urlopen
+except ImportError:
+    from urllib2 import urlopen
 
 from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
@@ -102,7 +106,7 @@ class BlobStorageClient(object):
 
     def open_file(self, blobname):
         url = self.get_url(blobname)
-        return urllib2.urlopen(url)
+        return urlopen(url)
 
     def exists(self, blobname):
         return self.blob_service.exists(self.storage_container, blob_name=blobname)
@@ -350,6 +354,9 @@ class TantalusApi(BasicAPIClient):
         storage = self.get_storage(storage_name)
         storage_client = self.get_storage_client(storage_name)
 
+        log.info('adding file with path {} in storage {}'.format(
+            filepath, storage_name))
+
         filename = self.get_file_resource_filename(storage_name, filepath)
 
         # Try getting or creating the file resource, will
@@ -477,32 +484,6 @@ class TantalusApi(BasicAPIClient):
 
         raise NotFoundError
 
-    def get_sequence_dataset_file_instances(self, dataset, storage_name):
-        """
-        Given a dataset get all file instances.
-
-        Note: file_resource and sequence_dataset are added as fields
-        to the file_instances
-
-        Args:
-            dataset (dict)
-            storage_name (str)
-
-        Returns:
-            file_instances (list)
-        """
-        file_instances = []
-
-        for file_resource in self.list('file_resource', sequencedataset__id=dataset['id']):
-
-            file_instance = self.get_file_instance(file_resource, storage_name)
-            file_instance['file_resource'] = file_resource
-            file_instance['sequence_dataset'] = dataset
-
-            file_instances.append(file_instance)
-
-        return file_instances
-
     def get_dataset_file_instances(self, dataset_id, dataset_model, storage_name, filters=None):
         """
         Given a dataset get all file instances.
@@ -511,8 +492,9 @@ class TantalusApi(BasicAPIClient):
         to the file_instances
 
         Args:
-            dataset (dict)
-            storage_name (str)
+            dataset_id (int): primary key of sequencedataset or resultsdataset
+            dataset_model (str): model type, sequencedataset or resultsdataset
+            storage_name (str): name of the storage for which to retrieve file instances
 
         KwArgs:
             filters (dict): additional filters such as filename extension
@@ -542,6 +524,32 @@ class TantalusApi(BasicAPIClient):
             file_instances.append(file_instance)
 
         return file_instances
+
+    def get_dataset_file_resources(self, dataset_id, dataset_model, filters=None):
+        """
+        Given a dataset get all file resources.
+
+        Args:
+            dataset_id (int): primary key of sequencedataset or resultsdataset
+            dataset_model (str): model type, sequencedataset or resultsdataset
+
+        KwArgs:
+            filters (dict): additional filters such as filename extension
+
+        Returns:
+            file_resources (list)
+        """
+
+        if dataset_model == 'sequencedataset':
+            file_resources = self.list('file_resource', sequencedataset__id=dataset_id, **filters)
+
+        elif dataset_model == 'resultsdataset':
+            file_resources = self.list('file_resource', resultsdataset__id=dataset_id, **filters)
+
+        else:
+            raise ValueError('unrecognized dataset model {}'.format(dataset_model))
+
+        return file_resources
 
     def is_sequence_dataset_on_storage(self, dataset, storage_name):
         """

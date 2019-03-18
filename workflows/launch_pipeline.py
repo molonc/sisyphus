@@ -72,7 +72,7 @@ def get_config_string(analysis_info):
 
 
 def run_pipeline2(*args, **kwargs):
-    print args, kwargs
+    print(args, kwargs)
 
 def run_pipeline(
         results_dir,
@@ -87,6 +87,8 @@ def run_pipeline(
         dirs=()):
 
     args = tantalus_analysis.args
+    version = tantalus_analysis.version
+    run_options = tantalus_analysis.run_options
     config_override_string = get_config_string(analysis_info)
     
     run_cmd = [
@@ -104,7 +106,7 @@ def run_pipeline(
         '--context_config',     context_config_file,
     ]
 
-    if args['local_run']:
+    if run_options['local_run']:
         run_cmd += ["--submit", "local"]
 
     else:
@@ -129,13 +131,13 @@ def run_pipeline(
         ])
 
     docker_cmd.append(
-        'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(args['version'])
+        'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(version)
     )
 
     run_cmd = docker_cmd + run_cmd
 
 
-    has_classifier = StrictVersion(args['version'].strip('v')) >= StrictVersion('0.1.5')
+    has_classifier = StrictVersion(version.strip('v')) >= StrictVersion('0.1.5')
     if (tantalus_analysis.analysis_type == 'hmmcopy') and (has_classifier):
         alignment_metrics = templates.ALIGNMENT_METRICS.format(
             results_dir=results_dir,
@@ -145,9 +147,9 @@ def run_pipeline(
         log.info('Using alignment metrics file {}'.format(alignment_metrics))
         run_cmd += ['--alignment_metrics', alignment_metrics]
 
-    if args['sc_config'] is not None:
-        run_cmd += ['--config_file', args['sc_config']]
-    if args['interactive']:
+    if run_options['sc_config'] is not None:
+        run_cmd += ['--config_file', run_options['sc_config']]
+    if run_options['interactive']:
         run_cmd += ['--interactive']
 
     run_cmd_string = r' '.join(run_cmd)
