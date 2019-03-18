@@ -18,6 +18,128 @@ import click
 from dbclients.basicclient import FieldMismatchError, NotFoundError
 
 
+def add_sequence_dataset(
+                tantalus_api,
+                storage_name, 
+                sample_id, 
+                library, 
+                dataset_type,
+                dataset_name,
+                sequence_lanes, 
+                file_paths, 
+                reference_genome, 
+                aligner, 
+                tag_name=None,
+                update=False):
+        """
+        Add a sequence dataset, gets or creates the required sample, library, 
+        and sequence lanes for the dataset
+
+        Args:
+            storage_name (str)
+            dataset_name (str)
+            dataset_type (str)
+            sample_id (str):        internal sample ID   
+            library (dict):         contains: library_id, library_type, index_format
+            sequence_lanes (list):  contains: flowcell_id, read_type, lane_number, 
+                                    sequencing_centre, sequencing_instrument, library_id
+            file_paths (list):      list of file paths to data included in dataset
+            reference_genome (str)
+            aligner (str)
+            tags (list)
+        Returns:
+            sequence_dataset (dict)
+        """ 
+        # Create the sample
+        sample = tantalus_api.get_or_create(
+            "sample",
+            sample_id=sample_id
+        )
+
+        # Create the library
+        library = tantalus_api.get_or_create(
+            "dna_library",
+            library_id=library["library_id"],
+            library_type=library["library_type"],
+            index_format=library["index_format"]
+        )
+
+        # Create the sequence lanes
+        sequence_lane_pks = []
+        for lane in sequence_lanes:
+            # Get library ID associated with each lane
+            lane_library_pk = tantalus_api.get_or_create(
+                "dna_library",
+                library_id=lane["library_id"],
+                library_type=library["library_type"],
+                index_format=library["index_format"]
+            )["id"]
+
+            lane_pk = tantalus_api.get_or_create(
+                "sequencing_lane",
+                flowcell_id=lane["flowcell_id"],
+                dna_library=lane_library_pk,
+                read_type=lane["read_type"],
+                lane_number=str(lane["lane_number"]),
+                sequencing_centre=lane["sequencing_centre"],
+                sequencing_instrument=lane["sequencing_instrument"]
+            )["id"]
+
+            sequence_lane_pks.append(lane_pk)
+
+        # Create the tag
+        if tag_name is not None:
+            tag_pk = tantalus_api.get_or_create("tag", name=tag_name)["id"]
+            tags = [tag_pk]
+        else:
+            tags = []
+
+        # Create the file resources
+        file_resource_pks = []
+        for file_path in file_paths:
+            file_resource, file_instance = tantalus_api.add_file(storage_name, file_path, update=update)
+            file_resource_pks.append(file_resource["id"])
+
+        # Create the sequence dataset associated with the above data
+        try:
+            sequence_dataset = tantalus_api.get(
+                    "sequence_dataset",
+                    name=dataset_name,
+                    dataset_type=dataset_type,
+                    sample=sample["id"],
+                    library=library["id"],
+                    sequence_lanes=sequence_lane_pks,
+                    reference_genome=reference_genome,
+                    aligner=aligner,
+            )
+    
+            # Add the new file resources to existing file resources 
+            file_resource_ids = file_resource_pks + sequence_dataset["file_resources"]
+            tag_ids = tags + sequence_dataset["tags"]
+    
+            sequence_dataset = tantalus_api.update(
+                    "sequence_dataset",
+                    id=sequence_dataset["id"],
+                    file_resources=file_resource_ids,
+                    tags=tag_ids,
+            )
+        except NotFoundError:
+            sequence_dataset = tantalus_api.create(
+                    "sequence_dataset",
+                    name=dataset_name,
+                    dataset_type=dataset_type,
+                    sample=sample["id"],
+                    library=library["id"],
+                    sequence_lanes=sequence_lane_pks,
+                    file_resources=file_resource_pks,
+                    reference_genome=reference_genome,
+                    aligner=aligner,
+                    tags=tags,
+            )
+
+        return sequence_dataset
+
+
 def get_bam_ref_genome(bam_header):
     """
     Parses the reference genome from bam header
@@ -191,7 +313,8 @@ def import_bam(
     )
 
     # Add the sequence dataset to Tantalus
-    sequence_dataset = tantalus_api.add_sequence_dataset(
+    sequence_dataset = add_sequence_dataset(
+            tantalus_api
             storage_name=storage_name,
             sample_id=bam_header_info["sample_id"],
             library=library,
