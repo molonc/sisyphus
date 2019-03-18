@@ -570,7 +570,6 @@ class TantalusApi(BasicAPIClient):
 
         return True
 
-
     def tag(self, name, sequencedataset_set=(), resultsdataset_set=()):
         """
         Tag datasets.
