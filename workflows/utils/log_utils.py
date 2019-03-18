@@ -131,7 +131,7 @@ def sentinel(filename, function, *args, **kwargs):
     sentinels_dir = os.path.join(working_directory, 'sentinels')
 
     if not os.path.exists(sentinels_dir):
-        os.mkdir(sentinels_dir)
+        os.makedirs(sentinels_dir)
 
     log.debug(filename)
 
