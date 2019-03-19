@@ -5,9 +5,7 @@ import hashlib
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
 from dbclients.basicclient import NotFoundError
-
-tantalus_api = TantalusApi()
-colossus_api = ColossusApi()
+from datamanagement.utils import utils
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
@@ -17,12 +15,15 @@ stream_handler.setFormatter(formatter)
 log.addHandler(stream_handler)
 log.propagate = False
 
+tantalus_api = TantalusApi()
+colossus_api = ColossusApi()
+
 def rename_all_dlp_analyses():
-	'''
-	Rename of all dlp analysis to have form: 
-		sc_<analysis_type>_<aligner>_<ref_genome>_<library_id>_<hashed_lanes>
-	'''
-	
+      '''
+      Rename of all dlp analysis to have form: 
+      	sc_<analysis_type>_<aligner>_<ref_genome>_<library_id>_<hashed_lanes>
+      '''
+
 	reference_genome_map = {
 	    'grch37': 	'HG19',
 	    'mm10': 	'MM10',
@@ -33,6 +34,8 @@ def rename_all_dlp_analyses():
 	}
 	analysis_types = ('align', 'hmmcopy')
 	analyses = tantalus_api.list('analysis')
+
+	analyses_to_delete = []
 
 	for analysis in analyses:
 		analysis_type = analysis['analysis_type']
@@ -78,7 +81,10 @@ def rename_all_dlp_analyses():
 					lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
 					lanes.add(lane)
 		else:
-			log.warning('No input datasets for analysis id {} \n'.format(analysis['id']))
+			log.info('No input datasets for analysis id {}; jira ticket {}\n'.format(
+				analysis['id'], 
+				analysis["jira_ticket"])
+			)
 			continue
 
 		lanes = ", ".join(sorted(lanes))
@@ -92,7 +98,16 @@ def rename_all_dlp_analyses():
 		    library_id,
 		    lanes_hashed,
 		)
-		log.info("New {} analysis name for analysis {}: {}".format(analysis_type, analysis['id'], new_analysis_name))
+
+		if analysis["name"] == new_analysis_name:
+			log.info("Analysis {} does not need renaming \n\n".format(analysis['id']))
+			continue
+
+		log.info("New {} analysis name for analysis {}: {}".format(
+			analysis_type, 
+			analysis['id'], 
+			new_analysis_name)
+		)
 
 		# Updating analysis objects on Tantalus with new name 
 		try:
@@ -102,8 +117,7 @@ def rename_all_dlp_analyses():
 			)
 			log.info("Updating name on analysis {} \n\n".format(analysis['id']))
 
-		except Exception as e:
-			log.info(str(e))
+		except Exception:
 			log.info("Cannot update {} with name {}".format(analysis['id'], new_analysis_name)) 
 
 			conflict_analysis = tantalus_api.get('analysis', name=new_analysis_name)
@@ -134,17 +148,21 @@ def rename_all_dlp_analyses():
 				)
 
 			else:
-				tantalus_api.update('analysis', 
-					analysis['id'],
-					name=old_analysis_name
-				)
+				try:
+					log.info('Updating analysis {} with old name \n\n'.format(analysis['id']))
+					tantalus_api.update('analysis', 
+						analysis['id'],
+						name=old_analysis_name
+					)
 
-				log.info('Updating analysis {} with old name \n\n'.format(analysis['id']))
+				except:
+					log.info("cannot update {} with old name {}; old analysis already exists".format(
+						analysis['id'], 
+						old_analysis_name)
+					)
 
 
 if __name__ == "__main__":
 	rename_all_dlp_analyses()
-
-
 
 
