@@ -803,11 +803,12 @@ class HmmcopyAnalysis(Analysis):
         else:
             return launch_pipeline.run_pipeline
 
+
     def generate_inputs_yaml(self, inputs_yaml_filename):
 
         if os.path.isfile(inputs_yaml_filename):
-            log.info("inputs.yaml should already exists from align analysis.")
-            pass
+            log.info("inputs.yaml already exists from align analysis.")
+            return
 
         log.info('Generating cell metadata')
         reference_genome_choices = {
@@ -826,8 +827,6 @@ class HmmcopyAnalysis(Analysis):
         if sample_info['cell_id'].duplicated().any():
             raise Exception('Duplicate cell ids in sample info.')
 
-        lanes = self.get_lanes()
-
         # Sort by index_sequence, lane id, read end
         fastq_file_instances = dict()
 
@@ -838,7 +837,7 @@ class HmmcopyAnalysis(Analysis):
             dataset = self.get_dataset(dataset_id)
 
             file_instances = tantalus_api.get_dataset_file_instances(
-                    dataset['id'], 'sequencedataset', storage_name)
+                    dataset['id'], 'sequencedataset', self.storages['working_inputs'])
 
             for file_instance in file_instances:
                 file_instance['sequence_dataset'] = dataset
