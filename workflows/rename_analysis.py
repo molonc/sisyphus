@@ -6,6 +6,16 @@ import logging
 import hashlib
 import os
 
+
+log = logging.getLogger('sisyphus')
+log.setLevel(logging.DEBUG)
+stream_handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+stream_handler.setFormatter(formatter)
+log.addHandler(stream_handler)
+log.propagate = False
+
+
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
 
@@ -21,12 +31,14 @@ def rename_all_dlp_analyses():
 	analysis_types = ('align', 'hmmcopy')
 	analyses = tantalus_api.list('analysis')
 
+	analyses_to_delete = []
+
 	for analysis in analyses:
 		analysis_type = analysis['analysis_type']
-		print('Analysis id {}'.format(analysis['id']))
+		log.info('Analysis id {}'.format(analysis['id']))
 
 		if analysis_type not in analysis_types:
-			print('Analysis {} not align/hmmmcopy ; skipping rename \n \n'.format(analysis['id']))
+			log.info('Analysis {} not align/hmmmcopy ; skipping rename \n \n'.format(analysis['id']))
 			continue
 
 		jira_ticket = analysis['jira_ticket']
@@ -39,11 +51,11 @@ def rename_all_dlp_analyses():
 			colossus_analysis = colossus_api.get('analysis_information', analysis_jira_ticket=jira_ticket)
 
 		except NotFoundError:
-			print(NotFoundError)
+			log.info(NotFoundError)
 			continue
 
 		library_id = colossus_analysis['library']['pool_id']
-		print('Renaming {} analysis {} for library {} and jira ticket {}'.format(
+		log.info('Renaming {} analysis {} for library {} and jira ticket {}'.format(
 			analysis_type, 
 			analysis['id'], 
 			library_id, 
@@ -57,7 +69,7 @@ def rename_all_dlp_analyses():
 
 		lanes = set()
 		if len(analysis['input_datasets']) > 0:
-			print('Getting Lanes...')
+			log.info('Getting Lanes...')
 			input_datasets = analysis['input_datasets'] 
 			for input_dataset in input_datasets:
 				dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
@@ -65,11 +77,9 @@ def rename_all_dlp_analyses():
 					lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
 					lanes.add(lane)
 		else:
-		# 	raise Exception('No input datasets for analysis id {}'.format(analysis['id']))
-			print('No input datasets for analysis id {} \n'.format(analysis['id']))
+			log.info('No input datasets for analysis id {}; jira ticket {}\n'.format(analysis['id'], analysis["jira_ticket"]))
 			continue
 
-		# lanes_hashed = hash("".join(list(lanes)))
 		lanes = ", ".join(sorted(lanes))
 		lanes = hashlib.md5(lanes)
 		lanes_hashed = "{}".format(lanes.hexdigest()[:8])
@@ -81,7 +91,12 @@ def rename_all_dlp_analyses():
 		    library_id,
 		    lanes_hashed,
 		)
-		print("New {} analysis name for analysis {}: {}".format(analysis_type, analysis['id'], new_analysis_name))
+
+		if analysis["name"] == new_analysis_name:
+			log.info("Analysis {} does not need renaming \n\n".format(analysis['id']))
+			continue
+
+		log.info("New {} analysis name for analysis {}: {}".format(analysis_type, analysis['id'], new_analysis_name))
 
 		# Updating analysis objects on Tantalus with new name 
 		try:
@@ -89,11 +104,10 @@ def rename_all_dlp_analyses():
 				analysis['id'],
 				name=new_analysis_name,
 			)
-			print("Updating name on analysis {} \n\n".format(analysis['id']))
+			log.info("Updating name on analysis {} \n\n".format(analysis['id']))
 
-		except Exception as e:
-			print(str(e))
-			print("Cannot update {} with name {}".format(analysis['id'], new_analysis_name)) 
+		except Exception:
+			log.info("Cannot update {} with name {}".format(analysis['id'], new_analysis_name)) 
 
 			conflict_analysis = tantalus_api.get('analysis', name=new_analysis_name)
 			conflict_jira = conflict_analysis['jira_ticket']
@@ -115,7 +129,7 @@ def rename_all_dlp_analyses():
 					name=new_analysis_name,
 				)
 
-				print('Updating analysis {} with old name and analysis {} with new name {} \n\n'.format(
+				log.info('Updating analysis {} with old name and analysis {} with new name {} \n\n'.format(
 					conflict_analysis['id'],
 					analysis['id'],
 					new_analysis_name
@@ -123,12 +137,15 @@ def rename_all_dlp_analyses():
 				)
 
 			else:
-				tantalus_api.update('analysis', 
-					analysis['id'],
-					name=old_analysis_name
-				)
+				try:
+					log.info('Updating analysis {} with old name \n\n'.format(analysis['id']))
+					tantalus_api.update('analysis', 
+						analysis['id'],
+						name=old_analysis_name
+					)
 
-				print('Updating analysis {} with old name \n\n'.format(analysis['id']))
+				except:
+					log.info("cannot update {} with old name {}".format(analysis['id'], old_analysis_name))
 
 
 if __name__ == "__main__":
