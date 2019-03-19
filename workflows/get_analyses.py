@@ -71,8 +71,8 @@ def get_analyses_to_run(version, aligner, check=False):
 
     if check:
         log.info("Finding analyses to run only.")
-        log.info("Unaligned data: {}".format(unaligned_data_libraries))
-        log.info("No hmmcopy data: {}".format(no_hmmcopy_data_libraries))
+        log.info("Libraries with unaligned data: {}".format(unaligned_data_libraries))
+        log.info("Libraries with data with no hmmcopy: {}".format(no_hmmcopy_data_libraries))
 
     else:
         log.info("Checking libraries with unaligned data")
@@ -99,7 +99,8 @@ def get_analyses_to_run(version, aligner, check=False):
                     colossus_analysis = create_colossus_analysis(
                         analysis_info['library_id'],
                         jira_ticket,
-                        version
+                        version,
+                        aligner,
                     )
 
         log.info("Checking libraries with no hmmcopy data")
@@ -126,7 +127,8 @@ def get_analyses_to_run(version, aligner, check=False):
                     colossus_analysis = create_colossus_analysis(
                         analysis_info['library_id'],
                         jira_ticket,
-                        version
+                        version,
+                        aligner,
                     )
 
     return analyses_tickets
@@ -136,14 +138,14 @@ def search_input_datasets(library_id, analysis_type):
 
     if analysis_type == "align":
         datasets = tantalus_api.list(
-            'sequence_dataset',
+            'sequencedataset',
             library__library_id=library_id,
-            dataset_type='BAM',
+            dataset_type='FQ',
         )
 
     elif analysis_type == "hmmcopy":
         datasets = tantalus_api.list(
-            'sequence_dataset',
+            'sequencedataset',
             library__library_id=library_id,
             dataset_type='BAM',
         )
@@ -181,7 +183,7 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
     reference_genome = taxonomy_id_map[taxonomy_id]
 
     input_datasets = search_input_datasets(library_id, analysis_type)
-
+    lanes = set()
     for input_dataset in input_datasets:
         dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
         for sequence_lane in dataset['sequence_lanes']:
@@ -370,7 +372,7 @@ def create_tantalus_analysis(name, jira_ticket, library_id, analysis_type, versi
     return analysis_id
 
 
-def create_colossus_analysis(library_id, jira_ticket, version):
+def create_colossus_analysis(library_id, jira_ticket, version, aligner):
     '''
     Create analysis objects on Colossus
 
@@ -386,6 +388,11 @@ def create_colossus_analysis(library_id, jira_ticket, version):
     taxonomy_id_map = {
         '9606':      1, # grch37
         '10090':     2, # mm10
+    }
+
+    aligner_map = {
+        'BWA_ALN_0_5_7':    'A'
+        'BWA_MEM_0_7_6A':   'M'
     }
 
     library_info = colossus_api.get('library', pool_id=library_id)
@@ -404,7 +411,7 @@ def create_colossus_analysis(library_id, jira_ticket, version):
         version=version,
         sequencings=sequencings,
         reference_genome=ref_genome_key,
-        aligner='A',
+        aligner=aligner_map[aligner],
         analysis_jira_ticket=jira_ticket,
     )
 
@@ -455,13 +462,12 @@ def main(version, aligner, check=False):
 
     for align_analysis in analyses_to_run['align']:
         log.info("Running align for {}".format(align_analysis))
-        saltant_utils.run_align(align_analysis, version, config)
-
-    # MAYBE: Add completed align analyses to hmmcopy analysis list and run
+        saltant_utils.run_align(align_analysis, version, aligner, config)
 
     for hmmcopy_analysis in analyses_to_run['hmmcopy']:
         log.info("Running hmmcopy for {}".format(hmmcopy_analysis))
-        saltant_utils.run_hmmcopy(hmmcopy_analysis, version, config)
+        saltant_utils.run_hmmcopy(hmmcopy_analysis, version, aligner, config)
+
 
 if __name__ == '__main__':
     main()
