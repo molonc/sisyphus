@@ -314,7 +314,7 @@ def import_bam(
 
     # Add the sequence dataset to Tantalus
     sequence_dataset = add_sequence_dataset(
-            tantalus_api
+            tantalus_api,
             storage_name=storage_name,
             sample_id=bam_header_info["sample_id"],
             library=library,
