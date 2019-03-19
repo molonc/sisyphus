@@ -6,8 +6,6 @@ import sys
 from saltant.client import Client
 from saltant.constants import SUCCESSFUL, FAILED
 from workflows.utils import tantalus_utils
-# from workflows import arguments
-
 
 client = None
 def get_client():
@@ -173,13 +171,14 @@ def transfer_files(jira, config, tag_name, from_storage, to_storage):
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 
 
-def run_align(jira, version, config):
-    name = "{}_{}_align".format(jira, version)
+def run_align(jira, version, aligner, config):
+    name = "{}_{}_align".format(jira, aligner)
     queue_name = config['headnode_task_queue']
     
     args = {
         'jira':             jira, 
         'version':          version, 
+        'aligner':          aligner,
         'analysis_type':    'align'
     }
 
@@ -187,13 +186,14 @@ def run_align(jira, version, config):
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 
 
-def run_hmmcopy(jira, version, config):
-    name = "{}_{}_hmmcopy".format(jira, version)
+def run_hmmcopy(jira, version, aligner, config):
+    name = "{}_{}_hmmcopy".format(jira, aligner)
     queue_name = config['headnode_task_queue']
 
     args = {
         'jira':             jira, 
         'version':          version, 
+        'aligner':          aligner,
         'analysis_type':    'hmmcopy'
     }
 
@@ -207,6 +207,4 @@ def test(name, config):
     task_type_id = get_task_type_id("Test task")
 
     get_or_create_task_instance(name, config['user'], args, task_type_id, "jphamvm")
-
-
 
