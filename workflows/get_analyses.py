@@ -134,7 +134,20 @@ def get_analyses_to_run(version, aligner, check=False):
     return analyses_tickets
 
 
-def search_input_datasets(library_id, analysis_type):
+def search_input_datasets(library_id, analysis_type, aligner, reference_genome):
+    '''
+    Search for input datasets
+
+    Args:
+        library_id (str)
+        analysis_type (str): align or hmmcopy
+        aligner (str): Either BWA_ALN_0_5_7 or BWA_MEM_0_7_6A (as 03/01/2019)
+        reference_genome (str): Either HG19 or MM10 (as 03/01/2019)
+
+    Return:
+        dataset_ids (list)
+
+    '''
 
     if analysis_type == "align":
         datasets = tantalus_api.list(
@@ -148,6 +161,8 @@ def search_input_datasets(library_id, analysis_type):
             'sequencedataset',
             library__library_id=library_id,
             dataset_type='BAM',
+            aligner__name=aligner,
+            reference_genome__name=reference_genome,
         )
 
     dataset_ids = set([dataset["id"] for dataset in datasets])
@@ -182,7 +197,7 @@ def check_library_for_analysis(library_id, aligner, analysis_type):
     taxonomy_id = library_info['sample']['taxonomy_id']
     reference_genome = taxonomy_id_map[taxonomy_id]
 
-    input_datasets = search_input_datasets(library_id, analysis_type)
+    input_datasets = search_input_datasets(library_id, analysis_type, aligner, reference_genome)
     lanes = set()
     for input_dataset in input_datasets:
         dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
