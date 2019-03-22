@@ -750,7 +750,8 @@ class HmmcopyAnalysis(Analysis):
             datasets = tantalus_api.list(
             'sequence_dataset', 
             library__library_id=args['library_id'], 
-            reference_genome=args['ref_genome'],
+            aligner__name=args['aligner'],
+            reference_genome__name=args['ref_genome'],
             dataset_type='BAM',
             )           
 
@@ -765,7 +766,8 @@ class HmmcopyAnalysis(Analysis):
         for flowcell_id in filter_lane_flowcells:
             datasets = tantalus_api.list(
                 'sequence_dataset', 
-                library__library_id=args['library_id'], 
+                library__library_id=args['library_id'],
+                aligner__name=args['aligner'], 
                 reference_genome=args['ref_genome'],
                 dataset_type='BAM',
                 sequence_lane__flowcell_id=flowcell_id
