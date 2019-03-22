@@ -406,7 +406,7 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner):
     }
 
     aligner_map = {
-        'BWA_ALN_0_5_7':    'A'
+        'BWA_ALN_0_5_7':    'A',
         'BWA_MEM_0_7_6A':   'M'
     }
 
@@ -477,11 +477,11 @@ def main(version, aligner, check=False):
 
     for align_analysis in analyses_to_run['align']:
         log.info("Running align for {}".format(align_analysis))
-        saltant_utils.run_align(align_analysis, version, aligner, config)
+        # saltant_utils.run_align(align_analysis, version, aligner, config)
 
     for hmmcopy_analysis in analyses_to_run['hmmcopy']:
         log.info("Running hmmcopy for {}".format(hmmcopy_analysis))
-        saltant_utils.run_hmmcopy(hmmcopy_analysis, version, aligner, config)
+        # saltant_utils.run_hmmcopy(hmmcopy_analysis, version, aligner, config)
 
 
 if __name__ == '__main__':
