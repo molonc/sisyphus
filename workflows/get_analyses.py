@@ -2,6 +2,7 @@ import os
 import click
 import logging
 import hashlib
+import screenutils
 
 from jira import JIRA, JIRAError
 from datetime import datetime
@@ -450,11 +451,63 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner):
     return analysis_id
 
 
+def run_screens(analyses_to_run):
+    '''
+    Mass run of analyses in screens when saltant is down
+
+    Args:
+        analyses_to_run (dict): jira tickets sorted by analysis type
+    '''
+    python_cmd = os.environ.get("HEADNODE_AUTOMATION_PYTHON")
+    run_file = os.path.join(os.environ.get("HEADNODE_AUTOMATION_DIR"), "workflows", "run.py")
+
+    # TODO: Find out how to pass command to screen to create new windows
+    # Right now a screen is being created for each analysis -- needs cleanup 
+    for align_analysis in analyses_to_run['align']:
+        log.info("Running align for {}".format(align_analysis))
+        analysis_type = "align"
+        analysis_screen = screenutils.Screen(align_analysis, initialize=True)
+        stdout_file = "logs/{}_{}.out".format(align_analysis, analysis_type)
+        stderr_file = "logs/{}_{}.err".format(align_analysis, analysis_type)
+
+        cmd_str = "{} {} {} {} {} --update > {} 2> {}".format(
+            python_cmd, 
+            run_file, 
+            align_analysis, 
+            version, 
+            analysis_type, 
+            stdout_file, 
+            stderr_file
+        )
+        
+        analysis_screen.send_commands(cmd_str)
+
+    for hmmcopy_analysis in analyses_to_run['hmmcopy']:
+        log.info("Running hmmcopy for {}".format(hmmcopy_analysis))
+        analysis_type = "hmmcopy"
+        analysis_screen = screenutils.Screen(hmmcopy_analysis)
+        stdout_file = "logs/{}_{}.out".format(hmmcopy_analysis, analysis_type)
+        stderr_file = "logs/{}_{}.err".format(hmmcopy_analysis, analysis_type)
+
+        cmd_str = "{} {} {} {} {} --update > {} 2> {}".format(
+            python_cmd, 
+            run_file, 
+            hmmcopy_analysis, 
+            version, 
+            analysis_type, 
+            stdout_file, 
+            stderr_file
+        )
+
+        analysis_screen.send_commands(cmd_str)
+
+
 @click.command()
 @click.argument('version')
 @click.argument('aligner')
 @click.option('--check', is_flag=True)
-def main(version, aligner, check=False):
+@click.option('--screen', is_flag=True)
+def main(version, aligner, check=False, screen=False):
     aligner_map = {
         'A': 'BWA_ALN_0_5_7',
         'M': 'BWA_MEM_0_7_6A',
@@ -475,13 +528,20 @@ def main(version, aligner, check=False):
 
     analyses_to_run = get_analyses_to_run(version, aligner, check=check)
 
-    for align_analysis in analyses_to_run['align']:
-        log.info("Running align for {}".format(align_analysis))
-        # saltant_utils.run_align(align_analysis, version, aligner, config)
 
-    for hmmcopy_analysis in analyses_to_run['hmmcopy']:
-        log.info("Running hmmcopy for {}".format(hmmcopy_analysis))
-        # saltant_utils.run_hmmcopy(hmmcopy_analysis, version, aligner, config)
+    # If saltant is down, run analysis in screens
+    if screen:
+        log.info("Running analyses in screens")
+        run_screens(analyses_to_run)
+
+    else:
+        for align_analysis in analyses_to_run['align']:
+            log.info("Running align for {}".format(align_analysis))
+            saltant_utils.run_align(align_analysis, version, aligner, config)
+
+        for hmmcopy_analysis in analyses_to_run['hmmcopy']:
+            log.info("Running hmmcopy for {}".format(hmmcopy_analysis))
+            saltant_utils.run_hmmcopy(hmmcopy_analysis, version, aligner, config)
 
 
 if __name__ == '__main__':
