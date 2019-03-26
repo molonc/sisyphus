@@ -1,15 +1,22 @@
 from __future__ import print_function
 
+import click
 import collections
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
 
 
-if __name__ == '__main__':
+@click.command()
+@click.option('--library_id')
+def check_indices(library_id=None):
     tantalus_api = TantalusApi()
     colossus_api = ColossusApi()
 
-    library_ids = set([a['pool_id'] for a in colossus_api.list('library')])
+    if library_id is None:
+        library_ids = set([a['pool_id'] for a in colossus_api.list('library')])
+
+    else:
+        library_ids = [library_id]
 
     for library_id in library_ids:
 
@@ -20,7 +27,7 @@ if __name__ == '__main__':
         datasets = tantalus_api.list(
             'sequence_dataset',
             library__library_id=library_id,
-            library__library_type='SC_WGS',
+            library__library_type__name='SC_WGS',
             dataset_type='FQ',
         )
 
@@ -65,4 +72,8 @@ if __name__ == '__main__':
             if tantalus_indices == colossus_indices:
                 print('library {}, datasets {}, lane {}, sequencing_centre {}: OK'.format(
                     library_id, tantalus_dataset_ids, flowcell_lane, tantalus_sequencing_centre))
+
+
+if __name__ == '__main__':
+    check_indices()
 

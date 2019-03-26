@@ -354,6 +354,9 @@ class TantalusApi(BasicAPIClient):
         storage = self.get_storage(storage_name)
         storage_client = self.get_storage_client(storage_name)
 
+        log.info('adding file with path {} in storage {}'.format(
+            filepath, storage_name))
+
         filename = self.get_file_resource_filename(storage_name, filepath)
 
         # Try getting or creating the file resource, will

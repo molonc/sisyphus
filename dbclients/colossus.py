@@ -5,7 +5,7 @@ import os
 from dbclients.basicclient import BasicAPIClient
 
 
-COLOSSUS_API_URL = os.environ.get("COLOSSUS_API_URL", "http://colossus.bcgsc.ca/api/")
+COLOSSUS_API_URL = os.environ.get("COLOSSUS_API_URL", "https://colossus.canadacentral.cloudapp.azure.com/api/")
 
 
 class ColossusApi(BasicAPIClient):
