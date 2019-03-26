@@ -146,9 +146,7 @@ class Analysis(object):
             raise Exception("no storages specified for Analysis")
 
         self.analysis_type = analysis_type
-
-        self.analysis = self.get_or_create_analysis(jira, version, args, analysis_type, update=update)
-
+        self.analysis = self.get_or_create_analysis(jira, version, args, update=update)
         self.storages = storages
 
     @property
@@ -171,7 +169,10 @@ class Analysis(object):
     def version(self):
         return self.analysis['version']
 
-    def get_or_create_analysis(self, jira, version, args, analysis_type, update=False):
+    def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+        raise NotImplementedError()
+
+    def get_or_create_analysis(self, jira, version, args, update=False):
         """
         Get the analysis by querying Tantalus. Create the analysis
         if it doesn't exist. Set the input dataset ids.
@@ -180,26 +181,7 @@ class Analysis(object):
         input_datasets = self.search_input_datasets(args)
         input_results = self.search_input_results(args)
 
-        lanes = set()
-
-        for input_dataset in input_datasets:
-            dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
-            for sequence_lane in dataset['sequence_lanes']:
-                lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
-                lanes.add(lane)
-
-        lanes = ", ".join(sorted(lanes))
-        lanes = hashlib.md5(lanes)
-        lanes_hashed = "{}".format(lanes.hexdigest()[:8])
-
-        # MAYBE: Add this to templates?
-        name = "sc_{}_{}_{}_{}_{}".format(
-            analysis_type, 
-            args['aligner'], 
-            args['ref_genome'], 
-            args['library_id'],
-            lanes_hashed,
-        )
+        name = self.generate_unique_name(jira, version, args, input_datasets, input_results)
 
         log.info('Searching for existing analysis {}'.format(name))
 
@@ -349,11 +331,11 @@ class Analysis(object):
         """
         return []
 
-    def create_output_datasets(self):
+    def create_output_datasets(self, update=False):
         """
         Create the set of output sequence datasets produced by this analysis.
         """
-        raise NotImplementedError
+        return []
 
     def create_output_results(self, update=False):
         """
@@ -396,7 +378,37 @@ class Analysis(object):
         raise NotImplementedError
 
 
-class AlignAnalysis(Analysis):
+class AlignHmmcopyMixin(object):
+    """
+    Common functionality for both Align and Hmmcopy analyses.
+    """
+
+    def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+        lanes = set()
+
+        for input_dataset in input_datasets:
+            dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
+            for sequence_lane in dataset['sequence_lanes']:
+                lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
+                lanes.add(lane)
+
+        lanes = ", ".join(sorted(lanes))
+        lanes = hashlib.md5(lanes.encode('utf-8'))
+        lanes_hashed = "{}".format(lanes.hexdigest()[:8])
+
+        # MAYBE: Add this to templates?
+        name = "sc_{}_{}_{}_{}_{}".format(
+            self.analysis_type, 
+            args['aligner'], 
+            args['ref_genome'], 
+            args['library_id'],
+            lanes_hashed,
+        )
+
+        return name
+
+
+class AlignAnalysis(AlignHmmcopyMixin, Analysis):
     """
     A class representing an alignment analysis in Tantalus.
     """
@@ -474,24 +486,6 @@ class AlignAnalysis(Analysis):
                 lanes, input_lanes
             ))
 
-    def _get_input_file_instances(self, storage_name):
-        """ Get file instances for input datasets.
-
-        Args:
-            storage_name: name of storage for which we want file instances
-
-        Returns:
-            input_file_instances: list of nested dictionaries for file instances
-        """
-
-        input_file_instances = []
-        for dataset_id in self.analysis['input_datasets']:
-            dataset = self.get_dataset(dataset_id)
-            input_file_instances.extend(
-                tantalus_api.get_dataset_file_instances(
-                    dataset['id'], 'sequencedataset', storage_name))
-        return input_file_instances
-
     def _generate_cell_metadata(self, storage_name):
         """ Generates per cell metadata
 
@@ -515,11 +509,13 @@ class AlignAnalysis(Analysis):
         if sample_info['cell_id'].duplicated().any():
             raise Exception('Duplicate cell ids in sample info.')
 
-        # file_instances = self._get_input_file_instances(storage_name)
         lanes = self.get_lanes()
 
         # Sort by index_sequence, lane id, read end
-        fastq_file_instances = dict()
+        fastq_filepaths = dict()
+
+        # Lane info
+        lane_info = dict()
 
         tantalus_index_sequences = set()
         colossus_index_sequences = set()
@@ -527,16 +523,26 @@ class AlignAnalysis(Analysis):
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
 
+            if len(dataset['sequence_lanes']) != 1:
+                raise ValueError('unexpected lane count {} for dataset {}'.format(
+                    len(dataset['sequence_lanes']), dataset_id))
+
+            lane_id = tantalus_utils.get_flowcell_lane(dataset['sequence_lanes'][0])
+
+            lane_info[lane_id] = {
+                'sequencing_centre': dataset['sequence_lanes'][0]['sequencing_centre'],
+                'sequencing_instrument': dataset['sequence_lanes'][0]['sequencing_instrument'],
+                'read_type': dataset['sequence_lanes'][0]['read_type'],
+            }
+
             file_instances = tantalus_api.get_dataset_file_instances(
-                    dataset['id'], 'sequencedataset', storage_name)
+                dataset['id'], 'sequencedataset', storage_name)
 
             for file_instance in file_instances:
-                file_instance['sequence_dataset'] = dataset
-                lane_id = tantalus_utils.get_flowcell_lane(dataset['sequence_lanes'][0])
                 read_end = file_instance['file_resource']['sequencefileinfo']['read_end']
                 index_sequence = file_instance['file_resource']['sequencefileinfo']['index_sequence']
                 tantalus_index_sequences.add(index_sequence)
-                fastq_file_instances[(index_sequence, lane_id, read_end)] = file_instance
+                fastq_filepaths[(index_sequence, lane_id, read_end)] = str(file_instance['filepath'])
 
         input_info = {}
 
@@ -553,14 +559,11 @@ class AlignAnalysis(Analysis):
             
             lane_fastqs = collections.defaultdict(dict)
             for lane_id, lane in lanes.items():
-                sequencing_centre = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_centre']
-                sequencing_instrument = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['sequencing_instrument']
-                read_type = fastq_file_instances[(index_sequence, lane_id, 1)]['sequence_dataset']['sequence_lanes'][0]['read_type']
-                lane_fastqs[lane_id]['fastq_1'] = str(fastq_file_instances[(index_sequence, lane_id, 1)]['filepath'])
-                lane_fastqs[lane_id]['fastq_2'] = str(fastq_file_instances[(index_sequence, lane_id, 2)]['filepath'])
-                lane_fastqs[lane_id]['sequencing_center'] = str(sequencing_centre)
-                lane_fastqs[lane_id]['sequencing_instrument'] = str(sequencing_instrument)
-                lane_fastqs[lane_id]['read_type'] = str(read_type)
+                lane_fastqs[lane_id]['fastq_1'] = fastq_filepaths[(index_sequence, lane_id, 1)]
+                lane_fastqs[lane_id]['fastq_2'] = fastq_filepaths[(index_sequence, lane_id, 2)]
+                lane_fastqs[lane_id]['sequencing_center'] = lane_info[lane_id]['sequencing_centre']
+                lane_fastqs[lane_id]['sequencing_instrument'] = lane_info[lane_id]['sequencing_instrument']
+                lane_fastqs[lane_id]['read_type'] = lane_info[lane_id]['read_type']
 
             if len(lane_fastqs) == 0:
                 raise Exception('No fastqs for cell_id {}, index_sequence {}'.format(
@@ -707,7 +710,7 @@ class AlignAnalysis(Analysis):
             return launch_pipeline.run_pipeline
 
 
-class HmmcopyAnalysis(Analysis):
+class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
     """
     A class representing an hmmcopy analysis in Tantalus.
     """
@@ -911,6 +914,9 @@ class PseudoBulkAnalysis(Analysis):
         super(PseudoBulkAnalysis, self).__init__('pseudobulk', jira, version, args, **kwargs)
         self.run_options = run_options
 
+    def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+        return '{}_{}'.format(jira, self.analysis_type)
+
     @staticmethod
     def search_input_datasets(args):
         """
@@ -942,15 +948,19 @@ class PseudoBulkAnalysis(Analysis):
 
         make_dirs(os.path.dirname(inputs_yaml_filename))
 
-        input_info = {'normal': {}, 'tumour': {}}
+        input_info = {}
 
         assert len(self.analysis['input_datasets']) > 0
+
+        # Type of dataset for normal
+        normal_library_type = None
 
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
 
             library_id = dataset['library']['library_id']
             sample_id = dataset['sample']['sample_id']
+            library_type = dataset['library']['library_type']
 
             # WORKAROUND: the single cell pipeline doesnt take
             # both sample and library specific cell info so use a
@@ -964,10 +974,15 @@ class PseudoBulkAnalysis(Analysis):
 
             dataset_class = ('tumour', 'normal')[is_normal]
 
+            if dataset_class == 'normal':
+                assert normal_library_type is None
+                normal_library_type = library_type
+
+            if dataset_class not in input_info:
+                input_info[dataset_class] = {}
+
             if sample_library_id not in input_info[dataset_class]:
                 input_info[dataset_class][sample_library_id] = {}
-
-            library_type = dataset['library']['library_type']
 
             file_instances = tantalus_api.get_dataset_file_instances(
                 dataset_id, 'sequencedataset', storage_name,
@@ -1011,11 +1026,18 @@ class PseudoBulkAnalysis(Analysis):
         if 'tumour' not in input_info or len(input_info['tumour']) == 0:
             raise ValueError('no tumour cells found')
 
-        # WORKAROUND: input yaml doesnt contain normal id until new pipeline
-        # release (>v0.2.9)
-        assert len(input_info['normal']) == 1
-        normal_id = input_info['normal'].keys()[0]
-        input_info['normal'] = input_info['normal'].pop(normal_id)
+        # Fix up input key names dependent on library type
+        if normal_library_type == 'SC_WGS':
+            normal_sample_ids = list(input_info['normal'].keys())
+            assert len(normal_sample_ids) == 1
+            normal_info = input_info.pop('normal')
+            input_info['normal_cells'] = normal_info[normal_sample_ids[0]]
+        elif normal_library_type == 'WGS':
+            input_info['normal_wgs'] = input_info.pop('normal')
+        else:
+            raise Exception('normal library type {}'.format(normal_library_type))
+
+        input_info['tumour_cells'] = input_info.pop('tumour')
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
@@ -1040,15 +1062,15 @@ class PseudoBulkAnalysis(Analysis):
             if sample_id == self.args['matched_normal_sample'] and library_id == self.args['matched_normal_library']:
                 continue
 
-            filenames.append('{}_allele_counts.csv'.format(sample_id))
-            filenames.append('{}_snv_annotations.h5'.format(sample_id))
-            filenames.append('{}_snv_counts.h5'.format(sample_id))
-            filenames.append('{}_destruct.h5'.format(sample_id))
+            filenames.append('{}_{}_allele_counts.csv'.format(sample_id, library_id))
+            filenames.append('{}_{}_snv_annotations.h5'.format(sample_id, library_id))
+            filenames.append('{}_{}_snv_counts.h5'.format(sample_id, library_id))
+            filenames.append('{}_{}_destruct.h5'.format(sample_id, library_id))
 
             for snv_caller in ('museq', 'strelka_snv', 'strelka_indel'):
-                filenames.append('{}_{}.vcf.gz'.format(sample_id, snv_caller))
-                filenames.append('{}_{}.vcf.gz.csi'.format(sample_id, snv_caller))
-                filenames.append('{}_{}.vcf.gz.tbi'.format(sample_id, snv_caller))
+                filenames.append('{}_{}_{}.vcf.gz'.format(sample_id, library_id, snv_caller))
+                filenames.append('{}_{}_{}.vcf.gz.csi'.format(sample_id, library_id, snv_caller))
+                filenames.append('{}_{}_{}.vcf.gz.tbi'.format(sample_id, library_id, snv_caller))
 
         return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
 
@@ -1113,6 +1135,8 @@ class PseudoBulkAnalysis(Analysis):
             run_cmd += ['--config_file', self.run_options['sc_config']]
         if self.run_options['interactive']:
             run_cmd += ['--interactive']
+
+        run_cmd += ['--call_variants', '--call_haps']
 
         run_cmd += ['--config_override', '\'{"bigdisk":true}\'']
 

@@ -9,7 +9,6 @@ import traceback
 import click
 from itertools import chain
 
-import arguments
 import datamanagement.templates as templates
 import launch_pipeline
 import generate_inputs
