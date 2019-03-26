@@ -529,7 +529,7 @@ def main(version, aligner, check=False, screen=False, skip=None):
     log.info('version: {}, aligner: {}'.format(version, aligner))
 
     analyses_to_run = get_analyses_to_run(version, aligner, check=check)
-    log.info("analyses_to_run {}".format(analyses_to_run))
+    log.info("Analyses to run {}".format(analyses_to_run))
 
     for skip_analysis in skip:
         if not templates.JIRA_ID_RE.match(skip_analysis):
