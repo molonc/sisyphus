@@ -9,6 +9,7 @@ from datetime import datetime
 from collections import defaultdict
 
 import unanalyzed_data
+import datamanagement.templates as templates
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
 from dbclients.basicclient import NotFoundError
@@ -507,7 +508,8 @@ def run_screens(analyses_to_run):
 @click.argument('aligner')
 @click.option('--check', is_flag=True)
 @click.option('--screen', is_flag=True)
-def main(version, aligner, check=False, screen=False):
+@click.option('--skip', "-s", multiple=True)
+def main(version, aligner, check=False, screen=False, skip=None):
     aligner_map = {
         'A': 'BWA_ALN_0_5_7',
         'M': 'BWA_MEM_0_7_6A',
@@ -527,6 +529,17 @@ def main(version, aligner, check=False, screen=False):
     log.info('version: {}, aligner: {}'.format(version, aligner))
 
     analyses_to_run = get_analyses_to_run(version, aligner, check=check)
+    log.info("analyses_to_run {}".format(analyses_to_run))
+
+    for skip_analysis in skip:
+        if not templates.JIRA_ID_RE.match(skip_analysis):
+            raise Exception('Invalid Jira ticket to be skipped: {}'.format(skip_analysis))
+
+        log.info("Skipping analysis on {}".format(skip_analysis))
+        if skip_analysis in analyses_to_run['align']:
+            analyses_to_run['align'].remove(skip_analysis)
+        if skip_analysis in analyses_to_run['hmmcopy']:
+            analyses_to_run['hmmcopy'].remove(skip_analysis)
 
 
     # If saltant is down, run analysis in screens
@@ -535,7 +548,7 @@ def main(version, aligner, check=False, screen=False):
         run_screens(analyses_to_run)
 
     else:
-        for align_analysis in analyses_to_run['align']:
+        for align_analysis in analyses_to_run['align']:             
             log.info("Running align for {}".format(align_analysis))
             saltant_utils.run_align(align_analysis, version, aligner, config)
 
