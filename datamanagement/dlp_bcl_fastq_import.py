@@ -19,8 +19,8 @@ from utils.runtime_args import parse_runtime_args
 from utils.filecopy import rsync_file
 from utils.utils import make_dirs
 import datamanagement.templates as templates
-import pypeliner.helpers
-from pypeliner.execqueue.qsub import AsyncQsubJobQueue
+from utils.qsub_job_submission import submit_qsub_job
+from utils.qsub_jobs import Bcl2FastqJob
 from utils.constants import DEFAULT_NATIVESPEC
 import datetime
 
@@ -152,9 +152,8 @@ def generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated):
         filepath = os.path.join(output_dir, filename)
         if not os.path.exists(filepath):
             logging.info("Creating empty file {} at {}.".format(filename, filepath))
-            # with open(filepath, 'wb') as f:
             with gzip.open(filepath, mode='wb') as f:
-                f.write("")
+                pass
 
     return file_names
 
@@ -279,7 +278,7 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
 
 
 def get_samplesheet(destination, lane_id):
-    sheet_url = 'http://colossus.bcgsc.ca/dlp/sequencing/samplesheet/query_download/{lane_id}'
+    sheet_url = 'https://colossus.canadacentral.cloudapp.azure.com/dlp/sequencing/samplesheet/query_download/{lane_id}'
     sheet_url = sheet_url.format(lane_id=lane_id)
 
     subprocess.check_call(["wget", "-O", destination, sheet_url])
@@ -294,15 +293,22 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
 
     samplesheet_filename = os.path.join(output_dir, "SampleSheet.csv")
 
-    get_samplesheet(samplesheet_filename, flowcell_id)
+    # get_samplesheet(samplesheet_filename, flowcell_id)
 
-    cmd = [
-        'bcl2fastq',
-        '--runfolder-dir', bcl_dir,
-        '--sample-sheet', samplesheet_filename,
-        '--output-dir', output_dir]
+    job = Bcl2FastqJob('16', bcl_dir, samplesheet_filename, output_dir)
 
-    subprocess.check_call(cmd)
+    submit_qsub_job(job, DEFAULT_NATIVESPEC, title=flowcell_id)
+
+    logging.info("Job finished successfully.")
+
+    # cmd = [
+    #     'bcl2fastq',
+    #     '--runfolder-dir', bcl_dir,
+    #     '--sample-sheet', samplesheet_filename,
+    #     '--output-dir', output_dir]
+
+    # subprocess.check_call(cmd)
+
 
 
 @click.command()
