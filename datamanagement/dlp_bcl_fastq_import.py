@@ -293,7 +293,7 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
 
     samplesheet_filename = os.path.join(output_dir, "SampleSheet.csv")
 
-    # get_samplesheet(samplesheet_filename, flowcell_id)
+    get_samplesheet(samplesheet_filename, flowcell_id)
 
     job = Bcl2FastqJob('16', bcl_dir, samplesheet_filename, output_dir)
 
