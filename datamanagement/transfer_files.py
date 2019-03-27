@@ -436,7 +436,7 @@ def cli():
     pass
 
 
-@cli.command("transfer")
+@cli.command("transfer_tag")
 @click.argument("tag_name")
 @click.argument("from_storage_name")
 @click.argument("to_storage_name")
@@ -501,6 +501,16 @@ def _transfer_files_with_retry(f_transfer, file_instance):
             else:
                 logging.error("Failed all retry attempts")
                 raise
+
+
+@cli.command("transfer")
+@click.argument("dataset_id", type=int)
+@click.argument("dataset_model", type=click.Choice(["sequencedataset", "resultsdataset"]))
+@click.argument("from_storage_name")
+@click.argument("to_storage_name")
+def transfer_dataset_cmd(dataset_id, dataset_model, from_storage_name, to_storage_name):
+    tantalus_api = TantalusApi()
+    transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name)
 
 
 def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name):

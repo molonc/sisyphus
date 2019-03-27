@@ -54,7 +54,7 @@ if __name__ == "__main__":
             continue
 
         file_size_check = True
-        for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, 'singlecellblob'):
+        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', 'singlecellblob'):
             if not blob_storage.exists(file_instance['file_resource']['filename']):
                 logging.warning("File {} doesnt exist on blob".format(file_instance['filepath']))
                 file_size_check = False
@@ -64,7 +64,7 @@ if __name__ == "__main__":
                 file_size_check = False
                 continue
 
-        for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, 'shahlab'):
+        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', 'shahlab'):
             if not shahlab_storage.exists(file_instance['file_resource']['filename']):
                 logging.warning("File {} doesnt exist on shahlab".format(file_instance['filepath']))
                 file_size_check = False
@@ -78,7 +78,7 @@ if __name__ == "__main__":
             logging.warning("Dataset {} failed file size check in blob. Skipping...".format(dataset['name']))
             continue
 
-        for file_instance in tantalus_api.get_sequence_dataset_file_instances(dataset, 'shahlab'):
+        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', 'shahlab'):
             file_instances_to_delete.append(file_instance)
             total_data_size += file_instance['file_resource']['size']
             file_num_count += 1

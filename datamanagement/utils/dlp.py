@@ -128,7 +128,7 @@ def create_sequence_dataset_models(
 
     # Create datasets
     dataset_ids = set()
-    for dataset_name, infos in dataset_info.iteritems():
+    for dataset_name, infos in dataset_info.items():
         # Get library PK
         library = tantalus_api.get_or_create(
             "dna_library",
