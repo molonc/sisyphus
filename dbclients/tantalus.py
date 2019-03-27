@@ -616,10 +616,64 @@ class TantalusApi(BasicAPIClient):
 
         return dataset
 
+
+    def add_analysis(self, fields, update=False):
+        """ Add analysis to tantalus, with the ability to update.
+
+        Args:
+            fields (dict): fields for analysis model
+
+        Kwargs:
+            update: update the fields if exists
+
+        Returns:
+            analysis (dict)
+        """
+        while True:
+            try:
+                analysis = self.get_or_create("analysis", **fields)
+                break
+
+            except coreapi.exceptions.ErrorMessage as e:
+                # Analysis name is already taken by old analysis
+                # Rename old analysis with <name>_old and try to create again
+                name = fields["name"]
+                old_analysis = self.get(analysis, name=name)
+                log.info("Found old analysis with same name. Renaming analysis model {}".format(old_analysis["id"]))
+
+                self.update("analysis", id=old_analysis["id"], name="{}_old".format(name))
+
+            except FieldMismatchError:
+                if not update:
+                    log.exception('analysis model with name {} has different properties, not updating'.format(
+                        fields['name']))
+                    raise
+
+                analysis = None
+                break
+
+        if analysis is None:
+
+            analysis = self.get(
+                analysis,
+                name=fields['name'],
+            )
+
+            # Update the dataset
+            log.info('updating dataset {}'.format(
+                analysis['id']))
+            analysis = self.update(
+                "analysis"
+                id=analysis['id'],
+                **fields)
+
+        return analysis
+ 
+
     def tag(self, name, sequencedataset_set=(), resultsdataset_set=()):
         """
         Tag datasets.
-
+         
         Args:
             name (str)
             sequencedataset_set (list)
