@@ -68,11 +68,12 @@ def add_compression_suffix(path, compression):
         raise ValueError("unsupported compression {}".format(compression))
 
 
-def connect_to_client(hostname):
+def connect_to_client(hostname, username=None):
     ssh_client = paramiko.SSHClient()
     ssh_client.load_system_host_keys()
 
-    username = pwd.getpwuid(os.getuid()).pw_name
+    if not username:
+        username = pwd.getpwuid(os.getuid()).pw_name
     ssh_client.connect(hostname, username=username)
 
     return ssh_client
@@ -80,7 +81,7 @@ def connect_to_client(hostname):
 
 def parse_ref_genome(raw_reference_genome):
     found_match = False
-    for ref, regex_list in datamanagement.utils.constants.REF_GENOME_MAP.iteritems():
+    for ref, regex_list in REF_GENOME_REGEX_MAP.iteritems():
         for regex in regex_list:
             if re.search(regex, raw_reference_genome, flags=re.I):
                 # Found a match
@@ -93,3 +94,5 @@ def parse_ref_genome(raw_reference_genome):
 
     if not found_match:
         raise Exception("Unrecognized reference genome {}".format(raw_reference_genome))
+
+    return reference_genome

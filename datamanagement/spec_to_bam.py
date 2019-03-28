@@ -50,7 +50,7 @@ def get_uncompressed_bam_path(spec_path):
 
 
 def spec_to_bam(spec_path,
-                raw_reference_genome,
+                reference_genome,
                 output_bam_path,
                 library,
                 sftp_client=None):
@@ -75,10 +75,9 @@ def spec_to_bam(spec_path,
     logging.info("Converting {} to {}".format(spec_path, output_bam_path))
 
     # If an sftp client was passed in 
-    if sftp:
+    if sftp_client:
         # Connect to thost via SSH client
-        spec_name = spec_path.split('/')[-1]
-        local_spec_path = os.path.join(output_path, spec_name)
+        local_spec_path = oytput_bam_path + ".spec"
         cmd = [
             "rsync",
             "-avPL",
@@ -158,7 +157,7 @@ def create_bam(
     # Decompress the spec file
     spec_to_bam(
         spec_path=spec_path, 
-        raw_reference_genome=reference_genome,
+        reference_genome=reference_genome,
         output_bam_path=output_bam_path,
         library=library_id,
         sftp_client=sftp_client
