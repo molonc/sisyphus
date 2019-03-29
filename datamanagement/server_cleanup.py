@@ -92,8 +92,13 @@ def main(
 
         # Delete all files for this dataset
         for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', 'shahlab'):
-            logging.info("deleting file {}".format(file_instance['filepath']))
-            tantalus_api.update("file_instance", id=file_instance['id'], is_deleted=True)
+            if dry_run:
+                logging.info("would delete file instance with id {}, filepath {}".format(
+                    file_instance['id'], file_instance['filepath']))
+            else:
+                logging.info("deleting file instance with id {}, filepath {}".format(
+                    file_instance['id'], file_instance['filepath']))
+                tantalus_api.update("file_instance", id=file_instance['id'], is_deleted=True)
             total_data_size += file_instance['file_resource']['size']
             file_num_count += 1
 
