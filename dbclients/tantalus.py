@@ -465,7 +465,7 @@ class TantalusApi(BasicAPIClient):
         if size != file_instance['file_resource']['size']:
             raise DataCorruptionError('file instance {} with path {} has size {} on storage {} but {} in tantalus'.format(
                 file_instance['id'], file_instance['filepath'], size, file_instance['storage']['name'],
-                file_instance['file_resource']['size'])
+                file_instance['file_resource']['size']))
 
     def add_instance(self, file_resource, storage):
         """
