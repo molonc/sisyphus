@@ -188,6 +188,12 @@ class ServerStorageClient(object):
             shutil.copy(filepath, tantalus_filepath)
 
 
+class DataCorruptionError(Exception):
+    """ An error when missing or corrupt data is found.
+    """
+    pass
+
+
 class TantalusApi(BasicAPIClient):
     """Tantalus API class."""
 
@@ -437,6 +443,29 @@ class TantalusApi(BasicAPIClient):
         file_instance['file_resource'] = file_resource
 
         return file_instance
+
+    def check_file(self, file_instance):
+        """
+        Check a file instance in tantalus exists and has the same size
+        on its given storage.
+
+        Args:
+            file_instance (dict)
+
+        Raises:
+            DataCorruptionError
+        """
+        storage_client = self.get_storage_client(file_instance['storage']['name'])
+
+        if not storage_client.exists(file_instance['file_resource']['filename']):
+            raise DataCorruptionError('file instance {} with path {} doesnt exist on storage {}'.format(
+                file_instance['id'], file_instance['filepath'], file_instance['storage']['name']))
+
+        size = storage_client.get_size(file_instance['file_resource']['filename'])
+        if size != file_instance['file_resource']['size']:
+            raise DataCorruptionError('file instance {} with path {} has size {} on storage {} but {} in tantalus'.format(
+                file_instance['id'], file_instance['filepath'], size, file_instance['storage']['name'],
+                file_instance['file_resource']['size'])
 
     def add_instance(self, file_resource, storage):
         """

@@ -2,95 +2,104 @@ import sys
 import os
 import logging
 import json
-from dbclients.tantalus import TantalusApi
+from dbclients.tantalus import TantalusApi, DataCorruptionError
 from dbclients.basicclient import NotFoundError
 import pandas as pd
 from sets import Set
 
 
-tags_to_keep = [
-    'SC-1635',
-    'SC-1293',
-    'SC-1294',
-    'shahlab_pdx_bams_to_keep',
-]
+logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
 
-if __name__ == "__main__":
-    logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.WARNING)
-
+@click.command()
+@click.argument('storage_name')
+@click.option('--dataset_id')
+@click.option('--tag_name')
+@click.option('--check_remote')
+@click.option('--dry_run', is_flag=True)
+def main(
+    storage_name,
+    dataset_id=None,
+    tag_name=None,
+    check_remote=None,
+    dry_run=False,
+):
     tantalus_api = TantalusApi()
 
-    file_instances_to_delete = []
+    storage_client = tantalus_api.get_storage_client(storage_name)
 
-    datasets_to_keep = set()
+    remote_client = None
+    if check_remote is not None:
+        remote_client = tantalus_api.get_storage_client(check_remote)
 
-    for tag_name in tags_to_keep:
-        datasets_to_keep.update(tantalus_api.get('tag', name=tag_name)['sequencedataset_set'])
+    if dataset_id is None and tag_name is None:
+        raise ValueError('require either dataset id or tag name')
 
-    logging.warning('Keeping {} datasets'.format(len(datasets_to_keep)))
+    if dataset_id is not None and tag_name is not None:
+        raise ValueError('require exactly one of dataset id or tag name')
 
-    blob_storage = tantalus_api.get_storage_client('singlecellblob')
-    shahlab_storage = tantalus_api.get_storage_client('shahlab')
+    if dataset_id is not None:
+        datasets = tantalus_api.list('sequence_dataset', id=dataset_id)
 
-    all_bam_files = tantalus_api.list('sequence_dataset', dataset_type='BAM', library__library_type__name='WGS')
+    if tag_name is not None:
+        datasets = tantalus_api.list('sequence_dataset', tags__name=tag_name)
 
     total_data_size = 0
     file_num_count = 0
 
-    for dataset in all_bam_files:
-        is_on_blob = tantalus_api.is_sequence_dataset_on_storage(dataset, 'singlecellblob')
-        is_on_shahlab = tantalus_api.is_sequence_dataset_on_storage(dataset, 'shahlab')
+    for dataset in datasets:
+        logging.info('checking dataset with id {}, name {}'.format(
+            dataset['id'], dataset['name']))
 
-        if not is_on_shahlab:
-            continue
+        # Optionally skip datasets not present and intact on the remote storage
+        if check_remote is not None:
+            if not is_sequence_dataset_on_storage(self, dataset, check_remote):
+                logging.warning('not deleting dataset with id {}, not on remote storage '.format(
+                    dataset['id'], check_remote))
+                continue
 
-        if not is_on_blob:
-            logging.warning("Dataset {} has no file instances stored in blob. Skipping...".format(dataset['name']))
-            continue
+            # For each file instance on the remote, check if it exists and has the correct size in tantalus
+            remote_file_size_check = True
+            for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', check_remote):
+                try:
+                    tantalus_api.check_file(file_instance)
+                except DataCorruptionError:
+                    logging.exception('check file failed')
+                    remote_file_size_check = False
 
-        if dataset['id'] in datasets_to_keep:
-            logging.warning("Dataset {} is required. Skipping...".format(dataset['name']))
-            continue
+            # Skip this dataset if any files failed
+            if remote_file_size_check:
+                logging.warning("skipping dataset {} that failed check on {}".format(
+                    dataset['id'], check_remote))
+                continue
 
+        # Check consistency with the removal storage
         file_size_check = True
-        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', 'singlecellblob'):
-            if not blob_storage.exists(file_instance['file_resource']['filename']):
-                logging.warning("File {} doesnt exist on blob".format(file_instance['filepath']))
+        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', storage_name):
+            try:
+                tantalus_api.check_file(file_instance)
+            except DataCorruptionError:
+                logging.exception('check file failed')
                 file_size_check = False
-                continue
-            if blob_storage.get_size(file_instance['file_resource']['filename']) != file_instance['file_resource']['size']:
-                logging.warning("File {} has a different size in blob. Skipping...".format(file_instance['filepath']))
-                file_size_check = False
-                continue
 
-        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', 'shahlab'):
-            if not shahlab_storage.exists(file_instance['file_resource']['filename']):
-                logging.warning("File {} doesnt exist on shahlab".format(file_instance['filepath']))
-                file_size_check = False
-                continue
-            if shahlab_storage.get_size(file_instance['file_resource']['filename']) != file_instance['file_resource']['size']:
-                logging.warning("File {} has a different size in shahlab. Skipping...".format(file_instance['filepath']))
-                file_size_check = False
-                continue
-
-        if not file_size_check:
-            logging.warning("Dataset {} failed file size check in blob. Skipping...".format(dataset['name']))
+        # Skip this dataset if any files failed
+        if file_size_check:
+            logging.warning("skipping dataset {} that failed check on {}".format(
+                dataset['id'], storage_name))
             continue
 
+        # Delete all files for this dataset
         for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', 'shahlab'):
-            file_instances_to_delete.append(file_instance)
+            logging.info("deleting file {}".format(file_instance['filepath']))
+            tantalus_api.update("file_instance", id=file_instance['id'], is_deleted=True)
             total_data_size += file_instance['file_resource']['size']
             file_num_count += 1
 
-    logging.warning("Total size of the {} files is {} bytes".format(
+    logging.info("deleted a total of {} files with size {} bytes".format(
         file_num_count, total_data_size))
 
-    with open("file_paths.txt", "w") as f:
-        for file_instance in file_instances_to_delete:
-            f.write(file_instance['filepath'] +'\n')
 
-    for file_instance in file_instances_to_delete:
-        tantalus_api.update("file_instance", id=file_instance['id'], is_deleted=True)
+if __name__ == "__main__":
+    main()
 
 
