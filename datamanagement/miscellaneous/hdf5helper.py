@@ -23,7 +23,7 @@ def read_python2_hdf5_dataframe(h5_filepath, key):
         logging.info('msgpack file {} doesnt exists, creating'.format(msgpack_filepath))
         client = docker.from_env()
         client.containers.run(
-            'amcpherson/py2hdfread:latest', [h5_filepath, key],
+            'amcpherson/py2hdfread:latest', ['to-msgpack', h5_filepath, key],
             volumes={
                 directory: {'bind': directory, 'mode': 'rw'}
             }
