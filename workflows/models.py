@@ -722,98 +722,77 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
         super(HmmcopyAnalysis, self).__init__('hmmcopy', jira, version, args, **kwargs)
         self.run_options = run_options
 
+    def _check_lane_exists(self, flowcell_id, lane_number, sequencing_centre):
+        try:
+            sequence_lane = tantalus_api.get(
+                'sequencing_lane',
+                flowcell_id=flowcell_id,
+                lane_number=lane_number,
+                sequencing_centre=sequencing_centre,
+            )
+        except NotFoundError:
+            raise Exception("{}_{} is not a valid lane from the {}".format(
+                flowcell_id, lane_number, sequencing_centre))
+
     @staticmethod
     def search_input_datasets(args):
-
-        datasets = list(tantalus_api.list("sequence_dataset",
+        library_datasets = list(tantalus_api.list("sequence_dataset",
             library__library_id=args['library_id'],
             dataset_type='BAM',
             aligner__name=args['aligner'],
             reference_genome__name=args['ref_genome']),
         )
 
-        dataset_ids = list()
-        input_datasets = list()
+        # Set of lanes requiring analysis
+        lanes = set()
 
-        # Find datasets with all lanes from the library
-        # if lanes not specified 
+        # If no lanes were specified, find all lanes
+        # for all datasets for the given library
         if not args["gsc_lanes"] and not args["brc_flowcell_ids"]:
-            all_lanes = set()
-            for dataset in datasets:
+            for dataset in library_datasets:
                 for sequence_lane in dataset["sequence_lanes"]:
                     lane = "{}_{}".format(
                         sequence_lane["flowcell_id"],
                         sequence_lane["lane_number"],
                     )
-                    all_lanes.add(lane)
+                    lanes.add(lane)
 
-            for dataset in datasets:
-                lanes = ["{}_{}".format(
-                    lane["flowcell_id"],
-                    lane["lane_number"]) for lane in dataset["sequence_lanes"]
-                ]
-                lanes = set(lanes)
-                if lanes == all_lanes:
-                    dataset_ids.append(dataset["id"])
-                    input_datasets.append(dataset)
-
-        # Find bam datasets with given lanes
+        # Find bam datasets with specified lanes
         else:
-            filtered_lanes = set()
             if args['gsc_lanes'] is not None:
                 for lane in args['gsc_lanes']:
-                    # Check if lanes given are valid
-                    try:
-                        flowcell_id = (lane.split('_'))[0]
-                        lane_number = (lane.split('_'))[1]
-                        sequence_lane = tantalus_api.get(
-                            'sequencing_lane',
-                            flowcell_id=flowcell_id,
-                            lane_number=lane_number,
-                            sequencing_centre="GSC"
-                        )
-
-                    except NotFoundError:
-                        raise Exception("{} is not a valid lane from the GSC".format(lane))
-
-                    filtered_lanes.add(lane)
+                    flowcell_id = (lane.split('_'))[0]
+                    lane_number = (lane.split('_'))[1]
+                    self._check_lane_exists(flowcell_id, lane_number, "GSC")
+                    lanes.add(lane)
 
             if args['brc_flowcell_ids'] is not None:
                 for flowcell_id in args['brc_flowcell_ids']:
-                    # Check if lanes given are valid
-                    try:
-                        sequence_lane = tantalus_api.get(
-                            'sequencing_lane',
-                            flowcell_id=flowcell_id,
-                            sequencing_centre="BRC",
-                        )
+                    for lane_number in range(1, 5):
+                        self._check_lane_exists(flowcell_id, lane_number, "BRC")
+                        lanes.add("{}_{}".format(flowcell_id, lane_number))
 
-                    except NotFoundError:
-                        raise Exception("{} is not a valid lane from the BRC".format(flowcell_id))
-
-                    brc_lanes = ["{}_{}".format(flowcell_id, num) for num in range(1,5)]
-                    filtered_lanes.add(set(brc_lanes))
-
-            for dataset in datasets:
-                lanes = ["{}_{}".format(
+        # Generate a list of datasets with the exact set of lanes specified
+        input_datasets = list()
+        for dataset in library_datasets:
+            dataset_lanes = set()
+            for lane in dataset["sequence_lanes"]:
+                dataset_lanes.add("{}_{}".format(
                     lane["flowcell_id"],
-                    lane["lane_number"]) for lane in dataset["sequence_lanes"]
-            ]
-                lanes = set(lanes)
+                    lane["lane_number"]))
 
-                if lanes == filtered_lanes:
-                    dataset_ids.append(dataset["id"])
-                    input_datasets.append(dataset)
-
+            if dataset_lanes == lanes:
+                input_datasets.append(dataset)
 
         check_input_datsets(args, input_datasets)
-        return(dataset_ids)
 
+        input_dataset_ids = [d['id'] for d in input_datasets]
+
+        return input_dataset_ids
 
     def check_input_datsets(args, input_datasets):
         '''
         Check if all samples for the library have an input dataset
-
         '''
         library_samples = set()
         sublibraries = colossus_api.list("sublibraries", library__pool_id=args['library_id'])
@@ -837,7 +816,6 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
         for dataset in input_datasets:
             sample_id = dataset["sample"]["sample_id"]
             dataset_samples[sample_id].append(dataset["id"])
-
 
         for sample in dataset_samples:
             if len(dataset_samples[sample]) != 1:
