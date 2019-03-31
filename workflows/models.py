@@ -784,12 +784,13 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
             if dataset_lanes == lanes:
                 input_datasets.append(dataset)
 
-        check_input_datsets(args, input_datasets)
+        HmmcopyAnalysis.check_input_datsets(args, input_datasets)
 
         input_dataset_ids = [d['id'] for d in input_datasets]
 
         return input_dataset_ids
 
+    @staticmethod
     def check_input_datsets(args, input_datasets):
         '''
         Check if all samples for the library have an input dataset
@@ -812,7 +813,7 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
         log.info("Every sample in the library {} has an input dataset")
 
         # Check if one dataset per sample
-        dataset_samples = defaultdict(list)
+        dataset_samples = collections.defaultdict(list)
         for dataset in input_datasets:
             sample_id = dataset["sample"]["sample_id"]
             dataset_samples[sample_id].append(dataset["id"])
