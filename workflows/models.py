@@ -718,68 +718,110 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
         super(HmmcopyAnalysis, self).__init__('hmmcopy', jira, version, args, **kwargs)
         self.run_options = run_options
 
+    def _check_lane_exists(self, flowcell_id, lane_number, sequencing_centre):
+        try:
+            sequence_lane = tantalus_api.get(
+                'sequencing_lane',
+                flowcell_id=flowcell_id,
+                lane_number=lane_number,
+                sequencing_centre=sequencing_centre,
+            )
+        except NotFoundError:
+            raise Exception("{}_{} is not a valid lane from the {}".format(
+                flowcell_id, lane_number, sequencing_centre))
+
     @staticmethod
     def search_input_datasets(args):
-        """
-        Get the input BAM datasets for this analysis.
-        """
-        
-        filter_lane_flowcells = []
-        dataset_ids = set()
-
-        if args['gsc_lanes'] is not None:
-            for lane in args['gsc_lanes']:
-                flowcell_id = (args['gsc_lanes'].split('_'))[0]
-                lane_number = (args['gsc_lanes'].split('_'))[1]
-                sequence_lane = tantalus_api.get(
-                    'sequencing_lane',
-                    flowcell_id=flowcell_id,
-                    lane_number=lane_number
-                )
-
-
-                filter_lane_flowcells.extend(flowcell_id)
-
-        if args['brc_flowcell_ids'] is not None:
-            for flowcell_id in args['brc_flowcell_ids']:
-                sequence_lane = tantalus_api.get(
-                    'sequencing_lane',
-                    flowcell_id=flowcell_id
-                )
-
-                filter_lane_flowcells.extend(flowcell_id)
-
-        if not filter_lane_flowcells:
-            datasets = tantalus_api.list(
-            'sequence_dataset', 
-            library__library_id=args['library_id'], 
-            aligner__name=args['aligner'],
-            reference_genome__name=args['ref_genome'],
+        library_datasets = list(tantalus_api.list("sequence_dataset",
+            library__library_id=args['library_id'],
             dataset_type='BAM',
-            )           
+            aligner__name=args['aligner'],
+            reference_genome__name=args['ref_genome']),
+        )
 
-            if not datasets:
-                raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
+        # Set of lanes requiring analysis
+        lanes = set()
 
-            for dataset in datasets:
-                dataset_ids.add(dataset['id'])
+        # If no lanes were specified, find all lanes
+        # for all datasets for the given library
+        if not args["gsc_lanes"] and not args["brc_flowcell_ids"]:
+            for dataset in library_datasets:
+                for sequence_lane in dataset["sequence_lanes"]:
+                    lane = "{}_{}".format(
+                        sequence_lane["flowcell_id"],
+                        sequence_lane["lane_number"],
+                    )
+                    lanes.add(lane)
+
+        # Find bam flowcell lane ids for the specified
+        # brc flowcells and gsc flowcell lanes
+        else:
+            if args['gsc_lanes'] is not None:
+                for lane in args['gsc_lanes']:
+                    flowcell_id = (lane.split('_'))[0]
+                    lane_number = (lane.split('_'))[1]
+                    self._check_lane_exists(flowcell_id, lane_number, "GSC")
+                    lanes.add(lane)
+
+            if args['brc_flowcell_ids'] is not None:
+                for flowcell_id in args['brc_flowcell_ids']:
+                    for lane_number in range(1, 5):
+                        self._check_lane_exists(flowcell_id, lane_number, "BRC")
+                        lanes.add("{}_{}".format(flowcell_id, lane_number))
+
+        # Generate a list of datasets with the exact set of lanes specified
+        input_datasets = list()
+        for dataset in library_datasets:
+            dataset_lanes = set()
+            for lane in dataset["sequence_lanes"]:
+                dataset_lanes.add("{}_{}".format(
+                    lane["flowcell_id"],
+                    lane["lane_number"]))
+
+            if dataset_lanes == lanes:
+                input_datasets.append(dataset)
+
+        HmmcopyAnalysis.check_input_datsets(args, input_datasets)
+
+        input_dataset_ids = [d['id'] for d in input_datasets]
+
+        return input_dataset_ids
+
+    @staticmethod
+    def check_input_datsets(args, input_datasets):
+        '''
+        Check if all samples for the library have exactly one input dataset
+        '''
+        library_samples = set()
+        sublibraries = colossus_api.list("sublibraries", library__pool_id=args['library_id'])
+
+        for sublibrary in sublibraries:
+            sample_id = sublibrary["sample_id"]["sample_id"]
+            library_samples.add(sample_id)
+
+        for sample_id in library_samples:
+            input_dataset_samples = [dataset["sample"]["sample_id"] for dataset in input_datasets]
+
+            if sample_id not in input_dataset_samples:
+                raise Exception("No input dataset for library sample {}".format(sample_id))
+
+            log.info("Sample {} has a dataset in the input datasets".format(sample_id))
+
+        log.info("Every sample in the library {} has an input dataset")
+
+        # Check if one dataset per sample
+        dataset_samples = collections.defaultdict(list)
+        for dataset in input_datasets:
+            sample_id = dataset["sample"]["sample_id"]
+            dataset_samples[sample_id].append(dataset["id"])
+
+        for sample in dataset_samples:
+            if len(dataset_samples[sample]) != 1:
+                raise Exception("Sample {} has more than one input dataset".format(sample))
             
-            return list(dataset_ids)
+            log.info("Sample {} has exactly one input dataset".format(sample))
 
-        for flowcell_id in filter_lane_flowcells:
-            datasets = tantalus_api.list(
-                'sequence_dataset', 
-                library__library_id=args['library_id'],
-                aligner__name=args['aligner'], 
-                reference_genome=args['ref_genome'],
-                dataset_type='BAM',
-                sequence_lane__flowcell_id=flowcell_id
-            )   
-
-            for dataset in list(datasets):
-                dataset_ids.add(dataset['id'])
-
-        return list(dataset_ids)
+        log.info("Each sample has only one input dataset")
       
     def get_results_filenames(self):
         results_prefix = os.path.join(
