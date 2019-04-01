@@ -7,5 +7,6 @@ pandas
 pyyaml
 saltant-py
 mock
+paramiko
 #django
 #django-core

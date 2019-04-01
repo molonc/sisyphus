@@ -148,7 +148,7 @@ def sentinel(filename, function, *args, **kwargs):
     if interactive_mode:
         if os.path.isfile(filename):
             # If ever run in python 3, change this
-            text = raw_input("File {} already exists, would you like to rerun this step? (Type 'run' to rerun)".format(filename))
+            text = input("File {} already exists, would you like to rerun this step? (Type 'run' to rerun)".format(filename))
             if text == 'run' or text == 'yes' or text == 'y':
                 os.remove(filename)
 
