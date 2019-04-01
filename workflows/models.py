@@ -754,7 +754,8 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
                     )
                     lanes.add(lane)
 
-        # Find bam datasets with specified lanes
+        # Find bam flowcell lane ids for the specified
+        # brc flowcells and gsc flowcell lanes
         else:
             if args['gsc_lanes'] is not None:
                 for lane in args['gsc_lanes']:
