@@ -8,7 +8,10 @@
         "remote_results": "singlecellblob_results", 
         "remote_inputs": "singlecellblob"
     },
-    "context_config_file": "path/to/context_config_file/",
+    "context_config_file": {
+        "saltant" : "/path/to/content_config.yaml/on/saltant/repo/",
+        "sisyphus" : "/path/to/content_config.yaml/on/sisyphus/repo/",
+    },
     "docker_env_file": "/home/jpham/set-docker-credentials.sh", 
     "user": "jpham",
     "docker_sock_path": "/var/run/docker.sock",
