@@ -7,10 +7,10 @@ from dbclients.tantalus import TantalusApi, DataCorruptionError
 from dbclients.basicclient import NotFoundError
 from utils.constants import LOGGING_FORMAT
 import pandas as pd
-from sets import Set
 
 
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
+logging.getLogger('azure.storage').setLevel(logging.ERROR)
 
 
 @click.command()
@@ -26,6 +26,13 @@ def main(
     check_remote=None,
     dry_run=False,
 ):
+    logging.info('cleanup up storage {}'.format(storage_name))
+
+    if check_remote:
+        logging.info('checking remote {}'.format(check_remote))
+    else:
+        logging.warning('not checking remote')
+
     tantalus_api = TantalusApi()
 
     storage_client = tantalus_api.get_storage_client(storage_name)
@@ -41,9 +48,11 @@ def main(
         raise ValueError('require exactly one of dataset id or tag name')
 
     if dataset_id is not None:
+        logging.info('cleanup up dataset {}'.format(dataset_id))
         datasets = tantalus_api.list('sequence_dataset', id=dataset_id)
 
     if tag_name is not None:
+        logging.info('cleanup up tag {}'.format(tag_name))
         datasets = tantalus_api.list('sequence_dataset', tags__name=tag_name)
 
     total_data_size = 0
@@ -55,7 +64,7 @@ def main(
 
         # Optionally skip datasets not present and intact on the remote storage
         if check_remote is not None:
-            if not is_sequence_dataset_on_storage(self, dataset, check_remote):
+            if not tantalus_api.is_sequence_dataset_on_storage(dataset, check_remote):
                 logging.warning('not deleting dataset with id {}, not on remote storage '.format(
                     dataset['id'], check_remote))
                 continue
@@ -70,7 +79,7 @@ def main(
                     remote_file_size_check = False
 
             # Skip this dataset if any files failed
-            if remote_file_size_check:
+            if not remote_file_size_check:
                 logging.warning("skipping dataset {} that failed check on {}".format(
                     dataset['id'], check_remote))
                 continue
@@ -85,13 +94,13 @@ def main(
                 file_size_check = False
 
         # Skip this dataset if any files failed
-        if file_size_check:
+        if not file_size_check:
             logging.warning("skipping dataset {} that failed check on {}".format(
                 dataset['id'], storage_name))
             continue
 
         # Delete all files for this dataset
-        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', 'shahlab'):
+        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', storage_name):
             if dry_run:
                 logging.info("would delete file instance with id {}, filepath {}".format(
                     file_instance['id'], file_instance['filepath']))
