@@ -237,7 +237,6 @@ def main(
         jira,
         log_file,
         version,
-        analysis_type,
         update=run_options['update'],
     )
 
