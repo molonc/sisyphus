@@ -402,9 +402,9 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     comment = "Import successful: \n"
     for lane in lanes:
         if lane['new'] == True:
-            comment += """\nLane: {}_{} 
+            comment += """\nLane: {}_{}
                 Sequencing Date: {} """.format(
-                lane["flowcell_id"], 
+                lane["flowcell_id"],
                 lane["lane_number"],
                 sequencing_date,
             )
