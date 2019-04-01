@@ -156,7 +156,7 @@ def start_automation(
             storages["working_inputs"],
         )
 
-    analysis_info.set_finish_status(analysis_type)
+    analysis_info.set_finish_status()
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
@@ -237,6 +237,7 @@ def main(
         jira,
         log_file,
         version,
+        analysis_type,
         update=run_options['update'],
     )
 
