@@ -30,7 +30,7 @@ class AnalysisInfo:
     A class representing an analysis information object in Colossus,
     containing settings for the analysis run.
     """
-    def __init__(self, jira, log_file, version, update=False):
+    def __init__(self, jira, log_file, version, analysis_type, update=False):
         self.jira = jira
         self.status = 'idle'
 
@@ -51,6 +51,7 @@ class AnalysisInfo:
 
         self.analysis_info = colossus_api.get('analysis_information', analysis_jira_ticket=jira)
         self.version = version
+        self.analysis_type = analysis_type
 
         self.aligner = self.get_aligner()
         self.smoothing = self.get_smoothing()
@@ -114,8 +115,8 @@ class AnalysisInfo:
     def set_error_status(self):
         self.update('error')
 
-    def set_finish_status(self, analysis_type):
-        self.update('{}_complete'.format(analysis_type))
+    def set_finish_status(self):
+        self.update('{}_complete'.format(self.analysis_type))
 
     def update(self, status):
         data = {
