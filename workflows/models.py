@@ -793,7 +793,7 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
     @staticmethod
     def check_input_datsets(args, input_datasets):
         '''
-        Check if all samples for the library have an input dataset
+        Check if all samples for the library have exactly one input dataset
         '''
         library_samples = set()
         sublibraries = colossus_api.list("sublibraries", library__pool_id=args['library_id'])
@@ -820,8 +820,9 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
 
         for sample in dataset_samples:
             if len(dataset_samples[sample]) != 1:
-                log.info(dataset_samples[sample])
                 raise Exception("Sample {} has more than one input dataset".format(sample))
+            
+            log.info("Sample {} has exactly one input dataset".format(sample))
 
         log.info("Each sample has only one input dataset")
       
