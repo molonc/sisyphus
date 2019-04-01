@@ -30,7 +30,7 @@ class AnalysisInfo:
     A class representing an analysis information object in Colossus,
     containing settings for the analysis run.
     """
-    def __init__(self, jira, log_file, version, analysis_type, update=False):
+    def __init__(self, jira, log_file, version, update=False):
         self.jira = jira
         self.status = 'idle'
 
