@@ -119,18 +119,19 @@ class AzureBlobServerDownload(object):
     """
 
     def __init__(self, tantalus_api, from_storage, to_storage_name, to_storage_prefix):
+        self.tantalus_api = tantalus_api
         self.block_blob_service = tantalus_api.get_storage_client(from_storage["name"]).blob_service
         self.from_storage = from_storage
         self.to_storage_name = to_storage_name
         self.to_storage_prefix = to_storage_prefix
 
     def download_from_blob(self, file_instance):
-        """ Transfer a file from blob to a server.
+        """ Download file from blob to a server.
 
         This should be called on the from server.
         """
 
-        file_resource = file_instance["file_resource"]
+        file_resource = self.tantalus_api.get("file_resource", id=file_instance["file_resource"])
 
         cloud_filepath = file_instance["filepath"]
         if not cloud_filepath.startswith(self.from_storage["prefix"]):
@@ -144,22 +145,7 @@ class AzureBlobServerDownload(object):
 
         make_dirs(os.path.dirname(local_filepath))
 
-        if not self.block_blob_service.exists(cloud_container, cloud_blobname):
-            error_message = "source blob {filepath} does not exist on {storage} for file instance with pk: {pk}".format(
-                filepath=cloud_filepath,
-                storage=file_instance["storage"]["name"],
-                pk=file_instance["id"],
-            )
-            raise FileDoesNotExist(error_message)
-
-        if not _check_file_same_blob(
-                self.block_blob_service,
-                file_resource, cloud_container, cloud_blobname):
-            error_message = "source blob {filepath} mismatches in size compared to file resource with pk: {pk}".format(
-                filepath=cloud_filepath,
-                pk=file_resource["id"],
-            )
-            raise DataCorruptionError(error_message)
+        self.tantalus_api.check_file(file_instance)
 
         if os.path.isfile(local_filepath):
             if _check_file_same_local(file_resource, local_filepath):
@@ -191,6 +177,7 @@ class AzureBlobServerUpload(object):
     """
 
     def __init__(self, tantalus_api, to_storage):
+        self.tantalus_api = tantalus_api
         self.block_blob_service = tantalus_api.get_storage_client(to_storage["name"]).blob_service
         self.to_storage = to_storage
 
@@ -199,7 +186,7 @@ class AzureBlobServerUpload(object):
 
         This should be called on the from server.
         """
-        file_resource = file_instance["file_resource"]
+        file_resource = self.tantalus_api.get("file_resource", id=file_instance["file_resource"])
 
         local_filepath = file_instance["filepath"]
 
@@ -208,23 +195,8 @@ class AzureBlobServerUpload(object):
             raise Exception("{} does not have storage prefix {}".format(
                 cloud_filepath, self.to_storage["prefix"]))
 
-        cloud_blobname = file_resource["filename"]
-        cloud_container = self.to_storage["storage_container"]
-
-        if not os.path.isfile(local_filepath):
-            error_message = "source file {filepath} does not exist on {storage} for file instance with pk: {pk}".format(
-                filepath=local_filepath,
-                storage=file_instance["storage"]["name"],
-                pk=file_instance["id"],
-            )
-            raise FileDoesNotExist(error_message)
-
-        if not _check_file_same_local(file_resource, local_filepath):
-            error_message = "source file {filepath} mismatches in size compared to file resource with pk: {pk}".format(
-                filepath=local_filepath,
-                pk=file_resource["id"],
-            )
-            raise DataCorruptionError(error_message)
+        # Check if file instance to be uploaded exists and size matches
+        self.tantalus_api.check_file(file_instance)
 
         if self.block_blob_service.exists(cloud_container, cloud_blobname):
             if _check_file_same_blob(
@@ -257,6 +229,7 @@ class AzureBlobBlobTransfer(object):
     """
 
     def __init__(self, tantalus_api, source_storage, destination_storage):
+        self.tantalus_api = tantalus_api
         self.source_storage = source_storage
         self.destination_storage = destination_storage
 
@@ -272,10 +245,10 @@ class AzureBlobBlobTransfer(object):
             expiry=(datetime.datetime.utcnow() + datetime.timedelta(hours=200)),
         )
 
-    def transfer_function(file_instance):
+    def transfer_function(self, file_instance):
         """ Transfer function aware of source and destination Azure storages.
         """
-        file_resource = file_instance["file_resource"]
+        file_resource = tantalus_api.get("file_resource", id=file_instance["file_resource"])
 
         blobname = file_resource["filename"]
         source_container = file_instance["storage"]["storage_container"]
@@ -283,25 +256,9 @@ class AzureBlobBlobTransfer(object):
 
         assert self.source_storage["storage_container"] == source_container
 
-        if not self.source_account.exists(source_container, blobname):
-            error_message = "source blob {blobname} in container {container} does not exist on {storage} for file instance with pk: {pk}".format(
-                blobname=blobname,
-                container=source_container,
-                storage=file_instance["storage"]["name"],
-                pk=file_instance["id"],
-            )
-            raise FileDoesNotExist(error_message)
-
-        if not _check_file_same_blob(
-                self.self.source_account,
-                file_resource, source_container, blobname):
-            error_message = "source blob {blobname} in container {container} mismatches in size compared to file resource with pk: {pk}".format(
-                blobname=blobname,
-                container=source_container,
-                pk=file_resource["id"],
-            )
-            raise DataCorruptionError(error_message)
-
+        # Check if file instance exists and size matches
+        self.tantalus_api.check_file(file_instance)
+        
         if self.destination_account.exists(destination_container, blobname):
             if _check_file_same_blob(
                     self.destination_account,
