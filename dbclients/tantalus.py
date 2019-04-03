@@ -121,7 +121,7 @@ class BlobStorageClient(object):
             self.storage_container,
             blob_name=blobname,
             stream=stream)
-
+        
     def create(self, blobname, filepath):
         if self.exists(blobname):
             filesize_on_azure = self.get_size(blobname)
@@ -134,10 +134,10 @@ class BlobStorageClient(object):
 
         else:
             log.info("Creating blob {} from path {}".format(blobname, filepath))
-            self.blob_service.create_blob_from_path(self.storage_container,
+            self.blob_service.create_blob_from_path(self.storage_container, 
                 blobname,
                 filepath)
-
+            
 class ServerStorageClient(object):
     def __init__(self, storage_directory, prefix):
         self.storage_directory = storage_directory
@@ -178,7 +178,7 @@ class ServerStorageClient(object):
         dirname = os.path.dirname(filepath)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
-
+            
         with open(filepath, "wb") as f:
             f.write(stream.getvalue())
 
@@ -186,6 +186,12 @@ class ServerStorageClient(object):
         tantalus_filepath = os.path.join(self.storage_container, filename)
         if not os.path.samefile(filepath, tantalus_filepath):
             shutil.copy(filepath, tantalus_filepath)
+
+
+class DataCorruptionError(Exception):
+    """ An error when missing or corrupt data is found.
+    """
+    pass
 
 
 class TantalusApi(BasicAPIClient):
@@ -238,7 +244,7 @@ class TantalusApi(BasicAPIClient):
         Args:
             storage_name: storage in which the file resides
             filepath: abs path of the file
-
+        
         Returns:
             filename: relative filename of the file
         """
@@ -259,12 +265,12 @@ class TantalusApi(BasicAPIClient):
         Args:
             storage_name: storage in which the file resides
             filename: relative filename of the file
-
+        
         Returns:
             filepath: abs path of the file
         """
         storage = self.get_storage(storage_name)
-
+        
         if filename.startswith('/') or '..' in filename:
             raise ValueError('expected relative path got {}'.format(filename))
 
@@ -323,47 +329,6 @@ class TantalusApi(BasicAPIClient):
         self.cached_storage_clients[storage_name] = client
 
         return client
-
-
-    def check_file(self, storage_name, filename):
-        """ Check if file exists and if so check if file sizes match
-
-        Args:
-            storage_name (str): storage for file instance
-            filepath (str): full path to file
-            local_filesize (str): size of file
-
-        Returns:
-            file_info (dict)
-        """
-        file_info = dict(exists=False, size_match=False, error_message=None)
-        storage = self.get_storage(storage_name)
-        storage_client = self.get_storage_client(storage_name)
-
-        file_resource = self.get("file_resource", filename=filename)
-
-        if storage_client.exists(filename):
-            file_info["exists"] = True
-            remote_filesize = storage_client.get_size(filename)
-
-            if remote_filesize != file_resource["size"]:
-                file_info["error_message"] = "file {} on {} mismatches in size compared to file resource {}".format(
-                    filename,
-                    storage_name,
-                    file_resource["id"],
-                )
-
-            file_info["size_match"] = True
-
-        else:
-            file_info["error_message"] = "file {} does not exist on {} for file instance with pk: {}".format(
-                filename,
-                storage_name,
-                file_resource["id"],
-            )
-
-        return file_info
-
 
     def add_file(self, storage_name, filepath, update=False):
         """ Create a file resource and file instance in the given storage.
@@ -478,6 +443,29 @@ class TantalusApi(BasicAPIClient):
         file_instance['file_resource'] = file_resource
 
         return file_instance
+
+    def check_file(self, file_instance):
+        """
+        Check a file instance in tantalus exists and has the same size
+        on its given storage.
+
+        Args:
+            file_instance (dict)
+
+        Raises:
+            DataCorruptionError
+        """
+        storage_client = self.get_storage_client(file_instance['storage']['name'])
+
+        if not storage_client.exists(file_instance['file_resource']['filename']):
+            raise DataCorruptionError('file instance {} with path {} doesnt exist on storage {}'.format(
+                file_instance['id'], file_instance['filepath'], file_instance['storage']['name']))
+
+        size = storage_client.get_size(file_instance['file_resource']['filename'])
+        if size != file_instance['file_resource']['size']:
+            raise DataCorruptionError('file instance {} with path {} has size {} on storage {} but {} in tantalus'.format(
+                file_instance['id'], file_instance['filepath'], size, file_instance['storage']['name'],
+                file_instance['file_resource']['size']))
 
     def add_instance(self, file_resource, storage):
         """
@@ -641,3 +629,4 @@ class TantalusApi(BasicAPIClient):
                 r.reason, r.text))
 
         return r.json()
+
