@@ -183,7 +183,7 @@ class ServerStorageClient(object):
             f.write(stream.getvalue())
 
     def create(self, filename, filepath):
-        tantalus_filepath = os.path.join(self.storage_container, filename)
+        tantalus_filepath = os.path.join(self.storage_directory, filename)
         if not os.path.samefile(filepath, tantalus_filepath):
             shutil.copy(filepath, tantalus_filepath)
 
