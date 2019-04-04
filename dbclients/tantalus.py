@@ -457,6 +457,7 @@ class TantalusApi(BasicAPIClient):
         """
         storage_client = self.get_storage_client(file_instance['storage']['name'])
 
+
         file_resource = self.get("file_resource", id=file_instance["file_resource"])
 
         if not storage_client.exists(file_resource['filename']):

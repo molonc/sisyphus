@@ -7,7 +7,6 @@ import collections
 import yaml
 import hashlib
 import subprocess
-
 from datamanagement.utils import dlp
 import dbclients.tantalus
 import dbclients.colossus
@@ -31,7 +30,7 @@ class AnalysisInfo:
     A class representing an analysis information object in Colossus,
     containing settings for the analysis run.
     """
-    def __init__(self, jira, log_file, version, update=False):
+    def __init__(self, jira, log_file, version, analysis_type, update=False):
         self.jira = jira
         self.status = 'idle'
 
@@ -52,6 +51,7 @@ class AnalysisInfo:
 
         self.analysis_info = colossus_api.get('analysis_information', analysis_jira_ticket=jira)
         self.version = version
+        self.analysis_type = analysis_type
 
         self.aligner = self.get_aligner()
         self.smoothing = self.get_smoothing()
@@ -106,7 +106,7 @@ class AnalysisInfo:
             chip_ids.add(colossus_api.get('sequencing', id=sequencing_id)['library'])
         return chip_ids.pop()
 
-    def set_run_status(self, analysis_type):
+    def set_run_status(self):
         self.update('running')
 
     def set_archive_status(self):
@@ -116,7 +116,7 @@ class AnalysisInfo:
         self.update('error')
 
     def set_finish_status(self):
-        self.update('complete')
+        self.update('{}_complete'.format(self.analysis_type))
 
     def update(self, status):
         data = {
@@ -698,10 +698,7 @@ class AlignAnalysis(AlignHmmcopyMixin, Analysis):
 
         filenames = [
             os.path.join("plots", "{library_id}_plot_metrics.pdf"),
-            "{library_id}_alignment_metrics.csv.gz",
-            "{library_id}_alignment_metrics.csv.gz.yaml",
-            "{library_id}_gc_metrics.csv.gz",
-            "{library_id}_gc_metrics.csv.gz.yaml",
+            "{library_id}_alignment_metrics.h5",
             "info.yaml"
         ]
 
@@ -722,66 +719,110 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
         super(HmmcopyAnalysis, self).__init__('hmmcopy', jira, version, args, **kwargs)
         self.run_options = run_options
 
+    def _check_lane_exists(self, flowcell_id, lane_number, sequencing_centre):
+        try:
+            sequence_lane = tantalus_api.get(
+                'sequencing_lane',
+                flowcell_id=flowcell_id,
+                lane_number=lane_number,
+                sequencing_centre=sequencing_centre,
+            )
+        except NotFoundError:
+            raise Exception("{}_{} is not a valid lane from the {}".format(
+                flowcell_id, lane_number, sequencing_centre))
+
     @staticmethod
     def search_input_datasets(args):
-        """
-        Get the input BAM datasets for this analysis.
-        """
-        
-        filter_lane_flowcells = []
-        dataset_ids = set()
-
-        if args['gsc_lanes'] is not None:
-            for lane in args['gsc_lanes']:
-                flowcell_id = (args['gsc_lanes'].split('_'))[0]
-                lane_number = (args['gsc_lanes'].split('_'))[1]
-                sequence_lane = tantalus_api.get(
-                    'sequencing_lane',
-                    flowcell_id=flowcell_id,
-                    lane_number=lane_number
-                )
-
-
-                filter_lane_flowcells.extend(flowcell_id)
-
-        if args['brc_flowcell_ids'] is not None:
-            for flowcell_id in args['brc_flowcell_ids']:
-                sequence_lane = tantalus_api.get(
-                    'sequencing_lane',
-                    flowcell_id=flowcell_id
-                )
-
-                filter_lane_flowcells.extend(flowcell_id)
-
-        if not filter_lane_flowcells:
-            datasets = tantalus_api.list(
-            'sequence_dataset', 
-            library__library_id=args['library_id'], 
-            reference_genome=args['ref_genome'],
+        library_datasets = list(tantalus_api.list("sequence_dataset",
+            library__library_id=args['library_id'],
             dataset_type='BAM',
-            )           
+            aligner__name=args['aligner'],
+            reference_genome__name=args['ref_genome']),
+        )
 
-            if not datasets:
-                raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
+        # Set of lanes requiring analysis
+        lanes = set()
 
-            for dataset in datasets:
-                dataset_ids.add(dataset['id'])
+        # If no lanes were specified, find all lanes
+        # for all datasets for the given library
+        if not args["gsc_lanes"] and not args["brc_flowcell_ids"]:
+            for dataset in library_datasets:
+                for sequence_lane in dataset["sequence_lanes"]:
+                    lane = "{}_{}".format(
+                        sequence_lane["flowcell_id"],
+                        sequence_lane["lane_number"],
+                    )
+                    lanes.add(lane)
+
+        # Find bam flowcell lane ids for the specified
+        # brc flowcells and gsc flowcell lanes
+        else:
+            if args['gsc_lanes'] is not None:
+                for lane in args['gsc_lanes']:
+                    flowcell_id = (lane.split('_'))[0]
+                    lane_number = (lane.split('_'))[1]
+                    self._check_lane_exists(flowcell_id, lane_number, "GSC")
+                    lanes.add(lane)
+
+            if args['brc_flowcell_ids'] is not None:
+                for flowcell_id in args['brc_flowcell_ids']:
+                    for lane_number in range(1, 5):
+                        self._check_lane_exists(flowcell_id, lane_number, "BRC")
+                        lanes.add("{}_{}".format(flowcell_id, lane_number))
+
+        # Generate a list of datasets with the exact set of lanes specified
+        input_datasets = list()
+        for dataset in library_datasets:
+            dataset_lanes = set()
+            for lane in dataset["sequence_lanes"]:
+                dataset_lanes.add("{}_{}".format(
+                    lane["flowcell_id"],
+                    lane["lane_number"]))
+
+            if dataset_lanes == lanes:
+                input_datasets.append(dataset)
+
+        HmmcopyAnalysis.check_input_datsets(args, input_datasets)
+
+        input_dataset_ids = [d['id'] for d in input_datasets]
+
+        return input_dataset_ids
+
+    @staticmethod
+    def check_input_datsets(args, input_datasets):
+        '''
+        Check if all samples for the library have exactly one input dataset
+        '''
+        library_samples = set()
+        sublibraries = colossus_api.list("sublibraries", library__pool_id=args['library_id'])
+
+        for sublibrary in sublibraries:
+            sample_id = sublibrary["sample_id"]["sample_id"]
+            library_samples.add(sample_id)
+
+        for sample_id in library_samples:
+            input_dataset_samples = [dataset["sample"]["sample_id"] for dataset in input_datasets]
+
+            if sample_id not in input_dataset_samples:
+                raise Exception("No input dataset for library sample {}".format(sample_id))
+
+            log.info("Sample {} has a dataset in the input datasets".format(sample_id))
+
+        log.info("Every sample in the library {} has an input dataset")
+
+        # Check if one dataset per sample
+        dataset_samples = collections.defaultdict(list)
+        for dataset in input_datasets:
+            sample_id = dataset["sample"]["sample_id"]
+            dataset_samples[sample_id].append(dataset["id"])
+
+        for sample in dataset_samples:
+            if len(dataset_samples[sample]) != 1:
+                raise Exception("Sample {} has more than one input dataset".format(sample))
             
-            return list(dataset_ids)
+            log.info("Sample {} has exactly one input dataset".format(sample))
 
-        for flowcell_id in filter_lane_flowcells:
-            datasets = tantalus_api.list(
-                'sequence_dataset', 
-                library__library_id=args['library_id'], 
-                reference_genome=args['ref_genome'],
-                dataset_type='BAM',
-                sequence_lane__flowcell_id=flowcell_id
-            )   
-
-            for dataset in list(datasets):
-                dataset_ids.add(dataset['id'])
-
-        return list(dataset_ids)
+        log.info("Each sample has only one input dataset")
       
     def get_results_filenames(self):
         results_prefix = os.path.join(
@@ -797,18 +838,8 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
             os.path.join("plots", "{library_id}_heatmap_by_ec.pdf"),
             os.path.join("plots", "{library_id}_kernel_density.pdf"),
             os.path.join("plots", "{library_id}_metrics.pdf"),
-            os.path.join("multiplier_0", "{library_id}_igv_segments.seg"),
-            os.path.join("multiplier_0", "{library_id}_metrics.csv.gz"),
-            os.path.join("multiplier_0", "{library_id}_metrics.csv.gz.yaml"),
-            os.path.join("multiplier_0", "{library_id}_metrics.yaml"),
-            os.path.join("multiplier_0", "{library_id}_params.csv.yaml"),
-            os.path.join("multiplier_0", "{library_id}_params.csv.gz.yaml"),
-            os.path.join("multiplier_0", "{library_id}_reads.csv.gz"),
-            os.path.join("multiplier_0", "{library_id}_reads.csv.gz.yaml"),
-            os.path.join("multiplier_0", "{library_id}_reads.yaml"),
-            os.path.join("multiplier_0", "{library_id}_segments.csv.gz"),
-            os.path.join("multiplier_0", "{library_id}_segments.csv.gz.yaml"),
-            os.path.join("multiplier_0", "{library_id}_segments.yaml"),
+            "{library_id}_hmmcopy.h5",
+            "{library_id}_igv_segments.seg",
             "info.yaml"
         ]
 
@@ -820,9 +851,98 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
         else:
             return launch_pipeline.run_pipeline
 
+
     def generate_inputs_yaml(self, inputs_yaml_filename):
-        log.info("inputs.yaml should already exists from align analysis.")
-        pass
+
+        if os.path.isfile(inputs_yaml_filename):
+            log.info("inputs.yaml already exists from align analysis.")
+            return
+
+        log.info('Generating cell metadata')
+        reference_genome_choices = {
+            'grch37': 'HG19',
+            'mm10': 'MM10',
+        }
+
+        inverted_ref_genome_map = dict([[v,k] for k,v in reference_genome_choices.items()])
+
+        sample_info = generate_inputs.generate_sample_info(
+            self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
+
+        if sample_info['index_sequence'].duplicated().any():
+            raise Exception('Duplicate index sequences in sample info.')
+
+        if sample_info['cell_id'].duplicated().any():
+            raise Exception('Duplicate cell ids in sample info.')
+
+        # Sort by index_sequence, lane id, read end
+        fastq_file_instances = dict()
+
+        tantalus_index_sequences = set()
+        colossus_index_sequences = set()
+
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+
+            file_instances = tantalus_api.get_dataset_file_instances(
+                    dataset['id'], 'sequencedataset', self.storages['working_inputs'])
+
+            for file_instance in file_instances:
+                file_instance['sequence_dataset'] = dataset
+                lane_id = tantalus_utils.get_flowcell_lane(dataset['sequence_lanes'][0])
+                read_end = file_instance['file_resource']['sequencefileinfo']['read_end']
+                index_sequence = file_instance['file_resource']['sequencefileinfo']['index_sequence']
+                tantalus_index_sequences.add(index_sequence)
+                fastq_file_instances[(index_sequence, lane_id, read_end)] = file_instance
+
+        input_info = {}
+
+        for idx, row in sample_info.iterrows():
+            index_sequence = row['index_sequence']
+
+            if self.run_options.get("is_test_run", False) and (index_sequence not in tantalus_index_sequences):
+                # Skip index sequences that are not found in the Tantalus dataset, since
+                # we need to refer to the original library in Colossus for metadata, but
+                # we don't want to iterate through all the cells present in that library
+                continue
+
+            colossus_index_sequences.add(index_sequence)
+
+            bam_filename = templates.SC_WGS_BAM_TEMPLATE.format(
+                library_id=self.args['library_id'],
+                ref_genome=inverted_ref_genome_map[self.args['ref_genome']],
+                aligner_name=self.args['aligner'],
+                number_lanes=len(lanes),
+                cell_id=row['cell_id'],
+            )
+
+            bam_filepath = str(tantalus_api.get_filepath(self.storages['working_inputs'], bam_filename))
+
+            sample_id = row['sample_id']
+            if self.run_options.get("is_test_run", False):
+               assert 'TEST' in sample_id
+
+            input_info[str(row['cell_id'])] = {
+                'bam':          bam_filepath,
+                'pick_met':     str(row['pick_met']),
+                'condition':    str(row['condition']),
+                'primer_i5':    str(row['primer_i5']),
+                'index_i5':     str(row['index_i5']),
+                'primer_i7':    str(row['primer_i7']),
+                'index_i7':     str(row['index_i7']),
+                'img_col':      int(row['img_col']),
+                'column':       int(row['column']),
+                'row':          int(row['row']),
+                'sample_type':  'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
+                'index_sequence': str(row['primer_i7']) + '-' + str(row['primer_i5']),
+                'sample_id':    str(sample_id),
+            }
+
+        if colossus_index_sequences != tantalus_index_sequences:
+            raise Exception("index sequences in Colossus and Tantalus do not match")
+
+        with open(inputs_yaml_filename, 'w') as inputs_yaml:
+            yaml.dump(input_info, inputs_yaml, default_flow_style=False)
 
     def create_output_datasets(self, tag_name=None, update=False):
         log.info("No outputs need to be created for hmmcopy analysis.")

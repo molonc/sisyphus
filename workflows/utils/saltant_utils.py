@@ -2,11 +2,10 @@ import os
 import time
 import logging
 import contextlib
-
+import sys
 from saltant.client import Client
 from saltant.constants import SUCCESSFUL, FAILED
 from workflows.utils import tantalus_utils
-
 
 client = None
 def get_client():
@@ -71,7 +70,7 @@ def wait_for_task_instance(task_instance):
             task_instance.terminate()
 
 
-def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name):
+def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name, wait=False):
     """
     Create a new task instance in saltant and return its
     unique identifier.
@@ -82,20 +81,23 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name)
         queue_id (int)
     """
 
-    log.debug(task_queue_name)
+    client = get_client()
+    executable_task_instances = client.executable_task_instances
+    
+    task_queue_id = get_task_queue_id(task_queue_name)
 
     params = {'name': name, 'user__username': user}
 
     # Kill all running task instances
-    task_instance_list = get_client().executable_task_instances.list(params)
+    task_instance_list = executable_task_instances.list(params)
     for task_instance in task_instance_list:
         if get_task_instance_status(task_instance.uuid) == 'running':
             task_instance.terminate()
 
-    new_task_instance = get_client().executable_task_instances.create(
+    new_task_instance = executable_task_instances.create(
         name=name,
         arguments=args,
-        task_queue_id=get_task_queue_id(task_queue_name),
+        task_queue_id=task_queue_id,
         task_type_id=task_type_id,
     )
 
@@ -104,8 +106,9 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name)
         task_queue_name
     ))
 
-    with wait_for_task_instance(new_task_instance):
-        wait_for_finish(new_task_instance.uuid)
+    if wait == True:
+        with wait_for_task_instance(new_task_instance):
+            wait_for_finish(new_task_instance.uuid)
 
 
 def dlp_bam_import(jira, config, bam_paths, storage_name, storage_type, analysis_id, blob_container_name=None):
@@ -166,3 +169,42 @@ def transfer_files(jira, config, tag_name, from_storage, to_storage):
 
     task_type_id = get_task_type_id("File transfer")
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
+
+
+def run_align(jira, version, aligner, config):
+    name = "{}_{}_align".format(jira, aligner)
+    queue_name = config['headnode_task_queue']
+    
+    args = {
+        'jira':             jira, 
+        'version':          version, 
+        'aligner':          aligner,
+        'analysis_type':    'align'
+    }
+
+    task_type_id = get_task_type_id("Run Align")
+    get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
+
+
+def run_hmmcopy(jira, version, aligner, config):
+    name = "{}_{}_hmmcopy".format(jira, aligner)
+    queue_name = config['headnode_task_queue']
+
+    args = {
+        'jira':             jira, 
+        'version':          version, 
+        'aligner':          aligner,
+        'analysis_type':    'hmmcopy'
+    }
+
+    task_type_id = get_task_type_id("Run Hmmcopy")
+    get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
+
+
+def test(name, config):
+    queue_name = config['headnode_task_queue']
+    args = {}
+    task_type_id = get_task_type_id("Test task")
+
+    get_or_create_task_instance(name, config['user'], args, task_type_id, "jphamvm")
+

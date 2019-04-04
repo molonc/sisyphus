@@ -1,6 +1,7 @@
 import os
 import logging
 import hashlib
+import click
 
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
@@ -19,14 +20,16 @@ tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
 
 def rename_all_dlp_analyses():
-      '''
-      Rename of all dlp analysis to have form: 
-      	sc_<analysis_type>_<aligner>_<ref_genome>_<library_id>_<hashed_lanes>
-      '''
+	"""
+	Rename of all dlp analysis in Tantalus to have form: 
+		sc_<analysis_type>_<aligner>_<ref_genome>_<library_id>_<hashed_lanes>
+
+	If duplicate analyses exists, rename older analysis with suffix '_old'
+	"""
 
 	reference_genome_map = {
-	    'grch37': 	'HG19',
-	    'mm10': 	'MM10',
+		'grch37': 	'HG19',
+		'mm10': 	'MM10',
 	}
 	aligner_map = {
 		'A': 	'BWA_ALN_0_5_7',
@@ -162,7 +165,79 @@ def rename_all_dlp_analyses():
 					)
 
 
+def rename_bam_datasets():
+	"""
+	Rename bam datasets to have form:
+		BAM-<sample_id>_SC-WGS-<library_id>-lanes_<lanes_hashed>-<aligner>-<ref_genome>
+
+	If duplicate bam dataset exists, rename older dataset with suffix '_old'
+	"""
+
+	bam_datasets = tantalus_api.list("sequencedataset", dataset_type="BAM", library__library_type__name="SC_WGS")
+
+	for bam_dataset in bam_datasets:
+		bam_dataset_name = bam_dataset["name"]
+
+		library_id = bam_dataset["library"]["library_id"]
+		sample_id = bam_dataset["sample"]["sample_id"]
+		ref_genome = bam_dataset["reference_genome"]
+		aligner = bam_dataset["aligner"]
+
+		lanes = set()
+
+		for sequence_lane in bam_dataset['sequence_lanes']:
+			lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
+			lanes.add(lane)
+
+		lanes = ", ".join(sorted(lanes))
+		lanes = hashlib.md5(lanes.encode('utf-8'))
+		lanes_hashed = "{}".format(lanes.hexdigest()[:8])
+
+		new_name = 	"BAM-{}-SC_WGS-{}-lanes_{}-{}-{}".format(
+			sample_id,
+			library_id,
+			lanes_hashed,
+			aligner,
+			ref_genome,
+		)
+		if bam_dataset_name == new_name:
+			log.info("Dataset {} does not need renaming \n\n".format(bam_dataset['id']))
+			continue
+		
+		try:
+			log.info("sequence dataset has name {}; renaming to {}\n".format(bam_dataset_name, new_name))
+
+			tantalus_api.update("sequencedataset", id=bam_dataset["id"], name=new_name)
+
+		except Exception as e:
+			log.info("cannot rename sequence dataset {}: {}".format(bam_dataset["id"], e))
+
+			conflict_dataset = tantalus_api.get("sequencedataset", name=new_name)
+
+			if conflict_dataset["last_updated"] > bam_dataset["last_updated"]:
+				log.info("Renaming dataset {} as {} \n".format(bam_dataset["id"], "{}_old".format(new_name)))
+				tantalus_api.update("sequencedataset", bam_dataset["id"], name="{}_old".format(new_name))
+
+			else:
+				log.info("Renaming dataset {} as {}".format(conflict_dataset["id"], "{}_old".format(new_name)))
+				tantalus_api.update("sequencedataset", conflict_dataset["id"], name="{}_old".format(new_name))
+
+				log.info("Renaming dataset {} as {} \n".format(bam_dataset["id"], "{}_old".format(new_name)))
+				tantalus_api.update("sequencedataset", bam_dataset["id"], name="{}".format(new_name))
+
+
+@click.command()
+@click.argument('rename_type', type=click.Choice(["analysis", "bam"]))
+def main(rename_type):
+	if rename_type == "analysis":
+		log.info("Renaming dlp analyses on Tantalus")
+		rename_all_dlp_analyses()
+	elif rename_type == "bam":
+		log.info("Renaming bam datasets on Tantalus")
+		rename_bam_datasets()
+
+
 if __name__ == "__main__":
-	rename_all_dlp_analyses()
+	main()
 
 

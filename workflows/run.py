@@ -13,7 +13,6 @@ import datamanagement.templates as templates
 import launch_pipeline
 import generate_inputs
 from dbclients.tantalus import TantalusApi
-# from workflows.utils import saltant_utils
 from workflows.utils import file_utils, log_utils
 from workflows.utils.update_jira import update_jira
 from datamanagement.transfer_files import transfer_dataset
@@ -110,6 +109,11 @@ def start_automation(
             if storage['storage_type'] == 'server':
                 dirs.append(storage['storage_directory'])
 
+        if run_options['saltant']:
+            context_config_file = config['context_config_file']['saltant']
+        else:
+            context_config_file = config['context_config_file']['sisyphus']
+
         log_utils.sentinel(
             'Running single_cell {}'.format(analysis_type),
             run_pipeline,
@@ -119,7 +123,7 @@ def start_automation(
             tantalus_analysis=tantalus_analysis,
             analysis_info=analysis_info,
             inputs_yaml=inputs_yaml,
-            context_config_file=config['context_config_file'],
+            context_config_file=context_config_file,
             docker_env_file=config['docker_env_file'],
             dirs=dirs,
         )
@@ -184,6 +188,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.option('--sisyphus_interactive', is_flag=True)
 @click.option('--alignment_metrics')
 @click.option('--jobs', type=int, default=1000)
+@click.option('--saltant', is_flag=True)
 def main(
         jira,
         version,
@@ -232,6 +237,7 @@ def main(
         jira,
         log_file,
         version,
+        analysis_type,
         update=run_options['update'],
     )
 
