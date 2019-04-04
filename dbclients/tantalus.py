@@ -124,13 +124,13 @@ class BlobStorageClient(object):
         
     def create(self, blobname, filepath):
         if self.exists(blobname):
-            filesize_on_azure = self.get_size(blobname)
+            blobsize = self.get_size(blobname)
             filesize = os.path.getsize(filepath)
 
-            if filesize_on_azure != filesize:
-                raise Exception("Size mismatch: {} on Azure but file has size {}".format(filesize_on_azure, filesize))
+            if blobsize != filesize:
+                raise Exception("blob size is {} but local file size is {}".format(blobsize, filesize))
 
-            log.info("{} already exists on {}/{}".format(blobname, self.storage_account, self.storage_container))
+            log.info("{} already exists on {}".format(blobname, self.prefix))
 
         else:
             log.info("Creating blob {} from path {}".format(blobname, filepath))
@@ -457,12 +457,14 @@ class TantalusApi(BasicAPIClient):
         """
         storage_client = self.get_storage_client(file_instance['storage']['name'])
 
-        if not storage_client.exists(file_instance['file_resource']['filename']):
+        file_resource = self.get("file_resource", id=file_instance["file_resource"])
+
+        if not storage_client.exists(file_resource['filename']):
             raise DataCorruptionError('file instance {} with path {} doesnt exist on storage {}'.format(
                 file_instance['id'], file_instance['filepath'], file_instance['storage']['name']))
 
-        size = storage_client.get_size(file_instance['file_resource']['filename'])
-        if size != file_instance['file_resource']['size']:
+        size = storage_client.get_size(file_resource['filename'])
+        if size != file_resource['size']:
             raise DataCorruptionError('file instance {} with path {} has size {} on storage {} but {} in tantalus'.format(
                 file_instance['id'], file_instance['filepath'], size, file_instance['storage']['name'],
                 file_instance['file_resource']['size']))

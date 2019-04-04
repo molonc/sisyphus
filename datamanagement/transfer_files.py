@@ -195,6 +195,9 @@ class AzureBlobServerUpload(object):
             raise Exception("{} does not have storage prefix {}".format(
                 cloud_filepath, self.to_storage["prefix"]))
 
+        cloud_blobname = file_resource["filename"]
+        cloud_container = self.to_storage["storage_container"]
+
         # Check if file instance to be uploaded exists and size matches
         self.tantalus_api.check_file(file_instance)
 
@@ -248,7 +251,7 @@ class AzureBlobBlobTransfer(object):
     def transfer_function(self, file_instance):
         """ Transfer function aware of source and destination Azure storages.
         """
-        file_resource = tantalus_api.get("file_resource", id=file_instance["file_resource"])
+        file_resource = self.tantalus_api.get("file_resource", id=file_instance["file_resource"])
 
         blobname = file_resource["filename"]
         source_container = file_instance["storage"]["storage_container"]
