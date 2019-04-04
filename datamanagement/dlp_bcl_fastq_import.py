@@ -11,6 +11,7 @@ import time
 import subprocess
 import pandas as pd
 import click
+import requests
 from dbclients.colossus import get_colossus_sublibraries_from_library_id
 from dbclients.tantalus import TantalusApi
 from utils.constants import LOGGING_FORMAT
@@ -19,9 +20,9 @@ from utils.runtime_args import parse_runtime_args
 from utils.filecopy import rsync_file
 from utils.utils import make_dirs
 import datamanagement.templates as templates
-import pypeliner.helpers
-from pypeliner.execqueue.qsub import AsyncQsubJobQueue
-from utils.constants import DEFAULT_NATIVESPEC
+from datamanagement.utils.qsub_job_submission import submit_qsub_job
+from datamanagement.utils.qsub_jobs import Bcl2FastqJob
+from datamanagement.utils.constants import DEFAULT_NATIVESPEC
 import datetime
 
 
@@ -278,10 +279,13 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
 
 
 def get_samplesheet(destination, lane_id):
-    sheet_url = 'http://colossus.bcgsc.ca/dlp/sequencing/samplesheet/query_download/{lane_id}'
-    sheet_url = sheet_url.format(lane_id=lane_id)
 
-    subprocess.check_call(["wget", "-O", destination, sheet_url])
+    r = requests.get('https://colossus.canadacentral.cloudapp.azure.com/api/samplesheet_query/{}'.format(lane_id), 
+        auth=(os.environ["COLOSSUS_API_USERNAME"], os.environ["COLOSSUS_API_PASSWORD"])
+    )
+
+    with open(destination, 'w+') as f:
+        f.write(r.content)
 
 
 def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
@@ -295,13 +299,11 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
 
     get_samplesheet(samplesheet_filename, flowcell_id)
 
-    cmd = [
-        'bcl2fastq',
-        '--runfolder-dir', bcl_dir,
-        '--sample-sheet', samplesheet_filename,
-        '--output-dir', output_dir]
+    job = Bcl2FastqJob('12', bcl_dir, samplesheet_filename, output_dir)
 
-    subprocess.check_call(cmd)
+    submit_qsub_job(job, DEFAULT_NATIVESPEC, title=flowcell_id)
+
+    logging.info("Job finished successfully.")
 
 
 @click.command()
