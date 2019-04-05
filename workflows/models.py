@@ -875,8 +875,8 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
         if sample_info['cell_id'].duplicated().any():
             raise Exception('Duplicate cell ids in sample info.')
 
-        # Sort by index_sequence, lane id, read end
-        fastq_file_instances = dict()
+        # Sort bam files by index_sequence
+        bam_file_instances = dict()
 
         tantalus_index_sequences = set()
         colossus_index_sequences = set()
@@ -885,15 +885,13 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
             dataset = self.get_dataset(dataset_id)
 
             file_instances = tantalus_api.get_dataset_file_instances(
-                    dataset['id'], 'sequencedataset', self.storages['working_inputs'])
+                dataset['id'], 'sequencedataset', self.storages['working_inputs'],
+                filters={'filename__endswith': '.bam'})
 
             for file_instance in file_instances:
-                file_instance['sequence_dataset'] = dataset
-                lane_id = tantalus_utils.get_flowcell_lane(dataset['sequence_lanes'][0])
-                read_end = file_instance['file_resource']['sequencefileinfo']['read_end']
                 index_sequence = file_instance['file_resource']['sequencefileinfo']['index_sequence']
                 tantalus_index_sequences.add(index_sequence)
-                fastq_file_instances[(index_sequence, lane_id, read_end)] = file_instance
+                bam_file_instances[index_sequence] = file_instance
 
         input_info = {}
 
@@ -908,15 +906,7 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
 
             colossus_index_sequences.add(index_sequence)
 
-            bam_filename = templates.SC_WGS_BAM_TEMPLATE.format(
-                library_id=self.args['library_id'],
-                ref_genome=inverted_ref_genome_map[self.args['ref_genome']],
-                aligner_name=self.args['aligner'],
-                number_lanes=len(lanes),
-                cell_id=row['cell_id'],
-            )
-
-            bam_filepath = str(tantalus_api.get_filepath(self.storages['working_inputs'], bam_filename))
+            bam_filepath = bam_file_instances[index_sequence]['filepath']
 
             sample_id = row['sample_id']
             if self.run_options.get("is_test_run", False):
