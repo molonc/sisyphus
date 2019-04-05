@@ -926,6 +926,7 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
                 'sample_type':  'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
                 'index_sequence': str(row['primer_i7']) + '-' + str(row['primer_i5']),
                 'sample_id':    str(sample_id),
+                'fastqs':       {}, # HACK: required for hmmcopy analysis by pipeline
             }
 
         if colossus_index_sequences != tantalus_index_sequences:
