@@ -627,7 +627,10 @@ class AlignAnalysis(AlignHmmcopyMixin, Analysis):
 
         filenames = [
             os.path.join("plots", "{library_id}_plot_metrics.pdf"),
-            "{library_id}_alignment_metrics.h5",
+            "{library_id}_alignment_metrics.csv.gz",
+            "{library_id}_alignment_metrics.csv.gz.yaml",
+            "{library_id}_gc_metrics.csv.gz",
+            "{library_id}_gc_metrics.csv.gz.yaml",
             "info.yaml"
         ]
 
@@ -763,12 +766,20 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
         filenames = [
             os.path.join("plots", "bias", "{library_id}_bias.tar.gz"),
             os.path.join("plots", "segments", "{library_id}_segs.tar.gz"),
-            os.path.join("plots", "{library_id}_heatmap_by_ec_filtered.pdf"),
-            os.path.join("plots", "{library_id}_heatmap_by_ec.pdf"),
-            os.path.join("plots", "{library_id}_kernel_density.pdf"),
             os.path.join("plots", "{library_id}_metrics.pdf"),
-            "{library_id}_hmmcopy.h5",
-            "{library_id}_igv_segments.seg",
+            os.path.join("multiplier_0", "{library_id}_igv_segments.seg"),
+            os.path.join("multiplier_0", "{library_id}_metrics.csv.gz"),
+            os.path.join("multiplier_0", "{library_id}_metrics.csv.gz.yaml"),
+            os.path.join("multiplier_0", "{library_id}_metrics.yaml"),
+            os.path.join("multiplier_0", "{library_id}_params.csv.yaml"),
+            os.path.join("multiplier_0", "{library_id}_params.csv.gz.yaml"),
+            os.path.join("multiplier_0", "{library_id}_params.yaml"),
+            os.path.join("multiplier_0", "{library_id}_reads.csv.gz"),
+            os.path.join("multiplier_0", "{library_id}_reads.csv.gz.yaml"),
+            os.path.join("multiplier_0", "{library_id}_reads.yaml"),
+            os.path.join("multiplier_0", "{library_id}_segments.csv.gz"),
+            os.path.join("multiplier_0", "{library_id}_segments.csv.gz.yaml"),
+            os.path.join("multiplier_0", "{library_id}_segments.yaml"),
             "info.yaml"
         ]
 
