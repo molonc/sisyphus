@@ -8,7 +8,7 @@ ALIGNMENT_METRICS = os.path.join(
 	'{results_dir}',
 	'results',
 	'alignment',
-	'{library_id}_alignment_metrics.h5'
+	'{library_id}_alignment_metrics.csv.gz'
 )
 
 SC_WGS_FQ_TEMPLATE = os.path.join(
