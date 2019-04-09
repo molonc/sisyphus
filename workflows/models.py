@@ -30,81 +30,11 @@ class AnalysisInfo:
     A class representing an analysis information object in Colossus,
     containing settings for the analysis run.
     """
-    def __init__(self, jira, log_file, version, analysis_type, update=False):
-        self.jira = jira
+    def __init__(self, jira, analysis_type):
         self.status = 'idle'
-
-        self.aligner_choices = {
-            'A':    'BWA_ALN_0_5_7',
-            'M':    'BWA_MEM_0_7_6A',
-        }
-
-        self.reference_genome_choices = {
-            'grch37': 'HG19',
-            'mm10': 'MM10',
-        }
-
-        self.smoothing_choices = {
-            'M':    'modal',
-            'L':    'loess',
-        }
-
-        self.analysis_info = colossus_api.get('analysis_information', analysis_jira_ticket=jira)
-        self.version = version
         self.analysis_type = analysis_type
-
-        self.aligner = self.get_aligner()
-        self.smoothing = self.get_smoothing()
-        self.reference_genome = self.get_reference_genome()
-        self.pipeline_version = self.get_pipeline_version(update=update)
-
-        self.id = self.analysis_info['id']
+        self.analysis_info = colossus_api.get('analysis_information', analysis_jira_ticket=jira)
         self.analysis_run = self.analysis_info['analysis_run']['id']
-        self.sequencing_ids = self.analysis_info['sequencings']
-        self.log_file = log_file
-
-        # Set the chip ID (= DLP library ID) from the sequencings associated with the analysis object from Colossus
-        self.chip_id = self.get_chip_id()
-
-    def get_reference_genome(self):
-        reference_genome = self.analysis_info['reference_genome']['reference_genome']
-        if reference_genome not in self.reference_genome_choices:
-            raise Exception('Unrecognized reference genome {}'.format(reference_genome))
-        return self.reference_genome_choices[reference_genome]
-
-    def get_pipeline_version(self, update=False):
-        version_str = self.analysis_info['version']
-        if version_str.startswith('Single Cell Pipeline'):
-            version_str = version_str.replace('Single Cell Pipeline', '').replace('_', '.')
-
-        if version_str != self.version:
-            log.warning('Version for Analysis Information {} changed, previously {} now {}'.format(
-                self.analysis_info['id'], version_str, self.version))
-
-            if update:
-                colossus_api.update(
-                    'analysis_information', 
-                    id=self.analysis_info['id'], 
-                    version=self.version)
-                analysis_info = colossus_api.get('analysis_information', id=self.analysis_info['id'])
-
-        return self.version
-
-    def get_aligner(self):
-        if 'aligner' in self.analysis_info:
-            return self.aligner_choices[self.analysis_info['aligner']]
-        return None
-
-    def get_smoothing(self):
-        if 'smoothing' in self.analysis_info:
-            return self.smoothing_choices[self.analysis_info['smoothing']]
-        return None
-
-    def get_chip_id(self):
-        chip_ids = set()
-        for sequencing_id in self.sequencing_ids:
-            chip_ids.add(colossus_api.get('sequencing', id=sequencing_id)['library'])
-        return chip_ids.pop()
 
     def set_run_status(self):
         self.update('running')
@@ -132,7 +62,6 @@ class AnalysisInfo:
         }
 
         colossus_api.update('analysis_run', id=self.analysis_run, **data)
-
 
 
 class Analysis(object):
@@ -385,6 +314,7 @@ class AlignHmmcopyMixin(object):
     """
 
     def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+
         lanes = set()
 
         for input_dataset in input_datasets:
@@ -494,12 +424,11 @@ class AlignAnalysis(AlignHmmcopyMixin, Analysis):
             storage_name: Which tantalus storage to look at
         """
         log.info('Generating cell metadata')
-        reference_genome_choices = {
-            'grch37': 'HG19',
-            'mm10': 'MM10',
-        }
 
-        inverted_ref_genome_map = dict([[v,k] for k,v in reference_genome_choices.items()])
+        reference_genome_map = {
+            'HG19': 'grch37',
+            'MM10': 'mm10',
+        }
 
         sample_info = generate_inputs.generate_sample_info(
             self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
@@ -572,7 +501,7 @@ class AlignAnalysis(AlignHmmcopyMixin, Analysis):
 
             bam_filename = templates.SC_WGS_BAM_TEMPLATE.format(
                 library_id=self.args['library_id'],
-                ref_genome=inverted_ref_genome_map[self.args['ref_genome']],
+                ref_genome=reference_genome_map[self.args['ref_genome']],
                 aligner_name=self.args['aligner'],
                 number_lanes=len(lanes),
                 cell_id=row['cell_id'],
@@ -859,12 +788,6 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
             return
 
         log.info('Generating cell metadata')
-        reference_genome_choices = {
-            'grch37': 'HG19',
-            'mm10': 'MM10',
-        }
-
-        inverted_ref_genome_map = dict([[v,k] for k,v in reference_genome_choices.items()])
 
         sample_info = generate_inputs.generate_sample_info(
             self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
