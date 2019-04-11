@@ -251,7 +251,7 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
             logging.info("Creating bam index at {}".format(bam_paths["tantalus_bai_path"]))
             cmd = [ 'samtools',
                 'index',
-                bam_paths["tantalus_bai_path"],
+                bam_paths["tantalus_bam_path"],
             ]
             subprocess.check_call(cmd)
 
