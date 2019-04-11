@@ -740,7 +740,7 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
 
             log.info("Sample {} has a dataset in the input datasets".format(sample_id))
 
-        log.info("Every sample in the library {} has an input dataset")
+        log.info("Every sample in the library {} has an input dataset".format(args['library_id']))
 
         # Check if one dataset per sample
         dataset_samples = collections.defaultdict(list)
@@ -764,28 +764,28 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
             "hmmcopy_autoploidy")
 
         filenames = [
-            os.path.join("plots", "bias", "{}_bias.tar.gz").format(library_id),
-            os.path.join("plots", "segments", "{}_segs.tar.gz").format(library_id),
-            os.path.join("plots", "{}_metrics.pdf").format(library_id),
+            os.path.join("plots", "bias", "{library_id}_bias.tar.gz").format(**self.args),
+            os.path.join("plots", "segments", "{library_id}_segs.tar.gz").format(**self.args),
+            os.path.join("plots", "{library_id}_metrics.pdf").format(**self.args),
             "info.yaml"
         ]
 
         for i in range(0,7):
-            filenames.append(os.path.join("multiplier_{}", "{}_igv_segments.seg").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_metrics.csv.gz").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_metrics.csv.gz.yaml").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_metrics.yaml").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_params.csv.yaml").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_params.csv.gz.yaml").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_params.yaml").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_reads.csv.gz").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_reads.csv.gz.yaml").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_reads.yaml").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_segments.csv.gz").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_segments.csv.gz.yaml").format(i, library_id)),
-            filenames.append(os.path.join("multiplier_{}", "{}_segments.yaml").format(i, library_id))
+            filenames.append(os.path.join("multiplier_{}", "{}_igv_segments.seg").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_metrics.csv.gz").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_metrics.csv.gz.yaml").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_metrics.yaml").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_params.csv.yaml").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_params.csv.gz.yaml").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_params.yaml").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_reads.csv.gz").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_reads.csv.gz.yaml").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_reads.yaml").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_segments.csv.gz").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_segments.csv.gz.yaml").format(i, self.args['library_id'])),
+            filenames.append(os.path.join("multiplier_{}", "{}_segments.yaml").format(i, self.args['library_id']))
 
-        return [os.path.join(results_prefix, filename)]
+        return [os.path.join(results_prefix, filename) for filename in filenames]
 
     def run_pipeline(self):
         if self.run_options["skip_pipeline"]:
