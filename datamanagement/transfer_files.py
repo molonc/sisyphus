@@ -17,8 +17,6 @@ from datamanagement.utils.utils import make_dirs
 import click
 
 
-# Set up the root logger
-logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stdout, level=logging.INFO)
 
 # Configure the azure.storage logger.
 # For more verbose output as required by microsoft set loglevel
@@ -550,4 +548,7 @@ def cache_file(tantalus_api, file_instance, cache_directory):
 
 
 if __name__ == "__main__":
+    # Set up the root logger
+    logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
+
     cli()
