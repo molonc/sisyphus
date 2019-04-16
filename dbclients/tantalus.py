@@ -397,6 +397,8 @@ class TantalusApi(BasicAPIClient):
             log.info('updating file resource {}'.format(
                 file_resource['id']))
 
+            # TODO: refactor this 
+
             # Delete all existing instances
             for file_instance in file_resource['file_instances']:
                 file_instance = self.update(
@@ -457,7 +459,9 @@ class TantalusApi(BasicAPIClient):
         """
         storage_client = self.get_storage_client(file_instance['storage']['name'])
 
-
+        # TODO: 
+        # file instance is always nested in file_instance so
+        # file_resource = file_instance['file_resource']
         file_resource = self.get("file_resource", id=file_instance["file_resource"])
 
         if not storage_client.exists(file_resource['filename']):
@@ -508,6 +512,8 @@ class TantalusApi(BasicAPIClient):
         Returns:
             file_instance (dict)
         """
+        
+        # TODO: file_instances no longer nested, see where this is used and refactor
         for file_instance in file_resource['file_instances']:
             if file_instance['storage']['name'] == storage_name:
                 file_instance = file_instance.copy()
@@ -534,6 +540,11 @@ class TantalusApi(BasicAPIClient):
         Returns:
             file_instances (list)
         """
+
+        # TODO:
+        # Query for the file resources and file instances and check they are consistent
+        # then return file instances
+
         if filters is None:
             filters = {}
 
@@ -551,6 +562,8 @@ class TantalusApi(BasicAPIClient):
         for file_resource in file_resources:
 
             file_instance = self.get_file_instance(file_resource, storage_name)
+
+            # TODO: this should now be part of the api
             file_instance['file_resource'] = file_resource
 
             file_instances.append(file_instance)
