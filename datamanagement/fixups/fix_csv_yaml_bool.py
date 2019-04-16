@@ -43,6 +43,7 @@ def edit_yaml(dry_run=False):
             stream.write(yaml.dump(file, default_flow_style=False))
             blob_storage_client.write_data(file_resource["filename"], stream)
             tantalus_api.update_file(file_instance)
+            #exit()
 
 
 if __name__ == "__main__":
