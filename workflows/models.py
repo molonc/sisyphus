@@ -764,26 +764,25 @@ class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
             "hmmcopy_autoploidy")
 
         filenames = [
-            os.path.join("plots", "bias", "{library_id}_bias.tar.gz").format(**self.args),
-            os.path.join("plots", "segments", "{library_id}_segs.tar.gz").format(**self.args),
-            os.path.join("plots", "{library_id}_metrics.pdf").format(**self.args),
+            os.path.join("plots", "bias", "{}_bias.tar.gz".format(self.args["library_id"])),
+            os.path.join("plots", "segments", "{}_segs.tar.gz".format(self.args["library_id"])),
+            os.path.join("plots", "{}_heatmap_by_ec_filtered.pdf".format(self.args["library_id"])),
+            os.path.join("plots", "{}_heatmap_by_ec.pdf".format(self.args["library_id"])),
+            os.path.join("plots", "{}_kernel_density.pdf".format(self.args["library_id"])),
+            os.path.join("plots", "{}_metrics.pdf".format(self.args["library_id"])),
             "info.yaml"
         ]
 
         for i in range(0,7):
-            filenames.append(os.path.join("multiplier_{}", "{}_igv_segments.seg").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_metrics.csv.gz").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_metrics.csv.gz.yaml").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_metrics.yaml").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_params.csv.yaml").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_params.csv.gz.yaml").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_params.yaml").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_reads.csv.gz").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_reads.csv.gz.yaml").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_reads.yaml").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_segments.csv.gz").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_segments.csv.gz.yaml").format(i, self.args['library_id'])),
-            filenames.append(os.path.join("multiplier_{}", "{}_segments.yaml").format(i, self.args['library_id']))
+            filenames.append("{}_multiplier{}_igv_segments.seg".format(self.args["library_id"], i)),
+            filenames.append("{}_multiplier{}_metrics.csv.gz".format(self.args["library_id"], i)),
+            filenames.append("{}_multiplier{}_metrics.csv.gz.yaml".format(self.args["library_id"], i)),
+            filenames.append("{}_multiplier{}_params.csv.gz".format(self.args["library_id"], i)),
+            filenames.append("{}_multiplier{}_params.csv.gz.yaml".format(self.args["library_id"], i)),
+            filenames.append("{}_multiplier{}_reads.csv.gz".format(self.args["library_id"], i)),
+            filenames.append("{}_multiplier{}_reads.csv.gz.yaml".format(self.args["library_id"], i)),
+            filenames.append("{}_multiplier{}_segments.csv.gz".format(self.args["library_id"], i)),
+            filenames.append("{}_multiplier{}_segments.csv.gz.yaml".format(self.args["library_id"], i)),
 
         return [os.path.join(results_prefix, filename) for filename in filenames]
 

@@ -11,6 +11,7 @@ pandas_to_std_types = {
 
 def write_csv_with_types(data, filename, header=True):
     """ Write data frame to csv with types in accompanying yaml.
+
     Args:
         data (DataFrame): data to serialize
         filename (str): gzipped csv filename
@@ -36,3 +37,6 @@ def write_csv_with_types(data, filename, header=True):
     yaml_filename = filename + '.yaml'
     with open(yaml_filename, 'w') as f:
         yaml.dump(metadata, f, default_flow_style=False)
+
+
+
