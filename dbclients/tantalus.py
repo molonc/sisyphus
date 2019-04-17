@@ -121,7 +121,7 @@ class BlobStorageClient(object):
             self.storage_container,
             blob_name=blobname,
             stream=stream)
-        
+
     def create(self, blobname, filepath):
         if self.exists(blobname):
             blobsize = self.get_size(blobname)
@@ -134,10 +134,10 @@ class BlobStorageClient(object):
 
         else:
             log.info("Creating blob {} from path {}".format(blobname, filepath))
-            self.blob_service.create_blob_from_path(self.storage_container, 
+            self.blob_service.create_blob_from_path(self.storage_container,
                 blobname,
                 filepath)
-            
+
 class ServerStorageClient(object):
     def __init__(self, storage_directory, prefix):
         self.storage_directory = storage_directory
@@ -151,6 +151,7 @@ class ServerStorageClient(object):
         filepath = os.path.join(self.storage_directory, filename)
         # TODO: this is currently fixed at pacific time
         return pd.Timestamp(time.ctime(os.path.getmtime(filepath)), tz="Canada/Pacific").isoformat()
+
 
     def get_url(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
@@ -178,7 +179,7 @@ class ServerStorageClient(object):
         dirname = os.path.dirname(filepath)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
-            
+
         with open(filepath, "wb") as f:
             f.write(stream.getvalue())
 
@@ -244,7 +245,7 @@ class TantalusApi(BasicAPIClient):
         Args:
             storage_name: storage in which the file resides
             filepath: abs path of the file
-        
+
         Returns:
             filename: relative filename of the file
         """
@@ -265,12 +266,12 @@ class TantalusApi(BasicAPIClient):
         Args:
             storage_name: storage in which the file resides
             filename: relative filename of the file
-        
+
         Returns:
             filepath: abs path of the file
         """
         storage = self.get_storage(storage_name)
-        
+
         if filename.startswith('/') or '..' in filename:
             raise ValueError('expected relative path got {}'.format(filename))
 
@@ -397,10 +398,11 @@ class TantalusApi(BasicAPIClient):
             log.info('updating file resource {}'.format(
                 file_resource['id']))
 
-            # TODO: refactor this 
+            # TODO: refactor this
 
             # Delete all existing instances
-            for file_instance in file_resource['file_instances']:
+            file_instances = tantalus_api.list("file_instance", file_resource=file_resource["id"])
+            for file_instance in file_instances:
                 file_instance = self.update(
                     'file_instance',
                     id=file_instance['id'],
@@ -459,10 +461,8 @@ class TantalusApi(BasicAPIClient):
         """
         storage_client = self.get_storage_client(file_instance['storage']['name'])
 
-        # TODO: 
-        # file instance is always nested in file_instance so
-        # file_resource = file_instance['file_resource']
-        file_resource = self.get("file_resource", id=file_instance["file_resource"])
+        # TODO:
+        file_resource = file_instance['file_resource']
 
         if not storage_client.exists(file_resource['filename']):
             raise DataCorruptionError('file instance {} with path {} doesnt exist on storage {}'.format(
@@ -488,7 +488,7 @@ class TantalusApi(BasicAPIClient):
 
         file_instance = self.get_or_create(
             'file_instance',
-            file_resource=file_resource['id'],
+            file_resource=file_resource["id"],
             storage=storage['id'],
         )
 
@@ -501,7 +501,7 @@ class TantalusApi(BasicAPIClient):
 
         return file_instance
 
-    def get_file_instance(self, file_resource, storage_name):
+    def get_file_instance(self, file_name, storage_name):
         """
         Given a file resource and a storage name, return the matching file instance.
 
@@ -512,15 +512,19 @@ class TantalusApi(BasicAPIClient):
         Returns:
             file_instance (dict)
         """
-        
-        # TODO: file_instances no longer nested, see where this is used and refactor
-        for file_instance in file_resource['file_instances']:
-            if file_instance['storage']['name'] == storage_name:
-                file_instance = file_instance.copy()
-                file_instance['file_resource'] = file_resource
-                return file_instance
 
-        raise NotFoundError
+        # TODO: file_instances no longer nested, see where this is used and refactor
+        storage = tantalus_api.get_storage(storage_name)
+        file_resource = tantalus_api.get("file_resource", filename=file_name)
+
+        try:
+            file_instance = tantalus_api.get("file_instance", file_resource=file_resource["id"], storage=storage["id"])
+
+        except:
+            log.info("file {} does not exist on {}".format(file_name, ))
+            raise NotFoundError
+
+        return file_instance
 
     def get_dataset_file_instances(self, dataset_id, dataset_model, storage_name, filters=None):
         """
@@ -545,6 +549,8 @@ class TantalusApi(BasicAPIClient):
         # Query for the file resources and file instances and check they are consistent
         # then return file instances
 
+        storage = tantalus_api.get_storage(storage_name)
+
         if filters is None:
             filters = {}
 
@@ -560,15 +566,12 @@ class TantalusApi(BasicAPIClient):
             raise ValueError('unrecognized dataset model {}'.format(dataset_model))
 
         for file_resource in file_resources:
-
-            file_instance = self.get_file_instance(file_resource, storage_name)
-
-            # TODO: this should now be part of the api
-            file_instance['file_resource'] = file_resource
-
+            # TESTME
+            file_instance = self.get_file_instance(file_resource["filename"], storage_name)
             file_instances.append(file_instance)
 
         return file_instances
+
 
     def get_dataset_file_resources(self, dataset_id, dataset_model, filters=None):
         """
@@ -607,13 +610,23 @@ class TantalusApi(BasicAPIClient):
         Returns:
             bool
         """
+
+        # TESTME
         for file_resource in self.list('file_resource', sequencedataset__id=dataset['id']):
             try:
-                self.get_file_instance(file_resource, storage_name)
+                self.get_file_instance(file_resource["filename"], storage_name)
             except NotFoundError:
                 return False
 
         return True
+
+        # for file_resource in self.list('file_resource', sequencedataset__id=dataset['id']):
+        #     try:
+        #         self.get_file_instance(file_resource, storage_name)
+        #     except NotFoundError:
+        #         return False
+
+        # return True
 
     def tag(self, name, sequencedataset_set=(), resultsdataset_set=()):
         """
@@ -645,4 +658,3 @@ class TantalusApi(BasicAPIClient):
                 r.reason, r.text))
 
         return r.json()
-
