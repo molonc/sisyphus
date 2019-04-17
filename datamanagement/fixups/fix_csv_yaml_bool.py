@@ -30,6 +30,13 @@ def edit_yaml(dry_run=False):
         edited = False
         f_path = os.path.join("/singlecelldata/results", file_resource["filename"])
 
+        sentinel_file = "_".join(file_resource["filename"].split("/"))
+        if os.path.exists(sentinel_file):
+            continue
+        else:
+            with open(sentinel_file, "w"):
+                pass
+
         file_instance = tantalus_api.get_file_instance(
             file_resource, remote_storage_name
         )
@@ -44,21 +51,10 @@ def edit_yaml(dry_run=False):
                 dtype["dtype"] = "bool"
                 edited = True
         if (not dry_run) and edited:
-            sentinel_file = "_".join(file_resource["filename"].split("/"))
-            try:
-                file_handle = os.open(sentinel_file, flags)
-            except OSError as e:
-                if e.errno == errno.EEXIST:
-                    pass
-                else:
-                    raise
-            else:
-                with os.fdopen(file_handle, "w") as file:
-                    file.write(" ")
-                stream.write(yaml.dump(file, default_flow_style=False))
-                blob_storage_client.write_data(file_resource["filename"], stream)
-                tantalus_api.update_file(file_instance)
-                #exit()
+            stream.write(yaml.dump(file, default_flow_style=False))
+            blob_storage_client.write_data(file_resource["filename"], stream)
+            tantalus_api.update_file(file_instance)
+            #exit()
 
 
 if __name__ == "__main__":
