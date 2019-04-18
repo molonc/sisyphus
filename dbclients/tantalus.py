@@ -603,9 +603,7 @@ class TantalusApi(BasicAPIClient):
         Returns:
             bool
         """
-
-        # TESTME
-
+        
         try:
             get_dataset_file_instances(dataset["id"], 'sequencedataset', storage_name)
 
