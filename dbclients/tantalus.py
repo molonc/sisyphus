@@ -398,8 +398,6 @@ class TantalusApi(BasicAPIClient):
             log.info('updating file resource {}'.format(
                 file_resource['id']))
 
-            # TODO: refactor this
-
             # Delete all existing instances
             file_instances = tantalus_api.list("file_instance", file_resource=file_resource["id"])
             for file_instance in file_instances:
@@ -461,7 +459,6 @@ class TantalusApi(BasicAPIClient):
         """
         storage_client = self.get_storage_client(file_instance['storage']['name'])
 
-        # TODO:
         file_resource = file_instance['file_resource']
 
         if not storage_client.exists(file_resource['filename']):
@@ -513,7 +510,6 @@ class TantalusApi(BasicAPIClient):
             file_instance (dict)
         """
 
-        # TODO: file_instances no longer nested, see where this is used and refactor
         storage = tantalus_api.get_storage(storage_name)
         file_resource = tantalus_api.get("file_resource", filename=file_name)
 
@@ -545,30 +541,27 @@ class TantalusApi(BasicAPIClient):
             file_instances (list)
         """
 
-        # TODO:
-        # Query for the file resources and file instances and check they are consistent
-        # then return file instances
-
-        storage = tantalus_api.get_storage(storage_name)
-
-        if filters is None:
+        if filters == None:
             filters = {}
 
-        file_instances = []
+        filters["fileinstance__storage__name"] = storage_name
+
+        file_resources = self.get_dataset_file_resources(dataset_id, dataset_model, filters)
 
         if dataset_model == 'sequencedataset':
-            file_resources = self.list('file_resource', sequencedataset__id=dataset_id, **filters)
+             file_instances = self.list('file_instance', file_resource__sequencedataset__id=dataset_id)
 
         elif dataset_model == 'resultsdataset':
-            file_resources = self.list('file_resource', resultsdataset__id=dataset_id, **filters)
+            file_instances = self.list('file_instance', file_resource__resulsdataset__id=dataset_id)
 
         else:
             raise ValueError('unrecognized dataset model {}'.format(dataset_model))
 
+        # Check if file resources have a file instance 
+        file_instances_filenames = [file_instance["file_resource"]["filename"] for file_instance in file_instances]
         for file_resource in file_resources:
-            # TESTME
-            file_instance = self.get_file_instance(file_resource["filename"], storage_name)
-            file_instances.append(file_instance)
+            if file_resource["filename"] not in file_instances_filenames:
+                raise Exception("file with pk {} not in {}".format(file_resource["id"], storage_name))
 
         return file_instances
 
@@ -612,21 +605,15 @@ class TantalusApi(BasicAPIClient):
         """
 
         # TESTME
-        for file_resource in self.list('file_resource', sequencedataset__id=dataset['id']):
-            try:
-                self.get_file_instance(file_resource["filename"], storage_name)
-            except NotFoundError:
-                return False
+
+        try:
+            get_dataset_file_instances(dataset["id"], 'sequencedataset', storage_name)
+
+        except Exception:
+            return False
 
         return True
 
-        # for file_resource in self.list('file_resource', sequencedataset__id=dataset['id']):
-        #     try:
-        #         self.get_file_instance(file_resource, storage_name)
-        #     except NotFoundError:
-        #         return False
-
-        # return True
 
     def tag(self, name, sequencedataset_set=(), resultsdataset_set=()):
         """
