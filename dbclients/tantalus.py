@@ -544,8 +544,6 @@ class TantalusApi(BasicAPIClient):
         if filters == None:
             filters = {}
 
-        filters["fileinstance__storage__name"] = storage_name
-
         file_resources = self.get_dataset_file_resources(dataset_id, dataset_model, filters)
 
         if dataset_model == 'sequencedataset':
@@ -557,8 +555,10 @@ class TantalusApi(BasicAPIClient):
         else:
             raise ValueError('unrecognized dataset model {}'.format(dataset_model))
 
-        # Check if file resources have a file instance 
-        file_instances_filenames = [file_instance["file_resource"]["filename"] for file_instance in file_instances]
+        # Check if file resources have a file instance
+        file_instances_filenames = set(
+            [file_instance["file_resource"]["filename"] for file_instance in file_instances]
+        )
         for file_resource in file_resources:
             if file_resource["filename"] not in file_instances_filenames:
                 raise Exception("file with pk {} not in {}".format(file_resource["id"], storage_name))
@@ -603,7 +603,7 @@ class TantalusApi(BasicAPIClient):
         Returns:
             bool
         """
-        
+
         try:
             get_dataset_file_instances(dataset["id"], 'sequencedataset', storage_name)
 
