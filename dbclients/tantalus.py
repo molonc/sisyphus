@@ -529,10 +529,10 @@ class TantalusApi(BasicAPIClient):
         file_resources = self.get_dataset_file_resources(dataset_id, dataset_model, filters)
 
         if dataset_model == 'sequencedataset':
-            file_instances = self.list('file_instance', file_resource__sequencedataset__id=dataset_id)
+            file_instances = self.list('file_instance', file_resource__sequencedataset__id=dataset_id, storage__name=storage_name)
 
         elif dataset_model == 'resultsdataset':
-            file_instances = self.list('file_instance', file_resource__resultsdataset__id=dataset_id)
+            file_instances = self.list('file_instance', file_resource__resultsdataset__id=dataset_id, storage__name=storage_name)
 
         else:
             raise ValueError('unrecognized dataset model {}'.format(dataset_model))
