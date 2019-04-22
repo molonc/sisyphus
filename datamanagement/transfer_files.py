@@ -128,8 +128,7 @@ class AzureBlobServerDownload(object):
 
         This should be called on the from server.
         """
-
-        file_resource = self.tantalus_api.get("file_resource", id=file_instance["file_resource"])
+        file_resource = file_instance["file_resource"]
 
         cloud_filepath = file_instance["filepath"]
         if not cloud_filepath.startswith(self.from_storage["prefix"]):
@@ -185,7 +184,7 @@ class AzureBlobServerUpload(object):
 
         This should be called on the from server.
         """
-        file_resource = self.tantalus_api.get("file_resource", id=file_instance["file_resource"])
+        file_resource = file_instance["file_resource"]
 
         local_filepath = file_instance["filepath"]
 
@@ -251,7 +250,7 @@ class AzureBlobBlobTransfer(object):
     def transfer(self, file_instance, overwrite=False):
         """ Transfer function aware of source and destination Azure storages.
         """
-        file_resource = self.tantalus_api.get("file_resource", id=file_instance["file_resource"])
+        file_resource = file_instance["file_resource"]
 
         blobname = file_resource["filename"]
         source_container = file_instance["storage"]["storage_container"]
