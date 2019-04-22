@@ -12,7 +12,7 @@ import time
 import traceback
 from azure.storage.blob import BlockBlobService, ContainerPermissions
 from datamanagement.utils.constants import LOGGING_FORMAT
-from dbclients.tantalus import TantalusApi
+from dbclients.tantalus import TantalusApi, NotFoundError
 from datamanagement.utils.utils import make_dirs
 import click
 
@@ -123,7 +123,7 @@ class AzureBlobServerDownload(object):
         self.to_storage_name = to_storage_name
         self.to_storage_prefix = to_storage_prefix
 
-    def download_from_blob(self, file_instance):
+    def download_from_blob(self, file_instance, overwrite=False):
         """ Download file from blob to a server.
 
         This should be called on the from server.
@@ -145,7 +145,8 @@ class AzureBlobServerDownload(object):
 
         self.tantalus_api.check_file(file_instance)
 
-        if os.path.isfile(local_filepath):
+        # Check any existing file unless we intend to overwrite
+        if os.path.isfile(local_filepath) and not overwrite:
             if _check_file_same_local(file_resource, local_filepath):
                 logging.info(
                     "skipping transfer of file resource {} that matches existing file".format(
@@ -179,7 +180,7 @@ class AzureBlobServerUpload(object):
         self.block_blob_service = tantalus_api.get_storage_client(to_storage["name"]).blob_service
         self.to_storage = to_storage
 
-    def upload_to_blob(self, file_instance):
+    def upload_to_blob(self, file_instance, overwrite=False):
         """Transfer a file from a server to blob.
 
         This should be called on the from server.
@@ -199,7 +200,8 @@ class AzureBlobServerUpload(object):
         # Check if file instance to be uploaded exists and size matches
         self.tantalus_api.check_file(file_instance)
 
-        if self.block_blob_service.exists(cloud_container, cloud_blobname):
+        # Check any existing file unless we intend to overwrite
+        if self.block_blob_service.exists(cloud_container, cloud_blobname) and not overwrite:
             if _check_file_same_blob(
                     self.block_blob_service,
                     file_resource, cloud_container, cloud_blobname):
@@ -246,7 +248,7 @@ class AzureBlobBlobTransfer(object):
             expiry=(datetime.datetime.utcnow() + datetime.timedelta(hours=200)),
         )
 
-    def transfer_function(self, file_instance):
+    def transfer(self, file_instance, overwrite=False):
         """ Transfer function aware of source and destination Azure storages.
         """
         file_resource = self.tantalus_api.get("file_resource", id=file_instance["file_resource"])
@@ -259,8 +261,9 @@ class AzureBlobBlobTransfer(object):
 
         # Check if file instance exists and size matches
         self.tantalus_api.check_file(file_instance)
-        
-        if self.destination_account.exists(destination_container, blobname):
+
+        # Check any existing file unless we intend to overwrite
+        if self.destination_account.exists(destination_container, blobname) and not overwrite:
             if _check_file_same_blob(
                     self.destination_account,
                     file_resource, destination_container, blobname):
@@ -300,7 +303,7 @@ class RsyncTransfer(object):
         self.to_storage_prefix = to_storage_prefix
         self.local_transfer = local_transfer
 
-    def rsync_file(self, file_instance):
+    def rsync_file(self, file_instance, overwrite=False):
         """ Rsync a single file from one storage to another
         """
         file_resource = file_instance["file_resource"]
@@ -313,7 +316,8 @@ class RsyncTransfer(object):
             local_filepath = local_filepath + "/"
             remote_filepath = remote_filepath + "/"
 
-        if os.path.isfile(local_filepath):
+        # Check any existing file unless we intend to overwrite
+        if os.path.isfile(local_filepath) and not overwrite:
             if _check_file_same_local(file_instance["file_resource"], local_filepath):
                 logging.info(
                     "skipping transfer of file resource {} that matches existing file".format(
@@ -446,10 +450,10 @@ def cache_tagged_datasets(tag_name, from_storage_name, cache_directory, suffix_f
 
 
 RETRIES = 3
-def _transfer_files_with_retry(f_transfer, file_instance):
+def _transfer_files_with_retry(f_transfer, file_instance, overwrite=False):
     for retry in range(RETRIES):
         try:
-            f_transfer(file_instance)
+            f_transfer(file_instance, overwrite=overwrite)
             break
         except Exception as e:
             logging.error("Transfer failed. Retrying.")
@@ -487,11 +491,14 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
 
     for file_instance in file_instances:
         file_resource = file_instance["file_resource"]
-        other_file_instances = file_resource["file_instances"]
 
-        storage_names = set([f["storage"]["name"] for f in other_file_instances])
+        try:
+            other_file_instance = tantalus_api.get(
+                "file_instance", file_resource=file_resource["id"], storage__name=to_storage["name"])
+        except NotFoundError:
+            other_file_instance = None
 
-        if to_storage["name"] in storage_names:
+        if other_file_instance is not None and not other_file_instance['is_deleted']:
             logging.info(
                 "skipping file resource {} that already exists on storage {}".format(
                     file_resource["filename"], to_storage["name"]
@@ -499,11 +506,13 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
             )
             continue
 
+        overwrite = (other_file_instance is not None and other_file_instance['is_deleted'])
+
         logging.info(
             "starting transfer {} to {}".format(
                 file_resource["filename"], to_storage["name"]))
 
-        _transfer_files_with_retry(f_transfer, file_instance)
+        _transfer_files_with_retry(f_transfer, file_instance, overwrite=overwrite)
 
         tantalus_api.add_instance(file_resource, to_storage)
 
