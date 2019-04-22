@@ -195,6 +195,12 @@ class DataCorruptionError(Exception):
     pass
 
 
+class DataNotOnStorageError(Exception):
+    """ An error when data is not on the expected storage.
+    """
+    pass
+
+
 class TantalusApi(BasicAPIClient):
     """Tantalus API class."""
 
@@ -498,30 +504,6 @@ class TantalusApi(BasicAPIClient):
 
         return file_instance
 
-    def get_file_instance(self, file_name, storage_name):
-        """
-        Given a file resource and a storage name, return the matching file instance.
-
-        Args:
-            file_resource (dict)
-            storage_name (str)
-
-        Returns:
-            file_instance (dict)
-        """
-
-        storage = tantalus_api.get_storage(storage_name)
-        file_resource = tantalus_api.get("file_resource", filename=file_name)
-
-        try:
-            file_instance = tantalus_api.get("file_instance", file_resource=file_resource["id"], storage=storage["id"])
-
-        except:
-            log.info("file {} does not exist on {}".format(file_name, ))
-            raise NotFoundError
-
-        return file_instance
-
     def get_dataset_file_instances(self, dataset_id, dataset_model, storage_name, filters=None):
         """
         Given a dataset get all file instances.
@@ -547,23 +529,32 @@ class TantalusApi(BasicAPIClient):
         file_resources = self.get_dataset_file_resources(dataset_id, dataset_model, filters)
 
         if dataset_model == 'sequencedataset':
-             file_instances = self.list('file_instance', file_resource__sequencedataset__id=dataset_id)
+            file_instances = self.list('file_instance', file_resource__sequencedataset__id=dataset_id)
 
         elif dataset_model == 'resultsdataset':
-            file_instances = self.list('file_instance', file_resource__resulsdataset__id=dataset_id)
+            file_instances = self.list('file_instance', file_resource__resultsdataset__id=dataset_id)
 
         else:
             raise ValueError('unrecognized dataset model {}'.format(dataset_model))
 
-        # Check if file resources have a file instance
-        file_instances_filenames = set(
-            [file_instance["file_resource"]["filename"] for file_instance in file_instances]
-        )
-        for file_resource in file_resources:
-            if file_resource["filename"] not in file_instances_filenames:
-                raise Exception("file with pk {} not in {}".format(file_resource["id"], storage_name))
+        file_instances = dict([(f['file_resource']['id'], f) for f in file_instances])
 
-        return file_instances
+        # Each file resource should have a file instance on the given
+        # storage unless not all files have been copied to the requested
+        # storage. File instances may be a superset of file resources
+        # if filters were added to the request.
+
+        # Check if file resources have a file instance
+        # return only file instances in the set file of
+        # file resources
+        filtered_file_instances = []
+        for file_resource in file_resources:
+            if file_resource['id'] not in file_instances:
+                raise DataNotOnStorageError('file resource {} with filename {} not on {}'.format(
+                    file_resource['id'], file_resource['filename'], storage_name))
+            filtered_file_instances.append(file_instances[file_resource['id']])
+
+        return filtered_file_instances
 
     def get_dataset_file_resources(self, dataset_id, dataset_model, filters=None):
         """
@@ -606,9 +597,9 @@ class TantalusApi(BasicAPIClient):
         """
 
         try:
-            get_dataset_file_instances(dataset["id"], 'sequencedataset', storage_name)
+            self.get_dataset_file_instances(dataset["id"], 'sequencedataset', storage_name)
 
-        except Exception:
+        except DataNotOnStorageError:
             return False
 
         return True
