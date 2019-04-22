@@ -520,6 +520,8 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
 def cache_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, cache_directory, suffix_filter=None):
     """ Cache a dataset
     """
+    cache_client = tantalus_api.get_cache_client(cache_directory)
+
     assert dataset_model in ("sequencedataset", "resultsdataset")
 
     dataset = tantalus_api.get(dataset_model, id=dataset_id)
@@ -529,6 +531,8 @@ def cache_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, ca
     f_transfer = get_cache_function(tantalus_api, from_storage, cache_directory)
 
     file_instances = tantalus_api.get_dataset_file_instances(dataset_id, dataset_model, from_storage_name)
+
+    filepaths = []
 
     for file_instance in file_instances:
         filename = file_instance["file_resource"]["filename"]
@@ -541,6 +545,12 @@ def cache_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, ca
                 filename, cache_directory))
 
         _transfer_files_with_retry(f_transfer, file_instance)
+
+        filepath = cache_client.get_url(file_instance['file_resource']['filename'])
+
+        filepaths.append(filepath)
+
+    return filepaths
 
 
 def cache_file(tantalus_api, file_instance, cache_directory):
