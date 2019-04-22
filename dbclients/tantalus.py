@@ -565,7 +565,6 @@ class TantalusApi(BasicAPIClient):
 
         return file_instances
 
-
     def get_dataset_file_resources(self, dataset_id, dataset_model, filters=None):
         """
         Given a dataset get all file resources.
@@ -580,6 +579,8 @@ class TantalusApi(BasicAPIClient):
         Returns:
             file_resources (list)
         """
+        if filters is None:
+            filters = {}
 
         if dataset_model == 'sequencedataset':
             file_resources = self.list('file_resource', sequencedataset__id=dataset_id, **filters)
