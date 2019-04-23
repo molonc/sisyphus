@@ -405,7 +405,7 @@ class TantalusApi(BasicAPIClient):
                 file_resource['id']))
 
             # Delete all existing instances
-            file_instances = tantalus_api.list("file_instance", file_resource=file_resource["id"])
+            file_instances = self.list("file_instance", file_resource=file_resource["id"])
             for file_instance in file_instances:
                 file_instance = self.update(
                     'file_instance',
