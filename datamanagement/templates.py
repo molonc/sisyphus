@@ -71,3 +71,33 @@ SC_WGS_FQ_NAME_TEMPLATE = "-".join([
     "{library_id}",
     "{lane}",
 ])
+
+GSC_SCRNA_FASTQ_PATH_TEMPLATE = os.path.join(
+    "/home/aldente/private/Projects/Sam_Aparicio/",
+    "{gsc_library_name}",
+    "AnalyzedData",
+    "{gsc_run_directory}",
+    "Solexa",
+    "Data",
+    "current",
+    "BaseCalls"
+)
+
+TENX_FASTQ_NAME_TEMPLATE = "_".join([
+    "{library_id}",
+    "{sample_id}",
+    "{fastq}",
+])
+
+TENX_FASTQ_BLOB_TEMPLATE = os.path.join(
+    "{library_id}",
+    "{fastq_name}"
+)
+
+TENX_SCRNA_DATASET_TEMPLATE = "-".join([
+    "{dataset_type}",
+    "{sample_id}",
+    "{library_type}",
+    "{library_id}",
+    "lanes_{lanes_hash}",
+])
