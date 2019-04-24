@@ -27,6 +27,7 @@ from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundEr
 import azure.storage.blob
 from azure.keyvault import KeyVaultClient, KeyVaultAuthentication
 from azure.common.credentials import ServicePrincipalCredentials
+import azure.common.AzureMissingResourceHttpError
 
 
 log = logging.getLogger('sisyphus')
@@ -102,7 +103,10 @@ class BlobStorageClient(object):
         return blob_url
 
     def delete(self, blobname):
-        self.blob_service.delete_blob(self.storage_container, blob_name=blobname)
+        try:
+            self.blob_service.delete_blob(self.storage_container, blob_name=blobname)
+        except azure.common.AzureMissingResourceHttpError:
+            log.warn("could not delete {}, blob doesnot exist".format(blobname))
 
     def open_file(self, blobname):
         url = self.get_url(blobname)
