@@ -20,6 +20,31 @@ def get_lane_str(lane):
     return "{}_{}".format(lane["flowcell_id"], lane["lane_number"])
 
 
+def get_analysis_lanes_hash(tantalus_api, analysis):
+    """
+    Args:
+        tantalus_api
+        analysis (dict)
+
+    Return:
+        lanes_hashed (str)
+    """
+    lanes = set()
+
+    for input_dataset in analysis["input_dataset"]:
+        dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
+        for sequence_lane in dataset['sequence_lanes']:
+            lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
+            lanes.add(lane)
+
+    lanes = ", ".join(sorted(lanes))
+    lanes = hashlib.md5(lanes.encode('utf-8'))
+    lanes_hashed = "{}".format(lanes.hexdigest()[:8])
+
+
+    return lanes_hashed
+
+
 def get_lanes_hash(lanes):
     if not lanes:
         raise ValueError("bam with no lanes")
