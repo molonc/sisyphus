@@ -51,3 +51,30 @@ class Bcl2FastqJob(object):
         ]
         subprocess.check_call(cmd)
         self.finished = True
+
+class CramToBamJob(object):
+    def __init__(self, thread, cram_path, ref, out_path):
+        self.ctx = {}
+        self.thread = str(thread)
+        self.cram_path = cram_path
+        self.ref = ref
+        self.out_path = out_path
+        self.finished = False
+        self.name = "cram decompression"
+
+    def __call__(self, **kwargs):
+        cmd = [
+            "samtools",
+            "view",
+            "-b",
+            self.cram_path,
+            "-T",
+            self.ref,
+            "-o",
+            self.out_path,
+            "-@",
+            self.thread
+        ]
+
+        subprocess.check_call(cmd)
+        self.finished = True
