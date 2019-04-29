@@ -21,6 +21,7 @@ from datamanagement.utils.utils import (
         connect_to_client
     )
 from datamanagement.spec_to_bam import create_bam
+from datamanagement.cram_to_bam import create_bam as HelperCram
 from datamanagement.bam_import import import_bam
 
 from datamanagement.templates import (
@@ -222,6 +223,15 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
     if bam_paths["source_bam_path"].endswith(".spec"):
         create_bam(
             spec_path=bam_paths["source_bam_path"],
+            raw_reference_genome=bam_detail["reference_genome"],
+            output_bam_path=bam_paths["tantalus_bam_path"],
+            to_storage=storage,
+            library_id=bam_detail["library"]["library_id"],
+            sftp_client=sftp
+        )
+    elif bam_paths["source_bam_path"].endswith(".cram"):
+        HelperCram.create_bam(
+            cram_path=bam_paths["source_bam_path"],
             raw_reference_genome=bam_detail["reference_genome"],
             output_bam_path=bam_paths["tantalus_bam_path"],
             to_storage=storage,
