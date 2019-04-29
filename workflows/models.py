@@ -17,6 +17,7 @@ from datamanagement.transfer_files import transfer_dataset
 import generate_inputs
 import launch_pipeline
 import datamanagement.templates as templates
+from datamanagement.utils.utils import get_analysis_lanes_hash
 from utils import tantalus_utils, file_utils
 
 log = logging.getLogger('sisyphus')
@@ -64,6 +65,69 @@ class AnalysisInfo:
         colossus_api.update('analysis_run', id=self.analysis_run, **data)
 
 
+class TenXAnalysisInfo(AnalysisInfo):
+    """
+    A class representing an analysis information object in Colossus,
+    containing settings for the analysis run.
+    """
+    def __init__(self, jira, version, tenx_library_id):
+        self.status = 'idle'
+        self.analysis = self.get_or_create_analysis(jira, version, tenx_library_id)
+        # Replace with this once automation script is complete
+        # self.analysis_info = colossus_api.get("analysis", jira_ticket=jira)
+
+    def get_library_id(self, tenx_library_id):
+        """
+        Given library id, return library pk
+
+        Args:
+            tenx_library_id (str)
+
+        Return:
+            int
+        """
+
+        library = colossus_api.get("tenxlibrary", name=tenx_library_id)
+
+        return library["id"]
+
+    # TODO: Move this to automated tenx script after
+    def get_or_create_analysis(self, jira_ticket, version, tenx_library_id):
+
+        try:
+            analysis_info = colossus_api.get('analysis', input_type="TENX", jira_ticket=jira_ticket)
+
+        except NotFoundError:
+            library_id = self.get_library_id(tenx_library_id)
+
+
+            data = {
+                "jira_ticket":          jira_ticket, 
+                "input_type":           "TENX",
+                "version":              version, 
+                "run_status":           "idle",
+                "submission_date":      str(datetime.date.today()),
+                "tenx_library":         library_id,
+                "tenxsequencing_set":   [], 
+                "pbalsequencing_set":   [],
+                "dlpsequencing_set":    [],
+            }
+
+            analysis = colossus_api.create('analysis', **data)
+            log.info("Created analysis for {} with data {}".format(tenx_library_id, data))
+
+        return analysis
+
+    def set_finish_status(self):
+        self.update('complete')
+
+    def update(self, status):
+        data = {
+            'run_status' :  status,
+        }
+        colossus_api.update('analysis', id=self.analysis['id'], **data)
+
+
 class Analysis(object):
     """
     A class representing an Analysis model in Tantalus.
@@ -107,7 +171,7 @@ class Analysis(object):
         Get the analysis by querying Tantalus. Create the analysis
         if it doesn't exist. Set the input dataset ids.
         """
-
+        
         input_datasets = self.search_input_datasets(args)
         input_results = self.search_input_results(args)
 
@@ -252,6 +316,7 @@ class Analysis(object):
         """
         Get the list of input datasets required to run this analysis.
         """
+
         return []
 
     @staticmethod
@@ -469,8 +534,9 @@ class AlignAnalysis(AlignHmmcopyMixin, Analysis):
                 dataset['id'], 'sequencedataset', storage_name)
 
             for file_instance in file_instances:
-                read_end = file_instance['file_resource']['sequencefileinfo']['read_end']
-                index_sequence = file_instance['file_resource']['sequencefileinfo']['index_sequence']
+                file_resource = file_instance['file_resource']
+                read_end = file_resource['sequencefileinfo']['read_end']
+                index_sequence = file_resource['sequencefileinfo']['index_sequence']
                 tantalus_index_sequences.add(index_sequence)
                 fastq_filepaths[(index_sequence, lane_id, read_end)] = str(file_instance['filepath'])
 
@@ -906,9 +972,9 @@ class PseudoBulkAnalysis(Analysis):
 
         return dataset_ids
 
+
     def generate_inputs_yaml(self, inputs_yaml_filename):
         """ Generates a YAML file of input information
-
         Args:
             inputs_yaml_filename: the directory to which the YAML file should be saved
             storage_name: Which tantalus storage to look at
@@ -1010,7 +1076,7 @@ class PseudoBulkAnalysis(Analysis):
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
-
+    
     def get_results_filenames(self):
         """ Get list of results produced by pseudobulk pipeline.
         """
@@ -1034,7 +1100,7 @@ class PseudoBulkAnalysis(Analysis):
             filenames.append('{}_{}_allele_counts.csv'.format(sample_id, library_id))
             filenames.append('{}_{}_snv_annotations.h5'.format(sample_id, library_id))
             filenames.append('{}_{}_snv_counts.h5'.format(sample_id, library_id))
-            filenames.append('{}_{}_destruct.h5'.format(sample_id, library_id))
+            #filenames.append('{}_{}_destruct.h5'.format(sample_id, library_id))
 
             for snv_caller in ('museq', 'strelka_snv', 'strelka_indel'):
                 filenames.append('{}_{}_{}.vcf.gz'.format(sample_id, library_id, snv_caller))
@@ -1064,10 +1130,9 @@ class PseudoBulkAnalysis(Analysis):
             '--tmpdir', tmp_dir,
             '--maxjobs', '1000',
             '--nocleanup',
-            '--sentinal_only',
             '--loglevel', 'DEBUG',
             '--pipelinedir', scpipeline_dir,
-            '--context_config', config['context_config_file'],
+            '--context_config', config['context_config_file']['sisyphus'],
         ]
 
         if self.run_options['local_run']:
@@ -1112,6 +1177,153 @@ class PseudoBulkAnalysis(Analysis):
         run_cmd_string = r' '.join(run_cmd)
         log.debug(run_cmd_string)
         subprocess.check_call(run_cmd_string, shell=True)
+
+
+class TenXAnalysis(Analysis):
+    """
+    A class representing an alignment analysis in Tantalus.
+    """ 
+    def __init__(self, jira, version, args, run_options, **kwargs):
+        super(TenXAnalysis, self).__init__('tenx', jira, version, args, **kwargs)
+        self.run_options = run_options
+
+    def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+        return '{}_{}'.format(jira, self.analysis_type)
+
+    def get_lane_ids(self):
+        """
+        Get the lanes for each input dataset for the analysis.
+        """
+        lane_ids = []
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+            for lane in dataset['sequence_lanes']:
+                lane_ids.append(lane["id"])
+        return lane_ids
+
+    @staticmethod
+    def search_input_datasets(args):
+
+        # Double check this
+        datasets = tantalus_api.list("sequence_dataset", 
+            library__library_id=args["library_id"],
+            dataset_type="FQ",
+        )
+
+        dataset_ids = [dataset["id"] for dataset in datasets]
+
+        # Check if each datasets file resource has a file instance in rnaseq
+        for dataset_id in dataset_ids:
+            file_instances = tantalus_api.get_dataset_file_instances(dataset_id, "sequencedataset", "scrna_fastq")
+
+        return dataset_ids
+
+    def create_output_datasets(self, tag_name=None, update=False):
+
+        library_id = self.args["library_id"]
+        ref_genome = self.args["ref_genome"]
+
+        dna_library = tantalus_api.get("dna_library", library_id=library_id)
+
+        tenx_library = colossus_api.get("tenxlibrary", name=library_id)
+        sample_id = tenx_library["sample"]["sample_id"]
+        sample = tantalus_api.get("sample", sample_id=sample_id)
+
+        storage_name = "scrna_bams"
+        storage_client = tantalus_api.get_storage(storage_name)
+
+        sequence_lanes = self.get_lane_ids()
+
+        lanes_hashed = get_analysis_lanes_hash(tantalus_api, self.analysis)
+
+        bam_filepath = os.path.join(storage_client["prefix"], library_id, "bams.tar.gz")
+        file_resource, file_instance = tantalus_api.add_file(storage_name, bam_filepath, update=True)
+
+        name = "BAM-{}-SC_RNASEQ-lanes_{}-{}".format(
+            library_id,
+            lanes_hashed,
+            ref_genome
+        )
+
+        sequence_dataset = tantalus_api.get_or_create(
+            "sequence_dataset",
+            name=name,
+            dataset_type="BAM",
+            sample=sample["id"],
+            library=dna_library["id"],
+            sequence_lanes=sequence_lanes,
+            file_resources=[file_resource["id"]],
+            reference_genome=self.args["ref_genome"],
+            aligner=None,
+            analysis=self.analysis['id'],
+        )
+
+        log.info("Created sequence dataset {}".format(name))
+
+    def get_results_filenames(self):
+
+        results_prefix = "scrnadata"
+
+        # Double check if there are more files
+        filenames = [
+            os.path.join("cellrangerv3", "{library_id}.tar.gz"),
+            os.path.join("rdatav3", "{library_id}.rdata"),
+            os.path.join("rdatarawv3", "{library_id}.rdata"),
+            os.path.join("reports", "{library_id}.tar.gz"),
+            os.path.join("bams", "{library_id}", "bams.tar.gz"),
+        ]
+
+        return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
+
+
+    def run_pipeline(self, version, data_dir, runs_dir, reference_dir, results_dir, library_id, reference_genome):
+
+        for directory in [data_dir, runs_dir, reference_dir, results_dir]:
+            directory_path = os.path.join(os.environ["HEADNODE_AUTOMATION_DIR"], "workflows", directory)
+            if not os.path.exists(directory_path):
+                log.info("creating dir {}".format(directory_path))
+                os.makedirs(directory_path)
+
+        reference_genome_map = {
+            "HG38":     "GRCh38",
+            "MM10":     "mm10",
+        }
+
+        reference_genome = reference_genome_map[reference_genome]
+        
+        docker_cmd = [
+            'docker', 'run', 
+            '-e', '"R_HOME=/usr/local/lib/R/"',
+            '-e', '"LD_LIBRARY_PATH=/usr/local/lib/R/lib/"',
+            '-e', '"PYTHONPATH=$HEADNODE_AUTOMATION_PYTHON:/codebase/SCRNApipeline/"',
+            '--mount type=bind,source="$PWD"/{},target=/reference '.format(reference_dir),
+            '--mount type=bind,source="$PWD"/{},target=/results '.format(results_dir),
+            '--mount type=bind,source="$PWD"/{},target=/data '.format(data_dir),
+            '--mount type=bind,source="$PWD/{}",target=/runs '.format(runs_dir), 
+            '-w="/{}"'.format(runs_dir), 
+            '-t', 'nceglia/scrna-pipeline:{} run_vm'.format(version),
+            '--sampleid', library_id,
+            '--build', reference_genome,
+        ]
+
+
+        run_cmd_string = r' '.join(docker_cmd)
+        log.debug(run_cmd_string)
+
+        subprocess.check_call(run_cmd_string, shell=True)
+
+
+    def create_output_results(self, update=False):
+        """
+        Create the set of output results produced by this analysis.
+        """
+        tantalus_results = TenXResults(
+            self,
+            self.storages['working_results'], 
+            update=update,
+        )
+
+        return [tantalus_results.get_id()]
 
 
 class Results:
@@ -1225,3 +1437,52 @@ class Results:
 
     def get_id(self):
         return self.results['id']
+
+
+class TenXResults(Results):
+    """
+    A class representing a Results model in Tantalus.
+    """
+    def __init__(
+            self,
+            tantalus_analysis,
+            storages, 
+            update=False,
+        ):
+        """
+        Create a TenX Results object in Tantalus.
+        """
+
+        self.tantalus_analysis = tantalus_analysis
+        self.storages = storages
+        self.name = '{}_{}'.format(self.tantalus_analysis.jira, self.tantalus_analysis.analysis_type)
+        self.analysis = self.tantalus_analysis.get_id()
+        self.analysis_type = self.tantalus_analysis.analysis_type
+        self.samples = self.tantalus_analysis.get_input_samples()
+        self.libraries = self.tantalus_analysis.get_input_libraries()
+        self.pipeline_version = self.tantalus_analysis.version
+        self.last_updated = datetime.datetime.now().isoformat()
+
+        self.results = self.get_or_create_results(update=update)
+
+    def get_file_resources(self, update=False):
+        """
+        Create file resources for each results file and return their ids.
+        """
+        file_resource_ids = set()
+
+        results_filepaths = self.tantalus_analysis.get_results_filenames()
+
+        for storage in self.storages:
+            storage_client = tantalus_api.get_storage_client(storage)
+            for result_filepath in results_filepaths:
+                if result_filepath.startswith(storage_client.prefix):
+                    file_resource, file_instance = tantalus_api.add_file(
+                        storage_name=storage,
+                        filepath=result_filepath,
+                        update=update,
+                    )
+
+                    file_resource_ids.add(file_resource["id"])
+            
+        return list(file_resource_ids)
