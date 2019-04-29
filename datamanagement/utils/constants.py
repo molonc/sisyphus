@@ -60,3 +60,4 @@ SEQUENCING_CENTRE_MAP = {
 }
 
 DEFAULT_NATIVESPEC = "-q shahlab.q -V -cwd -o tmp -e tmp -l mem_token={mem}G,mem_free={mem}G,h_vmem={mem}G"
+DEFAULT_NATIVECRAM = "-q shahlab.q -V -cwd -o tmp -e tmp -l mem_token={mem}G,mem_free={mem}G,h_vmem={mem}G"
