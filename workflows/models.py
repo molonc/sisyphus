@@ -534,7 +534,7 @@ class AlignAnalysis(AlignHmmcopyMixin, Analysis):
                 dataset['id'], 'sequencedataset', storage_name)
 
             for file_instance in file_instances:
-                file_resource = tantalus_api.get("file_resource", id=file_instance["file_resource"]["id"])
+                file_resource = file_instance['file_resource']
                 read_end = file_resource['sequencefileinfo']['read_end']
                 index_sequence = file_resource['sequencefileinfo']['index_sequence']
                 tantalus_index_sequences.add(index_sequence)
