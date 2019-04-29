@@ -22,11 +22,10 @@ from utils.constants import (LOGGING_FORMAT,
                              REF_GENOME_REGEX_MAP,
                              SHAHLAB_TANTALUS_SERVER_NAME,
                              SHAHLAB_HOSTNAME,
-                             SHAHLAB_SPEC_TO_BAM_BINARY_PATH,
                              HUMAN_REFERENCE_GENOMES_MAP,
                              STORAGE_PREFIX_MAP,
                              STORAGE_PREFIX_REGEX_MAP,
-                             DEFAULT_NATIVESPEC)
+                             DEFAULT_NATIVECRAM)
 
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
@@ -36,7 +35,7 @@ class BadReferenceGenomeError(Exception):
     pass
 
 
-class BadSpecStorageError(Exception):
+class BadCramStorageError(Exception):
     pass
 
 
@@ -58,14 +57,14 @@ def cram_to_bam(cram_path,
     Args:
         cram_path: A string containing the path to the CRAM file on
             Shahlab.
-        generic_spec_path: A string containing the path to the CRAM with
+        generic_cram_path: A string containing the path to the CRAM with
             the /archive/shahlab bit not included at the beginning of
             the path.
         raw_reference_genome: A string containing the reference genome,
             which will be interpreted to be either hg18 or hg 19 (or it
             will raise an error).
         aligner: A string containing the BamFile aligner.
-        output_spec_path: A string containing the output path to the location of the bam
+        output_cram_path: A string containing the output path to the location of the bam
     Raises:
         A BadReferenceGenomeError if the raw_reference_genome can not be
         interpreted as either hg18 or hg19.
@@ -94,11 +93,11 @@ def cram_to_bam(cram_path,
             subprocess.check_call(cmd)
         cram_path = local_cram_path
         
-    # Create the job to perform the spec decompression
+    # Create the job to perform the cram decompression
     job = CramToBamJob('10', cram_path, HUMAN_REFERENCE_GENOMES_MAP[reference_genome], output_bam_path)
 
     # Submit the job to the cluster and wait for it to finish
-    submit_qsub_job(job, DEFAULT_NATIVESPEC, title=library)
+    submit_qsub_job(job, DEFAULT_NATIVECRAM, title=library)
 
     logging.info("Successfully created bam at {}".format(output_bam_path))
 
@@ -153,7 +152,7 @@ def create_bam(
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
-    # Decompress the spec file
+    # Decompress the cram file
     cram_to_bam(
         cram_path=cram_path, 
         reference_genome=reference_genome,
@@ -215,7 +214,7 @@ def main(**kwargs):
     except basicclient.NotFoundError:
         raise Exception("Storage name {} not found on Tantalus. Please use a valid storage".format(kwargs["to_storage_name"]))
 
-    # Decompress the spec
+    # Decompress the cram
     create_bam(
         cram_path=kwargs["cram_path"], 
         raw_reference_genome=kwargs["reference_genome"], 
