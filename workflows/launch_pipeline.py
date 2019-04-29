@@ -41,13 +41,13 @@ def update_config(config, key, value):
         return True
     return False
 
-def get_config_override(analysis_info):
+def get_config_override(args):
     """
     Get a dictionary of default configuration options that
     override existing single cell pipeline configuration options.
 
     Args:
-        analysis_info (AnalysisInformation)
+        args (dict)
     """
     config = {
         'cluster':              'azure',
@@ -59,14 +59,14 @@ def get_config_override(analysis_info):
 
     cluster = 'azure'
     update_config(config, 'cluster', cluster)
-    update_config(config, 'aligner', analysis_info.aligner)
-    update_config(config, 'reference', analysis_info.reference_genome)
-    update_config(config, 'smoothing_function', analysis_info.smoothing)
+    update_config(config, 'aligner', args["aligner"])
+    update_config(config, 'reference', args["ref_genome"])
+    update_config(config, 'smoothing_function', args["smoothing"])
     return config
 
 
-def get_config_string(analysis_info):
-    config_string = json.dumps(get_config_override(analysis_info))
+def get_config_string(args):
+    config_string = json.dumps(get_config_override(args))
     config_string = ''.join(config_string.split())  # Remove all whitespace
     return r"'{}'".format(config_string)
 
@@ -79,7 +79,7 @@ def run_pipeline(
         scpipeline_dir,
         tmp_dir,
         tantalus_analysis,
-        analysis_info,
+        args,
         inputs_yaml,
         context_config_file,
         docker_env_file,
@@ -89,7 +89,7 @@ def run_pipeline(
     args = tantalus_analysis.args
     version = tantalus_analysis.version
     run_options = tantalus_analysis.run_options
-    config_override_string = get_config_string(analysis_info)
+    config_override_string = get_config_string(args)
     
     run_cmd = [
         'single_cell',          tantalus_analysis.analysis_type,
