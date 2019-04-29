@@ -54,7 +54,7 @@ def update_jira_tenx(jira_id, args):
         args (dict):
     """
 
-    results_dataset = tantalus_api.get("resultsdataset", analysis__jira_ticket=jira)
+    results_dataset = tantalus_api.get("resultsdataset", analysis__jira_ticket=jira_id)
     results_dataset_id = results_dataset["id"]
 
     library = colossus_api.get("tenxlibrary", name=args["library_id"])

@@ -72,7 +72,7 @@ class TenXAnalysisInfo(AnalysisInfo):
     """
     def __init__(self, jira, version, tenx_library_id):
         self.status = 'idle'
-        self.analysis_info = self.get_or_create_analysis(jira, version, tenx_library_id)
+        self.analysis = self.get_or_create_analysis(jira, version, tenx_library_id)
         # Replace with this once automation script is complete
         # self.analysis_info = colossus_api.get("analysis", jira_ticket=jira)
 
@@ -125,7 +125,7 @@ class TenXAnalysisInfo(AnalysisInfo):
         data = {
             'run_status' :  status,
         }
-        colossus_api.update('analysis', id=self.analysis, **data)
+        colossus_api.update('analysis', id=self.analysis['id'], **data)
 
 
 class Analysis(object):
@@ -1230,17 +1230,14 @@ class TenXAnalysis(Analysis):
         sample = tantalus_api.get("sample", sample_id=sample_id)
 
         storage_name = "scrna_bams"
-        storage_client = tantalus_api.get_storage("storage", name=storage_name)
+        storage_client = tantalus_api.get_storage(storage_name)
 
         sequence_lanes = self.get_lane_ids()
 
         lanes_hashed = get_analysis_lanes_hash(tantalus_api, self.analysis)
 
-        tenx_library = colossus_api.get("tenxlibrary", name=library_id)
-        sample = tenx_library["sample"]
-
         bam_filepath = os.path.join(storage_client["prefix"], library_id, "bams.tar.gz")
-
+        file_resource, file_instance = tantalus_api.add_file(storage_name, bam_filepath, update=True)
 
         name = "BAM-{}-SC_RNASEQ-lanes_{}-{}".format(
             library_id,

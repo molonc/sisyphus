@@ -31,7 +31,7 @@ def get_analysis_lanes_hash(tantalus_api, analysis):
     """
     lanes = set()
 
-    for input_dataset in analysis["input_dataset"]:
+    for input_dataset in analysis["input_datasets"]:
         dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
         for sequence_lane in dataset['sequence_lanes']:
             lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])

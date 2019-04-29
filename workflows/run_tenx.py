@@ -53,6 +53,7 @@ def start_automation(
 	version,
 	args,
 	run_options,
+	analysis_info, 
 	data_dir, 
 	runs_dir,
 	reference_dir,
@@ -127,6 +128,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.argument('ref_genome', type=click.Choice(["HG38", "MM10", "test"]))
 @click.option('--config_filename')
 @click.option('--skip_pipeline', is_flag=True)
+@click.option('--is_test_run', is_flag=True)
 @click.option('--clean', is_flag=True)
 @click.option('--tag', type=str, default='')
 @click.option('--update', is_flag=True)
@@ -185,6 +187,7 @@ def main(
 		version,
 		args,
 		run_options,
+		analysis_info,
 		data_dir, 
 		runs_dir,
 		reference_dir,
