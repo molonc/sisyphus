@@ -121,7 +121,7 @@ def start_automation(
             scpipeline_dir=scpipeline_dir,
             tmp_dir=tmp_dir,
             tantalus_analysis=tantalus_analysis,
-            analysis_info=analysis_info,
+            args=args, 
             inputs_yaml=inputs_yaml,
             context_config_file=context_config_file,
             docker_env_file=config['docker_env_file'],
@@ -162,7 +162,7 @@ def start_automation(
 
     # Update Jira ticket
     if not run_options["is_test_run"]:
-        update_jira(jira, args['aligner'], analysis_type)
+       update_jira(jira, args['aligner'], analysis_type)
 
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
@@ -172,6 +172,9 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.argument('jira')
 @click.argument('version')
 @click.argument('analysis_type')
+@click.argument('library_id')
+@click.argument('aligner', type=click.Choice(['A', "M"]))
+@click.argument('reference_genome', type=click.Choice(['HG19', 'MM10']))
 @click.option('--gsc_lanes')
 @click.option('--brc_flowcell_ids')
 @click.option('--config_filename')
@@ -184,6 +187,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.option('--index_sequences', multiple=True)
 @click.option('--clean', is_flag=True)
 @click.option('--tag', type=str, default='')
+@click.option('--smoothing', default='modal', type=click.Choice(['modal', 'loess']))
 @click.option('--interactive', is_flag=True)
 @click.option('--sisyphus_interactive', is_flag=True)
 @click.option('--alignment_metrics')
@@ -193,6 +197,9 @@ def main(
         jira,
         version,
         analysis_type,
+        library_id,
+        aligner, 
+        reference_genome,
         gsc_lanes=None,
         brc_flowcell_ids=None,
         config_filename=None,
@@ -203,6 +210,13 @@ def main(
 
     if not templates.JIRA_ID_RE.match(jira):
         raise Exception('Invalid SC ID:'.format(jira))
+
+    aligner_map = {
+        'A':    'BWA_ALN_0_5_7',
+        'M':    'BWA_MEM_0_7_6A'
+    }
+
+    aligner = aligner_map[aligner]
 
     if gsc_lanes is not None:
         gsc_lanes = gsc_lanes.split(',')
@@ -233,26 +247,21 @@ def main(
         run_options['sisyphus_interactive'],
         os.path.join(pipeline_dir, analysis_type))
 
-    analysis_info = AnalysisInfo(
-        jira,
-        log_file,
-        version,
-        analysis_type,
-        update=run_options['update'],
-    )
+    analysis_info = AnalysisInfo(jira, analysis_type)
 
-    log.info('Library ID: {}'.format(analysis_info.chip_id))
+    log.info('Library ID: {}'.format(library_id))
     
-    library_id = analysis_info.chip_id
+    library_id = library_id
     if run_options["is_test_run"]:
         library_id += "TEST"
 
     args = {}
-    args['ref_genome'] = analysis_info.reference_genome
-    args['aligner'] = analysis_info.aligner
+    args['aligner'] = aligner
+    args['ref_genome'] = reference_genome
     args['library_id'] = library_id
     args['gsc_lanes'] = gsc_lanes
     args['brc_flowcell_ids'] = brc_flowcell_ids
+    args['smoothing'] = run_options['smoothing']
 
     start_automation(
         jira,
