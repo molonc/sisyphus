@@ -1255,6 +1255,7 @@ class TenXAnalysis(Analysis):
             file_resources=[file_resource["id"]],
             reference_genome=self.args["ref_genome"],
             aligner=None,
+            analysis=self.analysis['id'],
         )
 
         log.info("Created sequence dataset {}".format(name))
