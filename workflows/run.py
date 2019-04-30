@@ -14,7 +14,7 @@ import launch_pipeline
 import generate_inputs
 from dbclients.tantalus import TantalusApi
 from workflows.utils import file_utils, log_utils
-from workflows.utils.update_jira import update_jira
+from workflows.utils.update_jira import update_jira_dlp
 from datamanagement.transfer_files import transfer_dataset
 from dbclients.basicclient import NotFoundError
 
@@ -162,7 +162,7 @@ def start_automation(
 
     # Update Jira ticket
     if not run_options["is_test_run"]:
-       update_jira(jira, args['aligner'], analysis_type)
+       update_jira_dlp(jira, args['aligner'], analysis_type)
 
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
