@@ -27,7 +27,7 @@ def update_jira_dlp(jira_id, aligner, analysis_type):
             '(x) Upload to Montage',
         ]
 
-        update_description(jira_id, description, "jbiele")
+        update_description(jira_id, description, JIRA_USER)
 
     elif analysis_type == "hmmcopy":
         description = [
