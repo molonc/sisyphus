@@ -127,6 +127,7 @@ def start_automation(
         'Creating output results',
         tantalus_analysis.create_output_results,
         update=run_options['update'],
+        skip_missing=run_options['skip_missing'],
     )
 
     if storages["working_inputs"] != storages["remote_inputs"] and output_datasets_ids != []:
@@ -158,6 +159,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.option('--sisyphus_interactive', is_flag=True)
 @click.option('--skip_pipeline', is_flag=True)
 @click.option('--update', is_flag=True)
+@click.option('--skip_missing', is_flag=True)
 @click.option('--local_run', is_flag=True)
 @click.option('--interactive', is_flag=True)
 @click.option('--is_test_run', is_flag=True)

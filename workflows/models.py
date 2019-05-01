@@ -332,7 +332,7 @@ class Analysis(object):
         """
         return []
 
-    def create_output_results(self, update=False):
+    def create_output_results(self, update=False, skip_missing=False):
         """
         Create the set of output results produced by this analysis.
         """
@@ -340,6 +340,7 @@ class Analysis(object):
             self,
             self.storages['working_results'],
             update=update,
+            skip_missing=skip_missing,
         )
 
         return [tantalus_results.get_id()]
@@ -1100,7 +1101,9 @@ class PseudoBulkAnalysis(Analysis):
             filenames.append('{}_{}_allele_counts.csv'.format(sample_id, library_id))
             filenames.append('{}_{}_snv_annotations.h5'.format(sample_id, library_id))
             filenames.append('{}_{}_snv_counts.h5'.format(sample_id, library_id))
-            #filenames.append('{}_{}_destruct.h5'.format(sample_id, library_id))
+            filenames.append('{}_{}_destruct.tsv'.format(sample_id, library_id))
+            filenames.append('{}_{}_destruct_library.tsv'.format(sample_id, library_id))
+            filenames.append('{}_{}_cell_counts_destruct.csv'.format(sample_id, library_id))
 
             for snv_caller in ('museq', 'strelka_snv', 'strelka_indel'):
                 filenames.append('{}_{}_{}.vcf.gz'.format(sample_id, library_id, snv_caller))
@@ -1130,6 +1133,7 @@ class PseudoBulkAnalysis(Analysis):
             '--tmpdir', tmp_dir,
             '--maxjobs', '1000',
             '--nocleanup',
+            '--sentinel_only',
             '--loglevel', 'DEBUG',
             '--pipelinedir', scpipeline_dir,
             '--context_config', config['context_config_file']['sisyphus'],
@@ -1335,6 +1339,7 @@ class Results:
             tantalus_analysis,
             storage_name,
             update=False,
+            skip_missing=False,
         ):
         """
         Create a Results object in Tantalus.
@@ -1350,9 +1355,9 @@ class Results:
         self.pipeline_version = self.tantalus_analysis.version
         self.last_updated = datetime.datetime.now().isoformat()
 
-        self.results = self.get_or_create_results(update=update)
+        self.results = self.get_or_create_results(update=update, skip_missing=skip_missing)
 
-    def get_or_create_results(self, update=False):
+    def get_or_create_results(self, update=False, skip_missing=False):
         log.info('Searching for existing results {}'.format(self.name))
 
         try:
@@ -1365,7 +1370,7 @@ class Results:
         except NotFoundError:
             results = None
 
-        self.file_resources = self.get_file_resources(update=update)
+        self.file_resources = self.get_file_resources(update=update, skip_missing=skip_missing)
 
         if results is not None:
 
@@ -1414,7 +1419,7 @@ class Results:
             tantalus_api.update('results', id=self.get_id(), **{field: field_value})
 
 
-    def get_file_resources(self, update=False):
+    def get_file_resources(self, update=False, skip_missing=False):
         """
         Create file resources for each results file and return their ids.
         """
@@ -1425,6 +1430,11 @@ class Results:
 
         for result_filename in results_filenames:  # Exclude metrics files
             result_filepath = os.path.join(storage_client.prefix, result_filename)
+
+            if not storage_client.exists(result_filename) and skip_missing:
+                logging.warning('skipping missing file: {}'.format(result_filename))
+                continue
+
             file_resource, file_instance = tantalus_api.add_file(
                 storage_name=self.storage_name,
                 filepath=result_filepath,
