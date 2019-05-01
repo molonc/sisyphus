@@ -1475,7 +1475,7 @@ class TenXResults(Results):
 
         self.results = self.get_or_create_results(update=update)
 
-    def get_file_resources(self, update=False):
+    def get_file_resources(self, update=False, skip_missing=False):
         """
         Create file resources for each results file and return their ids.
         """
@@ -1487,6 +1487,12 @@ class TenXResults(Results):
             storage_client = tantalus_api.get_storage_client(storage)
             for result_filepath in results_filepaths:
                 if result_filepath.startswith(storage_client.prefix):
+                    result_filename = result_filepath.strip(storage_client.prefix+'/')
+
+                    if not storage_client.exists(result_filename) and skip_missing:
+                        logging.warning('skipping missing file: {}'.format(result_filename))
+                        continue
+
                     file_resource, file_instance = tantalus_api.add_file(
                         storage_name=storage,
                         filepath=result_filepath,
