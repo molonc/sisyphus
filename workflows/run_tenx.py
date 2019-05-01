@@ -107,6 +107,7 @@ def start_automation(
 		'Creating output results',
 		tantalus_analysis.create_output_results,
 		update=run_options['update'],
+		skip_missing=run_options["skip_missing"],
 	)
 	
 	analysis_info.set_finish_status()
@@ -128,6 +129,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.argument('ref_genome', type=click.Choice(["HG38", "MM10", "test"]))
 @click.option('--config_filename')
 @click.option('--skip_pipeline', is_flag=True)
+@click.option('--skip_missing', is_flag=True)
 @click.option('--is_test_run', is_flag=True)
 @click.option('--clean', is_flag=True)
 @click.option('--tag', type=str, default='')
