@@ -25,7 +25,7 @@ from dbclients.tantalus import TantalusApi
 solexa_run_type_map = {"Paired": "P"}
 
 def reverse_complement(sequence):
-    return str(sequence[::-1]).translate(string.maketrans("ACTGactg", "TGACtgac"))
+    return str(sequence[::-1]).translate(str.maketrans("ACTGactg", "TGACtgac"))
 
 def decode_raw_index_sequence(raw_index_sequence, instrument, rev_comp_override):
     i7 = raw_index_sequence.split("-")[0]
@@ -618,7 +618,7 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
                 error=str(e),
                 )
             )
-            logging.warning(("Library {} failed to import: {}".format(sequencing["library"], e)))
+            logging.exception(("Library {} failed to import: {}".format(sequencing["library"], e)))
             continue
 
     # Only write import statuses for bulk imports

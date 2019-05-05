@@ -81,7 +81,7 @@ def connect_to_client(hostname, username=None):
 
 def parse_ref_genome(raw_reference_genome):
     found_match = False
-    for ref, regex_list in REF_GENOME_REGEX_MAP.iteritems():
+    for ref, regex_list in REF_GENOME_REGEX_MAP.items():
         for regex in regex_list:
             if re.search(regex, raw_reference_genome, flags=re.I):
                 # Found a match
