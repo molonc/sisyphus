@@ -153,7 +153,7 @@ def get_bam_ref_genome(bam_header):
     sq_as = bam_header["SQ"][0]["AS"]
     found_match = False
 
-    for ref, regex_list in REF_GENOME_REGEX_MAP.iteritems():
+    for ref, regex_list in REF_GENOME_REGEX_MAP.items():
         for regex in regex_list:
             if re.search(regex, sq_as, flags=re.I):
                 # Found a match

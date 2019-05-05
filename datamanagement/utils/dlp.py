@@ -37,7 +37,7 @@ def fastq_paired_end_check(file_info):
 
         pair_check[fastq_id].add(info["read_end"])
 
-    for fastq_id, pair_info in pair_check.iteritems():
+    for fastq_id, pair_info in pair_check.items():
         for read_end in (1, 2):
             if read_end not in pair_info:
                 raise Exception(
