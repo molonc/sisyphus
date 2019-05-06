@@ -22,6 +22,7 @@ from utils.runtime_args import parse_runtime_args
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 
+
 solexa_run_type_map = {"Paired": "P"}
 
 def reverse_complement(sequence):
@@ -120,7 +121,7 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
     return set(existing_flowcell_ids)
 
 
-def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, tag_name=None, update=False, check_library=False, dry_run=False):
+def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, internal_id=None, tag_name=None, update=False, check_library=False, dry_run=False):
     ''' Import dlp fastq data from the GSC.
     
     Args:
@@ -144,7 +145,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     for sequencing in library_info['dlpsequencing_set']:
         if sequencing["sequencing_center"] == "BCCAGSC":
-            sequencing_colossus_path = "http://colossus.bcgsc.ca/dlp/sequencing/{}".format(sequencing['id'])
+            sequencing_colossus_path = "https://colossus.canadacentral.cloudapp.azure.com/dlp/sequencing/{}".format(sequencing['id'])
 
     # Existing fastqs in tantalus as a set of tuples of
     # the form (flowcell_id, lane_number, index_sequence, read_end)
@@ -165,23 +166,27 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     gsc_api = GSCAPI()
 
-    library_infos = gsc_api.query(
-        "library?external_identifier={}".format(external_identifier)
-    )
-
-    if len(library_infos) == 0:
-        logging.error('no libraries with external_identifier {} in gsc api'.format(external_identifier))
-        return None
-    elif len(library_infos) > 1:
-        raise Exception(
-            "multiple libraries with external_identifier {} in gsc api".format(
-                external_identifier
-            )
+    if internal_id is None:
+        library_infos = gsc_api.query(
+            "library?external_identifier={}".format(external_identifier)
         )
 
-    library_info = library_infos[0]
+        if len(library_infos) == 0:
+            logging.error('no libraries with external_identifier {} in gsc api'.format(external_identifier))
+            return None
+        elif len(library_infos) > 1:
+            raise Exception(
+                "multiple libraries with external_identifier {} in gsc api".format(
+                    external_identifier
+                )
+            )
 
-    gsc_library_id = library_info["name"]
+        library_info = library_infos[0]
+
+        gsc_library_id = library_info["name"]
+
+    else:
+        gsc_library_id = internal_id
 
     gsc_fastq_infos = gsc_api.query("fastq?parent_library={}".format(gsc_library_id))
 
@@ -409,7 +414,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
                 sequencing_date,
             )
 
-    comment += """GSC library ID: {}
+    comment += """\nGSC library ID: {}
         {}""".format(
         gsc_library_id,
         sequencing_colossus_path
@@ -484,7 +489,7 @@ def write_import_statuses(successful_libs, failed_libs):
         os.remove(import_status_path)
 
     file = open(import_status_path, 'w+')
-    file.write("Date: {}".format(str(datetime.datetime.now())))
+    file.write("Date: {}\n\n".format(str(datetime.date.today())))
 
     file.write("Successful imports: \n")
 
@@ -509,12 +514,13 @@ def write_import_statuses(successful_libs, failed_libs):
 @click.command()
 @click.argument('storage_name', nargs=1)
 @click.option('--dlp_library_id', nargs=1)
+@click.option('--internal_id')
 @click.option('--tag_name')
 @click.option('--all', is_flag=True)
 @click.option('--update', is_flag=True)
 @click.option('--check_library', is_flag=True)
 @click.option('--dry_run', is_flag=True)
-def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=False, check_library=False, dry_run=False):
+def main(storage_name, dlp_library_id=None, internal_id=None, tag_name=None, all=False, update=False, check_library=False, dry_run=False):
 
     # Set up the root logger
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
@@ -558,15 +564,21 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
                 tantalus_api,
                 library_id,
                 storage,
+                internal_id,
                 tag_name,
                 update=update,
                 check_library=check_library,
-                dry_run=dry_run)
+                dry_run=dry_run
+            )
 
             if import_info is None:
-                failed_libs.append(dict(
-                        dlp_library_id=sequencing["library"],
-                        submission_date=sequencing['submission_date'],
+                # FIXME: We can assume only one sequencing exists if library doesn't exist in gsc yet
+                # Otherwise, may need fixing since not iterating through sequencings
+                submission_date = library_list[library_id].values()[0]["submission_date"]
+                failed_libs.append(
+                    dict(
+                        dlp_library_id=library_id,
+                        submission_date=submission_date, 
                         error="Doesn't exist on GSC",
                     )
                 )
@@ -582,7 +594,7 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
 
                 if instrument  not in library_list[library_id]:
                     raise Exception('no sequencing with instrument {} for library {}'.format(
-                        lane['sequencing_instrument'], library))
+                        lane['sequencing_instrument'], library_id))
 
                 instrument_lanes[instrument].append(lane)
 
@@ -612,13 +624,16 @@ def main(storage_name, dlp_library_id=None, tag_name=None, all=False, update=Fal
                 successful_libs.append(import_info)
 
         except Exception as e:
+            # FIXME: may be more than one sequencing from GSC
+            submission_date = library_list[library_id].values()[0]["submission_date"]
             failed_libs.append(dict(
-                dlp_library_id=sequencing["library"],
-                submission_date=sequencing['submission_date'],
+                dlp_library_id=library_id,
+                submission_date=submission_date,
                 error=str(e),
                 )
             )
-            logging.exception(("Library {} failed to import: {}".format(sequencing["library"], e)))
+
+            logging.exception(("Library {} failed to import: {}".format(library_id, e)))
             continue
 
     # Only write import statuses for bulk imports
