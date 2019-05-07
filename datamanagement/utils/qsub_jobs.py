@@ -8,6 +8,7 @@ class SpecToBamJob(object):
         self.ref = ref
         self.out_path = out_path
         self.binary = binary
+        self.started = True
         self.finished = False
         self.name = "spec_decompression"
     
@@ -34,6 +35,7 @@ class Bcl2FastqJob(object):
         self.run_dir = run_dir
         self.sample_sheet = sample_sheet
         self.out_dir = out_dir
+        self.started = True
         self.finished = False
         self.name = "bcl2fastq"
     
