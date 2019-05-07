@@ -8,17 +8,20 @@ import os
 import re
 import sys
 import time
+import gzip
 import subprocess
 import pandas as pd
 import click
 import requests
 from dbclients.colossus import get_colossus_sublibraries_from_library_id
 from dbclients.tantalus import TantalusApi
+from dbclients.colossus import ColossusApi
 from utils.constants import LOGGING_FORMAT
 from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check, fastq_dlp_index_check
 from utils.runtime_args import parse_runtime_args
 from utils.filecopy import rsync_file
 from utils.utils import make_dirs
+from utils.comment_jira import comment_jira
 import datamanagement.templates as templates
 from datamanagement.utils.qsub_job_submission import submit_qsub_job
 from datamanagement.utils.qsub_jobs import Bcl2FastqJob
@@ -76,7 +79,38 @@ def load_brc_fastqs(
         fastq_file_info, storage_name, tag_name, tantalus_api, update=update,
     )
 
+    update_ticket(flowcell_id)
+
     logging.info('import succeeded')
+
+
+def update_ticket(flowcell_id):
+    """
+    Given flowcell, query colossus for lane, find corresponding sequencing and get JIRA library 
+    ticket associated with the sequencing.
+
+    Args: 
+        flowcell_id (str): Lane/Flowcell id
+    """
+    colossus_api = ColossusApi()
+
+    lane_info = colossus_api.get("lane", flow_cell_id=flowcell_id)
+    sequencing_id = lane_info["sequencing"]
+
+    sequencing = colossus_api.get("sequencing", id=sequencing_id)
+    library_id = sequencing["library"]
+
+    library = colossus_api.get("library", pool_id=library_id)
+    jira_ticket = library["jira_ticket"]
+
+    sequencing_url = "https://colossus.canadacentral.cloudapp.azure.com/dlp/sequencing/{}".format(sequencing_id)
+    comment = "Import successful: \n\nLane: {} \n{}".format(
+        flowcell_id,
+        sequencing_url,
+    )
+
+    comment_jira(jira_ticket, comment)
+
 
 def _update_info(info, key, value):
     if key in info:
@@ -146,7 +180,7 @@ def generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated):
         samplename = "-".join([sample_id,library_id,"R{}".format(row), "C{}".format(column)])
         for lane_num in fastqs_to_be_generated[fastq_index]:
             for read in reads:
-                filename =  "_".join([samplename, "S0EMPTY", "L00{}".format(lane_num), "R{}".format(read), "001.fastq.gz"])
+                filename =  "_".join([samplename, "S0", "L00{}".format(lane_num), "R{}".format(read), "001.fastq.gz"])
                 file_names.append(filename)
 
     for filename in file_names:
