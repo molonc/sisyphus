@@ -998,12 +998,6 @@ class PseudoBulkAnalysis(Analysis):
             sample_id = dataset['sample']['sample_id']
             library_type = dataset['library']['library_type']
 
-            # WORKAROUND: the single cell pipeline doesnt take
-            # both sample and library specific cell info so use a
-            # a concatenation of sample and library in the
-            # inputs yaml
-            sample_library_id = sample_id + '_' + library_id
-
             is_normal = (
                 sample_id == self.args['matched_normal_sample'] and
                 library_id == self.args['matched_normal_library'])
@@ -1017,8 +1011,10 @@ class PseudoBulkAnalysis(Analysis):
             if dataset_class not in input_info:
                 input_info[dataset_class] = {}
 
-            if sample_library_id not in input_info[dataset_class]:
-                input_info[dataset_class][sample_library_id] = {}
+            if sample_id not in input_info[dataset_class]:
+                input_info[dataset_class][sample_id] = {}
+            
+            input_info[dataset_class][sample_id][library_id] = {}
 
             file_instances = tantalus_api.get_dataset_file_instances(
                 dataset_id, 'sequencedataset', storage_name,
@@ -1034,7 +1030,7 @@ class PseudoBulkAnalysis(Analysis):
 
                 file_instance = file_instances[0]
                 filepath = str(file_instance['filepath'])
-                input_info[dataset_class][sample_library_id] = {'bam': filepath}
+                input_info[dataset_class][sample_id][library_id] = {'bam': filepath}
 
             elif library_type == 'SC_WGS':
                 sample_info = generate_inputs.generate_sample_info(
@@ -1046,11 +1042,11 @@ class PseudoBulkAnalysis(Analysis):
                     index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])
                     cell_id = str(cell_ids[index_sequence])
                     filepath = str(file_instance['filepath'])
+                    
+                    if cell_id not in input_info[dataset_class][sample_id][library_id]:
+                        input_info[dataset_class][sample_id][library_id][cell_id] = {}
 
-                    if cell_id not in input_info[dataset_class][sample_library_id]:
-                        input_info[dataset_class][sample_library_id][cell_id] = {}
-
-                    input_info[dataset_class][sample_library_id][cell_id] = {'bam': filepath}
+                    input_info[dataset_class][sample_id][library_id][cell_id] = {'bam': filepath}
             
             else:
                 raise ValueError('unknown library type {}'.format(library_type))
@@ -1175,8 +1171,6 @@ class PseudoBulkAnalysis(Analysis):
             run_cmd += ['--interactive']
 
         run_cmd += ['--call_variants', '--call_haps']
-
-        run_cmd += ['--config_override', '\'{"bigdisk":true}\'']
 
         run_cmd_string = r' '.join(run_cmd)
         log.debug(run_cmd_string)
