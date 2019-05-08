@@ -998,6 +998,12 @@ class PseudoBulkAnalysis(Analysis):
             sample_id = dataset['sample']['sample_id']
             library_type = dataset['library']['library_type']
 
+            # WORKAROUND: the single cell pipeline doesnt take
+            # both sample and library specific cell info so use a
+            # a concatenation of sample and library in the
+            # inputs yaml
+            sample_library_id = sample_id + '_' + library_id
+
             is_normal = (
                 sample_id == self.args['matched_normal_sample'] and
                 library_id == self.args['matched_normal_library'])
@@ -1030,7 +1036,7 @@ class PseudoBulkAnalysis(Analysis):
 
                 file_instance = file_instances[0]
                 filepath = str(file_instance['filepath'])
-                input_info[dataset_class][sample_id][library_id] = {'bam': filepath}
+                input_info[dataset_class][sample_library_id] = {'bam': filepath}
 
             elif library_type == 'SC_WGS':
                 sample_info = generate_inputs.generate_sample_info(
@@ -1170,7 +1176,7 @@ class PseudoBulkAnalysis(Analysis):
         if self.run_options['interactive']:
             run_cmd += ['--interactive']
 
-        run_cmd += ['--call_variants', '--call_haps']
+        run_cmd += ['--call_variants', '--call_haps', '--call_destruct']
 
         run_cmd_string = r' '.join(run_cmd)
         log.debug(run_cmd_string)
