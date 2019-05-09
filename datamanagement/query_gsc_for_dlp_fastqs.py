@@ -574,7 +574,7 @@ def main(storage_name, dlp_library_id=None, internal_id=None, tag_name=None, all
             if import_info is None:
                 # FIXME: We can assume only one sequencing exists if library doesn't exist in gsc yet
                 # Otherwise, may need fixing since not iterating through sequencings
-                submission_date = library_list[library_id].values()[0]["submission_date"]
+                submission_date = list(library_list[library_id].values())[0]["submission_date"]
                 failed_libs.append(
                     dict(
                         dlp_library_id=library_id,
@@ -625,7 +625,7 @@ def main(storage_name, dlp_library_id=None, internal_id=None, tag_name=None, all
 
         except Exception as e:
             # FIXME: may be more than one sequencing from GSC
-            submission_date = library_list[library_id].values()[0]["submission_date"]
+            submission_date = list(library_list[library_id].values())[0]["submission_date"]
             failed_libs.append(dict(
                 dlp_library_id=library_id,
                 submission_date=submission_date,
