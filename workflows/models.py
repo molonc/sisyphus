@@ -1017,10 +1017,14 @@ class PseudoBulkAnalysis(Analysis):
             if dataset_class not in input_info:
                 input_info[dataset_class] = {}
 
-            if sample_id not in input_info[dataset_class]:
-                input_info[dataset_class][sample_id] = {}
-            
-            input_info[dataset_class][sample_id][library_id] = {}
+            if library_type == 'WGS':
+                input_info[dataset_class][sample_library_id] = {}
+
+            else:
+                if sample_id not in input_info[dataset_class]:
+                    input_info[dataset_class][sample_id] = {}
+                
+                input_info[dataset_class][sample_id][library_id] = {}
 
             file_instances = tantalus_api.get_dataset_file_instances(
                 dataset_id, 'sequencedataset', storage_name,
@@ -1068,8 +1072,7 @@ class PseudoBulkAnalysis(Analysis):
         if normal_library_type == 'SC_WGS':
             normal_sample_ids = list(input_info['normal'].keys())
             assert len(normal_sample_ids) == 1
-            normal_info = input_info.pop('normal')
-            input_info['normal_cells'] = normal_info[normal_sample_ids[0]]
+            input_info['normal_cells'] = input_info.pop('normal')
         elif normal_library_type == 'WGS':
             input_info['normal_wgs'] = input_info.pop('normal')
         else:
@@ -1176,7 +1179,11 @@ class PseudoBulkAnalysis(Analysis):
         if self.run_options['interactive']:
             run_cmd += ['--interactive']
 
-        run_cmd += ['--call_variants', '--call_haps', '--call_destruct']
+        run_cmd += [
+            '--call_variants', 
+            '--call_haps', 
+            '--call_destruct'
+        ]
 
         run_cmd_string = r' '.join(run_cmd)
         log.debug(run_cmd_string)
