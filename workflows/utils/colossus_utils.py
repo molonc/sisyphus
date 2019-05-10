@@ -9,7 +9,10 @@ def get_ref_genome(library_info):
 	Get reference genome from taxonomy id
 
 	Args:
-		library_info (dict)
+		library_info (dict): Library from colossus
+
+	Return:
+		reference_genome (str)
 	"""
 
 	taxonomy_id_map = {
