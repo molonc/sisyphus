@@ -2,7 +2,7 @@ import os
 import sys
 import logging
 from jira import JIRA, JIRAError
-from constants import LOGGING_FORMAT
+from utils.constants import LOGGING_FORMAT
 
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)

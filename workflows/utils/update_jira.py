@@ -61,7 +61,7 @@ def update_jira_tenx(jira_id, args):
     library_id = library["id"]
 
     description = [
-        "{noformat}Container: scrnadata\n {noformat}",
+        "{noformat}Storage Account: scrnadata\n {noformat}",
         "Tantalus Results: https://tantalus.canadacentral.cloudapp.azure.com/results/{}".format(
             results_dataset_id
         ),

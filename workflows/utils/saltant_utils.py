@@ -171,7 +171,7 @@ def transfer_files(jira, config, tag_name, from_storage, to_storage):
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 
 
-def run_align(jira, version, library_id, aligner, ref_genome, config):
+def run_align(jira, version, library_id, aligner, config):
     name = "{}_{}_{}_align".format(jira, library_id, aligner)
     queue_name = config['headnode_task_queue']
     
@@ -181,15 +181,13 @@ def run_align(jira, version, library_id, aligner, ref_genome, config):
         'analysis_type':    'align',
         'library_id':       library_id,
         'aligner':          aligner,
-        'reference_genome': ref_genome,
-
     }
 
     task_type_id = get_task_type_id("Run Align")
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 
 
-def run_hmmcopy(jira, version, library_id, aligner, ref_genome, config):
+def run_hmmcopy(jira, version, library_id, aligner, config):
     name = "{}_{}_{}_hmmcopy".format(jira, library_id, aligner)
     queue_name = config['headnode_task_queue']
 
@@ -199,8 +197,6 @@ def run_hmmcopy(jira, version, library_id, aligner, ref_genome, config):
         'analysis_type':    'hmmcopy',
         'library_id':       library_id,
         'aligner':          aligner,
-        'reference_genome': ref_genome,
-
     }
 
     task_type_id = get_task_type_id("Run Hmmcopy")
@@ -212,5 +208,5 @@ def test(name, config):
     args = {}
     task_type_id = get_task_type_id("Test task")
 
-    get_or_create_task_instance(name, config['user'], args, task_type_id, "jphamvm")
+    get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 

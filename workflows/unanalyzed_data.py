@@ -13,16 +13,19 @@ colossus_api = ColossusApi()
 
 log = logging.getLogger('sisyphus')
 
-def get_lanes_from_bams_datasets():
+def get_lanes_from_bams_datasets(library_type):
     '''
     Get lanes of all bam datasets
 
+    Args:
+        library_type (str)
+
     Return:
-        bam_lanes: list of lanes
+        bam_lanes (list)
     '''
     bam_lanes = []
     bam_datasets = tantalus_api.list('sequence_dataset',
-        library__library_type__name="SC_WGS",
+        library__library_type__name=library_type,
         dataset_type="BAM"
     )
     for bam_dataset in bam_datasets:
@@ -32,7 +35,7 @@ def get_lanes_from_bams_datasets():
     return bam_lanes
 
 
-def search_for_unaligned_data():
+def search_for_unaligned_data(library_type):
     '''
     Get lanes from fastq datasets and compare with lanes in bam datasets. If
         fastq lanes are not in bam lanes, add the library associated to the
@@ -43,13 +46,14 @@ def search_for_unaligned_data():
     '''
 
     log.info('Searching for unaligned data')
-    bam_lanes = get_lanes_from_bams_datasets()
+    bam_lanes = get_lanes_from_bams_datasets(library_type)
 
     fastq_lanes = []
     unaligned_lanes = []
+    libraries_to_analyze = set()
 
     fastq_datasets = tantalus_api.list('sequence_dataset',
-        library__library_type__name="SC_WGS",
+        library__library_type__name=library_type,
         dataset_type="FQ"
     )
     for fastq_dataset in fastq_datasets:
@@ -89,20 +93,22 @@ def search_for_unaligned_data():
         sequencing = colossus_api.get('sequencing', id=sequencing_id)
         libraries_to_analyze.add(sequencing['library'])
 
+
     return list(libraries_to_analyze)
 
 
 def search_for_no_hmmcopy_data():
     '''
     Get lanes from input datasets of hmmcopy analyses and compare with lanes in
-        bam datasets. If bame lanes are not in hmmcopy lanes, add the library
+        bam datasets. If bam lanes are not in hmmcopy lanes, add the library
         associated to the lane to libraries to analyze.
 
     Return:
         libraries_to_analyze: list of library ids
     '''
     log.info('Searching for no hmmcopy data')
-    bam_lanes = get_lanes_from_bams_datasets()
+    library_type = "SC_WGS"
+    bam_lanes = get_lanes_from_bams_datasets(library_type)
 
 
     # TODO: Filter for complete hmmcopy analysis only
@@ -145,3 +151,4 @@ def search_for_no_hmmcopy_data():
         libraries_to_analyze.add(sequencing['library'])
 
     return list(libraries_to_analyze)
+
