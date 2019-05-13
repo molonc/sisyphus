@@ -67,7 +67,7 @@ class AnalysisInfo:
 
 class TenXAnalysisInfo(AnalysisInfo):
     """
-    A class representing an analysis information object in Colossus,
+    A class representing TenX analysis information object in Colossus,
     containing settings for the analysis run.
     """
     def __init__(self, jira, version, tenx_library_id):
@@ -998,12 +998,6 @@ class PseudoBulkAnalysis(Analysis):
             sample_id = dataset['sample']['sample_id']
             library_type = dataset['library']['library_type']
 
-            # WORKAROUND: the single cell pipeline doesnt take
-            # both sample and library specific cell info so use a
-            # a concatenation of sample and library in the
-            # inputs yaml
-            sample_library_id = sample_id + '_' + library_id
-
             is_normal = (
                 sample_id == self.args['matched_normal_sample'] and
                 library_id == self.args['matched_normal_library'])
@@ -1017,8 +1011,10 @@ class PseudoBulkAnalysis(Analysis):
             if dataset_class not in input_info:
                 input_info[dataset_class] = {}
 
-            if sample_library_id not in input_info[dataset_class]:
-                input_info[dataset_class][sample_library_id] = {}
+            if sample_id not in input_info[dataset_class]:
+                input_info[dataset_class][sample_id] = {}
+            
+            input_info[dataset_class][sample_id][library_id] = {}
 
             file_instances = tantalus_api.get_dataset_file_instances(
                 dataset_id, 'sequencedataset', storage_name,
@@ -1034,7 +1030,7 @@ class PseudoBulkAnalysis(Analysis):
 
                 file_instance = file_instances[0]
                 filepath = str(file_instance['filepath'])
-                input_info[dataset_class][sample_library_id] = {'bam': filepath}
+                input_info[dataset_class][sample_id][library_id] = {'bam': filepath}
 
             elif library_type == 'SC_WGS':
                 sample_info = generate_inputs.generate_sample_info(
@@ -1046,11 +1042,11 @@ class PseudoBulkAnalysis(Analysis):
                     index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])
                     cell_id = str(cell_ids[index_sequence])
                     filepath = str(file_instance['filepath'])
+                    
+                    if cell_id not in input_info[dataset_class][sample_id][library_id]:
+                        input_info[dataset_class][sample_id][library_id][cell_id] = {}
 
-                    if cell_id not in input_info[dataset_class][sample_library_id]:
-                        input_info[dataset_class][sample_library_id][cell_id] = {}
-
-                    input_info[dataset_class][sample_library_id][cell_id] = {'bam': filepath}
+                    input_info[dataset_class][sample_id][library_id][cell_id] = {'bam': filepath}
             
             else:
                 raise ValueError('unknown library type {}'.format(library_type))
@@ -1066,8 +1062,7 @@ class PseudoBulkAnalysis(Analysis):
         if normal_library_type == 'SC_WGS':
             normal_sample_ids = list(input_info['normal'].keys())
             assert len(normal_sample_ids) == 1
-            normal_info = input_info.pop('normal')
-            input_info['normal_cells'] = normal_info[normal_sample_ids[0]]
+            input_info['normal_cells'] = input_info.pop('normal')
         elif normal_library_type == 'WGS':
             input_info['normal_wgs'] = input_info.pop('normal')
         else:
@@ -1174,9 +1169,11 @@ class PseudoBulkAnalysis(Analysis):
         if self.run_options['interactive']:
             run_cmd += ['--interactive']
 
-        run_cmd += ['--call_variants', '--call_haps']
-
-        run_cmd += ['--config_override', '\'{"bigdisk":true}\'']
+        run_cmd += [
+            '--call_variants', 
+            '--call_haps', 
+            '--call_destruct'
+        ]
 
         run_cmd_string = r' '.join(run_cmd)
         log.debug(run_cmd_string)
@@ -1185,7 +1182,7 @@ class PseudoBulkAnalysis(Analysis):
 
 class TenXAnalysis(Analysis):
     """
-    A class representing an alignment analysis in Tantalus.
+    A class representing an TenX analysis in Tantalus.
     """ 
     def __init__(self, jira, version, args, run_options, **kwargs):
         super(TenXAnalysis, self).__init__('tenx', jira, version, args, **kwargs)
