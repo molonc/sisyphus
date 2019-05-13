@@ -9,12 +9,18 @@ from datetime import datetime
 from collections import defaultdict
 
 import unanalyzed_data
+
 import datamanagement.templates as templates
+
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
 from dbclients.basicclient import NotFoundError
-from workflows.utils import saltant_utils
+
 from workflows.utils import file_utils
+from workflows.utils import saltant_utils
+from workflows.utils.colossus_utils import get_ref_genome
+
+
 
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
@@ -29,11 +35,10 @@ log.propagate = False
 
 
 
-def get_sequencings(library_id):
+def get_sequencings(library_info):
     '''
     Given library id (str), return list of sequencings
     '''
-    library_info = colossus_api.get('library', pool_id=library_id)
     sequencings = [sequencing['id'] for sequencing in library_info['dlpsequencing_set']]
     return sequencings
 
@@ -64,7 +69,7 @@ def get_analyses_to_run(version, aligner, check=False):
     Returns:
         analyses_tickets (list): List of JIRA tickets
     '''
-    unaligned_data_libraries = unanalyzed_data.search_for_unaligned_data()
+    unaligned_data_libraries = unanalyzed_data.search_for_unaligned_data("SC_WGS")
     no_hmmcopy_data_libraries = unanalyzed_data.search_for_no_hmmcopy_data()
 
     analyses_tickets = dict(
@@ -430,10 +435,9 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner):
         }
 
         library_info = colossus_api.get('library', pool_id=library_id)
-
         taxonomy_id = library_info['sample']['taxonomy_id']
         ref_genome_key = taxonomy_id_map[taxonomy_id]
-        sequencings = [sequencing['id'] for sequencing in library_info['dlpsequencing_set']]
+        sequencings = get_sequencings(library_info)
         lanes = get_lanes_from_sequencings(sequencings)
 
         log.info("Creating analysis information object for {}_{} on Colossus".format(
@@ -545,11 +549,10 @@ def check_running_analysis(jira_ticket, analysis_type):
 @click.command()
 @click.argument('version')
 @click.argument('aligner')
-@click.argument('ref_genome')
 @click.option('--check', is_flag=True)
 @click.option('--screen', is_flag=True)
 @click.option('--skip', "-s", multiple=True)
-def main(version, aligner, ref_genome, check=False, screen=False, skip=None):
+def main(version, aligner, check=False, screen=False, skip=None):
 
     config_path = os.path.join(
         os.environ['HEADNODE_AUTOMATION_DIR'],
@@ -584,14 +587,13 @@ def main(version, aligner, ref_genome, check=False, screen=False, skip=None):
             if not check_running_analysis(align_analysis, "align"):
                 library_id = analyses_to_run['align'][align_analysis]
                 log.info("Running align for {}".format(align_analysis))
-                saltant_utils.run_align(align_analysis, version, library_id, aligner, ref_genome, config)
+                saltant_utils.run_align(align_analysis, version, library_id, aligner, config)
 
         for hmmcopy_analysis in analyses_to_run['hmmcopy'].keys():
             if not check_running_analysis(hmmcopy_analysis, "hmmcopy"):
                 library_id = analyses_to_run['hmmcopy'][hmmcopy_analysis]
                 log.info("Running hmmcopy for {}".format(hmmcopy_analysis))
-                saltant_utils.run_hmmcopy(hmmcopy_analysis, version, library_id, aligner, ref_genome, config)
-
+                saltant_utils.run_hmmcopy(hmmcopy_analysis, version, library_id, aligner, config)
 
 if __name__ == '__main__':
     main()

@@ -3,22 +3,25 @@ import os
 import re
 import sys
 import time
+import click
 import logging
 import subprocess
-import traceback
-import click
 from itertools import chain
 
-import datamanagement.templates as templates
 import launch_pipeline
 import generate_inputs
-from dbclients.tantalus import TantalusApi
-from workflows.utils import file_utils, log_utils
-from workflows.utils.update_jira import update_jira_dlp
+
+import datamanagement.templates as templates
 from datamanagement.transfer_files import transfer_dataset
+
+from dbclients.colossus import ColossusApi
+from dbclients.tantalus import TantalusApi
 from dbclients.basicclient import NotFoundError
 
-from models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, PseudoBulkAnalysis, Results
+from workflows.utils import file_utils, log_utils, colossus_utils
+from workflows.utils.update_jira import update_jira_dlp
+
+from models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, Results
 
 
 log = logging.getLogger('sisyphus')
@@ -30,6 +33,7 @@ log.addHandler(stream_handler)
 log.propagate = False
 
 tantalus_api = TantalusApi()
+colossus_api = ColossusApi()
 
 
 def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
@@ -175,7 +179,6 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.argument('analysis_type')
 @click.argument('library_id')
 @click.argument('aligner', type=click.Choice(['A', "M"]))
-@click.argument('reference_genome', type=click.Choice(['HG19', 'MM10']))
 @click.option('--gsc_lanes')
 @click.option('--brc_flowcell_ids')
 @click.option('--config_filename')
@@ -201,7 +204,6 @@ def main(
         analysis_type,
         library_id,
         aligner, 
-        reference_genome,
         gsc_lanes=None,
         brc_flowcell_ids=None,
         config_filename=None,
@@ -219,6 +221,10 @@ def main(
     }
 
     aligner = aligner_map[aligner]
+
+    # Get reference genome
+    library_info = colossus_api.get("library", pool_id=library_id)
+    reference_genome = colossus_utils.get_ref_genome(library_info)
 
     if gsc_lanes is not None:
         gsc_lanes = gsc_lanes.split(',')
