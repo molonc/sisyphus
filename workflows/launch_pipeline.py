@@ -100,11 +100,13 @@ def run_pipeline(
         '--tmpdir',             tmp_dir,
         '--maxjobs',            str(max_jobs),
         '--nocleanup',
-        '--sentinal_only',
-        '--loglevel',           'DEBUG',
+        '--sentinel_only',
         '--pipelinedir',        scpipeline_dir,
         '--context_config',     context_config_file,
     ]
+
+    if not run_options['saltant']:
+        run_cmd +=['--loglevel', 'DEBUG']
 
     if run_options['local_run']:
         run_cmd += ["--submit", "local"]
@@ -135,7 +137,6 @@ def run_pipeline(
     )
 
     run_cmd = docker_cmd + run_cmd
-
 
     has_classifier = StrictVersion(version.strip('v')) >= StrictVersion('0.1.5')
     if (tantalus_analysis.analysis_type == 'hmmcopy') and (has_classifier):
