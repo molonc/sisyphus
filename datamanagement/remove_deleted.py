@@ -45,7 +45,7 @@ def main(
         str(file_instance_ids)))
 
     for file_instance in file_instances:
-        file_resource = tantalus_api.get('file_resource', id=file_instance['file_resource'])
+        file_resource = tantalus_api.get('file_resource', id=file_instance['file_resource']['id'])
 
         logging.info('checking file instance {}, file resource {}, filepath {}'.format(
             file_instance['id'], file_resource['id'], file_instance['filepath']))
@@ -95,7 +95,8 @@ def main(
             tantalus_api.delete('file_instance', id=file_instance['id'])
 
         # If this is the only file instance for this file resource, delete the file resource
-        if len(file_resource['file_instances']) == 1:
+        all_file_instances = list(tantalus_api.list('file_instance', file_resource=file_resource['id']))
+        if len(all_file_instances) == 1:
             assert file_resource['file_instances'][0]['id'] == file_instance['id']
             logging.info('deleting file resource {}'.format(file_resource['id']))
             if not dry_run:
