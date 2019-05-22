@@ -193,7 +193,6 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, sequencing, storage
     gsc_library_id = sequencing["gsc_library_id"]
     library_info = colossus_api.query_libraries_by_library_id(dlp_library_id)
     jira_ticket = library_info["jira_ticket"]
-    sequencing_colossus_path = ""
 
     sequencing_colossus_path = "https://colossus.canadacentral.cloudapp.azure.com/dlp/sequencing/{}".format(
         sequencing['id']
