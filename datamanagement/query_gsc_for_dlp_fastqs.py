@@ -142,7 +142,7 @@ def get_gsc_library_info(library_infos, external_identifier):
     return library_info
 
 
-def check_colossus_gsc_library_id(sequencing, colossus_gsc_id, gsc_id, update=False):
+def check_colossus_gsc_library_id(jira_ticket, sequencing, colossus_gsc_id, gsc_id, update=False):
     """ Update colossus lane and GSC library information.
     """
 
@@ -167,6 +167,13 @@ def check_colossus_gsc_library_id(sequencing, colossus_gsc_id, gsc_id, update=Fa
             sequencing['id'],
             gsc_library_id=gsc_id
         )
+
+        comment = "GSC ID on Colossus entered incorrectly. Updating ID from {} to {}".format(
+            colossus_gsc_id, 
+            gsc_id
+        )
+        
+        comment_jira(jira_ticket, comment)
 
     return gsc_id
     
@@ -239,7 +246,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, sequencing, storage
     # (1) fastqs by parent library (gsc id) has results 
     # (2) library by external identifier (<primary_sample_id>_<dlp_library_id>) has results 
 
-    # The following scenarios are can happen:
+    # The following scenarios can happen:
 
     # (1) and (2)
     # Check if sequencing on colossus has gsc id that matches the gsc id on gsc database
@@ -273,7 +280,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, sequencing, storage
 
     if gsc_library_info is not None:
         gsc_library_id = check_colossus_gsc_library_id(
-            sequencing, gsc_library_id, gsc_library_info["name"], update=update
+            jira_ticket, sequencing, gsc_library_id, gsc_library_info["name"], update=update
         )
 
     if check_library:
