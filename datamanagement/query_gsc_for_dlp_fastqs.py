@@ -91,13 +91,16 @@ filename_pattern_map = {
     "_1_chastity_passed.fastq.gz": (1, True),
     "_1_chastity_failed.fastq.gz": (1, False),
     "_1_*bp.concat.fastq.gz": (1, True),
+    "_1_*bp_*.concat_chastity_passed.fastq.gz":(1, True), 
     "_1_*bp.concat_chastity_passed.fastq.gz": (1, True),
     "_2.fastq.gz": (2, True),
     "_2_*.concat_chastity_passed.fastq.gz": (2, True),
     "_2_chastity_passed.fastq.gz": (2, True),
     "_2_chastity_failed.fastq.gz": (2, False),
     "_2_*bp.concat.fastq.gz": (2, True),
+    "_2_*bp_*.concat_chastity_passed.fastq.gz":(2, True),
     "_2_*bp.concat_chastity_passed.fastq.gz": (2, True),
+
 }
 
 
@@ -121,14 +124,61 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
     return set(existing_flowcell_ids)
 
 
-def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, storage, internal_id=None, tag_name=None, update=False, check_library=False, dry_run=False):
+def get_gsc_library_info(library_infos, external_identifier):
+
+    if len(library_infos) == 0:
+        logging.error('no libraries with external_identifier {} in gsc api'.format(external_identifier))
+        return None
+    elif len(library_infos) > 1:
+        raise Exception(
+            "multiple libraries with external_identifier {} in gsc api".format(
+                external_identifier
+            )
+        )
+
+    # Querying by external_identifier had exactly one result.
+    library_info = library_infos[0]
+
+    return library_info
+
+
+def check_colossus_gsc_library_id(sequencing, colossus_gsc_id, gsc_id, update=False):
+    """ Update colossus lane and GSC library information.
+    """
+
+    if colossus_gsc_id != gsc_id:
+        if not update:
+            logging.warning("""
+                GSC library id on Colossus does not match GSC library id at the GSC.\n
+                Colossus GSC ID: {}\n
+                Actual GSC ID: {}\n
+                Tip: Run again with --update flag""".format(sequencing['id'], colossus_gsc_id, gsc_id)
+            )
+            raise
+
+        logging.info("Updating GSC ID on sequencing {} from {} to {}".format(
+            sequencing['id'],
+            colossus_gsc_id, 
+            gsc_id)
+        )
+
+        colossus_api.update(
+            'sequencing',
+            sequencing['id'],
+            gsc_library_id=gsc_id
+        )
+
+    return gsc_id
+    
+
+def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, sequencing, storage, internal_id=None, tag_name=None, update=False, check_library=False, dry_run=False):
     ''' Import dlp fastq data from the GSC.
     
     Args:
-        colossus_api: Basic client for colossus
-        tantalus_api: Basic client for tantalus
-        dlp_library_id: library id for the dlp run
-        storage: to storage details for transfer
+        colossus_api:   (object) Basic client for colossus
+        tantalus_api:   (object) Basic client for tantalus
+        sequencing:     (dict) sequencing on colossus 
+        storage:        (str) to storage details for transfer
 
     Kwargs:
         tag_name: a tag to add to imported data
@@ -139,13 +189,33 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     '''
 
     # Get Jira ticket and GSC sequencing id associated with the library in order to comment about import status
-    library_info = colossus_api.get("library", pool_id=dlp_library_id)
+    dlp_library_id = sequencing["library"]
+    gsc_library_id = sequencing["gsc_library_id"]
+    library_info = colossus_api.query_libraries_by_library_id(dlp_library_id)
     jira_ticket = library_info["jira_ticket"]
     sequencing_colossus_path = ""
 
-    for sequencing in library_info['dlpsequencing_set']:
-        if sequencing["sequencing_center"] == "BCCAGSC":
-            sequencing_colossus_path = "https://colossus.canadacentral.cloudapp.azure.com/dlp/sequencing/{}".format(sequencing['id'])
+    sequencing_colossus_path = "https://colossus.canadacentral.cloudapp.azure.com/dlp/sequencing/{}".format(
+        sequencing['id']
+    )
+
+    if library_info["exclude_from_analysis"]:
+        logging.info("{} is excluded from analysis; skipping check for lanes.".format(dlp_library_id))
+        return False
+
+    if internal_id is not None:
+        # Check if the internal ID passed in matches the GSC ID entered in Colossus
+        if gsc_library_id != internal_id:
+            raise Exception("Internal library id {} given does not match Colossus gsc library id for {}: {}".format(
+                internal_id, dlp_library_id, gsc_library_id)
+            )
+
+        gsc_library_id = internal_id
+
+    logging.info("Checking library {} and sequencing {} for additional lanes".format(
+        dlp_library_id, 
+        sequencing["id"])
+    )
 
     # Existing fastqs in tantalus as a set of tuples of
     # the form (flowcell_id, lane_number, index_sequence, read_end)
@@ -156,7 +226,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     else:
         existing_data = []
 
-    primary_sample_id = colossus_api.query_libraries_by_library_id(dlp_library_id)['sample']['sample_id']
+    primary_sample_id = library_info['sample']['sample_id']
     cell_samples = query_colossus_dlp_cell_info(colossus_api, dlp_library_id)
     rev_comp_overrides = query_colossus_dlp_rev_comp_override(
         colossus_api, dlp_library_id
@@ -165,30 +235,47 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     external_identifier = "{}_{}".format(primary_sample_id, dlp_library_id)
 
     gsc_api = GSCAPI()
+    
+    # Query GSC for fastqs and library information. Possibilities:
+    # (1) fastqs by parent library (gsc id) has results 
+    # (2) library by external identifier (<primary_sample_id>_<dlp_library_id>) has results 
 
-    if internal_id is None:
-        library_infos = gsc_api.query(
-            "library?external_identifier={}".format(external_identifier)
-        )
+    # The following scenarios are can happen:
 
-        if len(library_infos) == 0:
-            logging.error('no libraries with external_identifier {} in gsc api'.format(external_identifier))
-            return None
-        elif len(library_infos) > 1:
-            raise Exception(
-                "multiple libraries with external_identifier {} in gsc api".format(
-                    external_identifier
-                )
-            )
+    # (1) and (2)
+    # Check if sequencing on colossus has gsc id that matches the gsc id on gsc database
+    # If above is true, import. Else update colossus and import.
 
-        library_info = library_infos[0]
 
-        gsc_library_id = library_info["name"]
+    # (2) and not (1)
+    # Colossus GSC id likely entered incorrectly. 
+    # Get correct id off GSC database, update colossus, and import.
 
-    else:
-        gsc_library_id = internal_id
+    # (1) and not (2)
+    # GSC ID is likely an internal id (begins with 'IX'). Import.
+
+    # Not (1) and not (2)
+    # No data is available on the GSC. Either database error or sequencing has not finished.
 
     gsc_fastq_infos = gsc_api.query("fastq?parent_library={}".format(gsc_library_id))
+    gsc_library_infos = gsc_api.query(
+        "library?external_identifier={}".format(external_identifier)
+    )
+
+    gsc_library_info = get_gsc_library_info(gsc_library_infos, external_identifier)
+
+    if len(gsc_fastq_infos) == 0:
+        logging.warning("no fastqs available in gsc database under parent library {}".format(
+            gsc_library_id)
+        )
+
+        if gsc_library_info is None:
+            return None
+
+    if gsc_library_info is not None:
+        gsc_library_id = check_colossus_gsc_library_id(
+            sequencing, gsc_library_id, gsc_library_info["name"], update=update
+        )
 
     if check_library:
         logging.info('Checking data for {}, {}'.format(dlp_library_id, gsc_library_id))
@@ -404,6 +491,23 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
             fastq_file_info, storage["name"], tag_name, tantalus_api, update=update
         )
 
+        comment_status(jira_ticket, lanes, gsc_library_id, sequencing_colossus_path)
+
+    logging.info("Library {} imported successfully".format(dlp_library_id))
+
+    return import_info
+
+
+def comment_status(jira_ticket, lanes, gsc_library_id, sequencing_colossus_path):
+    """
+    Comment on library JIRA ticket about successfully imported lanes
+
+    Args:
+        jira_ticket:                (str) jira ticket id ex. SC-1234
+        lanes:                      (dict) lane information
+        gsc_library_id:             (str) gsc library id (PX id or IX id)
+        sequencing_colossus_path:   (str) url to colossus sequencing       
+    """
     comment = "Import successful: \n"
     for lane in lanes:
         if lane['new'] == True:
@@ -421,46 +525,27 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
     )
     comment_jira(jira_ticket, comment)
 
-    logging.info("Library {} imported successfully".format(dlp_library_id))
 
-    return import_info
-
-
-def update_colossus_gsc_library_id(colossus_api, sequencing, gsc_library_id):
-    """ Update colossus lane and GSC library information.
-    """
-
-    if sequencing['gsc_library_id'] is not None:
-        if sequencing['gsc_library_id'] != gsc_library_id:
-            raise Exception('gsc library id mismatch in sequencing {} '.format(sequencing['id']))
-
-    else:
-        colossus_api.update(
-            'sequencing',
-            sequencing['id'],
-            gsc_library_id=gsc_library_id)
-
-
-def update_colossus_lane(colossus_api, sequencing, lane_to_update):
-    """ Update the colosssus lanes for a sequencing
+def update_colossus_lane(colossus_api, sequencing, lanes):
+    """ Update the colossus lanes for a sequencing
 
     Raises an exception if fewer lanes imported than were expected.
     """
-
-    if lane_to_update['new']:
-        flowcell_id = "{}_{}".format(lane_to_update['flowcell_id'], lane_to_update['lane_number'])
-        logging.info("Adding lane {} to Colossus.".format(flowcell_id))
-        lane = colossus_api.get_or_create(
-            "lane", sequencing=sequencing['id'], 
-            flow_cell_id=flowcell_id,
-        )
-
-        if lane['sequencing_date'] != lane_to_update['sequencing_date']:
-            colossus_api.update(
-                'lane',
-                lane['id'],
-                sequencing_date=lane_to_update['sequencing_date']
+    for lane_to_update in lanes:
+        if lane_to_update['new']:
+            flowcell_id = "{}_{}".format(lane_to_update['flowcell_id'], lane_to_update['lane_number'])
+            logging.info("Adding lane {} to Colossus.".format(flowcell_id))
+            lane = colossus_api.get_or_create(
+                "lane", sequencing=sequencing['id'], 
+                flow_cell_id=flowcell_id,
             )
+
+            if lane['sequencing_date'] != lane_to_update['sequencing_date']:
+                colossus_api.update(
+                    'lane',
+                    lane['id'],
+                    sequencing_date=lane_to_update['sequencing_date']
+                )
 
 
 def check_lanes(colossus_api, sequencing, num_lanes):
@@ -483,6 +568,13 @@ def check_lanes(colossus_api, sequencing, num_lanes):
 
 
 def write_import_statuses(successful_libs, failed_libs):
+    """
+    Writes text file regarding successful and failed imports
+
+    Args:
+        successful_libs:    (dict)
+        failed_libs:        (dict)  
+    """
     import_status_path = os.path.join(os.environ['DATAMANAGEMENT_DIR'], 'import_statuses.txt')
     
     if os.path.exists(import_status_path):
@@ -549,20 +641,13 @@ def main(storage_name, dlp_library_id=None, internal_id=None, tag_name=None, all
         sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC'))
         sequencing_list = list(filter(lambda s: s['number_of_lanes_requested'] != len(s['dlplane_set']), sequencing_list))
 
-    # Create a nested dictionary of sequencings keyed by library
-    # then instrument
-    library_list = defaultdict(dict)
-    for sequencing in sequencing_list:
-        library = sequencing['library']
-        instrument = sequencing['sequencing_instrument']
-        library_list[library][instrument] = sequencing
 
-    for library_id in library_list:
+    for sequencing in sequencing_list:
         try:
             import_info = import_gsc_dlp_paired_fastqs(
                 colossus_api,
                 tantalus_api,
-                library_id,
+                sequencing, 
                 storage,
                 internal_id,
                 tag_name,
@@ -572,68 +657,35 @@ def main(storage_name, dlp_library_id=None, internal_id=None, tag_name=None, all
             )
 
             if import_info is None:
-                # FIXME: We can assume only one sequencing exists if library doesn't exist in gsc yet
-                # Otherwise, may need fixing since not iterating through sequencings
-                submission_date = list(library_list[library_id].values())[0]["submission_date"]
+                submission_date = sequencing["submission_date"]
                 failed_libs.append(
                     dict(
-                        dlp_library_id=library_id,
+                        dlp_library_id=sequencing["library"],
                         submission_date=submission_date, 
                         error="Doesn't exist on GSC",
                     )
                 )
                 continue
 
-            # List of lanes returned from the query, keyed by instrument
-            instrument_lanes = defaultdict(list)
+            elif import_info is False:
+                continue
 
-            # For each lane returned from the query, match to a colossus
-            # sequencing based on sequencing instrument
-            for lane in import_info['lanes']:
-                instrument = lane['sequencing_instrument']
+            update_colossus_lane(colossus_api, sequencing, import_info['lanes'])
+            check_lanes(colossus_api, sequencing, len(sequencing["dlplane_set"]))
 
-                if instrument  not in library_list[library_id]:
-                    raise Exception('no sequencing with instrument {} for library {}'.format(
-                        lane['sequencing_instrument'], library_id))
-
-                instrument_lanes[instrument].append(lane)
-
-                # Update colossus with informatioin returned for this lane
-                sequencing = library_list[library_id][instrument]
-                update_colossus_gsc_library_id(colossus_api, sequencing, import_info['gsc_library_id'])
-                update_colossus_lane(colossus_api, sequencing, lane)
-
-            # Check each colossus sequencing for each list of lanes of the
-            # matching sequencing instrument
-            for sequencing in library_list[library_id].values():
-                instrument = sequencing['sequencing_instrument']
-
-                try:
-                    check_lanes(colossus_api, sequencing, len(instrument_lanes[instrument]))
-                except Exception as e:
-                    failed_libs.append(dict(
-                        dlp_library_id=sequencing["library"],
-                        submission_date=sequencing['submission_date'],
-                        error=str(e),
-                        )
-                    )
-                    logging.warning(("Library {} failed lane check: {}".format(sequencing["library"], e)))
-                    continue
-
-                import_info['submission_date'] = sequencing['submission_date']
-                successful_libs.append(import_info)
+            import_info['submission_date'] = sequencing['submission_date']
+            successful_libs.append(import_info)
 
         except Exception as e:
-            # FIXME: may be more than one sequencing from GSC
-            submission_date = list(library_list[library_id].values())[0]["submission_date"]
+            submission_date = sequencing["submission_date"]
             failed_libs.append(dict(
-                dlp_library_id=library_id,
+                dlp_library_id=sequencing["library"],
                 submission_date=submission_date,
                 error=str(e),
                 )
             )
 
-            logging.exception(("Library {} failed to import: {}".format(library_id, e)))
+            logging.exception(("Library {} failed to import: {}".format(sequencing["library"], e)))
             continue
 
     # Only write import statuses for bulk imports
