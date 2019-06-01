@@ -6,6 +6,7 @@ pandas_to_std_types = {
     "int64": "int",
     "float64": "float",
     "object": "str",
+    "category": "str",
 }
 
 
