@@ -2,7 +2,6 @@ import datetime
 import decimal
 import json
 import uuid
-from datetime import datetime
 
 #https://github.com/django/django/blob/master/django/core/serializers/json.py
 class DjangoJSONEncoder(json.JSONEncoder):
@@ -33,7 +32,7 @@ class DjangoJSONEncoder(json.JSONEncoder):
         elif isinstance(o, (decimal.Decimal, uuid.UUID, Promise)):
             return str(o)
         else:
-            return super(o)
+            return super().default(o)
 
 #https://github.com/django/django/blob/master/django/utils/functional.py
 class Promise:
