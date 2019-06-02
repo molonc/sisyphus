@@ -207,14 +207,14 @@ def run_h5_convert(cache_dir, dataset_id=None, results_type=None, redo=False, dr
                         logging.info('creating file {} from path {}'.format(
                             filename, filepath))
 
-                        remote_storage_client.create(filename, filepath)
+                        remote_storage_client.create(filename, filepath, update=redo)
                         remote_filepath = os.path.join(remote_storage_client.prefix, filename)
 
                         logging.info('adding file {} from path {}'.format(
                             filename, remote_filepath))
 
                         (file_resource, file_instance) = tantalus_api.add_file(
-                            remote_storage_name, remote_filepath)
+                            remote_storage_name, remote_filepath, update=redo)
 
                         file_resource_ids.append(file_resource["id"])
                         filepaths_to_clean.append(filepath)
