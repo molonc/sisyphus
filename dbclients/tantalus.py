@@ -122,21 +122,25 @@ class BlobStorageClient(object):
             blob_name=blobname,
             stream=stream)
 
-    def create(self, blobname, filepath):
+    def create(self, blobname, filepath, update=False):
         if self.exists(blobname):
+            log.info("{} already exists on {}".format(blobname, self.prefix))
+
             blobsize = self.get_size(blobname)
             filesize = os.path.getsize(filepath)
 
-            if blobsize != filesize:
+            if blobsize == filesize:
+                log.info("{} has the same size as {}".format(blobname, filepath))
+                return
+            elif update:
+                log.info("{} updating from {}".format(blobname, filepath))
+            else:
                 raise Exception("blob size is {} but local file size is {}".format(blobsize, filesize))
 
-            log.info("{} already exists on {}".format(blobname, self.prefix))
+        log.info("Creating blob {} from path {}".format(blobname, filepath))
+        self.blob_service.create_blob_from_path(
+            self.storage_container, blobname, filepath)
 
-        else:
-            log.info("Creating blob {} from path {}".format(blobname, filepath))
-            self.blob_service.create_blob_from_path(self.storage_container,
-                blobname,
-                filepath)
 
 class ServerStorageClient(object):
     def __init__(self, storage_directory, prefix):
@@ -183,7 +187,22 @@ class ServerStorageClient(object):
         with open(filepath, "wb") as f:
             f.write(stream.getvalue())
 
-    def create(self, filename, filepath):
+    def create(self, filename, filepath, update=False):
+        if self.exists(filename):
+            log.info("{} already exists on {}".format(filename, self.prefix))
+
+            storagefilesize = self.get_size(filename)
+            filesize = os.path.getsize(filepath)
+
+            if storagefilesize == filesize:
+                log.info("{} has the same size as {}".format(filename, filepath))
+                return
+            elif update:
+                log.info("{} updating from {}".format(filename, filepath))
+            else:
+                raise Exception("storage file size is {} but local file size is {}".format(storagefilesize, filesize))
+
+        log.info("Creating storage file {} from path {}".format(filename, filepath))
         tantalus_filepath = os.path.join(self.storage_directory, filename)
         if not os.path.samefile(filepath, tantalus_filepath):
             shutil.copy(filepath, tantalus_filepath)
