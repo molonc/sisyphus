@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 import coreapi
 import json
-from coreapi.codecs import JSONCodec
+from coreapi.codecs import JSONCodec, TextCodec
 from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from openapi_codec import OpenAPICodec
 import requests
@@ -49,7 +49,7 @@ class BasicAPIClient(object):
                 username=username, password=password
             )
 
-        decoders = [OpenAPICodec(), JSONCodec()]
+        decoders = [OpenAPICodec(), JSONCodec(), TextCodec()]
 
         self.coreapi_client = coreapi.Client(auth=auth, decoders=decoders)
         self.coreapi_schema = self.coreapi_client.get(

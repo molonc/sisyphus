@@ -95,7 +95,7 @@ class TenXAnalysisInfo(AnalysisInfo):
     def get_or_create_analysis(self, jira_ticket, version, tenx_library_id):
 
         try:
-            analysis_info = colossus_api.get('analysis', input_type="TENX", jira_ticket=jira_ticket)
+            analysis = colossus_api.get('analysis', input_type="TENX", jira_ticket=jira_ticket)
 
         except NotFoundError:
             library_id = self.get_library_id(tenx_library_id)
@@ -104,9 +104,11 @@ class TenXAnalysisInfo(AnalysisInfo):
             data = {
                 "jira_ticket":          jira_ticket, 
                 "input_type":           "TENX",
-                "version":              version, 
+                "version":              "v1.0.0", #hackl
                 "run_status":           "idle",
                 "submission_date":      str(datetime.date.today()),
+                "dlp_library":          None,
+                "pbal_library":         None,
                 "tenx_library":         library_id,
                 "tenxsequencing_set":   [], 
                 "pbalsequencing_set":   [],
@@ -1185,11 +1187,11 @@ class TenXAnalysis(Analysis):
     A class representing an TenX analysis in Tantalus.
     """ 
     def __init__(self, jira, version, args, run_options, **kwargs):
-        super(TenXAnalysis, self).__init__('tenx', jira, version, args, **kwargs)
+        super(TenXAnalysis, self).__init__('tenx', jira, "v1.0.0", args, **kwargs)
         self.run_options = run_options
 
     def generate_unique_name(self, jira, version, args, input_datasets, input_results):
-        return '{}_{}'.format(jira, self.analysis_type)
+        return '{}_{}_{}'.format(args['library_id'], jira, self.analysis_type)
 
     def get_lane_ids(self):
         """
@@ -1294,15 +1296,12 @@ class TenXAnalysis(Analysis):
         
         docker_cmd = [
             'docker', 'run', 
-            '-e', '"R_HOME=/usr/local/lib/R/"',
-            '-e', '"LD_LIBRARY_PATH=/usr/local/lib/R/lib/"',
-            '-e', '"PYTHONPATH=$HEADNODE_AUTOMATION_PYTHON:/codebase/SCRNApipeline/"',
-            '--mount type=bind,source="$PWD"/{},target=/reference '.format(reference_dir),
-            '--mount type=bind,source="$PWD"/{},target=/results '.format(results_dir),
-            '--mount type=bind,source="$PWD"/{},target=/data '.format(data_dir),
-            '--mount type=bind,source="$PWD/{}",target=/runs '.format(runs_dir), 
-            '-w="/{}"'.format(runs_dir), 
-            '-t', 'nceglia/scrna-pipeline:{} run_vm'.format(version),
+            '--mount type=bind,source={},target=/reference '.format(reference_dir),
+            '--mount type=bind,source={},target=/results '.format(results_dir),
+            '--mount type=bind,source={},target=/data '.format(data_dir),
+            '--mount type=bind,source="{}",target=/runs '.format(runs_dir), 
+            '-w="/runs"',
+            '-t', 'nceglia/scrna-pipeline:devvm run_vm',
             '--sampleid', library_id,
             '--build', reference_genome,
         ]
@@ -1314,7 +1313,7 @@ class TenXAnalysis(Analysis):
         subprocess.check_call(run_cmd_string, shell=True)
 
 
-    def create_output_results(self, update=False):
+    def create_output_results(self, update=False, skip_missing=False):
         """
         Create the set of output results produced by this analysis.
         """
@@ -1322,6 +1321,7 @@ class TenXAnalysis(Analysis):
             self,
             self.storages['working_results'], 
             update=update,
+            skip_missing=skip_missing,
         )
 
         return [tantalus_results.get_id()]
@@ -1455,6 +1455,7 @@ class TenXResults(Results):
             tantalus_analysis,
             storages, 
             update=False,
+            skip_missing=False
         ):
         """
         Create a TenX Results object in Tantalus.
