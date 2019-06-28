@@ -4,6 +4,8 @@ import re
 import sys
 import time
 import click
+import shutil
+import tarfile
 import logging
 import traceback
 import subprocess
@@ -50,7 +52,52 @@ def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
 		transfer_dataset(tantalus_api, results_id, 'resultsdataset', from_storage_name, to_storage_name)
 
 
-def create_analysis_jira_ticket(library_id):
+def add_report(jira_ticket):
+	"""
+	Downloads reports tar file, untars, and adds summary.html report to ticket
+	"""
+	storage_client = tantalus_api.get_storage_client("scrna_reports")
+	results_dataset = tantalus_api.get("resultsdataset", analysis__jira_ticket=jira_ticket)
+	reports = list(tantalus_api.get_dataset_file_resources(
+		results_dataset["id"], 
+		"resultsdataset", 
+		{"fileinstance__storage__name":"scrna_reports"}
+	))
+
+	filename = reports[0]["filename"]
+	filepath = os.path.join("reports", jira_ticket)
+	local_path = os.path.join(filepath, filename)
+	if not os.path.exists(filepath):
+		os.makedirs(filepath)
+
+	blob = storage_client.blob_service.get_blob_to_path(
+		container_name="reports",
+		blob_name=filename,
+		file_path=local_path
+	)
+	subprocess.call(['tar', '-xvf', local_path, '-C', filepath])
+
+	report_files = os.listdir(local_path)
+
+	summary_filename = "summary.html"
+	if summary_filename in report_files:
+		# FIXME: this only works if jira ticket has parent issue; add check
+
+		# Get library ticket
+		analysis = colossus_api.get("analysis", jira_ticket=jira_ticket)
+		library_id= analysis["id"]
+		library = colossus_api.get("tenxlibrary", id=library_id)
+		library_ticket = library["jira_ticket"]
+
+		log.info("adding report to parent ticket of {}".format(library_ticket))
+		summary_filepath = os.path.join(local_path, summary_filename)
+		add_attachment(library_ticket, summary_filepath, summary_filename)
+
+	log.info("Removing {}".format(local_path))
+	shutil.rmtree(local_path)
+
+
+def create_analysis_jira_ticket(library_id, sample, library_ticket):
     '''
     Create analysis jira ticket as subtask of library jira ticket
 
@@ -67,16 +114,19 @@ def create_analysis_jira_ticket(library_id):
         basic_auth=(JIRA_USER, JIRA_PASSWORD)
     )
 
+    issue = jira_api.issue(library_ticket)
+
     # In order to search for library on Jira,
     # Jira ticket must include spaces
-    issue_fields = {
+    sub_task = {
         'project': {'key': 'SC'},
-        'summary': '{} TenX Analysis'.format(library_id),
-        'issuetype' : { 'name' : 'Task' },
+        'summary': '{} - {} TenX Analysis'.format(sample, library_id),
+        'issuetype' : { 'name' : 'Sub-task' },
+        'parent': {'id': issue.key}
     }
 
-    issue = jira_api.create_issue(fields=issue_fields)
-    analysis_jira_ticket = issue.key
+    sub_task_issue = jira_api.create_issue(fields=sub_task)
+    analysis_jira_ticket = sub_task_issue.key
 
     # Add watchers
     jira_api.add_watcher(analysis_jira_ticket, JIRA_USER)
@@ -157,12 +207,14 @@ def start_automation(
 	
 	analysis_info.set_finish_status()
 
-	log.info("Done!")
-	log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
-
 	# Update Jira ticket
 	if not run_options["is_test_run"]:
 	   update_jira_tenx(jira, args)
+
+	add_report(jira)
+
+	log.info("Done!")
+	log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config_tenx.json')
@@ -195,10 +247,12 @@ def main(
 	storages = config["storages"]
 
 	library = colossus_api.get("tenxlibrary", name=library_id)
+	sample = library["sample"]["sample_id"]
+	library_ticket = library["jira_ticket"]
 
 	# TODO: Move this to tenx automated scripts
 	if len(library["analysis_set"])	== 0:
-		jira = create_analysis_jira_ticket(library_id)
+		jira = create_analysis_jira_ticket(library_id, sample, library_ticket)
 
 	else:
 		analysis_id = library["analysis_set"][0]
@@ -260,6 +314,5 @@ def main(
 if __name__ == "__main__":
 	main()
 	
-
 
 

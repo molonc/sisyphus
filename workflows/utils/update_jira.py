@@ -84,3 +84,18 @@ def update_description(jira_id, description, assignee, remove_watcher=False):
     if remove_watcher:
         jira_api.remove_watcher(issue, JIRA_USER)
 
+
+def add_attachment(jira_id, attachment_file_path, attachment_filename):
+    """
+    Checks if file is already added to jira ticket; attaches if not. 
+    """
+    issue = jira_api.issue(jira_id)
+    current_attachments = [a.filename for a in issue.fields.attachment]
+
+    if attachment_filename in current_attachments:
+        log.info("{} already added to {}".format(attachment_filename, jira_id))
+
+    else:
+        log.info("Adding {} to {}".format(attachment_filename, jira_id))
+        jira_api.add_attachment(issue=jira_id, attachment=attachment_file_path)
+
