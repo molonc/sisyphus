@@ -27,7 +27,7 @@ from workflows.utils import file_utils
 from workflows.utils import log_utils
 from workflows.utils import saltant_utils
 from workflows.utils.colossus_utils import get_ref_genome
-from workflows.utils.update_jira import update_jira_tenx
+from workflows.utils.update_jira import update_jira_tenx, add_attachment
 
 
 log = logging.getLogger('sisyphus')
@@ -85,11 +85,11 @@ def add_report(jira_ticket):
 
 		# Get library ticket
 		analysis = colossus_api.get("analysis", jira_ticket=jira_ticket)
-		library_id= analysis["id"]
+		library_id= analysis["library"]
 		library = colossus_api.get("tenxlibrary", id=library_id)
 		library_ticket = library["jira_ticket"]
 
-		log.info("adding report to parent ticket of {}".format(library_ticket))
+		log.info("adding report to parent ticket of {}".format(jira_ticket))
 		summary_filepath = os.path.join(local_path, summary_filename)
 		add_attachment(library_ticket, summary_filepath, summary_filename)
 
