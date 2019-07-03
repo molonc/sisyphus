@@ -420,7 +420,7 @@ def transfer_tagged_datasets(tag_name, from_storage_name, to_storage_name):
         transfer_dataset(tantalus_api, dataset_id, "resultsdataset", from_storage_name, to_storage_name)
 
 
-@cli.command("cache")
+@cli.command("cache_tag")
 @click.argument("tag_name")
 @click.argument("from_storage_name")
 @click.argument("cache_directory")
@@ -514,6 +514,17 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
         _transfer_files_with_retry(f_transfer, file_instance, overwrite=overwrite)
 
         tantalus_api.add_instance(file_resource, to_storage)
+
+
+@cli.command("cache")
+@click.argument("dataset_id", type=int)
+@click.argument("dataset_model", type=click.Choice(["sequencedataset", "resultsdataset"]))
+@click.argument("from_storage_name")
+@click.argument("cache_directory")
+@click.option("--suffix_filter", required=False)
+def cache_dataset_cmd(dataset_id, dataset_model, from_storage_name, cache_directory, suffix_filter=None):
+    tantalus_api = TantalusApi()
+    cache_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, cache_directory, suffix_filter=suffix_filter)
 
 
 def cache_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, cache_directory, suffix_filter=None):
