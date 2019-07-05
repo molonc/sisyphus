@@ -31,9 +31,8 @@ class AnalysisInfo:
     A class representing an analysis information object in Colossus,
     containing settings for the analysis run.
     """
-    def __init__(self, jira, analysis_type):
+    def __init__(self, jira):
         self.status = 'idle'
-        self.analysis_type = analysis_type
         self.analysis_info = colossus_api.get('analysis_information', analysis_jira_ticket=jira)
         self.analysis_run = self.analysis_info['analysis_run']['id']
 
@@ -47,7 +46,7 @@ class AnalysisInfo:
         self.update('error')
 
     def set_finish_status(self):
-        self.update('{}_complete'.format(self.analysis_type))
+        self.update('complete')
 
     def update(self, status):
         data = {
@@ -73,8 +72,6 @@ class TenXAnalysisInfo(AnalysisInfo):
     def __init__(self, jira, version, tenx_library_id):
         self.status = 'idle'
         self.analysis = self.get_or_create_analysis(jira, version, tenx_library_id)
-        # Replace with this once automation script is complete
-        # self.analysis_info = colossus_api.get("analysis", jira_ticket=jira)
 
     def get_library_id(self, tenx_library_id):
         """
@@ -102,15 +99,15 @@ class TenXAnalysisInfo(AnalysisInfo):
 
 
             data = {
-                "jira_ticket":          jira_ticket, 
+                "jira_ticket":          str(jira_ticket),
                 "input_type":           "TENX",
-                "version":              "v1.0.0", #hackl
+                "version":              "v1.0.0", #hack
                 "run_status":           "idle",
                 "submission_date":      str(datetime.date.today()),
                 "dlp_library":          None,
                 "pbal_library":         None,
                 "tenx_library":         library_id,
-                "tenxsequencing_set":   [], 
+                "tenxsequencing_set":   [],
                 "pbalsequencing_set":   [],
                 "dlpsequencing_set":    [],
             }
@@ -173,7 +170,7 @@ class Analysis(object):
         Get the analysis by querying Tantalus. Create the analysis
         if it doesn't exist. Set the input dataset ids.
         """
-        
+
         input_datasets = self.search_input_datasets(args)
         input_results = self.search_input_results(args)
 
@@ -349,7 +346,7 @@ class Analysis(object):
 
     def get_input_samples(self):
         """
-        Get the primary keys for the samples associated with 
+        Get the primary keys for the samples associated with
         the input datasets.
         """
         input_samples = set()
@@ -360,7 +357,7 @@ class Analysis(object):
 
     def get_input_libraries(self):
         """
-        Get the primary keys for the libraries associated with 
+        Get the primary keys for the libraries associated with
         the input datasets.
         """
         input_libraries = set()
@@ -395,24 +392,20 @@ class AlignHmmcopyMixin(object):
         lanes = hashlib.md5(lanes.encode('utf-8'))
         lanes_hashed = "{}".format(lanes.hexdigest()[:8])
 
-        # MAYBE: Add this to templates?
-        name = "sc_{}_{}_{}_{}_{}".format(
-            self.analysis_type, 
-            args['aligner'], 
-            args['ref_genome'], 
-            args['library_id'],
-            lanes_hashed,
+        name = templates.SC_ANALYSIS_NAME_TEMPLATE.format(
+            analysis_type=self.analysis_type,
+            aligner=args['aligner'],
+            ref_genome=args['ref_genome'],
+            library_id=args['library_id'],
+            lanes_hashed=lanes_hashed,
         )
 
         return name
 
 
-class AlignAnalysis(AlignHmmcopyMixin, Analysis):
-    """
-    A class representing an alignment analysis in Tantalus.
-    """
+class QCAnalysis(AlignHmmcopyMixin, Analysis):
     def __init__(self, jira, version, args, run_options, **kwargs):
-        super(AlignAnalysis, self).__init__('align', jira, version, args, **kwargs)
+        super(QCAnalysis, self).__init__('qc', jira, version, args, **kwargs)
         self.run_options = run_options
 
     @staticmethod
@@ -555,7 +548,7 @@ class AlignAnalysis(AlignHmmcopyMixin, Analysis):
                 continue
 
             colossus_index_sequences.add(index_sequence)
-            
+
             lane_fastqs = collections.defaultdict(dict)
             for lane_id, lane in lanes.items():
                 lane_fastqs[lane_id]['fastq_1'] = fastq_filepaths[(index_sequence, lane_id, 1)]
@@ -669,7 +662,7 @@ class AlignAnalysis(AlignHmmcopyMixin, Analysis):
                     index_sequence=metadata['index_sequence'],
                     filepath=filepath,
                 )
-                
+
                 output_file_info.append(file_info)
 
         log.info('creating sequence dataset models for output bams')
@@ -687,20 +680,72 @@ class AlignAnalysis(AlignHmmcopyMixin, Analysis):
 
         return output_datasets
 
-    def get_results_filenames(self):
+    def get_align_results_filenames(self):
         results_prefix = os.path.join(
             self.run_options["job_subdir"],
             "results",
             "results",
+            "QC",
             "alignment")
 
         filenames = [
-            os.path.join("plots", "{library_id}_plot_metrics.pdf"),
+            "{library_id}_plot_metrics.pdf",
             "{library_id}_alignment_metrics.csv.gz",
             "{library_id}_alignment_metrics.csv.gz.yaml",
             "{library_id}_gc_metrics.csv.gz",
             "{library_id}_gc_metrics.csv.gz.yaml",
-            "info.yaml"
+        ]
+
+        return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
+
+    def get_hmmcopy_results_filenames(self):
+        results_prefix = os.path.join(
+            self.run_options["job_subdir"],
+            "results",
+            "results",
+            "QC",
+            "hmmcopy_autoploidy")
+
+        filenames = [
+            "{library_id}_bias.tar.gz",
+            "{library_id}_heatmap_by_ec_filtered.pdf",
+            "{library_id}_heatmap_by_ec.pdf",
+            "{library_id}_igv_segments.seg",
+            "{library_id}_kernel_density.pdf",
+            "{library_id}_metrics.csv.gz",
+            "{library_id}_metrics.csv.gz.yaml",
+            "{library_id}_metrics.pdf",
+            "{library_id}_params.csv.gz",
+            "{library_id}_params.csv.gz.yaml",
+            "{library_id}_reads.csv.gz",
+            "{library_id}_reads.csv.gz.yaml",
+            "{library_id}_segments.csv.gz",
+            "{library_id}_segments.csv.gz.yaml",
+            "{library_id}_segs.tar.gz",
+        ]
+
+        return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
+
+    def get_annotation_results_filenames(self):
+        results_prefix = os.path.join(
+            self.run_options["job_subdir"],
+            "results",
+            "results",
+            "QC",
+            "annotation")
+
+        filenames = [
+            "{library_id}_corrupt_tree_consensus.newick",
+            "{library_id}_corrupt_tree.newick",
+            "{library_id}_corrupt_tree.pdf",
+            "{library_id}_filtered_data.csv",
+            "{library_id}_kernel_density.pdf",
+            "{library_id}_metrics.csv.gz",
+            "{library_id}_metrics.csv.gz.yaml",
+            "{library_id}_metrics.pdf",
+            "{library_id}_phylo.csv",
+            "{library_id}_QC_report.html",
+            "{library_id}_rank_loci_trees.csv",
         ]
 
         return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
@@ -711,237 +756,19 @@ class AlignAnalysis(AlignHmmcopyMixin, Analysis):
         else:
             return launch_pipeline.run_pipeline
 
-
-class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
-    """
-    A class representing an hmmcopy analysis in Tantalus.
-    """
-    def __init__(self, jira, version, args, run_options, **kwargs):
-        super(HmmcopyAnalysis, self).__init__('hmmcopy', jira, version, args, **kwargs)
-        self.run_options = run_options
-
-    def _check_lane_exists(self, flowcell_id, lane_number, sequencing_centre):
-        try:
-            sequence_lane = tantalus_api.get(
-                'sequencing_lane',
-                flowcell_id=flowcell_id,
-                lane_number=lane_number,
-                sequencing_centre=sequencing_centre,
-            )
-        except NotFoundError:
-            raise Exception("{}_{} is not a valid lane from the {}".format(
-                flowcell_id, lane_number, sequencing_centre))
-
-    @staticmethod
-    def search_input_datasets(args):
-        library_datasets = list(tantalus_api.list("sequence_dataset",
-            library__library_id=args['library_id'],
-            dataset_type='BAM',
-            aligner__name=args['aligner'],
-            reference_genome__name=args['ref_genome']),
+    def create_output_results(self, update=False, skip_missing=False, analysis_type=None):
+        """
+        Create the set of output results produced by this analysis.
+        """
+        tantalus_results = Results(
+            self,
+            self.storages['working_results'],
+            update=update,
+            skip_missing=skip_missing,
+            analysis_type=analysis_type
         )
 
-        # Set of lanes requiring analysis
-        lanes = set()
-
-        # If no lanes were specified, find all lanes
-        # for all datasets for the given library
-        if not args["gsc_lanes"] and not args["brc_flowcell_ids"]:
-            for dataset in library_datasets:
-                for sequence_lane in dataset["sequence_lanes"]:
-                    lane = "{}_{}".format(
-                        sequence_lane["flowcell_id"],
-                        sequence_lane["lane_number"],
-                    )
-                    lanes.add(lane)
-
-        # Find bam flowcell lane ids for the specified
-        # brc flowcells and gsc flowcell lanes
-        else:
-            if args['gsc_lanes'] is not None:
-                for lane in args['gsc_lanes']:
-                    flowcell_id = (lane.split('_'))[0]
-                    lane_number = (lane.split('_'))[1]
-                    self._check_lane_exists(flowcell_id, lane_number, "GSC")
-                    lanes.add(lane)
-
-            if args['brc_flowcell_ids'] is not None:
-                for flowcell_id in args['brc_flowcell_ids']:
-                    for lane_number in range(1, 5):
-                        self._check_lane_exists(flowcell_id, lane_number, "BRC")
-                        lanes.add("{}_{}".format(flowcell_id, lane_number))
-
-        # Generate a list of datasets with the exact set of lanes specified
-        input_datasets = list()
-        for dataset in library_datasets:
-            dataset_lanes = set()
-            for lane in dataset["sequence_lanes"]:
-                dataset_lanes.add("{}_{}".format(
-                    lane["flowcell_id"],
-                    lane["lane_number"]))
-
-            if dataset_lanes == lanes:
-                input_datasets.append(dataset)
-
-        HmmcopyAnalysis.check_input_datsets(args, input_datasets)
-
-        input_dataset_ids = [d['id'] for d in input_datasets]
-
-        return input_dataset_ids
-
-    @staticmethod
-    def check_input_datsets(args, input_datasets):
-        '''
-        Check if all samples for the library have exactly one input dataset
-        '''
-        library_samples = set()
-        sublibraries = colossus_api.list("sublibraries", library__pool_id=args['library_id'])
-
-        for sublibrary in sublibraries:
-            sample_id = sublibrary["sample_id"]["sample_id"]
-            library_samples.add(sample_id)
-
-        for sample_id in library_samples:
-            input_dataset_samples = [dataset["sample"]["sample_id"] for dataset in input_datasets]
-
-            if sample_id not in input_dataset_samples:
-                raise Exception("No input dataset for library sample {}".format(sample_id))
-
-            log.info("Sample {} has a dataset in the input datasets".format(sample_id))
-
-        log.info("Every sample in the library {} has an input dataset".format(args['library_id']))
-
-        # Check if one dataset per sample
-        dataset_samples = collections.defaultdict(list)
-        for dataset in input_datasets:
-            sample_id = dataset["sample"]["sample_id"]
-            dataset_samples[sample_id].append(dataset["id"])
-
-        for sample in dataset_samples:
-            if len(dataset_samples[sample]) != 1:
-                raise Exception("Sample {} has more than one input dataset".format(sample))
-            
-            log.info("Sample {} has exactly one input dataset".format(sample))
-
-        log.info("Each sample has only one input dataset")
-      
-    def get_results_filenames(self):
-        results_prefix = os.path.join(
-            self.run_options["job_subdir"],
-            "results",
-            "results",
-            "hmmcopy_autoploidy")
-
-        filenames = [
-            os.path.join("plots", "bias", "{}_bias.tar.gz".format(self.args["library_id"])),
-            os.path.join("plots", "segments", "{}_segs.tar.gz".format(self.args["library_id"])),
-            os.path.join("plots", "{}_heatmap_by_ec_filtered.pdf".format(self.args["library_id"])),
-            os.path.join("plots", "{}_heatmap_by_ec.pdf".format(self.args["library_id"])),
-            os.path.join("plots", "{}_kernel_density.pdf".format(self.args["library_id"])),
-            os.path.join("plots", "{}_metrics.pdf".format(self.args["library_id"])),
-            "info.yaml"
-        ]
-
-        for i in range(0,7):
-            filenames.append("{}_multiplier{}_igv_segments.seg".format(self.args["library_id"], i)),
-            filenames.append("{}_multiplier{}_metrics.csv.gz".format(self.args["library_id"], i)),
-            filenames.append("{}_multiplier{}_metrics.csv.gz.yaml".format(self.args["library_id"], i)),
-            filenames.append("{}_multiplier{}_params.csv.gz".format(self.args["library_id"], i)),
-            filenames.append("{}_multiplier{}_params.csv.gz.yaml".format(self.args["library_id"], i)),
-            filenames.append("{}_multiplier{}_reads.csv.gz".format(self.args["library_id"], i)),
-            filenames.append("{}_multiplier{}_reads.csv.gz.yaml".format(self.args["library_id"], i)),
-            filenames.append("{}_multiplier{}_segments.csv.gz".format(self.args["library_id"], i)),
-            filenames.append("{}_multiplier{}_segments.csv.gz.yaml".format(self.args["library_id"], i)),
-
-        return [os.path.join(results_prefix, filename) for filename in filenames]
-
-    def run_pipeline(self):
-        if self.run_options["skip_pipeline"]:
-            return launch_pipeline.run_pipeline2
-        else:
-            return launch_pipeline.run_pipeline
-
-
-    def generate_inputs_yaml(self, inputs_yaml_filename):
-
-        if os.path.isfile(inputs_yaml_filename):
-            log.info("inputs.yaml already exists from align analysis.")
-            return
-
-        log.info('Generating cell metadata')
-
-        sample_info = generate_inputs.generate_sample_info(
-            self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
-
-        if sample_info['index_sequence'].duplicated().any():
-            raise Exception('Duplicate index sequences in sample info.')
-
-        if sample_info['cell_id'].duplicated().any():
-            raise Exception('Duplicate cell ids in sample info.')
-
-        # Sort bam files by index_sequence
-        bam_file_instances = dict()
-
-        tantalus_index_sequences = set()
-        colossus_index_sequences = set()
-
-        for dataset_id in self.analysis['input_datasets']:
-            dataset = self.get_dataset(dataset_id)
-
-            file_instances = tantalus_api.get_dataset_file_instances(
-                dataset['id'], 'sequencedataset', self.storages['working_inputs'],
-                filters={'filename__endswith': '.bam'})
-
-            for file_instance in file_instances:
-                index_sequence = file_instance['file_resource']['sequencefileinfo']['index_sequence']
-                tantalus_index_sequences.add(index_sequence)
-                bam_file_instances[index_sequence] = file_instance
-
-        input_info = {}
-
-        for idx, row in sample_info.iterrows():
-            index_sequence = row['index_sequence']
-
-            if self.run_options.get("is_test_run", False) and (index_sequence not in tantalus_index_sequences):
-                # Skip index sequences that are not found in the Tantalus dataset, since
-                # we need to refer to the original library in Colossus for metadata, but
-                # we don't want to iterate through all the cells present in that library
-                continue
-
-            colossus_index_sequences.add(index_sequence)
-
-            bam_filepath = bam_file_instances[index_sequence]['filepath']
-
-            sample_id = row['sample_id']
-            if self.run_options.get("is_test_run", False):
-               assert 'TEST' in sample_id
-
-            input_info[str(row['cell_id'])] = {
-                'bam':          bam_filepath,
-                'pick_met':     str(row['pick_met']),
-                'condition':    str(row['condition']),
-                'primer_i5':    str(row['primer_i5']),
-                'index_i5':     str(row['index_i5']),
-                'primer_i7':    str(row['primer_i7']),
-                'index_i7':     str(row['index_i7']),
-                'img_col':      int(row['img_col']),
-                'column':       int(row['column']),
-                'row':          int(row['row']),
-                'sample_type':  'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
-                'index_sequence': str(row['primer_i7']) + '-' + str(row['primer_i5']),
-                'sample_id':    str(sample_id),
-                'fastqs':       {}, # HACK: required for hmmcopy analysis by pipeline
-            }
-
-        if colossus_index_sequences != tantalus_index_sequences:
-            raise Exception("index sequences in Colossus and Tantalus do not match")
-
-        with open(inputs_yaml_filename, 'w') as inputs_yaml:
-            yaml.dump(input_info, inputs_yaml, default_flow_style=False)
-
-    def create_output_datasets(self, tag_name=None, update=False):
-        log.info("No outputs need to be created for hmmcopy analysis.")
-        pass
+        return [tantalus_results.get_id()]
 
 
 class PseudoBulkAnalysis(Analysis):
@@ -1015,7 +842,7 @@ class PseudoBulkAnalysis(Analysis):
 
             if sample_id not in input_info[dataset_class]:
                 input_info[dataset_class][sample_id] = {}
-            
+
             input_info[dataset_class][sample_id][library_id] = {}
 
             file_instances = tantalus_api.get_dataset_file_instances(
@@ -1044,12 +871,12 @@ class PseudoBulkAnalysis(Analysis):
                     index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])
                     cell_id = str(cell_ids[index_sequence])
                     filepath = str(file_instance['filepath'])
-                    
+
                     if cell_id not in input_info[dataset_class][sample_id][library_id]:
                         input_info[dataset_class][sample_id][library_id][cell_id] = {}
 
                     input_info[dataset_class][sample_id][library_id][cell_id] = {'bam': filepath}
-            
+
             else:
                 raise ValueError('unknown library type {}'.format(library_type))
 
@@ -1074,7 +901,7 @@ class PseudoBulkAnalysis(Analysis):
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
-    
+
     def get_results_filenames(self):
         """ Get list of results produced by pseudobulk pipeline.
         """
@@ -1098,9 +925,18 @@ class PseudoBulkAnalysis(Analysis):
             filenames.append('{}_{}_allele_counts.csv'.format(sample_id, library_id))
             filenames.append('{}_{}_snv_annotations.h5'.format(sample_id, library_id))
             filenames.append('{}_{}_snv_counts.h5'.format(sample_id, library_id))
-            filenames.append('{}_{}_destruct.tsv'.format(sample_id, library_id))
-            filenames.append('{}_{}_destruct_library.tsv'.format(sample_id, library_id))
+            filenames.append('{}_{}_snv_union_counts.csv.gz'.format(sample_id, library_id))
+            filenames.append('{}_{}_destruct.h5'.format(sample_id, library_id))
+            filenames.append('{}_{}_destruct.csv.gz'.format(sample_id, library_id))
+            filenames.append('{}_{}_destruct.csv.gz.yaml'.format(sample_id, library_id))
+            filenames.append('{}_{}_destruct_library.csv.gz'.format(sample_id, library_id))
+            filenames.append('{}_{}_destruct_library.csv.gz.yaml'.format(sample_id, library_id))
             filenames.append('{}_{}_cell_counts_destruct.csv'.format(sample_id, library_id))
+            filenames.append('{}_{}_cell_counts_destruct.csv.gz'.format(sample_id, library_id))
+            filenames.append('{}_{}_cell_counts_destruct.csv.gz.yaml'.format(sample_id, library_id))
+            filenames.append('{}_{}_lumpy_breakpoints.bed'.format(sample_id, library_id))
+            filenames.append('{}_{}_lumpy_breakpoints.csv.gz'.format(sample_id, library_id))
+            filenames.append('{}_{}_lumpy_breakpoints_evidence.csv.gz'.format(sample_id, library_id))
 
             for snv_caller in ('museq', 'strelka_snv', 'strelka_indel'):
                 filenames.append('{}_{}_{}.vcf.gz'.format(sample_id, library_id, snv_caller))
@@ -1111,10 +947,11 @@ class PseudoBulkAnalysis(Analysis):
 
     def run_pipeline(self, results_dir, pipeline_dir, scpipeline_dir, tmp_dir, inputs_yaml, config):
         dirs = [
-            pipeline_dir, 
+            pipeline_dir,
             config['docker_path'],
             config['docker_sock_path'],
-        ]
+            config['refdata_path'],
+	]
 
         # Pass all server storages to docker
         for storage_name in self.storages.values():
@@ -1172,9 +1009,10 @@ class PseudoBulkAnalysis(Analysis):
             run_cmd += ['--interactive']
 
         run_cmd += [
-            '--call_variants', 
-            '--call_haps', 
-            '--call_destruct'
+            '--call_variants',
+            '--call_haps',
+            '--call_destruct',
+            '--call_lumpy'
         ]
 
         run_cmd_string = r' '.join(run_cmd)
@@ -1185,7 +1023,7 @@ class PseudoBulkAnalysis(Analysis):
 class TenXAnalysis(Analysis):
     """
     A class representing an TenX analysis in Tantalus.
-    """ 
+    """
     def __init__(self, jira, version, args, run_options, **kwargs):
         super(TenXAnalysis, self).__init__('tenx', jira, "v1.0.0", args, **kwargs)
         self.run_options = run_options
@@ -1208,7 +1046,7 @@ class TenXAnalysis(Analysis):
     def search_input_datasets(args):
 
         # Double check this
-        datasets = tantalus_api.list("sequence_dataset", 
+        datasets = tantalus_api.list("sequence_dataset",
             library__library_id=args["library_id"],
             dataset_type="FQ",
         )
@@ -1293,7 +1131,7 @@ class TenXAnalysis(Analysis):
         }
 
         reference_genome = reference_genome_map[reference_genome]
-        
+
         docker_cmd = [
             'docker', 'run', 
             '--mount type=bind,source={},target=/reference '.format(reference_dir),
@@ -1319,7 +1157,7 @@ class TenXAnalysis(Analysis):
         """
         tantalus_results = TenXResults(
             self,
-            self.storages['working_results'], 
+            self.storages['working_results'],
             update=update,
             skip_missing=skip_missing,
         )
@@ -1337,6 +1175,7 @@ class Results:
             storage_name,
             update=False,
             skip_missing=False,
+            analysis_type=None
         ):
         """
         Create a Results object in Tantalus.
@@ -1344,17 +1183,17 @@ class Results:
 
         self.tantalus_analysis = tantalus_analysis
         self.storage_name = storage_name
-        self.name = '{}_{}'.format(self.tantalus_analysis.jira, self.tantalus_analysis.analysis_type)
+        self.name = '{}_{}'.format(self.tantalus_analysis.jira, analysis_type)
         self.analysis = self.tantalus_analysis.get_id()
-        self.analysis_type = self.tantalus_analysis.analysis_type
+        self.analysis_type = analysis_type
         self.samples = self.tantalus_analysis.get_input_samples()
         self.libraries = self.tantalus_analysis.get_input_libraries()
         self.pipeline_version = self.tantalus_analysis.version
         self.last_updated = datetime.datetime.now().isoformat()
 
-        self.results = self.get_or_create_results(update=update, skip_missing=skip_missing)
+        self.results = self.get_or_create_results(update=update, skip_missing=skip_missing, analysis_type=self.analysis_type)
 
-    def get_or_create_results(self, update=False, skip_missing=False):
+    def get_or_create_results(self, update=False, skip_missing=False, analysis_type=None):
         log.info('Searching for existing results {}'.format(self.name))
 
         try:
@@ -1367,43 +1206,28 @@ class Results:
         except NotFoundError:
             results = None
 
-        self.file_resources = self.get_file_resources(update=update, skip_missing=skip_missing)
+        self.file_resources = self.get_file_resources(update=update, skip_missing=skip_missing, analysis_type=analysis_type)
+
+        data = {
+            'name':             self.name,
+            'results_type':     self.analysis_type,
+            'results_version':  self.pipeline_version,
+            'analysis':         self.analysis,
+            'file_resources':   self.file_resources,
+            'samples':          self.samples,
+            'libraries':        self.libraries,
+        }
 
         if results is not None:
-
-            updated = False
-
             log.info('Found existing results {}'.format(self.name))
+            if update:
+                log.info("Updating {} ".format(self.name))
+                tantalus_api.update('results', results["id"],**data)
 
-            if set(results['file_resources']) != set(self.file_resources):
-                if update:
-                    tantalus_api.update('results', id=results['id'], file_resources=self.file_resources)
-                    updated=True
-                    log.info('File resources for analysis {} have changed, previously {}, now {}'.format(
-                        self.name, results['file_resources'], self.file_resources))
-                else:
-                    log.warning('File resources for analysis {} have changed, previously {}, now {}'.format(
-                        self.name, results['file_resources'], self.file_resources))
+            results = tantalus_api.get("results", name=self.name)
 
-            if updated:
-                results = tantalus_api.get(
-                    'results', 
-                    name=self.name, 
-                    results_type=self.analysis_type, 
-                    analysis=self.analysis,
-                )
         else:
             log.info('Creating results {}'.format(self.name))
-
-            data = {
-                'name':             self.name,
-                'results_type':     self.analysis_type,
-                'results_version':  self.pipeline_version,
-                'analysis':         self.analysis,
-                'file_resources':   self.file_resources,
-                'samples':          self.samples,
-                'libraries':        self.libraries,
-            }
 
             # TODO: created timestamp for results
             results = tantalus_api.create('results', **data)
@@ -1416,16 +1240,24 @@ class Results:
             tantalus_api.update('results', id=self.get_id(), **{field: field_value})
 
 
-    def get_file_resources(self, update=False, skip_missing=False):
+    def get_file_resources(self, update=False, skip_missing=False, analysis_type=None):
         """
         Create file resources for each results file and return their ids.
         """
         file_resource_ids = set()
 
         storage_client = tantalus_api.get_storage_client(self.storage_name)
-        results_filenames = self.tantalus_analysis.get_results_filenames()
 
-        for result_filename in results_filenames:  # Exclude metrics files
+        if analysis_type == "align":
+            results_filenames = self.tantalus_analysis.get_align_results_filenames()
+        elif analysis_type == "hmmcopy":
+            results_filenames = self.tantalus_analysis.get_hmmcopy_results_filenames()
+        elif analysis_type == "annotation":
+            results_filenames = self.tantalus_analysis.get_annotation_results_filenames()
+        else:
+            results_filenames = self.tantalus_analysis.get_results_filenames()
+
+        for result_filename in results_filenames:
             result_filepath = os.path.join(storage_client.prefix, result_filename)
 
             if not storage_client.exists(result_filename) and skip_missing:
@@ -1439,7 +1271,7 @@ class Results:
             )
 
             file_resource_ids.add(file_resource["id"])
-            
+
         return list(file_resource_ids)
 
     def get_id(self):
@@ -1453,7 +1285,7 @@ class TenXResults(Results):
     def __init__(
             self,
             tantalus_analysis,
-            storages, 
+            storages,
             update=False,
             skip_missing=False
         ):
@@ -1473,7 +1305,7 @@ class TenXResults(Results):
 
         self.results = self.get_or_create_results(update=update)
 
-    def get_file_resources(self, update=False, skip_missing=False):
+    def get_file_resources(self, update=False, skip_missing=False, analysis_type=None):
         """
         Create file resources for each results file and return their ids.
         """
@@ -1498,5 +1330,5 @@ class TenXResults(Results):
                     )
 
                     file_resource_ids.add(file_resource["id"])
-            
+
         return list(file_resource_ids)

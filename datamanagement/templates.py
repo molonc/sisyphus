@@ -72,6 +72,15 @@ SC_WGS_FQ_NAME_TEMPLATE = "-".join([
     "{lane}",
 ])
 
+SC_ANALYSIS_NAME_TEMPLATE = "_".join([
+    "sc",
+    "{analysis_type}",
+    "{aligner}",
+    "{ref_genome}",
+    "{library_id}",
+    "{lanes_hashed}"   
+])
+
 GSC_SCRNA_FASTQ_PATH_TEMPLATE = os.path.join(
     "/home/aldente/private/Projects/Sam_Aparicio/",
     "{gsc_library_name}",

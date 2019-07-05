@@ -49,12 +49,14 @@ def get_config_override(args):
     Args:
         args (dict)
     """
+
     config = {
         'cluster':              'azure',
         'aligner':              'bwa-mem',
         'reference':            'grch37',
         'smoothing_function':   'modal',
-        'containers':           {"mounts": ["/refdata", "/datadrive", "/mnt", "/home"]}
+        'containers':           {"mounts": ["/refdata", "/datadrive", "/mnt", "/home"]},
+        'disable_biobloom':     True,
     }
 
     cluster = 'azure'
@@ -62,6 +64,8 @@ def get_config_override(args):
     update_config(config, 'aligner', args["aligner"])
     update_config(config, 'reference', args["ref_genome"])
     update_config(config, 'smoothing_function', args["smoothing"])
+    update_config(config, 'disable_biobloom', not args["biobloom"])
+
     return config
 
 
@@ -80,19 +84,31 @@ def run_pipeline(
         tmp_dir,
         tantalus_analysis,
         args,
+        run_options,
         inputs_yaml,
         context_config_file,
         docker_env_file,
         max_jobs='400',
-        dirs=()):
+        dirs=(),
+        analysis_type=None):
 
     args = tantalus_analysis.args
     version = tantalus_analysis.version
     run_options = tantalus_analysis.run_options
     config_override_string = get_config_string(args)
-    
+
     run_cmd = [
-        'single_cell',          tantalus_analysis.analysis_type,
+        'single_cell qc',
+    ]
+
+    if analysis_type == "align":
+        analysis_type = "alignment"
+        run_cmd += ["--{}".format(analysis_type)]
+
+    elif analysis_type == "hmmcopy":
+        run_cmd += ["--hmmcopy"]
+
+    run_cmd += [
         '--input_yaml',         inputs_yaml,
         '--out_dir',            results_dir,
         '--library_id',         args['library_id'],
@@ -107,7 +123,6 @@ def run_pipeline(
 
     if not run_options['saltant']:
         run_cmd +=['--loglevel', 'DEBUG']
-
     if run_options['local_run']:
         run_cmd += ["--submit", "local"]
 
@@ -138,8 +153,7 @@ def run_pipeline(
 
     run_cmd = docker_cmd + run_cmd
 
-    has_classifier = StrictVersion(version.strip('v')) >= StrictVersion('0.1.5')
-    if (tantalus_analysis.analysis_type == 'hmmcopy') and (has_classifier):
+    if (tantalus_analysis.analysis_type == 'hmmcopy'):
         alignment_metrics = templates.ALIGNMENT_METRICS.format(
             results_dir=results_dir,
             library_id=args['library_id'],
