@@ -56,7 +56,7 @@ def get_pseudobulk_info(analysis):
         dataset = tantalus_api.get('sequencedataset', id=dataset_id)
         if dataset['sample']['sample_id'] == analysis['args']['matched_normal_sample']:
             continue
-        if dataset['sample']['library_id'] == analysis['args']['matched_normal_library']:
+        if dataset['library']['library_id'] == analysis['args']['matched_normal_library']:
             continue
         info['tumour_samples'].append({
             'sample_id': dataset['sample']['sample_id'],
