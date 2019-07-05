@@ -54,6 +54,10 @@ def get_pseudobulk_info(analysis):
     info['tumour_samples'] = []
     for dataset_id in analysis['input_datasets']:
         dataset = tantalus_api.get('sequencedataset', id=dataset_id)
+        if dataset['sample']['sample_id'] == analysis['args']['matched_normal_sample']:
+            continue
+        if dataset['sample']['library_id'] == analysis['args']['matched_normal_library']:
+            continue
         info['tumour_samples'].append({
             'sample_id': dataset['sample']['sample_id'],
             'library_id': dataset['library']['library_id'],
@@ -62,6 +66,9 @@ def get_pseudobulk_info(analysis):
 
 
 client = tantalus_api.get_storage_client('singlecellblob_results')
+
+
+update = True
 
 
 for results in tantalus_api.list('results'):
@@ -78,7 +85,7 @@ for results in tantalus_api.list('results'):
             manifest_filename = analysis_dir + 'manifest.yaml'
             manifest_filepath = tantalus_api.get_filepath('singlecellblob_results', manifest_filename)
 
-            if client.exists(manifest_filename):
+            if client.exists(manifest_filename) and not update:
                 logging.info(f'manifest {manifest_filename} exists')
                 continue
 
@@ -117,7 +124,13 @@ for results in tantalus_api.list('results'):
 
             client.write_data(manifest_filename, manifest_io)
 
-            tantalus_api.add_file('singlecellblob_results', manifest_filepath)
+            file_resource, file_instance = tantalus_api.add_file('singlecellblob_results', manifest_filepath, update=update)
+
+            new_file_resources = set(results['file_resources'])
+            new_file_resources.add(file_resource['id'])
+
+            tantalus_api.update('results', id=results['id'], file_resources=list(new_file_resources))
+
 
     except (ValueError, AssertionError, KeyError, dbclients.basicclient.FieldMismatchError):
         logging.exception(f'failed for {results["results_type"]}, {results["results_version"]}, {manifest_filename}')
