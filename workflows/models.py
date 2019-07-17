@@ -608,7 +608,7 @@ class QCAnalysis(AlignHmmcopyMixin, Analysis):
         input_info = self._generate_cell_metadata(self.storages['working_inputs'])
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
-            yaml.dump(input_info, inputs_yaml, default_flow_style=False)
+            yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
 
         self.check_inputs_yaml(inputs_yaml_filename)
 

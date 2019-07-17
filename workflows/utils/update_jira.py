@@ -9,38 +9,22 @@ colossus_api = ColossusApi()
 tantalus_api = TantalusApi()
 
 log = logging.getLogger('sisyphus')
-JIRA_USER = os.environ['JIRA_USER']
+JIRA_USER = os.environ['JIRA_USERNAME']
 JIRA_PASSWORD = os.environ['JIRA_PASSWORD']
 jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(JIRA_USER, JIRA_PASSWORD))
 
-def update_jira_dlp(jira_id, aligner, analysis_type):
+def update_jira_dlp(jira_id, aligner):
     logging.info("Updating description on {}".format(jira_id))
 
-    if analysis_type == "align":
-        description = [
-            '(/) Alignment with ' + aligner,
-            '(x) Hmmcopy',
-            '(/) Classifier',
-            '(x) MT bam extraction',
-            '(/) Path to results on blob:',
-            '{noformat}Container: singlecelldata\nresults/' + jira_id + '{noformat}',
-            '(x) Upload to Montage',
-        ]
+    description = [
+        '(/) Alignment with ' + aligner,
+        '(/) Hmmcopy',
+        '(/) Classifier',
+        '(/) Path to results on blob:',
+        '{noformat}Container: singlecelldata\nresults/' + jira_id + '{noformat}',
+    ]
 
-        update_description(jira_id, description, JIRA_USER)
-
-    elif analysis_type == "hmmcopy":
-        description = [
-            '(/) Alignment with ' + aligner,
-            '(/) Hmmcopy',
-            '(/) Classifier',
-            '(x) MT bam extraction',
-            '(/) Path to results on blob:',
-            '{noformat}Container: singlecelldata\nresults/' + jira_id + '{noformat}',
-            '(x) Upload to Montage',
-        ]
-
-        update_description(jira_id, description, "jbiele", remove_watcher=True)
+    update_description(jira_id, description, "jbiele", remove_watcher=True)
 
 
 

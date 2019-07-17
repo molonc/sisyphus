@@ -55,6 +55,7 @@ def attach_qc_report(jira, library_id, storages):
     )
 
     qc_filename = "{}_QC_report.html".format(library_id)
+    jira_qc_filename = "{}_{}_QC_report.html".format(library_id, jira)
 
     qc_report = list(tantalus_api.get_dataset_file_resources(
         results_dataset["id"],
@@ -64,7 +65,7 @@ def attach_qc_report(jira, library_id, storages):
 
     blobname = qc_report[0]["filename"]
     local_dir = os.path.join("qc_reports", jira)
-    local_path = os.path.join(local_dir, qc_filename)
+    local_path = os.path.join(local_dir, jira_qc_filename)
     if not os.path.exists(local_dir):
         os.makedirs(local_dir)
 
@@ -80,7 +81,6 @@ def attach_qc_report(jira, library_id, storages):
     library_ticket = analysis["library"]["jira_ticket"]
 
     log.info("Adding report to parent ticket of {}".format(jira))
-    jira_qc_filename = "{}_{}_QC_report.html".format(library_id, jira)
     add_attachment(library_ticket, local_path, jira_qc_filename)
 
 
@@ -129,7 +129,7 @@ def start_automation(
     tantalus_analysis.add_inputs_yaml(inputs_yaml, update=run_options['update'])
 
     try:
-        # tantalus_analysis.set_run_status()
+        tantalus_analysis.set_run_status()
 
         run_pipeline = tantalus_analysis.run_pipeline()
 
@@ -198,7 +198,7 @@ def start_automation(
 
     # Update Jira ticket
     if not run_options["is_test_run"]:
-        update_jira_dlp(jira, args['aligner'], analysis_type)
+        update_jira_dlp(jira, args['aligner'])
         attach_qc_report(jira, args["library_id"], storages)
 
 
@@ -309,6 +309,7 @@ def main(
     args['smoothing'] = run_options['smoothing']
     args['biobloom'] = biobloom
 
+    analysis_info.set_run_status()
     start_automation(
         jira,
         version,
@@ -323,6 +324,8 @@ def main(
         job_subdir,
         analysis_type,
     )
+
+    analysis_info.set_finish_status()
 
 
 if __name__ == '__main__':
