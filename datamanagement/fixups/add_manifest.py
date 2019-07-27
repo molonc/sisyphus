@@ -79,6 +79,10 @@ for results in tantalus_api.list('results'):
 
             analysis = tantalus_api.get('analysis', id=results['analysis'])
 
+            file_resources = tantalus_api.get_dataset_file_resources(
+                results['id'], 'resultsdataset')
+            filenames = [f['filename'] for f in file_resources]
+
             for template in analysis_dir_templates[results['results_type'], results['results_version']]:
                 analysis_dir = template.format(ticket_id=analysis['jira_ticket'])
 
@@ -101,10 +105,6 @@ for results in tantalus_api.list('results'):
             if client.exists(manifest_filename) and not update:
                 logging.info(f'manifest {manifest_filename} exists')
                 continue
-
-            file_resources = tantalus_api.get_dataset_file_resources(
-                results['id'], 'resultsdataset')
-            filenames = [f['filename'] for f in file_resources]
 
             manifest = {}
             if results['results_type'] in ('align', 'hmmcopy', 'annotation'):
