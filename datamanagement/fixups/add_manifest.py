@@ -140,6 +140,6 @@ for results in tantalus_api.list('results'):
 
 
     except (ValueError, AssertionError, KeyError, dbclients.basicclient.FieldMismatchError):
-        logging.exception(f'failed for {results["results_type"]}, {results["results_version"]}, {manifest_filename}')
+        logging.exception(f'failed for {results["results_type"]}, {results["results_version"]}')
 
 
