@@ -68,7 +68,7 @@ def get_pseudobulk_info(analysis):
 client = tantalus_api.get_storage_client('singlecellblob_results')
 
 
-update = True
+update = False
 
 
 for results in tantalus_api.list('results'):
@@ -95,7 +95,7 @@ for results in tantalus_api.list('results'):
 
             for filename in filenames:
                 if not filename.startswith(analysis_dir):
-                    logging.info(results['results_type'], results['results_version'])
+                    logging.info((results['results_type'], results['results_version'], analysis_dir))
                     logging.info(filenames[0])
                     raise
 
