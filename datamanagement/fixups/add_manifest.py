@@ -16,33 +16,33 @@ logger.setLevel(logging.ERROR)
 tantalus_api = dbclients.tantalus.TantalusApi()
 
 analysis_dir_templates = {
-    ('align', 'v0.2.10'): '{ticket_id}/results/results/alignment/',
-    ('align', 'v0.2.11'): '{ticket_id}/results/results/alignment/',
-    ('align', 'v0.2.13'): '{ticket_id}/results/results/alignment/',
-    ('align', 'v0.2.15'): '{ticket_id}/results/results/alignment/',
-    ('align', 'v0.2.19'): '{ticket_id}/results/results/alignment/',
-    ('align', 'v0.2.20'): '{ticket_id}/results/results/alignment/',
-    ('align', 'v0.2.7'): '{ticket_id}/results/results/alignment/',
-    ('align', 'v0.2.9'): '{ticket_id}/results/results/alignment/',
+    ('align', 'v0.2.10'): ('{ticket_id}/results/results/alignment/'),
+    ('align', 'v0.2.11'): ('{ticket_id}/results/results/alignment/'),
+    ('align', 'v0.2.13'): ('{ticket_id}/results/results/alignment/'),
+    ('align', 'v0.2.15'): ('{ticket_id}/results/results/alignment/'),
+    ('align', 'v0.2.19'): ('{ticket_id}/results/results/alignment/'),
+    ('align', 'v0.2.20'): ('{ticket_id}/results/results/alignment/'),
+    ('align', 'v0.2.7'): ('{ticket_id}/results/results/alignment/'),
+    ('align', 'v0.2.9'): ('{ticket_id}/results/results/alignment/'),
 
-    ('annotation', 'v0.2.25'): '{ticket_id}/results/results/QC/annotation/',
+    ('annotation', 'v0.2.25'): ('{ticket_id}/results/results/QC/annotation/', '{ticket_id}/results/QC/annotation/'),
 
-    ('hmmcopy', 'v0.0.0'): '{ticket_id}/results/results/hmmcopy_autoploidy/',
-    ('hmmcopy', 'v0.1.5'): '{ticket_id}/results/results/hmmcopy_autoploidy/',
-    ('hmmcopy', 'v0.2.10'): '{ticket_id}/results/results/hmmcopy_autoploidy/',
-    ('hmmcopy', 'v0.2.11'): '{ticket_id}/results/results/hmmcopy_autoploidy/',
-    ('hmmcopy', 'v0.2.15'): '{ticket_id}/results/results/hmmcopy_autoploidy/',
-    ('hmmcopy', 'v0.2.19'): '{ticket_id}/results/results/hmmcopy_autoploidy/',
-    ('hmmcopy', 'v0.2.20'): '{ticket_id}/results/results/hmmcopy_autoploidy/',
-    ('hmmcopy', 'v0.2.7'): '{ticket_id}/results/results/hmmcopy_autoploidy/',
-    ('hmmcopy', 'v0.2.9'): '{ticket_id}/results/results/hmmcopy_autoploidy/',
+    ('hmmcopy', 'v0.0.0'): ('{ticket_id}/results/results/hmmcopy_autoploidy/'),
+    ('hmmcopy', 'v0.1.5'): ('{ticket_id}/results/results/hmmcopy_autoploidy/'),
+    ('hmmcopy', 'v0.2.10'): ('{ticket_id}/results/results/hmmcopy_autoploidy/'),
+    ('hmmcopy', 'v0.2.11'): ('{ticket_id}/results/results/hmmcopy_autoploidy/'),
+    ('hmmcopy', 'v0.2.15'): ('{ticket_id}/results/results/hmmcopy_autoploidy/'),
+    ('hmmcopy', 'v0.2.19'): ('{ticket_id}/results/results/hmmcopy_autoploidy/'),
+    ('hmmcopy', 'v0.2.20'): ('{ticket_id}/results/results/hmmcopy_autoploidy/'),
+    ('hmmcopy', 'v0.2.7'): ('{ticket_id}/results/results/hmmcopy_autoploidy/'),
+    ('hmmcopy', 'v0.2.9'): ('{ticket_id}/results/results/hmmcopy_autoploidy/'),
 
-    ('pseudobulk', 'v0.2.11'): '{ticket_id}/results/',
-    ('pseudobulk', 'v0.2.12'): '{ticket_id}/results/',
-    ('pseudobulk', 'v0.2.13'): '{ticket_id}/results/',
-    ('pseudobulk', 'v0.2.15'): '{ticket_id}/results/',
-    ('pseudobulk', 'v0.2.20'): '{ticket_id}/results/',
-    ('pseudobulk', 'v0.2.25'): '{ticket_id}/results/',
+    ('pseudobulk', 'v0.2.11'): ('{ticket_id}/results/'),
+    ('pseudobulk', 'v0.2.12'): ('{ticket_id}/results/'),
+    ('pseudobulk', 'v0.2.13'): ('{ticket_id}/results/'),
+    ('pseudobulk', 'v0.2.15'): ('{ticket_id}/results/'),
+    ('pseudobulk', 'v0.2.20'): ('{ticket_id}/results/'),
+    ('pseudobulk', 'v0.2.25'): ('{ticket_id}/results/'),
 }
 
 
@@ -79,8 +79,21 @@ for results in tantalus_api.list('results'):
 
             analysis = tantalus_api.get('analysis', id=results['analysis'])
 
-            analysis_dir = analysis_dir_templates[results['results_type'], results['results_version']].format(
-                ticket_id=analysis['jira_ticket'])
+            for template in analysis_dir_templates[results['results_type'], results['results_version']]:
+                analysis_dir = template.format(ticket_id=analysis['jira_ticket'])
+
+                startswith_check = True
+                for filename in filenames:
+                    if not filename.startswith(analysis_dir):
+                        logging.info((results['results_type'], results['results_version'], analysis_dir))
+                        logging.warning(f'filename {filename} doesnt start with {analysis_dir}')
+                        startswith_check = False
+
+                if startswith_check:
+                    break
+
+            if not startswith_check:
+                raise ValueError(f'no suitable analysis dir templates')
 
             manifest_filename = analysis_dir + 'manifest.yaml'
             manifest_filepath = tantalus_api.get_filepath('singlecellblob_results', manifest_filename)
@@ -92,12 +105,6 @@ for results in tantalus_api.list('results'):
             file_resources = tantalus_api.get_dataset_file_resources(
                 results['id'], 'resultsdataset')
             filenames = [f['filename'] for f in file_resources]
-
-            for filename in filenames:
-                if not filename.startswith(analysis_dir):
-                    logging.info((results['results_type'], results['results_version'], analysis_dir))
-                    logging.info(filenames[0])
-                    raise
 
             manifest = {}
             if results['results_type'] in ('align', 'hmmcopy', 'annotation'):
