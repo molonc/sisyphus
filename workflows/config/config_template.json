@@ -4,8 +4,8 @@
     "storages": {
         "local_results": "jphamvm", 
         "working_inputs": "singlecellblob", 
-        "working_results": "singlecellblob_results",
-        "remote_results": "singlecellblob_results", 
+        "working_results": "singlecellresults",
+        "remote_results": "singlecellresults", 
         "remote_inputs": "singlecellblob"
     },
     "context_config_file": {

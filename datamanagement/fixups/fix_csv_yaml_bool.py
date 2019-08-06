@@ -13,7 +13,7 @@ from datamanagement.utils.constants import LOGGING_FORMAT
 from dbclients.tantalus import TantalusApi
 from dbclients.tantalus import BlobStorageClient
 
-remote_storage_name = "singlecellblob_results"
+remote_storage_name = "singlecellresults"
 PATTERN = ".csv.gz.yaml"
 
 

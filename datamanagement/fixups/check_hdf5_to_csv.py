@@ -27,7 +27,7 @@ from datamanagement.miscellaneous.hdf5helper import convert_python2_hdf5_to_csv
 from dbclients.basicclient import NotFoundError
 
 
-remote_storage_name = "singlecellblob_results"
+remote_storage_name = "singlecellresults"
 
 
 @click.command()

@@ -29,7 +29,7 @@ from dbclients.basicclient import NotFoundError
 logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 
 
-remote_storage_name = "singlecellblob_results"
+remote_storage_name = "singlecellresults"
 
 
 h5_key_name_map = {
