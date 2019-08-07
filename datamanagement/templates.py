@@ -50,6 +50,7 @@ LANE_BAM_PATH_TEMPLATE = {
 }
 
 MULTIPLEXED_LANE_BAM_PATH_TEMPLATE = {
+    "FFPE_WGS": "{data_path}/{flowcell_id}_{lane_number}_{adapter_index_sequence}.bam",
     "WGS": "{data_path}/{flowcell_id}_{lane_number}_{adapter_index_sequence}.bam",
     "RNASEQ": "{data_path}/{flowcell_id}_{lane_number}_{adapter_index_sequence}_withJunctionsOnGenome_dupsFlagged.bam",
 }

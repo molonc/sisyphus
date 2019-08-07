@@ -2,7 +2,7 @@
 
 
 # Logging stuff
-LOGGING_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+LOGGING_FORMAT = "%(asctime)s - %(levelname)s - %(lineno)d - %(message)s"
 
 REF_GENOME_MAP = {
     'HG18': [r'hg[-_ ]?18',                
