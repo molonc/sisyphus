@@ -1,0 +1,28 @@
+{
+    "_comment": "Use this config as an example. Create your own and save it as normal_config_tenx.json", 
+    "email": "jpham@bccrc.ca", 
+    "headnode_task_queue": "jphamvm",
+
+    "storages": {
+        "local_results": "jphamvm", 
+        "working_inputs": "scrna_fastq", 
+        "remote_inputs": "scrna_fastq",
+        "working_results": [
+            "scrna_cellrangerv3", 
+            "scrna_rdatav3", 
+            "scrna_rdatarawv3", 
+            "scrna_reports",
+            "scrna_bams"
+        ], 
+        "remote_results": [
+            "scrna_cellrangerv3", 
+            "scrna_rdatav3", 
+            "scrna_rdatarawv3", 
+            "scrna_reports",
+            "scrna_bams"
+        ]
+    },
+    
+    "docker_env_file": "/home/jpham/set_10x_credentials.sh", 
+    "user": "jpham"
+}

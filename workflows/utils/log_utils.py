@@ -10,6 +10,7 @@ import pytz
 import re
 import shutil
 import yaml
+import hashlib
 
 log = logging.getLogger('sisyphus')
 
@@ -110,7 +111,7 @@ def sync_call(name, args_list):
 
 
 def sentinel2(*args, **kwargs):
-    print args, kwargs
+    print(args, kwargs)
 
 def sentinel(filename, function, *args, **kwargs):
     """ Only executes if it hasn't been executed before.
@@ -130,12 +131,13 @@ def sentinel(filename, function, *args, **kwargs):
     sentinels_dir = os.path.join(working_directory, 'sentinels')
 
     if not os.path.exists(sentinels_dir):
-        os.mkdir(sentinels_dir)
+        os.makedirs(sentinels_dir)
 
     log.debug(filename)
 
     hash_args = yaml.dump(args) + yaml.dump(kwargs)
-    filename = spaces_to_underscores(filename) + '_' + str(hash(hash_args))
+    hash_args = hashlib.md5(hash_args.encode('utf-8')).hexdigest()[:8]
+    filename = spaces_to_underscores(filename) + '_' + hash_args
 
     # Append the calling function onto the filename.
     caller_name = inspect.stack()[1][3]
@@ -146,7 +148,7 @@ def sentinel(filename, function, *args, **kwargs):
     if interactive_mode:
         if os.path.isfile(filename):
             # If ever run in python 3, change this
-            text = raw_input("File {} already exists, would you like to rerun this step? (Type 'run' to rerun)".format(filename))
+            text = input("File {} already exists, would you like to rerun this step? (Type 'run' to rerun)".format(filename))
             if text == 'run' or text == 'yes' or text == 'y':
                 os.remove(filename)
 

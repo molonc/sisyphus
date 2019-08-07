@@ -8,58 +8,34 @@ import re
 import socket
 import subprocess
 import sys
+import click
+import paramiko
+import pwd
+
+from utils.qsub_job_submission import submit_qsub_job
+from utils.qsub_jobs import SpecToBamJob
+from datamanagement.utils.utils import parse_ref_genome, connect_to_client
 from dbclients.tantalus import TantalusApi
 from dbclients import basicclient
-import click
-from utils.constants import LOGGING_FORMAT
+
+from utils.constants import (LOGGING_FORMAT,
+                             REF_GENOME_REGEX_MAP,
+                             SHAHLAB_TANTALUS_SERVER_NAME,
+                             SHAHLAB_HOSTNAME,
+                             SHAHLAB_SPEC_TO_BAM_BINARY_PATH,
+                             HUMAN_REFERENCE_GENOMES_MAP,
+                             STORAGE_PREFIX_MAP,
+                             STORAGE_PREFIX_REGEX_MAP,
+                             DEFAULT_NATIVESPEC)
 
 
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
-
-# Useful Shahlab-specific variables
-SHAHLAB_TANTALUS_SERVER_NAME = 'shahlab'
-SHAHLAB_HOSTNAME = 'node0515'
-SHAHLAB_SPEC2BAM_BINARY_PATH = r'/gsc/software/linux-x86_64-centos6/spec-1.3.2/spec2bam'
-
-# This dictionary maps a (Tantalus) BamFile's reference genome field to
-# the path of the reference genome FASTA files on Shahlab. We only care
-# about the reference genomes that BamFile cares about (currently HG18
-# and HG19).
-HUMAN_REFERENCE_GENOMES_MAP = {
-    'hg18': r'/shahlab/pipelines/reference/gsc_hg18.fa',
-    'hg19': r'/shahlab/pipelines/reference/gsc_hg19a.fa',}
-
-# These are regular expressions for identifying which human reference
-# genome to use. See https://en.wikipedia.org/wiki/Reference_genome for
-# more details on the common standards and how they relate to each
-# other. All of these should be run with a case-insensitive regex
-# matcher.
-HUMAN_REFERENCE_GENOMES_REGEX_MAP = {
-    'hg18': [r'hg[-_ ]?18',                 # hg18
-             r'ncbi[-_ ]?build[-_ ]?36.1',  # NCBI-Build-36.1
-            ],
-    'hg19': [r'hg[-_ ]?19',                 # hg19
-             r'grc[-_ ]?h[-_ ]?37',         # grch37
-            ],}
-
-
-STORAGE_PREFIX_MAP = {
-    'shahlab': r'/shahlab/archive',
-    'gsc': r'/projects/analysis',
-    'singlecell_blob': r'singlecell/data',
-    'rocks': r'/share/lustre/archive'
-}
-
-STORAGE_PREFIX_REGEX_MAP = {
-    'shahlab': r'^/shahlab/archive/(.+)',
-    'gsc': r'^/projects/analysis/(.+)',
-    'singlecell_blob': r'^singlecell/data/(.+)',
-    'rocks': r'^/share/lustre/archive/(.+)'
-}
+tantalus_api = TantalusApi()  
 
 class BadReferenceGenomeError(Exception):
     pass
+
 
 class BadSpecStorageError(Exception):
     pass
@@ -74,8 +50,10 @@ def get_uncompressed_bam_path(spec_path):
 
 
 def spec_to_bam(spec_path,
-                raw_reference_genome,
-                output_bam_path):
+                reference_genome,
+                output_bam_path,
+                library,
+                sftp_client=None):
     """Decompresses a SpEC compressed BamFile.
     Registers the new uncompressed file in the database.
     Args:
@@ -93,77 +71,62 @@ def spec_to_bam(spec_path,
         A BadReferenceGenomeError if the raw_reference_genome can not be
         interpreted as either hg18 or hg19.
     """
-    # Find out what reference genome to use. Currently there are no
-    # standardized strings that we can expect, and for reference genomes
-    # there are multiple naming standards, so we need to be clever here.
-    logging.info("Parsing reference genome %s", raw_reference_genome)
-
-    found_match = False
-
-    for ref, regex_list in HUMAN_REFERENCE_GENOMES_REGEX_MAP.iteritems():
-        for regex in regex_list:
-            if re.search(regex, raw_reference_genome, flags=re.I):
-                # Found a match
-                reference_genome = ref
-                found_match = True
-                break
-
-        if found_match:
-            break
-    else:
-        # No match was found!
-        raise BadReferenceGenomeError(
-            raw_reference_genome
-            + ' is not a recognized or supported reference genome')
-
-    re_bam_path = r"(.+/).+\.bam$"
-    if re.match(re_bam_path, output_bam_path, re.IGNORECASE):
-        output_path = re.search(re_bam_path, output_bam_path, re.IGNORECASE).group(1)
-
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-
     # Convert the SpEC to a BAM
     logging.info("Converting {} to {}".format(spec_path, output_bam_path))
 
-    command = [SHAHLAB_SPEC2BAM_BINARY_PATH,
-               '--in',
-               spec_path,
-               '--ref',
-               HUMAN_REFERENCE_GENOMES_MAP[reference_genome],
-               '--out',
-               output_bam_path,
-              ]
-
-    subprocess.check_call(command)
-
-
-def get_filepaths(spec_path, to_storage_prefix):
-    found_match = False
-
-    for ref, regex in STORAGE_PREFIX_REGEX_MAP.iteritems():
-        if re.match(regex, spec_path, re.IGNORECASE):
-            filename = re.search(regex, spec_path, re.IGNORECASE).group(1)
-            found_match = True
-            break
-
-    if not found_match:
-        raise BadSpecStorageError(
-            'Can not find a matching storage for ' + spec_path)
+    # If an sftp client was passed in 
+    if sftp_client:
+        # Connect to thost via SSH client
+        local_spec_path = oytput_bam_path + ".spec"
+        cmd = [
+            "rsync",
+            "-avPL",
+            "thost:" + spec_path,
+            local_spec_path
+        ]
+        remote_file = sftp_client.stat(spec_path)
         
-    output_spec_path = os.path.join(to_storage_prefix, filename)
-    output_bam_path = get_uncompressed_bam_path(output_spec_path)
-    
-    return filename, output_bam_path
+        # Check if the file has been successfully transferred before
+        if not os.path.isfile(local_spec_path):
+            logging.info("Copying spec to {}".format(local_spec_path))
+            subprocess.check_call(cmd)
+        elif os.path.getsize(local_spec_path) != remote_file.st_size:
+            logging.info("Copying spec to {}".format(local_spec_file))
+            subprocess.check_call(cmd)
+        spec_path = local_spec_path
+        
+    # Create the job to perform the spec decompression
+    job = SpecToBamJob('10', spec_path, HUMAN_REFERENCE_GENOMES_MAP[reference_genome], output_bam_path, SHAHLAB_SPEC_TO_BAM_BINARY_PATH)
+
+    # Submit the job to the cluster and wait for it to finish
+    submit_qsub_job(job, DEFAULT_NATIVESPEC, title=library)
+
+    logging.info("Successfully created bam at {}".format(output_bam_path))
 
     
-def create_bam( spec_path, 
-                reference_genome, 
-                output_bam_path,
-                to_storage):
-    tantalus_api = TantalusApi()         
+def create_bam( 
+    spec_path, 
+    raw_reference_genome, 
+    output_bam_path,
+    to_storage,
+    library_id,
+    sftp_client=None
+):
+    """
+    Creates decompressed bam and bam index from the given spec file
+
+    Args:
+        spec_path:              (string) full path to the spec file
+        raw_reference_genome:   (string) reference genome used 
+        output_bam_path:        (string) destination path for the decompressed bam
+        to_storage:             (dict) name of the destination storage for the bam 
+        library:                (string) internal library ID the bam is associated with 
+        sftp_client:            (sftp object) the sftp client connected to the remote host
+    """ 
     output_bam_filename = output_bam_path[len(to_storage["prefix"]) + 1:] 
-
+    
+    # Check if a decompressed bam already exists in Tantalus 
+    # and get its file size
     try:
         file_resource = tantalus_api.get(
                 "file_resource",
@@ -176,19 +139,31 @@ def create_bam( spec_path,
     #Check if the file exists on the to_storage, and if it exists in Tantalus with the same size
     if os.path.isfile(output_bam_path):
         if os.path.getsize(output_bam_path) == file_size:
-            logging.warning("An uncompressed BAM file already exists at {}. Skipping decompression of spec file".format(output_bam_path))
+            logging.warning("An uncompressed BAM file already exists at {} Skipping decompression of spec file".format(output_bam_path))
             return False
 
-    try:
-        spec_to_bam(
-            spec_path=spec_path, 
-            raw_reference_genome=reference_genome,
-            output_bam_path=output_bam_path
-        )
-        created = True
-    except BadReferenceGenomeError as e:
-        logging.exception("Unrecognized reference genome")
+    # Find out what reference genome to use. Currently there are no
+    # standardized strings that we can expect, and for reference genomes
+    # there are multiple naming standards, so we need to be clever here.
+    logging.info("Parsing reference genome %s", raw_reference_genome)
+    
+    reference_genome = parse_ref_genome(raw_reference_genome)
 
+    # Make the destination directories if they don't exist
+    output_path, filename = os.path.split(output_bam_path)
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+
+    # Decompress the spec file
+    spec_to_bam(
+        spec_path=spec_path, 
+        reference_genome=reference_genome,
+        output_bam_path=output_bam_path,
+        library=library_id,
+        sftp_client=sftp_client
+    )
+
+    # Create the bam index
     logging.info("Creating bam index at {}".format(output_bam_path + '.bai'))
     cmd = [ 'samtools',
             'index',
@@ -196,23 +171,66 @@ def create_bam( spec_path,
     ]
     subprocess.check_call(cmd)
 
-    return created
+    logging.info("Successfully created bam index at {}".format(output_bam_path + ".bai"))
+
 
 @click.command()
 @click.argument("spec_path")
+@click.argument("output_bam_path")
+@click.argument("to_storage_name")
+@click.argument("library_id")
 @click.argument("reference_genome")
-@click.argument("to_storage")
-def main(spec_path, reference_genome, to_storage):
+@click.option("--from_gsc", is_flag=True)
+def main(**kwargs):
+    """
+    Decompresses spec file to bam at the specified location. Creates 
+    a new bam index for the bam, and adds both files to Tantalus
 
-    filename, output_bam_path = get_filepaths(spec_path, STORAGE_PREFIX_MAP[to_storage])
+    Args:
+        spec_path:          (string) full path to the spec file
+        output_bam_path:    (string) full path to the output bam
+        to_storage_name:    (string) name of the destination storage for the bam 
+        library_id:         (string) name of the library associated with the bam
+        reference_genome:   (string) reference genome used 
+        from_gsc:           (flag) a flag to specify whether the spec is from the GSC
+    """
+    # If the spec file is from the GSC, check if the script is being run on thost
+    hostname = socket.gethostname()
+    if kwargs["from_gsc"] and hostname != "txshah":
+        ssh_client = connect_to_client("10.9.208.161")       
+        sftp_client = ssh_client.open_sftp()
 
-    created = create_bam(
-                spec_path,
-                reference_genome,
-                output_bam_path,
-                to_storage)
+        try:
+            sftp_client.stat(kwargs["spec_path"])
+        except IOError:
+            raise Exception("The spec does not exist at {} -- skipping decompression".format(kwargs["spec_path"]))
 
+    else:
+        sftp_client = None
+        if not os.path.exists(kwargs["spec_path"]):
+            raise Exception("The spec does not exist at {} -- skipping decompression".format(kwargs["spec_path"]))
 
-if __name__ == '__main__':
-    # Run the script
+    # Create the tantalus storage object
+    try:
+        storage = tantalus_api.get_storage(kwargs["to_storage_name"])
+    except basicclient.NotFoundError:
+        raise Exception("Storage name {} not found on Tantalus. Please use a valid storage".format(kwargs["to_storage_name"]))
+
+    # Decompress the spec
+    create_bam(
+        spec_path=kwargs["spec_path"], 
+        raw_reference_genome=kwargs["reference_genome"], 
+        output_bam_path=kwargs["output_bam_path"],
+        to_storage=storage,
+        library_id=kwargs["library_id"],
+        sftp_client=sftp_client
+    )
+
+    bam_resource, bam_instance = tantalus_api.add_file(kwargs["to_storage_name"], kwargs["output_bam_path"], update=True)
+    logging.info("File resource with ID {} created for bam {}".format(bam_resource["id"], kwargs["output_bam_path"]))
+
+    bai_resource, bai_instance = tantalus_api.add_file(kwargs["to_storage_name"], kwargs["output_bam_path"] + ".bai", update=True)
+    logging.info("File resource with ID {} created for bai {}".format(bam_resource["id"], kwargs["output_bam_path"] + ".bai"))
+
+if __name__=='__main__':
     main()

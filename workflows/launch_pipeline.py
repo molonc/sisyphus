@@ -41,55 +41,74 @@ def update_config(config, key, value):
         return True
     return False
 
-def get_config_override(analysis_info):
+def get_config_override(args):
     """
     Get a dictionary of default configuration options that
     override existing single cell pipeline configuration options.
 
     Args:
-        analysis_info (AnalysisInformation)
+        args (dict)
     """
+
     config = {
         'cluster':              'azure',
         'aligner':              'bwa-mem',
         'reference':            'grch37',
         'smoothing_function':   'modal',
-        'containers':           {"mounts": ["/refdata", "/datadrive", "/mnt", "/home"]}
+        'containers':           {"mounts": ["/refdata", "/datadrive", "/mnt", "/home"]},
+        'disable_biobloom':     True,
     }
 
     cluster = 'azure'
     update_config(config, 'cluster', cluster)
-    update_config(config, 'aligner', analysis_info.aligner)
-    update_config(config, 'reference', analysis_info.reference_genome)
-    update_config(config, 'smoothing_function', analysis_info.smoothing)
+    update_config(config, 'aligner', args["aligner"])
+    update_config(config, 'reference', args["ref_genome"])
+    update_config(config, 'smoothing_function', args["smoothing"])
+    update_config(config, 'disable_biobloom', not args["biobloom"])
+
     return config
 
 
-def get_config_string(analysis_info):
-    config_string = json.dumps(get_config_override(analysis_info))
+def get_config_string(args):
+    config_string = json.dumps(get_config_override(args))
     config_string = ''.join(config_string.split())  # Remove all whitespace
     return r"'{}'".format(config_string)
 
 
 def run_pipeline2(*args, **kwargs):
-    print args, kwargs
+    print(args, kwargs)
 
 def run_pipeline(
         results_dir,
         scpipeline_dir,
         tmp_dir,
         tantalus_analysis,
-        analysis_info,
+        args,
+        run_options,
         inputs_yaml,
+        context_config_file,
         docker_env_file,
         max_jobs='400',
-        dirs=()):
+        dirs=(),
+        analysis_type=None):
 
     args = tantalus_analysis.args
-    config_override_string = get_config_string(analysis_info)
-    
+    version = tantalus_analysis.version
+    run_options = tantalus_analysis.run_options
+    config_override_string = get_config_string(args)
+
     run_cmd = [
-        'single_cell',          tantalus_analysis.analysis_type,
+        'single_cell qc',
+    ]
+
+    if analysis_type == "align":
+        analysis_type = "alignment"
+        run_cmd += ["--{}".format(analysis_type)]
+
+    elif analysis_type == "hmmcopy":
+        run_cmd += ["--hmmcopy"]
+
+    run_cmd += [
         '--input_yaml',         inputs_yaml,
         '--out_dir',            results_dir,
         '--library_id',         args['library_id'],
@@ -97,12 +116,14 @@ def run_pipeline(
         '--tmpdir',             tmp_dir,
         '--maxjobs',            str(max_jobs),
         '--nocleanup',
-        '--sentinal_only',
-        '--loglevel',           'DEBUG',
+        '--sentinel_only',
         '--pipelinedir',        scpipeline_dir,
+        '--context_config',     context_config_file,
     ]
 
-    if args['local_run']:
+    if not run_options['saltant']:
+        run_cmd +=['--loglevel', 'DEBUG']
+    if run_options['local_run']:
         run_cmd += ["--submit", "local"]
 
     else:
@@ -127,14 +148,12 @@ def run_pipeline(
         ])
 
     docker_cmd.append(
-        'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(args['version'])
+        'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(version)
     )
 
     run_cmd = docker_cmd + run_cmd
 
-
-    has_classifier = StrictVersion(args['version'].strip('v')) >= StrictVersion('0.1.5')
-    if (tantalus_analysis.analysis_type == 'hmmcopy') and (has_classifier):
+    if (tantalus_analysis.analysis_type == 'hmmcopy'):
         alignment_metrics = templates.ALIGNMENT_METRICS.format(
             results_dir=results_dir,
             library_id=args['library_id'],
@@ -143,9 +162,9 @@ def run_pipeline(
         log.info('Using alignment metrics file {}'.format(alignment_metrics))
         run_cmd += ['--alignment_metrics', alignment_metrics]
 
-    if args['sc_config'] is not None:
-        run_cmd += ['--config_file', args['sc_config']]
-    if args['interactive']:
+    if run_options['sc_config'] is not None:
+        run_cmd += ['--config_file', run_options['sc_config']]
+    if run_options['interactive']:
         run_cmd += ['--interactive']
 
     run_cmd_string = r' '.join(run_cmd)

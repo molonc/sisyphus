@@ -5,6 +5,7 @@ import collections
 
 from datamanagement.utils.utils import get_lanes_hash, get_lane_str
 import datamanagement.templates as templates
+from dbclients.colossus import ColossusApi
 from dbclients.basicclient import NotFoundError
 import logging
 
@@ -36,12 +37,61 @@ def fastq_paired_end_check(file_info):
 
         pair_check[fastq_id].add(info["read_end"])
 
-    for fastq_id, pair_info in pair_check.iteritems():
+    for fastq_id, pair_info in pair_check.items():
         for read_end in (1, 2):
             if read_end not in pair_info:
                 raise Exception(
                     "missing fastq file with end {} for {}".format(read_end, fastq_id)
                 )
+
+def query_colossus_dlp_cell_info(colossus_api, library_id):
+
+    sublibraries = colossus_api.get_colossus_sublibraries_from_library_id(library_id)
+
+    cell_samples = {}
+    for sublib in sublibraries:
+        index_sequence = sublib["primer_i7"] + "-" + sublib["primer_i5"]
+        cell_samples[index_sequence] = sublib["sample_id"]["sample_id"]
+
+    return cell_samples
+
+
+def fastq_dlp_index_check(file_info):
+    """ Check consistency between colossus indices and file indices. """
+
+    colossus_api = ColossusApi()
+
+    # Assumption: only 1 library per imported set of fastqs
+    dlp_library_ids = list(set([a['library_id'] for a in file_info]))
+    if len(dlp_library_ids) != 1:
+        raise ValueError('Expected 1 library_id, received {}'.format(dlp_library_ids))
+    dlp_library_id = dlp_library_ids[0]
+
+    cell_samples = query_colossus_dlp_cell_info(colossus_api, dlp_library_id)
+
+    cell_index_sequences = set(cell_samples.keys())
+
+    fastq_lane_index_sequences = collections.defaultdict(set)
+
+    # Check that all fastq files refer to indices known in colossus
+    for info in file_info:
+        if info['index_sequence'] not in cell_index_sequences:
+            raise Exception('fastq {} with index {}, flowcell {}, lane {} with index not in colossus'.format(
+                info['filepath'], info['index_sequence'], info['sequence_lanes'][0]['flowcell_id'],
+                info['sequence_lanes'][0]['lane_number']))
+        flowcell_lane = (
+            info['sequence_lanes'][0]['flowcell_id'],
+            info['sequence_lanes'][0]['lane_number'])
+        fastq_lane_index_sequences[flowcell_lane].add(info['index_sequence'])
+    log.info('all fastq files refer to indices known in colossus')
+
+    # Check that all index sequences in colossus have fastq files
+    for flowcell_lane in fastq_lane_index_sequences:
+        for index_sequence in cell_index_sequences:
+            if index_sequence not in fastq_lane_index_sequences[flowcell_lane]:
+                raise Exception('no fastq found for index sequence {}, flowcell {}, lane {}'.format(
+                    index_sequence, flowcell_lane[0], flowcell_lane[1]))
+    log.info('all indices in colossus have fastq files')
 
 
 def create_sequence_dataset_models(
@@ -78,7 +128,7 @@ def create_sequence_dataset_models(
 
     # Create datasets
     dataset_ids = set()
-    for dataset_name, infos in dataset_info.iteritems():
+    for dataset_name, infos in dataset_info.items():
         # Get library PK
         library = tantalus_api.get_or_create(
             "dna_library",

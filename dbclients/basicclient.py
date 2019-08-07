@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 import coreapi
 import json
-from coreapi.codecs import JSONCodec
+from coreapi.codecs import JSONCodec, TextCodec
 from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from openapi_codec import OpenAPICodec
 import requests
@@ -49,7 +49,7 @@ class BasicAPIClient(object):
                 username=username, password=password
             )
 
-        decoders = [OpenAPICodec(), JSONCodec()]
+        decoders = [OpenAPICodec(), JSONCodec(), TextCodec()]
 
         self.coreapi_client = coreapi.Client(auth=auth, decoders=decoders)
         self.coreapi_schema = self.coreapi_client.get(
@@ -123,7 +123,7 @@ class BasicAPIClient(object):
             )
 
             for result in list_results["results"]:
-                for field_name, field_value in fields.iteritems():
+                for field_name, field_value in fields.items():
                     # Currently no support for checking related model fields
                     if "__" in field_name:
                         continue
@@ -158,7 +158,7 @@ class BasicAPIClient(object):
 
                     # Response is a timestamp
                     try:
-                        if result[field_name] and isinstance(result[field_name], basestring):
+                        if result[field_name] and isinstance(result[field_name], str):
                             result_field = pd.Timestamp(result[field_name])
                             field_value = pd.Timestamp(field_value)
                     except (ValueError, TypeError):
@@ -227,7 +227,7 @@ class BasicAPIClient(object):
             raise Exception('failed with error: "{}", reason: "{}", data: "{}"'.format(
                 r.reason, r.text, payload))
 
-        return r.json()
+        return self.get(table_name, id=id)
 
     def delete(self, table_name, id=None):
         if id is None:

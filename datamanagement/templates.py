@@ -8,7 +8,7 @@ ALIGNMENT_METRICS = os.path.join(
 	'{results_dir}',
 	'results',
 	'alignment',
-	'{library_id}_alignment_metrics.h5'
+	'{library_id}_alignment_metrics.csv.gz'
 )
 
 SC_WGS_FQ_TEMPLATE = os.path.join(
@@ -71,4 +71,43 @@ SC_WGS_FQ_NAME_TEMPLATE = "-".join([
     "{library_type}",
     "{library_id}",
     "{lane}",
+])
+
+SC_ANALYSIS_NAME_TEMPLATE = "_".join([
+    "sc",
+    "{analysis_type}",
+    "{aligner}",
+    "{ref_genome}",
+    "{library_id}",
+    "{lanes_hashed}"   
+])
+
+GSC_SCRNA_FASTQ_PATH_TEMPLATE = os.path.join(
+    "/home/aldente/private/Projects/Sam_Aparicio/",
+    "{gsc_library_name}",
+    "AnalyzedData",
+    "{gsc_run_directory}",
+    "Solexa",
+    "Data",
+    "current",
+    "BaseCalls"
+)
+
+TENX_FASTQ_NAME_TEMPLATE = "_".join([
+    "{library_id}",
+    "{sample_id}",
+    "{fastq}",
+])
+
+TENX_FASTQ_BLOB_TEMPLATE = os.path.join(
+    "{library_id}",
+    "{fastq_name}"
+)
+
+TENX_SCRNA_DATASET_TEMPLATE = "-".join([
+    "{dataset_type}",
+    "{sample_id}",
+    "{library_type}",
+    "{library_id}",
+    "lanes_{lanes_hash}",
 ])
