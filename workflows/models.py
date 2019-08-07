@@ -573,7 +573,7 @@ class QCAnalysis(AlignHmmcopyMixin, Analysis):
 
             sample_id = row['sample_id']
             if self.run_options.get("is_test_run", False):
-               assert 'TEST' in sample_id
+                assert 'TEST' in sample_id
 
             input_info[str(row['cell_id'])] = {
                 'fastqs':       dict(lane_fastqs),
@@ -684,16 +684,19 @@ class QCAnalysis(AlignHmmcopyMixin, Analysis):
         results_prefix = os.path.join(
             self.run_options["job_subdir"],
             "results",
-            "results",
-            "QC",
             "alignment")
 
         filenames = [
             "{library_id}_plot_metrics.pdf",
             "{library_id}_alignment_metrics.csv.gz",
             "{library_id}_alignment_metrics.csv.gz.yaml",
+            "{library_id}_alignment_metrics.pdf",
+            "{library_id}_alignment_metrics.tar.gz",
+            "{library_id}_detailed_fastqscreen_metrics.csv.gz",
+            "{library_id}_detailed_fastqscreen_metrics.csv.gz.yaml",
             "{library_id}_gc_metrics.csv.gz",
             "{library_id}_gc_metrics.csv.gz.yaml",
+            "metadata.yaml"
         ]
 
         return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
@@ -702,19 +705,18 @@ class QCAnalysis(AlignHmmcopyMixin, Analysis):
         results_prefix = os.path.join(
             self.run_options["job_subdir"],
             "results",
-            "results",
-            "QC",
-            "hmmcopy_autoploidy")
+            "hmmcopy")
 
         filenames = [
             "{library_id}_bias.tar.gz",
             "{library_id}_heatmap_by_ec_filtered.pdf",
             "{library_id}_heatmap_by_ec.pdf",
+            "{library_id}_hmmcopy_data.tar.gz",
+            "{library_id}_hmmcopy_metrics.csv.gz",
+            "{library_id}_hmmcopy_metrics.csv.gz.yaml",
+            "{library_id}_hmmcopy_metrics.pdf",
             "{library_id}_igv_segments.seg",
             "{library_id}_kernel_density.pdf",
-            "{library_id}_metrics.csv.gz",
-            "{library_id}_metrics.csv.gz.yaml",
-            "{library_id}_metrics.pdf",
             "{library_id}_params.csv.gz",
             "{library_id}_params.csv.gz.yaml",
             "{library_id}_reads.csv.gz",
@@ -722,6 +724,7 @@ class QCAnalysis(AlignHmmcopyMixin, Analysis):
             "{library_id}_segments.csv.gz",
             "{library_id}_segments.csv.gz.yaml",
             "{library_id}_segs.tar.gz",
+            "metadata.yaml"
         ]
 
         return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
@@ -730,22 +733,15 @@ class QCAnalysis(AlignHmmcopyMixin, Analysis):
         results_prefix = os.path.join(
             self.run_options["job_subdir"],
             "results",
-            "results",
-            "QC",
             "annotation")
 
         filenames = [
-            "{library_id}_corrupt_tree_consensus.newick",
-            "{library_id}_corrupt_tree.newick",
-            "{library_id}_corrupt_tree.pdf",
-            "{library_id}_filtered_data.csv",
-            "{library_id}_kernel_density.pdf",
-            "{library_id}_metrics.csv.gz",
-            "{library_id}_metrics.csv.gz.yaml",
-            "{library_id}_metrics.pdf",
-            "{library_id}_phylo.csv",
+            "{library_id}_metrics.csv.gz", 
+            "{library_id}_metrics.csv.gz.yaml", 
+            "{library_id}_segs_fail.tar.gz", 
+            "{library_id}_segs_pass.tar.gz", 
             "{library_id}_QC_report.html",
-            "{library_id}_rank_loci_trees.csv",
+            "metadata.yaml"
         ]
 
         return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
@@ -951,7 +947,7 @@ class PseudoBulkAnalysis(Analysis):
             config['docker_path'],
             config['docker_sock_path'],
             config['refdata_path'],
-	]
+        ]
 
         # Pass all server storages to docker
         for storage_name in self.storages.values():
@@ -1133,11 +1129,11 @@ class TenXAnalysis(Analysis):
         reference_genome = reference_genome_map[reference_genome]
 
         docker_cmd = [
-            'docker', 'run', 
+            'docker', 'run',
             '--mount type=bind,source={},target=/reference '.format(reference_dir),
             '--mount type=bind,source={},target=/results '.format(results_dir),
             '--mount type=bind,source={},target=/data '.format(data_dir),
-            '--mount type=bind,source="{}",target=/runs '.format(runs_dir), 
+            '--mount type=bind,source="{}",target=/runs '.format(runs_dir),
             '-w="/runs"',
             '-t', 'nceglia/scrna-pipeline:devvm run_vm',
             '--sampleid', library_id,

@@ -97,7 +97,11 @@ def start_automation(
         storages,
         job_subdir,
         analysis_type,
+        alignment_output,
+        annotation_output,
+        hmmcopy_output,
 ):
+    start = time.time()
 
     tantalus_analysis = QCAnalysis(jira, version, args, run_options, storages=storages, update=run_options['update'])
 
@@ -161,8 +165,12 @@ def start_automation(
             inputs_yaml=inputs_yaml,
             context_config_file=context_config_file,
             docker_env_file=config['docker_env_file'],
+            docker_server=config['docker_server'],
             dirs=dirs,
             analysis_type=analysis_type,
+            alignment_output=alignment_output,
+            annotation_output=annotation_output,
+            hmmcopy_output=hmmcopy_output,
         )
     except Exception:
         tantalus_analysis.set_error_status()
@@ -200,6 +208,9 @@ def start_automation(
     if not run_options["is_test_run"]:
         update_jira_dlp(jira, args['aligner'])
         attach_qc_report(jira, args["library_id"], storages)
+    
+    log.info("Done!")
+    log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
@@ -214,7 +225,6 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.option('--gsc_lanes')
 @click.option('--brc_flowcell_ids')
 @click.option('--config_filename')
-@click.option('--biobloom', is_flag=True)
 @click.option('--skip_pipeline', is_flag=True)
 @click.option('--skip_missing', is_flag=True)
 @click.option('--local_run', is_flag=True)
@@ -240,7 +250,6 @@ def main(
         gsc_lanes=None,
         brc_flowcell_ids=None,
         config_filename=None,
-        biobloom=False,
         **run_options
 ):
     start = time.time()
@@ -278,11 +287,17 @@ def main(
         tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"],
         job_subdir)
 
-    results_dir = os.path.join('singlecelldata', 'results', job_subdir, 'results')
+    results_dir = os.path.join('singlecellresults', 'results', job_subdir)
 
-    scpipeline_dir = os.path.join('singlecelldata', 'pipeline', job_subdir)
+    scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', job_subdir)
 
-    tmp_dir = os.path.join('singlecelldata', 'temp', job_subdir)
+
+    tmp_dir = os.path.join('singlecelltemp', 'temp', job_subdir)
+
+    storage_result_prefix = tantalus_api.get_storage_client("singlecellresults").prefix
+    alignment_output = os.path.join(storage_result_prefix, jira, "results", "alignment")
+    annotation_output = os.path.join(storage_result_prefix, jira, "results", "annotation")
+    hmmcopy_output = os.path.join(storage_result_prefix, jira, "results", "hmmcopy")
 
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
 
@@ -307,7 +322,6 @@ def main(
     args['gsc_lanes'] = gsc_lanes
     args['brc_flowcell_ids'] = brc_flowcell_ids
     args['smoothing'] = run_options['smoothing']
-    args['biobloom'] = biobloom
 
     analysis_info.set_run_status()
     start_automation(
@@ -323,6 +337,9 @@ def main(
         config['storages'],
         job_subdir,
         analysis_type,
+        alignment_output,
+        annotation_output,
+        hmmcopy_output,
     )
 
     analysis_info.set_finish_status()

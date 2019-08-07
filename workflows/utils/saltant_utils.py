@@ -12,7 +12,7 @@ def get_client():
     global client
     if client is None:
         client = Client(
-            base_api_url=os.environ.get('SALTANT_API_URL', 'https://shahlabjobs.ca/api/'),
+            base_api_url=os.environ.get('SALTANT_API_URL', 'https://saltant.canadacentral.cloudapp.azure.com/api/'),
             auth_token=os.environ['SALTANT_API_TOKEN'],
         )
     return client
@@ -83,7 +83,7 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name,
 
     client = get_client()
     executable_task_instances = client.executable_task_instances
-    
+
     task_queue_id = get_task_queue_id(task_queue_name)
 
     params = {'name': name, 'user__username': user}
@@ -171,13 +171,28 @@ def transfer_files(jira, config, tag_name, from_storage, to_storage):
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 
 
+def run_qc(jira, version, library_id, aligner, config):
+    name = "{}_{}_{}_qc".format(jira, library_id, aligner)
+    queue_name = config['headnode_task_queue']
+
+    args = {
+        'jira':             jira,
+        'version':          version,
+        'library_id':       library_id,
+        'aligner':          aligner,
+    }
+
+    task_type_id = get_task_type_id("Run QC")
+    get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
+
+
 def run_align(jira, version, library_id, aligner, config):
     name = "{}_{}_{}_align".format(jira, library_id, aligner)
     queue_name = config['headnode_task_queue']
-    
+
     args = {
-        'jira':             jira, 
-        'version':          version, 
+        'jira':             jira,
+        'version':          version,
         'analysis_type':    'align',
         'library_id':       library_id,
         'aligner':          aligner,
@@ -192,8 +207,8 @@ def run_hmmcopy(jira, version, library_id, aligner, config):
     queue_name = config['headnode_task_queue']
 
     args = {
-        'jira':             jira, 
-        'version':          version, 
+        'jira':             jira,
+        'version':          version,
         'analysis_type':    'hmmcopy',
         'library_id':       library_id,
         'aligner':          aligner,
@@ -209,4 +224,3 @@ def test(name, config):
     task_type_id = get_task_type_id("Test task")
 
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
-
