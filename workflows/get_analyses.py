@@ -8,7 +8,7 @@ from jira import JIRA, JIRAError
 from datetime import datetime
 from collections import defaultdict
 
-import unanalyzed_data
+from workflows.unanalyzed_data import *
 
 import datamanagement.templates as templates
 
@@ -69,22 +69,19 @@ def get_analyses_to_run(version, aligner, check=False):
     Returns:
         analyses_tickets (list): List of JIRA tickets
     '''
-    unaligned_data_libraries = unanalyzed_data.search_for_unaligned_data("SC_WGS")
-    no_hmmcopy_data_libraries = unanalyzed_data.search_for_no_hmmcopy_data()
+    unanalyzed_data_libraries = search_for_unaligned_data("SC_WGS")
 
     analyses_tickets = dict(
-        align = dict(),
-        hmmcopy = dict(),
+        qc = dict()
     )
 
     if check:
-        log.info("Finding analyses to run only.")
-        log.info("Libraries with unaligned data: {}".format(unaligned_data_libraries))
-        log.info("Libraries with data with no hmmcopy: {}".format(no_hmmcopy_data_libraries))
+        log.info("*** Dry run ***")
+        log.info("Libraries with unanalyzed data: {}".format(unanalyzed_data_libraries))
 
     else:
-        log.info("Checking libraries with unaligned data")
-        for library_id in unaligned_data_libraries:
+        log.info("Checking libraries with unanalyzed data")
+        for library_id in unanalyzed_data_libraries:
             analysis_info = check_library_for_analysis(
                 library_id,
                 aligner,
@@ -94,15 +91,15 @@ def get_analyses_to_run(version, aligner, check=False):
 
             if analysis_info is not None:
                 jira_ticket = analysis_info['jira_ticket']
-                analyses_tickets['align'][jira_ticket] = library_id
+                analyses_tickets['qc'][jira_ticket] = library_id
 
                 tantalus_analysis = create_tantalus_analysis(
                     analysis_info['name'],
                     jira_ticket,
                     analysis_info['library_id'],
-                    'align',
+                    'qc',
                     version
-                )   
+                )
 
                 colossus_analysis = create_colossus_analysis(
                     analysis_info['library_id'],
@@ -111,45 +108,15 @@ def get_analyses_to_run(version, aligner, check=False):
                     aligner,
                 )
 
-        log.info("Checking libraries with no hmmcopy data")
-        for library_id in no_hmmcopy_data_libraries:
-            analysis_info = check_library_for_analysis(
-                library_id,
-                aligner,
-                'hmmcopy',
-                version
-            )
-
-            # Analysis info is none if library is excluded from analysis
-            if analysis_info is not None:
-                jira_ticket = analysis_info['jira_ticket']
-                analyses_tickets['hmmcopy'][jira_ticket] = library_id
-
-                tantalus_analysis = create_tantalus_analysis(
-                    analysis_info['name'],
-                    jira_ticket,
-                    analysis_info['library_id'],
-                    'hmmcopy',
-                    version
-                )   
-
-                colossus_analysis = create_colossus_analysis(
-                    analysis_info['library_id'],
-                    jira_ticket,
-                    version,
-                    aligner,
-                    )
-
     return analyses_tickets
 
 
-def search_input_datasets(library_id, analysis_type, aligner, reference_genome):
+def search_input_datasets(library_id, aligner, reference_genome):
     '''
     Search for input datasets
 
     Args:
         library_id (str)
-        analysis_type (str): align or hmmcopy
         aligner (str): Either BWA_ALN_0_5_7 or BWA_MEM_0_7_6A (as 03/01/2019)
         reference_genome (str): Either HG19 or MM10 (as 03/01/2019)
 
@@ -157,29 +124,18 @@ def search_input_datasets(library_id, analysis_type, aligner, reference_genome):
         dataset_ids (list)
 
     '''
-
-    if analysis_type == "align":
-        datasets = tantalus_api.list(
-            'sequencedataset',
-            library__library_id=library_id,
-            dataset_type='FQ',
-        )
-
-    elif analysis_type == "hmmcopy":
-        datasets = tantalus_api.list(
-            'sequencedataset',
-            library__library_id=library_id,
-            dataset_type='BAM',
-            aligner__name=aligner,
-            reference_genome__name=reference_genome,
-        )
+    datasets = tantalus_api.list(
+        'sequencedataset',
+        library__library_id=library_id,
+        dataset_type='FQ',
+    )
 
     dataset_ids = set([dataset["id"] for dataset in datasets])
 
     return list(dataset_ids)
 
 
-def check_library_for_analysis(library_id, aligner, analysis_type, version):
+def check_library_for_analysis(library_id, aligner, version):
     '''
     Given a library, check if library is included in analysis and has all data imported.
     If so, check for existing analysis. Otherwise create analysis jira ticket.
@@ -187,7 +143,7 @@ def check_library_for_analysis(library_id, aligner, analysis_type, version):
     Args:
         library_id (str): Library/pool id
         aligner (str): Either BWA_ALN_0_5_7 or BWA_MEM_0_7_6A (as 03/01/2019)
-        analysis_type (str): Either align or hmmcopy (as 03/01/2019)
+        version (str): Version of scpipeline
     '''
 
     log.info("Checking library {}".format(library_id))
@@ -212,7 +168,7 @@ def check_library_for_analysis(library_id, aligner, analysis_type, version):
     reference_genome = taxonomy_id_map[taxonomy_id]
     aligner = aligner_map[aligner]
 
-    input_datasets = search_input_datasets(library_id, analysis_type, aligner, reference_genome)
+    input_datasets = search_input_datasets(library_id, aligner, reference_genome)
     lanes = set()
     for input_dataset in input_datasets:
         dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
@@ -221,34 +177,19 @@ def check_library_for_analysis(library_id, aligner, analysis_type, version):
             lanes.add(lane)
 
     lanes = ", ".join(sorted(lanes))
-    lanes = hashlib.md5(lanes)
+    lanes = hashlib.md5(lanes.encode('utf-8'))
     lanes_hashed = "{}".format(lanes.hexdigest()[:8])
 
-    align_analysis_name = "sc_align_{}_{}_{}_{}".format(
-        aligner,
-        reference_genome,
-        library_id,
-        lanes_hashed,
-    )
-    analysis_name = align_analysis_name
-
-    if analysis_type == "hmmcopy":
-        hmmcopy_analysis_name = "sc_hmmcopy_{}_{}_{}_{}".format(
-            aligner,
-            reference_genome,
-            library_id,
-            lanes_hashed,
+    analysis_name = templates.SC_ANALYSIS_NAME_TEMPLATE.format(
+            analysis_type="qc",
+            aligner=aligner,
+            ref_genome=reference_genome,
+            library_id=library_id,
+            lanes_hashed=lanes_hashed,
         )
-        analysis_name = hmmcopy_analysis_name
-    else:
-        hmmcopy_analysis_name = None
-
     try:
-        jira_ticket = find_analysis(
-            align_analysis_name,
-            hmmcopy_analysis_name=hmmcopy_analysis_name
-        )
-
+        qc_analysis = tantalus_api.get("analysis", name=analysis_name)
+        jira_ticket = qc_analysis["jira_ticket"]
         log.info("Analysis ticket {} already exists for {};".format(
                 jira_ticket,
                 library_id,
@@ -263,7 +204,7 @@ def check_library_for_analysis(library_id, aligner, analysis_type, version):
         )
 
     except NotFoundError:
-        log.info("JIRA ticket needs to be created for {} analysis".format(analysis_type))
+        log.info("JIRA ticket needs to be created for qc analysis")
         jira_ticket = create_analysis_jira_ticket(library_id)
         analysis_info = dict(
             name = analysis_name,
@@ -274,36 +215,6 @@ def check_library_for_analysis(library_id, aligner, analysis_type, version):
 
 
     return analysis_info
-
-
-def find_analysis(align_analysis_name, hmmcopy_analysis_name=None):
-    '''
-    Searches tantalus for existing analyses.
-
-    Args:
-        align_analysis_name (str): Name of align analysis
-        hmmcopy_analysis_name (str): Name of hmmcopy analysis; default None
-
-    Returns:
-        jira_ticket (str): jira ticket id
-    '''
-
-    try:
-        # hmmcopy analysis name will only be None if analysis type is align
-        if hmmcopy_analysis_name is not None:
-            try:
-                analysis = tantalus_api.get('analysis', name=hmmcopy_analysis_name)
-                jira_ticket = analysis['jira_ticket']
-            except NotFoundError:
-                analysis = tantalus_api.get('analysis', name=align_analysis_name)
-                jira_ticket = analysis['jira_ticket']
-        else:
-            analysis = tantalus_api.get('analysis', name=align_analysis_name)
-            jira_ticket = analysis['jira_ticket']
-    except:
-        raise NotFoundError
-
-    return jira_ticket
 
 
 def create_analysis_jira_ticket(library_id):
@@ -317,7 +228,7 @@ def create_analysis_jira_ticket(library_id):
         analysis_jira_ticket: jira ticket id (ex. SC-1234)
     '''
 
-    JIRA_USER = os.environ['JIRA_USER']
+    JIRA_USER = os.environ['JIRA_USERNAME']
     JIRA_PASSWORD = os.environ['JIRA_PASSWORD']
     jira_api = JIRA('https://www.bcgsc.ca/jira/',
         basic_auth=(JIRA_USER, JIRA_PASSWORD)
@@ -337,7 +248,7 @@ def create_analysis_jira_ticket(library_id):
     # Jira ticket must include spaces
     sub_task = {
         'project': {'key': 'SC'},
-        'summary': 'Analysis of LIB _ {} _ {}'.format(sample_id, library_id),
+        'summary': 'Analysis of {} - {}'.format(sample_id, library_id),
         'issuetype' : { 'name' : 'Sub-task' },
         'parent': {'id': issue.key}
     }
@@ -374,13 +285,13 @@ def create_tantalus_analysis(name, jira_ticket, library_id, analysis_type, versi
             sc_<analysis_type>_<aligner>_<ref_genome>_<library_id>_<hashed_lanes>
         jira_ticket (str): Jira ticket id (ex. SC-1234)
         version (str): Version of pipeline
-        analysis_type (str): Either align or hmmcopy (as of 03/01/2019)
+        analysis_type (str)
 
     Returns:
         analysis_id (int): pk of analysis object on Tantalus
     '''
 
-    try: 
+    try:
         analysis = tantalus_api.get('analysis', name=name)
 
     except NotFoundError:
@@ -406,7 +317,7 @@ def create_tantalus_analysis(name, jira_ticket, library_id, analysis_type, versi
         analysis = tantalus_api.create('analysis', **data)
 
         log.info('Created analysis {} on tantalus'.format(analysis['id']))
-    
+
     analysis_id = analysis['id']
 
     return analysis_id
@@ -451,11 +362,10 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner):
             reference_genome=ref_genome_key,
             aligner=aligner,
             analysis_jira_ticket=jira_ticket,
+            lanes=lanes
         )
 
         # FIXME: Find out why lanes can't be added using create
-        colossus_api.update('analysis_information', analysis['id'], lanes=lanes)
-
         analysis_run = colossus_api.create('analysis_run',
             run_status='idle',
             dlpanalysisinformation=analysis['id'],
@@ -486,40 +396,22 @@ def run_screens(analyses_to_run):
     run_file = os.path.join(os.environ.get("HEADNODE_AUTOMATION_DIR"), "workflows", "run.py")
 
     # FIXME: Find out how to pass command to screen to create new windows
-    # Right now a screen is being created for each analysis -- needs cleanup 
-    for align_analysis in analyses_to_run['align']:
-        log.info("Running align for {}".format(align_analysis))
-        analysis_type = "align"
-        analysis_screen = screenutils.Screen(align_analysis, initialize=True)
-        stdout_file = "logs/{}_{}.out".format(align_analysis, analysis_type)
-        stderr_file = "logs/{}_{}.err".format(align_analysis, analysis_type)
+    # Right now a screen is being created for each analysis -- needs cleanup
+
+    for qc_analysis in analyses_to_run['qc']:
+        log.info("Running align for {}".format(qc_analysis))
+        analysis_type = "qc"
+        analysis_screen = screenutils.Screen(qc_analysis, initialize=True)
+        stdout_file = "logs/{}_{}.out".format(qc_analysis, analysis_type)
+        stderr_file = "logs/{}_{}.err".format(qc_analysis, analysis_type)
 
         cmd_str = "{} {} {} {} {} --update > {} 2> {}".format(
-            python_cmd, 
-            run_file, 
-            align_analysis, 
-            version, 
-            analysis_type, 
-            stdout_file, 
-            stderr_file
-        )
-        
-        analysis_screen.send_commands(cmd_str)
-
-    for hmmcopy_analysis in analyses_to_run['hmmcopy']:
-        log.info("Running hmmcopy for {}".format(hmmcopy_analysis))
-        analysis_type = "hmmcopy"
-        analysis_screen = screenutils.Screen(hmmcopy_analysis)
-        stdout_file = "logs/{}_{}.out".format(hmmcopy_analysis, analysis_type)
-        stderr_file = "logs/{}_{}.err".format(hmmcopy_analysis, analysis_type)
-
-        cmd_str = "{} {} {} {} {} --update > {} 2> {}".format(
-            python_cmd, 
-            run_file, 
-            hmmcopy_analysis, 
-            version, 
-            analysis_type, 
-            stdout_file, 
+            python_cmd,
+            run_file,
+            qc_analysis,
+            version,
+            analysis_type,
+            stdout_file,
             stderr_file
         )
 
@@ -527,7 +419,7 @@ def run_screens(analyses_to_run):
 
 
 def check_running_analysis(jira_ticket, analysis_type):
-    ''' 
+    '''
     Given a jira ticket, check if analysis is already running
 
     Args:
@@ -562,8 +454,8 @@ def main(version, aligner, check=False, screen=False, skip=None):
 
     log.info('version: {}, aligner: {}'.format(version, aligner))
 
-    analyses_to_run = get_analyses_to_run(version, aligner, check=check) 
-    
+    analyses_to_run = get_analyses_to_run(version, aligner, check=check)
+
     log.info("Analyses to run {}".format(analyses_to_run))
 
     for skip_analysis in skip:
@@ -571,11 +463,8 @@ def main(version, aligner, check=False, screen=False, skip=None):
             raise Exception('Invalid Jira ticket to be skipped: {}'.format(skip_analysis))
 
         log.info("Skipping analysis on {}".format(skip_analysis))
-        if skip_analysis in analyses_to_run['align'].keys():
-            del analyses_to_run['align'][skip_analysis]
-        if skip_analysis in analyses_to_run['hmmcopy'].keys():
-            del analyses_to_run['hmmcopy'][skip_analysis]
-
+        if skip_analysis in analyses_to_run['qc'].keys():
+            del analyses_to_run['qc'][skip_analysis]
 
     # If saltant is down, run analysis in screens
     if screen:
@@ -583,17 +472,12 @@ def main(version, aligner, check=False, screen=False, skip=None):
         run_screens(analyses_to_run)
 
     else:
-        for align_analysis in analyses_to_run['align'].keys():
-            if not check_running_analysis(align_analysis, "align"):
-                library_id = analyses_to_run['align'][align_analysis]
-                log.info("Running align for {}".format(align_analysis))
-                saltant_utils.run_align(align_analysis, version, library_id, aligner, config)
+        for qc_analysis in analyses_to_run['qc'].keys():
+            if not check_running_analysis(qc_analysis, "qc"):
+                library_id = analyses_to_run['qc'][qc_analysis]
+                log.info("Running qc for {}".format(qc_analysis))
+                # saltant_utils.run_qc(align_analysis, version, library_id, aligner, config)
 
-        for hmmcopy_analysis in analyses_to_run['hmmcopy'].keys():
-            if not check_running_analysis(hmmcopy_analysis, "hmmcopy"):
-                library_id = analyses_to_run['hmmcopy'][hmmcopy_analysis]
-                log.info("Running hmmcopy for {}".format(hmmcopy_analysis))
-                saltant_utils.run_hmmcopy(hmmcopy_analysis, version, library_id, aligner, config)
 
 if __name__ == '__main__':
     main()

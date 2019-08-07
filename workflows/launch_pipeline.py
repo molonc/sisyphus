@@ -11,6 +11,7 @@ import datamanagement.templates as templates
 
 log = logging.getLogger('sisyphus')
 
+
 def update_config(config, key, value):
     """
     Update a field in the configuration.
@@ -21,8 +22,8 @@ def update_config(config, key, value):
         value (str)
     """
     aligner_map = {
-        'BWA_ALN_0_5_7':    'bwa-aln',
-        'BWA_MEM_0_7_6A':   'bwa-mem',
+        'BWA_ALN_0_5_7': 'bwa-aln',
+        'BWA_MEM_0_7_6A': 'bwa-mem',
     }
 
     reference_genome_map = {
@@ -41,6 +42,7 @@ def update_config(config, key, value):
         return True
     return False
 
+
 def get_config_override(args):
     """
     Get a dictionary of default configuration options that
@@ -51,12 +53,10 @@ def get_config_override(args):
     """
 
     config = {
-        'cluster':              'azure',
-        'aligner':              'bwa-mem',
-        'reference':            'grch37',
-        'smoothing_function':   'modal',
-        'containers':           {"mounts": ["/refdata", "/datadrive", "/mnt", "/home"]},
-        'disable_biobloom':     True,
+        'cluster': 'azure',
+        'aligner': 'bwa-mem',
+        'reference': 'grch37',
+        'smoothing_function': 'modal',
     }
 
     cluster = 'azure'
@@ -64,33 +64,38 @@ def get_config_override(args):
     update_config(config, 'aligner', args["aligner"])
     update_config(config, 'reference', args["ref_genome"])
     update_config(config, 'smoothing_function', args["smoothing"])
-    update_config(config, 'disable_biobloom', not args["biobloom"])
 
     return config
 
 
 def get_config_string(args):
     config_string = json.dumps(get_config_override(args))
-    config_string = ''.join(config_string.split())  # Remove all whitespace
+    config_string = ''.join(config_string.split()) # Remove all whitespace
     return r"'{}'".format(config_string)
 
 
 def run_pipeline2(*args, **kwargs):
     print(args, kwargs)
 
+
 def run_pipeline(
-        results_dir,
-        scpipeline_dir,
-        tmp_dir,
-        tantalus_analysis,
-        args,
-        run_options,
-        inputs_yaml,
-        context_config_file,
-        docker_env_file,
-        max_jobs='400',
-        dirs=(),
-        analysis_type=None):
+    results_dir,
+    scpipeline_dir,
+    tmp_dir,
+    tantalus_analysis,
+    args,
+    run_options,
+    inputs_yaml,
+    context_config_file,
+    docker_env_file,
+    docker_server,
+    alignment_output,
+    annotation_output,
+    hmmcopy_output,
+    max_jobs='400',
+    dirs=(),
+    analysis_type=None
+    ):
 
     args = tantalus_analysis.args
     version = tantalus_analysis.version
@@ -109,47 +114,67 @@ def run_pipeline(
         run_cmd += ["--hmmcopy"]
 
     run_cmd += [
-        '--input_yaml',         inputs_yaml,
-        '--out_dir',            results_dir,
-        '--library_id',         args['library_id'],
-        '--config_override',    config_override_string,
-        '--tmpdir',             tmp_dir,
-        '--maxjobs',            str(max_jobs),
+        '--input_yaml',
+        inputs_yaml,
+        '--alignment_output',
+        alignment_output,
+        '--annotation_output',
+        annotation_output, 
+        '--hmmcopy_output', 
+        hmmcopy_output,
+        '--library_id',
+        args['library_id'],
+        '--config_override',
+        config_override_string,
+        '--tmpdir',
+        tmp_dir,
+        '--maxjobs',
+        str(max_jobs),
         '--nocleanup',
         '--sentinel_only',
-        '--pipelinedir',        scpipeline_dir,
-        '--context_config',     context_config_file,
+        '--pipelinedir',
+        scpipeline_dir,
+        '--context_config',
+        context_config_file,
     ]
 
     if not run_options['saltant']:
-        run_cmd +=['--loglevel', 'DEBUG']
+        run_cmd += ['--loglevel', 'DEBUG']
     if run_options['local_run']:
         run_cmd += ["--submit", "local"]
 
     else:
         run_cmd += [
-            '--submit',         'azurebatch',
-            '--storage',        'azureblob',
+            '--submit',
+            'azurebatch',
+            '--storage',
+            'azureblob',
         ]
 
     # Append docker command to the beginning
     docker_cmd = [
-        'docker', 'run', '-w', '$PWD',
-        '-v', '$PWD:$PWD',
-        '-v', '/var/run/docker.sock:/var/run/docker.sock',
-        '-v', '/usr/bin/docker:/usr/bin/docker',
+        'docker',
+        'run',
+        '-w',
+        '$PWD',
+        '-v',
+        '$PWD:$PWD',
+        '-v',
+        '/var/run/docker.sock',
+        '-v',
+        '/usr/bin/docker',
         '--rm',
-        '--env-file', docker_env_file,
+        '--env-file',
+        docker_env_file,
     ]
 
     for d in dirs:
         docker_cmd.extend([
-            '-v', '{d}:{d}'.format(d=d),
+            '-v',
+            '{d}:{d}'.format(d=d),
         ])
 
-    docker_cmd.append(
-        'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(version)
-    )
+    docker_cmd.append('{}/scp/single_cell_pipeline:{}'.format(docker_server, version))
 
     run_cmd = docker_cmd + run_cmd
 
