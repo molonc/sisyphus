@@ -4,9 +4,11 @@ import json
 import os
 import re
 import collections
+import gzip
 import yaml
 import hashlib
 import subprocess
+import pandas as pd
 from datamanagement.utils import dlp
 import dbclients.tantalus
 import dbclients.colossus
@@ -799,7 +801,7 @@ class PseudoBulkAnalysis(Analysis):
         return dataset_ids
 
 
-    def generate_inputs_yaml(self, inputs_yaml_filename):
+    def generate_inputs_yaml(self, inputs_yaml_filename, metric_paths):
         """ Generates a YAML file of input information
         Args:
             inputs_yaml_filename: the directory to which the YAML file should be saved
@@ -828,6 +830,13 @@ class PseudoBulkAnalysis(Analysis):
                 library_id == self.args['matched_normal_library'])
 
             dataset_class = ('tumour', 'normal')[is_normal]
+
+            if not is_normal:
+                # Read metric file 
+                metric_path = metric_paths[library_id]
+                with gzip.open(metric_path) as f:
+                    alignment_metric = pd.read_csv(f)
+                    alignment_metric = alignment_metric[alignment_metric["is_contaminated"] == False]
 
             if dataset_class == 'normal':
                 assert normal_library_type is None
@@ -867,6 +876,12 @@ class PseudoBulkAnalysis(Analysis):
                     index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])
                     cell_id = str(cell_ids[index_sequence])
                     filepath = str(file_instance['filepath'])
+
+                    if not is_normal:
+                        # If cell is contaminated, exclude from run
+                        if cell_id not in alignment_metric["cell_id"].values:
+                            log.info("Skipping contaminated cell {}".format(cell_id))
+                            continue
 
                     if cell_id not in input_info[dataset_class][sample_id][library_id]:
                         input_info[dataset_class][sample_id][library_id][cell_id] = {}
@@ -941,7 +956,19 @@ class PseudoBulkAnalysis(Analysis):
 
         return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
 
-    def run_pipeline(self, results_dir, pipeline_dir, scpipeline_dir, tmp_dir, inputs_yaml, config):
+    def run_pipeline(
+        self, 
+        results_dir, 
+        pipeline_dir, 
+        scpipeline_dir, 
+        tmp_dir, 
+        inputs_yaml, 
+        config, 
+        destruct_output, 
+        lumpy_output,   
+        haps_output,
+        variants_output,
+    ):
         dirs = [
             pipeline_dir,
             config['docker_path'],
@@ -959,7 +986,6 @@ class PseudoBulkAnalysis(Analysis):
             'single_cell',
             'multi_sample_pseudo_bulk',
             '--input_yaml', inputs_yaml,
-            '--out_dir', results_dir,
             '--tmpdir', tmp_dir,
             '--maxjobs', '1000',
             '--nocleanup',
@@ -967,6 +993,10 @@ class PseudoBulkAnalysis(Analysis):
             '--loglevel', 'DEBUG',
             '--pipelinedir', scpipeline_dir,
             '--context_config', config['context_config_file']['sisyphus'],
+            '--destruct_output', destruct_output,
+            '--lumpy_output', lumpy_output,
+            '--haps_output', haps_output,
+            '--variants_output', variants_output, 
         ]
 
         if self.run_options['local_run']:
@@ -994,7 +1024,7 @@ class PseudoBulkAnalysis(Analysis):
             ])
 
         docker_cmd.append(
-            'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(self.version)
+            '{}/scp/single_cell_pipeline:{}'.format(config["docker_server"], self.version)
         )
 
         run_cmd = docker_cmd + run_cmd
@@ -1003,13 +1033,6 @@ class PseudoBulkAnalysis(Analysis):
             run_cmd += ['--config_file', self.run_options['sc_config']]
         if self.run_options['interactive']:
             run_cmd += ['--interactive']
-
-        run_cmd += [
-            '--call_variants',
-            '--call_haps',
-            '--call_destruct',
-            '--call_lumpy'
-        ]
 
         run_cmd_string = r' '.join(run_cmd)
         log.debug(run_cmd_string)

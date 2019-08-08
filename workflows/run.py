@@ -291,7 +291,6 @@ def main(
 
     scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', job_subdir)
 
-
     tmp_dir = os.path.join('singlecelltemp', 'temp', job_subdir)
 
     storage_result_prefix = tantalus_api.get_storage_client("singlecellresults").prefix

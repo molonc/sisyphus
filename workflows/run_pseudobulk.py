@@ -8,6 +8,7 @@ import subprocess
 import traceback
 import click
 from itertools import chain
+from distutils.version import StrictVersion
 
 import datamanagement.templates as templates
 import launch_pipeline
@@ -37,11 +38,74 @@ def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
     tantalus_api = TantalusApi()
 
     for dataset_id in dataset_ids:
-        transfer_dataset(tantalus_api, dataset_id, 'sequencedataset', from_storage_name, to_storage_name)
+        transfer_dataset(tantalus_api, dataset_id, 'sequencedataset', from_storage, to_storage)
 
     for results_id in results_ids:
-        transfer_dataset(tantalus_api, results_id, 'resultsdataset', from_storage_name, to_storage_name)
+        transfer_dataset(tantalus_api, results_id, 'resultsdataset', from_storage, to_storage)
 
+
+def get_alignment_metrics(storage, dataset_ids, normal_library, pipeline_dir):
+    """
+    Download alignment metrics for each library from input dataset
+
+    Args:
+        storage (str):          name of storage containing alignment metrics
+        dataset_ids (list):     ids (int) of tantalus sequence datasets
+        normal_library (str):   name of normal library
+    """
+
+    library_metrics_paths = dict()
+    storage_client = tantalus_api.get_storage_client(storage)
+    metrics_dir = os.path.join(pipeline_dir, "metrics")
+    if not os.path.exists(metrics_dir):
+        os.makedirs(metrics_dir)
+
+    for dataset_id in dataset_ids:
+        dataset = tantalus_api.get("sequencedataset", id=dataset_id)
+        library = dataset["library"]["library_id"]
+        
+        if library == normal_library:
+            continue
+
+        analyses = list(tantalus_api.list("analysis", input_datasets__library__library_id=library))
+        jira_ticket = None
+        for analysis in analyses:
+            version = analysis["version"]
+            if StrictVersion(version.strip('v')) >= StrictVersion('0.3.1'):
+                jira_ticket = analysis["jira_ticket"]
+
+        if jira_ticket is None:
+            raise Exception("No metrics file found for {} with is_contaminated column".format(library))
+
+        # results_name = "{}_align".format(jira_ticket)
+        # align_results = tantalus_api.get("resultsdataset", name=results_name) # might not need this
+        metrics_filename = "{}_alignment_metrics.csv.gz".format(library)
+        file_resources = list(tantalus_api.list(
+            "file_resource",
+            filename__startswith=jira_ticket,
+            filename__endswith=metrics_filename
+        ))    
+
+        if len(file_resources) != 1:
+            raise Exception("More than one file names {}".format(metrics_filename))
+
+        filename = file_resources[0]["filename"]
+        filepath = os.path.join(metrics_dir, metrics_filename)
+        
+        if not os.path.exists(filepath):
+            log.info("Downloading {} to {}".format(filename, filepath))
+            blob = storage_client.blob_service.get_blob_to_path(
+                container_name="results",
+                blob_name=filename,
+                file_path=filepath
+            )
+        else:
+            log.info("{} has already been downloaded. File at {}".format(filename, filepath))
+
+        library_metrics_paths[library] = filepath
+
+    return library_metrics_paths
+    
 
 def start_automation(
         jira_ticket,
@@ -55,6 +119,10 @@ def start_automation(
         tmp_dir,
         storages,
         job_subdir,
+        destruct_output,
+        lumpy_output,
+        haps_output,
+        variants_output,
 ):
     start = time.time()
 
@@ -80,6 +148,13 @@ def start_automation(
             storages["working_inputs"],
         )
 
+    library_metrics_paths = get_alignment_metrics(
+        storages["working_results"], 
+        tantalus_analysis.get_input_datasets(), 
+        args["matched_normal_library"],
+        pipeline_dir
+    )
+
     local_results_storage = tantalus_api.get(
         'storage', 
         name=storages['local_results'])['storage_directory']
@@ -89,8 +164,9 @@ def start_automation(
         'Generating inputs yaml',
         tantalus_analysis.generate_inputs_yaml,
         inputs_yaml,
+        library_metrics_paths,
     )
-
+    
     tantalus_analysis.add_inputs_yaml(inputs_yaml, update=run_options['update'])
 
     try:
@@ -109,6 +185,10 @@ def start_automation(
                 tmp_dir,
                 inputs_yaml,
                 config,
+                destruct_output,
+                lumpy_output,
+                haps_output,
+                variants_output,
             )
 
     except Exception:
@@ -189,16 +269,23 @@ def run_pseudobulk(
     run_options['job_subdir'] = job_subdir
 
     pipeline_dir = os.path.join(
-        tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], 
+        tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"],
         job_subdir)
 
-    results_dir = os.path.join('singlecelldata', 'results', job_subdir, 'results')
+    results_dir = os.path.join('singlecellresults', 'results', job_subdir)
 
-    scpipeline_dir = os.path.join('singlecelldata', 'pipeline', job_subdir)
+    scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', job_subdir)
 
-    tmp_dir = os.path.join('singlecelldata', 'temp', job_subdir)
+    tmp_dir = os.path.join('singlecelltemp', 'temp', job_subdir)
 
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
+
+    storage_result_prefix = tantalus_api.get_storage_client("singlecellresults").prefix
+    destruct_output = os.path.join(storage_result_prefix, jira_ticket, "results", "destruct")
+    lumpy_output = os.path.join(storage_result_prefix, jira_ticket, "results", "lumpy")
+    haps_output = os.path.join(storage_result_prefix, jira_ticket, "results", "haps")
+    variants_output = os.path.join(
+        storage_result_prefix, jira_ticket, "results", "variants")
 
     log_file = log_utils.init_log_files(pipeline_dir)
     log_utils.setup_sentinel(run_options['sisyphus_interactive'], pipeline_dir)
@@ -215,6 +302,10 @@ def run_pseudobulk(
         tmp_dir,
         config['storages'],
         job_subdir,
+        destruct_output,
+        lumpy_output,
+        haps_output,
+        variants_output,
     )
 
 
