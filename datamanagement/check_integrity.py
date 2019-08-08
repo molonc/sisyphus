@@ -1,7 +1,7 @@
 import sys
 import logging
 import click
-from dbclients.tantalus import TantalusApi, DataCorruptionError
+from dbclients.tantalus import TantalusApi, DataCorruptionError, DataMissingError
 from dbclients.basicclient import NotFoundError
 from utils.constants import LOGGING_FORMAT
 
@@ -66,7 +66,7 @@ def main(
             tantalus_api, storage_name, dataset_type, dataset_id=dataset_id, tag_name=tag_name)
 
     for file_instance in file_instances:
-        logging.warning('checking file instance {} with path {}'.format(
+        logging.info('checking file instance {} with path {}'.format(
             file_instance['id'], file_instance['filepath']))
 
         file_corrupt = False
@@ -75,9 +75,12 @@ def main(
         except DataCorruptionError:
             file_corrupt = True
             logging.exception('check file failed')
+        except DataMissingError:
+            logging.exception('missing file')
+            continue
 
         if file_corrupt and fix:
-            logging.warning('updating file instance {} with path {}'.format(
+            logging.info('updating file instance {} with path {}'.format(
                 file_instance['id'], file_instance['filepath']))
 
             if not dry_run:
