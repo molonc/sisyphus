@@ -67,18 +67,17 @@ def get_alignment_metrics(storage, dataset_ids, normal_library, pipeline_dir):
         if library == normal_library:
             continue
 
-        analyses = list(tantalus_api.list("analysis", input_datasets__library__library_id=library))
+        analyses = list(tantalus_api.list("analysis", analysis_type__name="qc", input_datasets__library__library_id=library))
         jira_ticket = None
         for analysis in analyses:
             version = analysis["version"]
             if StrictVersion(version.strip('v')) >= StrictVersion('0.3.1'):
                 jira_ticket = analysis["jira_ticket"]
+                break
 
         if jira_ticket is None:
             raise Exception("No metrics file found for {} with is_contaminated column".format(library))
 
-        # results_name = "{}_align".format(jira_ticket)
-        # align_results = tantalus_api.get("resultsdataset", name=results_name) # might not need this
         metrics_filename = "{}_alignment_metrics.csv.gz".format(library)
         file_resources = list(tantalus_api.list(
             "file_resource",
