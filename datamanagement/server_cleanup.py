@@ -3,7 +3,7 @@ import os
 import logging
 import json
 import click
-from dbclients.tantalus import TantalusApi, DataCorruptionError
+from dbclients.tantalus import TantalusApi, DataError
 from dbclients.basicclient import NotFoundError
 from utils.constants import LOGGING_FORMAT
 import pandas as pd
@@ -76,7 +76,7 @@ def main(
             for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], dataset_type, check_remote):
                 try:
                     tantalus_api.check_file(file_instance)
-                except DataCorruptionError:
+                except DataError:
                     logging.exception('check file failed')
                     remote_file_size_check = False
 
@@ -91,7 +91,7 @@ def main(
         for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], dataset_type, storage_name):
             try:
                 tantalus_api.check_file(file_instance)
-            except DataCorruptionError:
+            except DataError:
                 logging.exception('check file failed')
                 file_size_check = False
 

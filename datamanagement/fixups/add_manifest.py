@@ -128,14 +128,7 @@ def add_manifest(jira_ticket=None, update=False):
             manifest_filename = analysis_dir + 'metadata.yaml'
             manifest_filepath = tantalus_api.get_filepath('singlecellresults', manifest_filename)
 
-            existing_manifest = False
-            try:
-                if client.exists(manifest_filename):
-                    existing_manifest = True
-            except dbclients.tantalus.DataCorruptionError:
-                logging.exception('manifest file error')
-
-            if existing_manifest and not update:
+            if client.exists(manifest_filename) and not update:
                 logging.info(f'manifest {manifest_filename} exists')
                 continue
 

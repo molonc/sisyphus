@@ -29,26 +29,6 @@ logger.addHandler(handler)
 logger.setLevel(logging.ERROR)
 
 
-class DataCorruptionError(Exception):
-    """An error when corrupt data is found.
-
-    Raised when MD5 calculated does not match the saved database md5 for
-    the file resource.
-    """
-
-    pass
-
-
-class FileDoesNotExist(Exception):
-    """An error for when a file can't be found.
-
-    Raised when the file does not actually exist, although there is a
-    FileInstance object in the database that says the file exists.
-    """
-
-    pass
-
-
 class FileAlreadyExists(Exception):
     """An error for when a file already exists.
 
