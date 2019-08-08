@@ -12,7 +12,7 @@ from datamanagement.utils.constants import LOGGING_FORMAT
 
 @click.command()
 @click.option('--jira_ticket')
-def fix_results(jira_ticket=None, update=False):
+def fix_results(jira_ticket=None):
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
     logger = logging.getLogger("azure.storage")
