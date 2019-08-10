@@ -494,6 +494,10 @@ class TantalusApi(BasicAPIClient):
         Raises:
             DataCorruptionError, DataMissingError
         """
+
+        if file_instance['is_deleted']:
+            return
+
         storage_client = self.get_storage_client(file_instance['storage']['name'])
 
         file_resource = file_instance["file_resource"]
