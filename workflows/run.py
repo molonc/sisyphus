@@ -8,8 +8,8 @@ import logging
 import subprocess
 from itertools import chain
 
-import launch_pipeline
-import generate_inputs
+import workflows.launch_pipeline
+import workflows.generate_inputs
 
 import datamanagement.templates as templates
 from datamanagement.transfer_files import transfer_dataset
