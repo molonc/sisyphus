@@ -745,27 +745,28 @@ def main(**kwargs):
 
                 dataset = import_bam(
                     storage_name=storage["name"],
-                    library=detail["library"],
                     bam_file_path=bam_paths["tantalus_bam_path"],
-                    read_type=detail["read_type"],
+                    sample=detail["sample"],
+                    library=detail["library"],
                     lane_infos=detail["lane_info"],
+                    read_type=detail["read_type"],
                     tag_name=kwargs["tag_name"],
                     update=kwargs["update"]
                 )
 
                 logging.info("Successfully added sequence dataset with ID {}".format(dataset["id"]))
             else:
+                logging.info("Importing library {} to tantalus".format(detail["library"]["library_id"]))
+                library_pk = tantalus_api.get_or_create(
+                    "dna_library",
+                    library_id=detail["library"]["library_id"],
+                    library_type=detail["library"]["library_type"],
+                    index_format=detail["library"]["index_format"]
+                )["id"]
+                
                 #Only add lanes, libraries, and samples to tantalus
+                logging.info("Importing lanes for library {} to tantalus".format(detail["library"]["library_id"]))
                 for lane in detail["lane_info"]:
-                    logging.info("Importing lanes for library {} to tantalus".format(detail["library"]["library_id"]))
-                    
-                    library_pk = tantalus_api.get_or_create(
-                            "dna_library",
-                            library_id=detail["library"]["library_id"],
-                            library_type=detail["library"]["library_type"],
-                            index_format=detail["library"]["index_format"]
-                    )["id"]
-                    
                     lane = tantalus_api.get_or_create(
                         "sequencing_lane",
                         flowcell_id=lane["flowcell_id"],

@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 import datetime
 import os
 import time
@@ -10,25 +5,29 @@ import azure.storage.blob
 import pandas as pd
 import pysam
 import re
+import logging
+import sys
+
 from datamanagement.utils.constants import REF_GENOME_REGEX_MAP, SEQUENCING_CENTRE_MAP
 from datamanagement.utils.utils import get_lanes_hash, get_lane_str
 import datamanagement.templates as templates
 from dbclients.tantalus import TantalusApi
 import click
 from dbclients.basicclient import FieldMismatchError, NotFoundError
+from datamanagement.utils.constants import LOGGING_FORMAT
 
 
 def add_sequence_dataset(
                 tantalus_api,
                 storage_name, 
-                sample_id, 
+                sample,
                 library, 
                 dataset_type,
-                dataset_name,
                 sequence_lanes, 
-                file_paths, 
-                reference_genome, 
-                aligner, 
+                bam_file_path,
+                reference_genome,
+                aligner,
+                bai_file_path=None,
                 tag_name=None,
                 update=False):
         """
@@ -37,15 +36,15 @@ def add_sequence_dataset(
 
         Args:
             storage_name (str)
-            dataset_name (str)
             dataset_type (str)
-            sample_id (str):        internal sample ID   
+            sample_id (dict):       contains: sample_id
             library (dict):         contains: library_id, library_type, index_format
             sequence_lanes (list):  contains: flowcell_id, read_type, lane_number, 
                                     sequencing_centre, sequencing_instrument, library_id
-            file_paths (list):      list of file paths to data included in dataset
+            bam_file_path (str):    bam file path to data included in dataset
             reference_genome (str)
             aligner (str)
+            bai_file_path (str):    bam index file path to data included in dataset (optional)
             tags (list)
         Returns:
             sequence_dataset (dict)
@@ -53,7 +52,7 @@ def add_sequence_dataset(
         # Create the sample
         sample = tantalus_api.get_or_create(
             "sample",
-            sample_id=sample_id
+            sample_id=sample['sample_id'],
         )
 
         # Create the library
@@ -75,15 +74,22 @@ def add_sequence_dataset(
                 index_format=library["index_format"]
             )["id"]
 
+            lane_fields = dict(
+                dna_library=lane_library_pk,
+                flowcell_id=lane["flowcell_id"],
+                lane_number=str(lane["lane_number"]),
+            )
+
+            # Optional fields for create
+            for field_name in ("read_type", "sequencing_centre", "sequencing_instrument"):
+                if field_name in lane_fields:
+                    lane_fields[field_name] = lane[field_name]
+                else:
+                    logging.warning(f"field {field_name} missing for lane {lane['flowcell_id']}_{lane['lane_number']}")
+
             lane_pk = tantalus_api.get_or_create(
                 "sequencing_lane",
-                flowcell_id=lane["flowcell_id"],
-                dna_library=lane_library_pk,
-                read_type=lane["read_type"],
-                lane_number=str(lane["lane_number"]),
-                sequencing_centre=lane["sequencing_centre"],
-                sequencing_instrument=lane["sequencing_instrument"]
-            )["id"]
+                **lane_fields)["id"]
 
             sequence_lane_pks.append(lane_pk)
 
@@ -96,45 +102,81 @@ def add_sequence_dataset(
 
         # Create the file resources
         file_resource_pks = []
-        for file_path in file_paths:
-            file_resource, file_instance = tantalus_api.add_file(storage_name, file_path, update=update)
+        file_resource, file_instance = tantalus_api.add_file(storage_name, bam_file_path, update=update)
+        file_resource_pks.append(file_resource["id"])
+
+        if bai_file_path is not None:
+            file_resource, file_instance = tantalus_api.add_file(storage_name, bai_file_path, update=update)
             file_resource_pks.append(file_resource["id"])
 
-        # Create the sequence dataset associated with the above data
-        try:
-            sequence_dataset = tantalus_api.get(
-                    "sequence_dataset",
-                    name=dataset_name,
-                    dataset_type=dataset_type,
-                    sample=sample["id"],
-                    library=library["id"],
-                    sequence_lanes=sequence_lane_pks,
-                    reference_genome=reference_genome,
-                    aligner=aligner,
+        dataset_name = templates.SC_WGS_BAM_NAME_TEMPLATE.format(
+            dataset_type="BAM",
+            sample_id=sample["sample_id"],
+            library_type=library["library_type"],
+            library_id=library["library_id"],
+            lanes_hash=get_lanes_hash(sequence_lanes),
+            aligner=aligner,
+            reference_genome=reference_genome,
+        )
+
+        # Find all similarly named datasets
+        similar_datasets = list(tantalus_api.list(
+            "sequence_dataset",
+            name=dataset_name,
+        ))
+
+        # Filter for a similarly named dataset with the same files
+        existing_dataset = None
+        for dataset in similar_datasets:
+            if set(dataset['file_resources']) == set(file_resource_pks):
+                existing_dataset = dataset
+                logging.info(f"found existing dataset {dataset['id']} with identical file list")
+                break
+            elif set(dataset['file_resources']).intersection(set(file_resource_pks)):
+                raise ValueError(f"dataset {dataset['id']} has files {dataset['file_resources']} partially intersecting with {list(file_resource_pks)}")
+
+        if existing_dataset is not None:
+            # Get or create to check field consistency
+            sequence_dataset = tantalus_api.get_or_create(
+                "sequence_dataset",
+                name=dataset_name,
+                version_number=existing_dataset['version_number'],
+                dataset_type=dataset_type,
+                sample=sample["id"],
+                library=library["id"],
+                sequence_lanes=sequence_lane_pks,
+                file_resources=file_resource_pks,
+                reference_genome=reference_genome,
+                aligner=aligner,
             )
-    
-            # Add the new file resources to existing file resources 
-            file_resource_ids = file_resource_pks + sequence_dataset["file_resources"]
-            tag_ids = tags + sequence_dataset["tags"]
-    
+
+            # Update the existing dataset tags
+            tag_ids = tags + existing_dataset["tags"]
             sequence_dataset = tantalus_api.update(
-                    "sequence_dataset",
-                    id=sequence_dataset["id"],
-                    file_resources=file_resource_ids,
-                    tags=tag_ids,
+                "sequence_dataset",
+                id=existing_dataset["id"],
+                tags=tag_ids,
             )
-        except NotFoundError:
+
+        else:
+            # Find a new version number if necessary
+            version_number = 1
+            if len(similar_datasets) > 0:
+                version_number = max(d['version_number'] for d in similar_datasets) + 1
+                logging.info(f"creating new version of dataset {dataset_name} with version number {version_number}")
+
             sequence_dataset = tantalus_api.create(
-                    "sequence_dataset",
-                    name=dataset_name,
-                    dataset_type=dataset_type,
-                    sample=sample["id"],
-                    library=library["id"],
-                    sequence_lanes=sequence_lane_pks,
-                    file_resources=file_resource_pks,
-                    reference_genome=reference_genome,
-                    aligner=aligner,
-                    tags=tags,
+                "sequence_dataset",
+                name=dataset_name,
+                version_number=version_number,
+                dataset_type=dataset_type,
+                sample=sample["id"],
+                library=library["id"],
+                sequence_lanes=sequence_lane_pks,
+                file_resources=file_resource_pks,
+                reference_genome=reference_genome,
+                aligner=aligner,
+                tags=tags,
             )
 
         return sequence_dataset
@@ -181,18 +223,27 @@ def get_bam_aligner_name(bam_header):
         aligner:    (string)
     """
     for pg in bam_header["PG"]:
+        # FIXUP: sometimes either the header is formed incorrectly or VN does not get
+        # correctly parsed by pysam
+        if 'CL' in pg and '\tVN:' in pg['CL']:
+            pg['VN'] = pg['CL'][pg['CL'].index('\tVN:')+4:]
+            assert '\t' not in pg['VN']
+            pg['CL'] = pg['CL'][:pg['CL'].index('\tVN:')]
         if "bwa" in pg["ID"] or "bwa" in pg["CL"]:
+            bwa_variant = None
             if "sampe" in pg["CL"]:
-                version = pg["VN"].replace(".", "_")
-                return "BWA_ALN_" + version
-            if "mem" in pg["CL"]:
-                try:
-                    version = pg["VN"].replace(".", "_")
-                except KeyError:
-                    #If we get a bad header
-                    components = pg["CL"].split("\t")
-                    version = components[-1].replace(".", "_").strip("VN:").upper()
-                return "BWA_MEM_" + version.upper()
+                bwa_variant = "BWA_ALN"
+            elif "mem" in pg["CL"]:
+                bwa_variant = "BWA_MEM"
+            else:
+                raise ValueError(f"unrecognized CL {pg['CL']}")
+            version = pg["VN"]
+            if "-r" in version:
+                version = version[:version.index("-r")]
+            version = version.replace(".", "_")
+            return bwa_variant + "_" + version
+        else:
+            raise ValueError(f"unrecognized aligner in {pg}")
     raise Exception("no aligner name found")
 
 
@@ -228,33 +279,33 @@ def get_bam_header_info(header):
         elif "." in flowcell_lane:
             flowcell_id, lane_number = flowcell_lane.split(".")
 
-        sequence_lane = dict(flowcell_id=flowcell_id, lane_number=lane_number, library_id=library_id)
+        sequence_lane = dict(
+            flowcell_id=flowcell_id,
+            lane_number=lane_number,
+            library_id=library_id,
+            sequencing_centre=sequencing_centre,
+        )
 
         sample_ids.add(sample_id)
         library_ids.add(library_id)
         index_sequences.add(index_sequence)
         sequence_lanes.append(sequence_lane)
 
-    if len(sample_ids) > 1:
-        raise Exception("multiple sample ids {}".format(sample_ids))
-
-    if len(index_sequences) > 1:
-        raise Exception("multiple index_sequences {}".format(index_sequences))
-
     return {
-        "sample_id": sample_ids.pop(),
+        "sample_ids": sample_ids,
         "library_ids": library_ids,
-        "index_sequence": index_sequences.pop(),
+        "index_sequences": index_sequences,
         "sequence_lanes": sequence_lanes,
     }
 
 
 def import_bam(
     storage_name,
-    library,
     bam_file_path,
-    read_type,
+    sample=None,
+    library=None,
     lane_infos=None,
+    read_type=None,
     tag_name=None,
     update=False):
     """
@@ -262,70 +313,87 @@ def import_bam(
 
     Args:
         storage_name:   (string) name of destination storage
-        library:        (dict) contains library_id, library_type, index_format
         bam_file_path:  (string) filepath to bam on destination storage
-        read_type:      (string) read type for the run
+        sample:         (dict) contains sample_id
+        library:        (dict) contains library_id, library_type, index_format
         lane_infos:     (dict) contains flowcell_id, lane_number, 
                         adapter_index_sequence, sequencing_cenre, read_type, 
                         reference_genome, aligner
+        read_type:      (string) read type for the run
         tag_name:       (string)
         update:         (boolean)
     Returns:
         sequence_dataset:   (dict) sequence dataset created on tantalus
     """ 
-    # Connect to the Tantalus API (this requires appropriate environment
-    # variables defined)
     tantalus_api = TantalusApi()
 
-    file_paths = [bam_file_path, bam_file_path + ".bai"]
+    # Get a url allowing access regardless of whether the file
+    # is in cloud or local storage
+    storage_client = tantalus_api.get_storage_client(storage_name)
+    bam_filename = tantalus_api.get_file_resource_filename(storage_name, bam_file_path)
+    bam_url = storage_client.get_url(bam_filename)
 
-    bam_header = pysam.AlignmentFile(bam_file_path).header
+    bam_header = pysam.AlignmentFile(bam_url).header
     bam_header_info = get_bam_header_info(bam_header)
-    
+
     ref_genome = get_bam_ref_genome(bam_header)
     aligner_name = get_bam_aligner_name(bam_header)
 
-    if lane_infos:
-        lane_infos = lane_infos
+    logging.info(f"bam header shows reference genome {ref_genome} and aligner {aligner_name}")
+
+    bai_file_path = None
+    if storage_client.exists(bam_filename + ".bai"):
+        bai_file_path = bam_file_path + ".bai"
     else:
+        logging.info(f"no bam index found at {bam_filename + '.bai'}")
+
+    # If no sample was specified assume it exists in tantalus and
+    # search for it based on header info
+    if sample is None:
+        if len(bam_header_info["sample_ids"]) != 1:
+            raise ValueError(f"found sample_ids={bam_header_info['sample_ids']}, please specify override sample id")
+        sample_id = list(bam_header_info["sample_ids"])[0]
+        sample = tantalus_api.get('sample', sample_id=sample_id)
+
+    # If no library was specified assume it exists in tantalus and
+    # search for it based on header info
+    if library is None:
+        if len(bam_header_info["library_ids"]) != 1:
+            raise ValueError(f"found library_ids={bam_header_info['library_ids']}, please specify override library id")
+        library_id = list(bam_header_info["library_ids"])[0]
+        library = tantalus_api.get('dna_library', library_id=library_id)
+
+    # Default paired end reads
+    if read_type is None:
+        read_type = 'P'
+
+    # If no lane infos were specified create them from header info
+    if lane_infos is None:
         lane_infos = []
         for lane in bam_header_info["sequence_lanes"]:
-
             lane_info = {
                 "flowcell_id": lane["flowcell_id"],
                 "lane_number": lane["lane_number"],
                 "library_id": lane["library_id"],
                 "sequencing_centre": lane["sequencing_centre"],
                 "read_type": read_type,
-                "sequencing_instrument": None,
             }
-
             lane_infos.append(lane_info)
-
-    dataset_name = templates.SC_WGS_BAM_NAME_TEMPLATE.format(
-        dataset_type="BAM",
-        sample_id=bam_header_info["sample_id"],
-        library_type=library["library_type"],
-        library_id=library["library_id"],
-        lanes_hash=get_lanes_hash(lane_infos),
-        aligner=aligner_name,
-        reference_genome=ref_genome,
-    )
 
     # Add the sequence dataset to Tantalus
     sequence_dataset = add_sequence_dataset(
-            tantalus_api,
-            storage_name=storage_name,
-            sample_id=bam_header_info["sample_id"],
-            library=library,
-            dataset_type="BAM",
-            dataset_name=dataset_name,
-            sequence_lanes=lane_infos,
-            file_paths=file_paths,
-            reference_genome=ref_genome,
-            aligner=aligner_name,
-            tag_name=tag_name,
-            update=update
+        tantalus_api,
+        storage_name=storage_name,
+        sample=sample,
+        library=library,
+        dataset_type="BAM",
+        sequence_lanes=lane_infos,
+        bam_file_path=bam_file_path,
+        reference_genome=ref_genome,
+        aligner=aligner_name,
+        bai_file_path=bai_file_path,
+        tag_name=tag_name,
+        update=update,
     )
 
     return sequence_dataset
@@ -333,22 +401,52 @@ def import_bam(
 
 @click.command()
 @click.argument("storage_name")
-@click.argument("library")
 @click.argument("bam_file_path")
-@click.argument("read_type")
+@click.option("--sample_id")
+@click.option("--library_id")
+@click.option("--library_type")
+@click.option("--index_format")
+@click.option("--read_type")
 @click.option("--update",is_flag=True)
-@click.option("--lane_info",default=None)
 @click.option("--tag_name",default=None)
-def main(**kwargs):
+def main(storage_name, bam_file_path, **kwargs):
     """
     Imports the bam into tantalus by creating a sequence dataset and 
     file resources 
     """
-    #Import bam
-    dataset = import_bam(**kwargs)
+    logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
+
+    tantalus_api = TantalusApi()
+
+    sample = None
+    if kwargs.get('sample_id') is not None:
+        sample = tantalus_api.get_or_create(
+            'sample',
+            sample_id=kwargs['sample_id'],
+        )
+
+    library = None
+    if kwargs.get('library_id') is not None:
+        library = tantalus_api.get_or_create(
+            'dna_library',
+            library_id=kwargs['library_id'],
+            library_type=kwargs['library_type'],
+            index_format=kwargs['index_format'],
+        )
+
+    dataset = import_bam(
+        storage_name,
+        bam_file_path,
+        sample=sample,
+        library=library,
+        read_type=kwargs.get('read_type'),
+        update=kwargs.get('update'),
+        tag_name=kwargs.get('tag_name'),
+    )
 
     print("dataset {}".format(dataset["id"]))
 
 
 if __name__ == "__main__":
     main()
+
