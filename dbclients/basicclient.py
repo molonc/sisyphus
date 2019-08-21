@@ -10,6 +10,12 @@ from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from openapi_codec import OpenAPICodec
 import requests
 import pandas as pd
+import time
+import logging
+import traceback
+import random
+
+log = logging.getLogger('sisyphus')
 
 
 class NotFoundError(Exception):
@@ -52,9 +58,28 @@ class BasicAPIClient(object):
         decoders = [OpenAPICodec(), JSONCodec(), TextCodec()]
 
         self.coreapi_client = coreapi.Client(auth=auth, decoders=decoders)
-        self.coreapi_schema = self.coreapi_client.get(
-            self.document_url, format="openapi"
-        )
+        retries = 5
+        for retry in range(retries):
+            try:
+                if retry != 0:
+                    wait_time = random.randint(10,60)
+                    log.info("Waiting {} seconds before connecting to {}".format(wait_time, api_url))
+                    time.sleep(wait_time)
+                    
+                self.coreapi_schema = self.coreapi_client.get(
+                    self.document_url, format="openapi"
+                )
+                break
+            except Exception:
+                log.error("Connecting to {} failed. Retrying.".format(api_url))
+
+                if retry < retries - 1:
+                    traceback.print_exc()
+                else:
+                    log.error("Failed all retry attempts")
+                    raise
+
+
 
     def get(self, table_name, **fields):
         """ Check if a resource exists and if so return it. """

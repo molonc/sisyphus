@@ -3,7 +3,7 @@ import os
 import logging
 import json
 import click
-from dbclients.tantalus import TantalusApi, DataCorruptionError
+from dbclients.tantalus import TantalusApi, DataError
 from dbclients.basicclient import NotFoundError
 from utils.constants import LOGGING_FORMAT
 import pandas as pd
@@ -15,12 +15,14 @@ logging.getLogger('azure.storage').setLevel(logging.ERROR)
 
 @click.command()
 @click.argument('storage_name')
-@click.option('--dataset_id')
+@click.argument('dataset_type')
+@click.option('--dataset_id', type=int)
 @click.option('--tag_name')
 @click.option('--check_remote')
 @click.option('--dry_run', is_flag=True)
 def main(
     storage_name,
+    dataset_type,
     dataset_id=None,
     tag_name=None,
     check_remote=None,
@@ -48,12 +50,12 @@ def main(
         raise ValueError('require exactly one of dataset id or tag name')
 
     if dataset_id is not None:
-        logging.info('cleanup up dataset {}'.format(dataset_id))
-        datasets = tantalus_api.list('sequence_dataset', id=dataset_id)
+        logging.info('cleanup up dataset {}, {}'.format(dataset_id, dataset_type))
+        datasets = tantalus_api.list(dataset_type, id=dataset_id)
 
     if tag_name is not None:
         logging.info('cleanup up tag {}'.format(tag_name))
-        datasets = tantalus_api.list('sequence_dataset', tags__name=tag_name)
+        datasets = tantalus_api.list(dataset_type, tags__name=tag_name)
 
     total_data_size = 0
     file_num_count = 0
@@ -71,10 +73,10 @@ def main(
 
             # For each file instance on the remote, check if it exists and has the correct size in tantalus
             remote_file_size_check = True
-            for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', check_remote):
+            for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], dataset_type, check_remote):
                 try:
                     tantalus_api.check_file(file_instance)
-                except DataCorruptionError:
+                except DataError:
                     logging.exception('check file failed')
                     remote_file_size_check = False
 
@@ -86,10 +88,10 @@ def main(
 
         # Check consistency with the removal storage
         file_size_check = True
-        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', storage_name):
+        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], dataset_type, storage_name):
             try:
                 tantalus_api.check_file(file_instance)
-            except DataCorruptionError:
+            except DataError:
                 logging.exception('check file failed')
                 file_size_check = False
 
@@ -100,7 +102,7 @@ def main(
             continue
 
         # Delete all files for this dataset
-        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', storage_name):
+        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], dataset_type, storage_name):
             if dry_run:
                 logging.info("would delete file instance with id {}, filepath {}".format(
                     file_instance['id'], file_instance['filepath']))

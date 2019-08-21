@@ -4,9 +4,12 @@ import json
 import os
 import re
 import collections
+import gzip
 import yaml
 import hashlib
 import subprocess
+import pandas as pd
+import numpy as np
 from datamanagement.utils import dlp
 import dbclients.tantalus
 import dbclients.colossus
@@ -14,11 +17,11 @@ from dbclients.basicclient import NotFoundError
 from datamanagement.utils.utils import make_dirs
 from datamanagement.transfer_files import transfer_dataset
 
-import generate_inputs
-import launch_pipeline
+from workflows.generate_inputs import generate_sample_info
+from workflows.launch_pipeline import *
 import datamanagement.templates as templates
 from datamanagement.utils.utils import get_analysis_lanes_hash
-from utils import tantalus_utils, file_utils
+from workflows.utils import tantalus_utils, file_utils
 
 log = logging.getLogger('sisyphus')
 
@@ -331,7 +334,7 @@ class Analysis(object):
         """
         return []
 
-    def create_output_results(self, update=False, skip_missing=False):
+    def create_output_results(self, update=False, skip_missing=False, analysis_type=None):
         """
         Create the set of output results produced by this analysis.
         """
@@ -340,6 +343,7 @@ class Analysis(object):
             self.storages['working_results'],
             update=update,
             skip_missing=skip_missing,
+            analysis_type=analysis_type
         )
 
         return [tantalus_results.get_id()]
@@ -491,7 +495,7 @@ class QCAnalysis(AlignHmmcopyMixin, Analysis):
             'MM10': 'mm10',
         }
 
-        sample_info = generate_inputs.generate_sample_info(
+        sample_info = generate_sample_info(
             self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
 
         if sample_info['index_sequence'].duplicated().any():
@@ -748,23 +752,9 @@ class QCAnalysis(AlignHmmcopyMixin, Analysis):
 
     def run_pipeline(self):
         if self.run_options["skip_pipeline"]:
-            return launch_pipeline.run_pipeline2
+            return run_pipeline2
         else:
-            return launch_pipeline.run_pipeline
-
-    def create_output_results(self, update=False, skip_missing=False, analysis_type=None):
-        """
-        Create the set of output results produced by this analysis.
-        """
-        tantalus_results = Results(
-            self,
-            self.storages['working_results'],
-            update=update,
-            skip_missing=skip_missing,
-            analysis_type=analysis_type
-        )
-
-        return [tantalus_results.get_id()]
+            return run_pipeline
 
 
 class PseudoBulkAnalysis(Analysis):
@@ -799,7 +789,7 @@ class PseudoBulkAnalysis(Analysis):
         return dataset_ids
 
 
-    def generate_inputs_yaml(self, inputs_yaml_filename):
+    def generate_inputs_yaml(self, inputs_yaml_filename, metric_paths):
         """ Generates a YAML file of input information
         Args:
             inputs_yaml_filename: the directory to which the YAML file should be saved
@@ -828,6 +818,13 @@ class PseudoBulkAnalysis(Analysis):
                 library_id == self.args['matched_normal_library'])
 
             dataset_class = ('tumour', 'normal')[is_normal]
+
+            if not is_normal and not self.run_options["no_contamination_check"]:
+                # Read metric file 
+                metric_path = metric_paths[library_id]
+                with gzip.open(metric_path) as f:
+                    alignment_metric = pd.read_csv(f)
+                    alignment_metric = alignment_metric[alignment_metric["is_contaminated"] == False]
 
             if dataset_class == 'normal':
                 assert normal_library_type is None
@@ -858,7 +855,7 @@ class PseudoBulkAnalysis(Analysis):
                 input_info[dataset_class][sample_id][library_id] = {'bam': filepath}
 
             elif library_type == 'SC_WGS':
-                sample_info = generate_inputs.generate_sample_info(
+                sample_info = generate_sample_info(
                     library_id, test_run=self.run_options.get("is_test_run", False))
 
                 cell_ids = sample_info.set_index('index_sequence')['cell_id'].to_dict()
@@ -867,6 +864,12 @@ class PseudoBulkAnalysis(Analysis):
                     index_sequence = str(file_instance['file_resource']['sequencefileinfo']['index_sequence'])
                     cell_id = str(cell_ids[index_sequence])
                     filepath = str(file_instance['filepath'])
+
+                    if not is_normal and not self.run_options["no_contamination_check"]:
+                        # If cell is contaminated, exclude from run
+                        if cell_id not in alignment_metric["cell_id"].values:
+                            log.info("Skipping contaminated cell {}".format(cell_id))
+                            continue
 
                     if cell_id not in input_info[dataset_class][sample_id][library_id]:
                         input_info[dataset_class][sample_id][library_id][cell_id] = {}
@@ -905,9 +908,12 @@ class PseudoBulkAnalysis(Analysis):
             self.run_options["job_subdir"],
             "results")
 
-        filenames = []
+        destruct_prefix = os.path.join(results_prefix, "destruct")
+        haps_prefix = os.path.join(results_prefix, "haps")
+        lumpy_prefix = os.path.join(results_prefix, "lumpy")
+        variants_prefix = os.path.join(results_prefix, "variants")
 
-        filenames.append('haplotypes.tsv')
+        filenames = []
 
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
@@ -918,30 +924,69 @@ class PseudoBulkAnalysis(Analysis):
             if sample_id == self.args['matched_normal_sample'] and library_id == self.args['matched_normal_library']:
                 continue
 
-            filenames.append('{}_{}_allele_counts.csv'.format(sample_id, library_id))
-            filenames.append('{}_{}_snv_annotations.h5'.format(sample_id, library_id))
-            filenames.append('{}_{}_snv_counts.h5'.format(sample_id, library_id))
-            filenames.append('{}_{}_snv_union_counts.csv.gz'.format(sample_id, library_id))
-            filenames.append('{}_{}_destruct.h5'.format(sample_id, library_id))
-            filenames.append('{}_{}_destruct.csv.gz'.format(sample_id, library_id))
-            filenames.append('{}_{}_destruct.csv.gz.yaml'.format(sample_id, library_id))
-            filenames.append('{}_{}_destruct_library.csv.gz'.format(sample_id, library_id))
-            filenames.append('{}_{}_destruct_library.csv.gz.yaml'.format(sample_id, library_id))
-            filenames.append('{}_{}_cell_counts_destruct.csv'.format(sample_id, library_id))
-            filenames.append('{}_{}_cell_counts_destruct.csv.gz'.format(sample_id, library_id))
-            filenames.append('{}_{}_cell_counts_destruct.csv.gz.yaml'.format(sample_id, library_id))
-            filenames.append('{}_{}_lumpy_breakpoints.bed'.format(sample_id, library_id))
-            filenames.append('{}_{}_lumpy_breakpoints.csv.gz'.format(sample_id, library_id))
-            filenames.append('{}_{}_lumpy_breakpoints_evidence.csv.gz'.format(sample_id, library_id))
+            destruct_filenames = [
+                "metadata.yaml",
+                "{sample_id}_{library_id}_cell_counts_destruct.csv.gz",
+                "{sample_id}_{library_id}_cell_counts_destruct.csv.gz.yaml",
+                "{sample_id}_{library_id}_destruct_library.csv.gz",
+                "{sample_id}_{library_id}_destruct_library.csv.gz.yaml",
+                "{sample_id}_{library_id}_destruct.csv.gz",
+                "{sample_id}_{library_id}_destruct.csv.gz.yaml",
+            ]
+            destruct_filenames = [os.path.join(
+                destruct_prefix, filename) for filename in destruct_filenames]
+
+            haps_filenames = [
+                "haplotypes.tsv",
+                "metadata.yaml",
+                "{sample_id}_{library_id}_allele_counts.csv",
+                "{sample_id}_{library_id}_allele_counts.csv.yaml",
+            ]
+            haps_filenames = [os.path.join(
+                haps_prefix, filename) for filename in haps_filenames]
+
+            lumpy_filenames = [
+                "metadata.yaml",
+                "{sample_id}_{library_id}_lumpy_breakpoints_evidence.csv.gz",
+                "{sample_id}_{library_id}_lumpy_breakpoints.bed",
+                "{sample_id}_{library_id}_lumpy_breakpoints.csv.gz",
+            ]
+
+            lumpy_filenames = [os.path.join(
+                lumpy_prefix, filename) for filename in lumpy_filenames]
+
+            variants_filenames = [
+                "metadata.yaml",
+                "{sample_id}_{library_id}_museq.vcf.gz",
+                "{sample_id}_{library_id}__snv_annotations.h5",
+            ]
 
             for snv_caller in ('museq', 'strelka_snv', 'strelka_indel'):
-                filenames.append('{}_{}_{}.vcf.gz'.format(sample_id, library_id, snv_caller))
-                filenames.append('{}_{}_{}.vcf.gz.csi'.format(sample_id, library_id, snv_caller))
-                filenames.append('{}_{}_{}.vcf.gz.tbi'.format(sample_id, library_id, snv_caller))
+                variants_filenames.append('{}_{}_{}.vcf.gz'.format(sample_id, library_id, snv_caller))
+                variants_filenames.append('{}_{}_{}.vcf.gz.csi'.format(sample_id, library_id, snv_caller))
+                variants_filenames.append('{}_{}_{}.vcf.gz.tbi'.format(sample_id, library_id, snv_caller))
 
-        return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
+            variants_filenames = [os.path.join(
+                variants_prefix, filename) for filename in variants_filenames]
 
-    def run_pipeline(self, results_dir, pipeline_dir, scpipeline_dir, tmp_dir, inputs_yaml, config):
+            for files in [destruct_filenames, haps_filenames, lumpy_filenames, variants_filenames]:
+                filenames += [f.format(sample_id=sample_id, library_id=library_id) for f in files]
+
+        return filenames
+
+    def run_pipeline(
+        self, 
+        results_dir, 
+        pipeline_dir, 
+        scpipeline_dir, 
+        tmp_dir, 
+        inputs_yaml, 
+        config, 
+        destruct_output, 
+        lumpy_output,   
+        haps_output,
+        variants_output,
+    ):
         dirs = [
             pipeline_dir,
             config['docker_path'],
@@ -959,7 +1004,6 @@ class PseudoBulkAnalysis(Analysis):
             'single_cell',
             'multi_sample_pseudo_bulk',
             '--input_yaml', inputs_yaml,
-            '--out_dir', results_dir,
             '--tmpdir', tmp_dir,
             '--maxjobs', '1000',
             '--nocleanup',
@@ -967,6 +1011,10 @@ class PseudoBulkAnalysis(Analysis):
             '--loglevel', 'DEBUG',
             '--pipelinedir', scpipeline_dir,
             '--context_config', config['context_config_file']['sisyphus'],
+            '--destruct_output', destruct_output,
+            '--lumpy_output', lumpy_output,
+            '--haps_output', haps_output,
+            '--variants_output', variants_output, 
         ]
 
         if self.run_options['local_run']:
@@ -994,7 +1042,7 @@ class PseudoBulkAnalysis(Analysis):
             ])
 
         docker_cmd.append(
-            'shahlab.azurecr.io/scp/single_cell_pipeline:{}'.format(self.version)
+            '{}/scp/single_cell_pipeline:{}'.format(config["docker_server"], self.version)
         )
 
         run_cmd = docker_cmd + run_cmd
@@ -1003,13 +1051,6 @@ class PseudoBulkAnalysis(Analysis):
             run_cmd += ['--config_file', self.run_options['sc_config']]
         if self.run_options['interactive']:
             run_cmd += ['--interactive']
-
-        run_cmd += [
-            '--call_variants',
-            '--call_haps',
-            '--call_destruct',
-            '--call_lumpy'
-        ]
 
         run_cmd_string = r' '.join(run_cmd)
         log.debug(run_cmd_string)

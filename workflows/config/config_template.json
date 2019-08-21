@@ -10,10 +10,11 @@
     },
     "context_config_file": {
         "saltant" : "/path/to/content_config.yaml/on/saltant/repo/",
-        "sisyphus" : "/path/to/content_config.yaml/on/sisyphus/repo/",
+        "sisyphus" : "/path/to/content_config.yaml/on/sisyphus/repo/"
     },
     "docker_env_file": "/home/jpham/set-docker-credentials.sh", 
     "user": "jpham",
     "docker_sock_path": "/var/run/docker.sock",
-    "docker_path": "/usr/bin/docker"
+    "docker_path": "/usr/bin/docker",
+    "docker_server": "scdnaprod.azurecr.io"
 }

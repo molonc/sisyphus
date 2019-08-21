@@ -22,9 +22,11 @@ analysis_dir_templates = {
     ('align', 'v0.2.9'): ('{ticket_id}/results/results/alignment/', ),
     ('align', 'v0.2.25'): ('{ticket_id}/results/results/QC/alignment/', '{ticket_id}/results/QC/alignment/', ),
     ('align', 'v0.3.0'): ('{ticket_id}/results/alignment/', ),
+    ('align', 'v0.3.1'): ('{ticket_id}/results/alignment/', ),
 
     ('annotation', 'v0.2.25'): ('{ticket_id}/results/results/QC/annotation/', '{ticket_id}/results/QC/annotation/', ),
     ('annotation', 'v0.3.0'): ('{ticket_id}/results/annotation/', ),
+    ('annotation', 'v0.3.1'): ('{ticket_id}/results/annotation/', ),
 
     ('hmmcopy', 'v0.2.2'): ('{ticket_id}/results/results/hmmcopy_autoploidy/', ),
     ('hmmcopy', 'v0.2.6'): ('{ticket_id}/results/results/hmmcopy_autoploidy/', ),
@@ -39,6 +41,7 @@ analysis_dir_templates = {
     ('hmmcopy', 'v0.2.9'): ('{ticket_id}/results/results/hmmcopy_autoploidy/', ),
     ('hmmcopy', 'v0.2.25'): ('{ticket_id}/results/results/QC/hmmcopy_autoploidy/', '{ticket_id}/results/QC/hmmcopy_autoploidy/', ),
     ('hmmcopy', 'v0.3.0'): ('{ticket_id}/results/hmmcopy/', ),
+    ('hmmcopy', 'v0.3.1'): ('{ticket_id}/results/hmmcopy/', ),
 
     ('pseudobulk', 'v0.2.11'): ('{ticket_id}/results/', ),
     ('pseudobulk', 'v0.2.12'): ('{ticket_id}/results/', ),
@@ -71,7 +74,7 @@ def get_pseudobulk_info(tantalus_api, analysis):
 
 @click.command()
 @click.option('--jira_ticket')
-@click.option('--update')
+@click.option('--update', is_flag=True)
 def add_manifest(jira_ticket=None, update=False):
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
@@ -128,14 +131,7 @@ def add_manifest(jira_ticket=None, update=False):
             manifest_filename = analysis_dir + 'metadata.yaml'
             manifest_filepath = tantalus_api.get_filepath('singlecellresults', manifest_filename)
 
-            existing_manifest = False
-            try:
-                if client.exists(manifest_filename):
-                    existing_manifest = True
-            except dbclients.tantalus.DataCorruptionError:
-                logging.exception('manifest file error')
-
-            if existing_manifest and not update:
+            if client.exists(manifest_filename) and not update:
                 logging.info(f'manifest {manifest_filename} exists')
                 continue
 
