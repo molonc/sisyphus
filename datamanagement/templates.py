@@ -42,6 +42,8 @@ WGS_BAM_NAME_TEMPLATE = os.path.join(
 MERGE_BAM_PATH_TEMPLATE = {
     "WGS": "{data_path}/{library_name}_{num_lanes}_lane{lane_pluralize}_dupsFlagged.bam",
     "EXOME": "{data_path}/{library_name}_{num_lanes}_lane{lane_pluralize}_dupsFlagged.bam",
+    "FFPE_WGS": "{data_path}/{library_name}_{num_lanes}_lane{lane_pluralize}_dupsFlagged.bam",
+
 }
 
 LANE_BAM_PATH_TEMPLATE = {

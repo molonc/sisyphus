@@ -39,7 +39,6 @@ from datamanagement.utils.constants import (
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 gsc_api = GSCAPI()
 
-
 def rsync_file(from_path, to_path, sftp=None, remote_host=None):
     """
     Rsyncs file and performs checks to ensure rsync was successful
@@ -624,7 +623,7 @@ def get_gsc_details(library_infos, skip_older_than):
         # Skip the fetching details if the protocol ID is not supported
         if library_info["protocol_id"] not in PROTOCOL_ID_MAP:
             logging.warning(
-                "warning, protocol {}}:{} not supported".format(
+                "warning, protocol {}:{} not supported".format(
                 library_info["protocol_id"],
                 protocol_info["extended_name"]
             ))

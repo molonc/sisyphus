@@ -16,7 +16,7 @@ import datamanagement.templates as templates
 from dbclients.tantalus import TantalusApi
 import click
 from dbclients.basicclient import FieldMismatchError, NotFoundError
-
+import pprint
 
 def add_sequence_dataset(
                 tantalus_api,
@@ -141,33 +141,34 @@ def add_sequence_dataset(
 
 
 def get_bam_ref_genome(bam_header):
-    """
-    Parses the reference genome from bam header
+    # """
+    # Parses the reference genome from bam header
 
-    Args:
-        bam_header: (dict)
+    # Args:
+    #     bam_header: (dict)
 
-    Returns:
-        reference genome (string)
-    """
-    sq_as = bam_header["SQ"][0]["AS"]
-    found_match = False
+    # Returns:
+    #     reference genome (string)
+    # """
+    # sq_as = bam_header["SQ"][0]["AS"]
+    # found_match = False
 
-    for ref, regex_list in REF_GENOME_REGEX_MAP.items():
-        for regex in regex_list:
-            if re.search(regex, sq_as, flags=re.I):
-                # Found a match
-                reference_genome = ref
-                found_match = True
-                break
+    # for ref, regex_list in REF_GENOME_REGEX_MAP.items():
+    #     for regex in regex_list:
+    #         if re.search(regex, sq_as, flags=re.I):
+    #             # Found a match
+    #             reference_genome = ref
+    #             found_match = True
+    #             break
 
-        if found_match:
-            break
+    #     if found_match:
+    #         break
 
-    if not found_match:
-        raise Exception("Unrecognized reference genome {}".format(sq_as))
+    # if not found_match:
+    #     raise Exception("Unrecognized reference genome {}".format(sq_as))
     
-    return reference_genome
+    # return reference_genome
+    return "HG19"
 
 
 def get_bam_aligner_name(bam_header):
@@ -183,16 +184,19 @@ def get_bam_aligner_name(bam_header):
     for pg in bam_header["PG"]:
         if "bwa" in pg["ID"] or "bwa" in pg["CL"]:
             if "sampe" in pg["CL"]:
+                tool_name = "BWA_ALN"
                 version = pg["VN"].replace(".", "_")
-                return "BWA_ALN_" + version
             if "mem" in pg["CL"]:
+                tool_name = "BWA_MEM"
                 try:
                     version = pg["VN"].replace(".", "_")
                 except KeyError:
                     #If we get a bad header
                     components = pg["CL"].split("\t")
-                    version = components[-1].replace(".", "_").strip("VN:").upper()
-                return "BWA_MEM_" + version.upper()
+                    version = components[-1].replace(".", "_").strip("VN:")
+            if '-r' in version:
+                version = version[:version.index('-r')]
+            return tool_name + "_" + version.upper()
     raise Exception("no aligner name found")
 
 
@@ -256,6 +260,7 @@ def import_bam(
     read_type,
     lane_infos=None,
     tag_name=None,
+    sequencing_instrument=None,
     update=False):
     """
     Imports bam into tantalus
@@ -295,12 +300,15 @@ def import_bam(
                 "flowcell_id": lane["flowcell_id"],
                 "lane_number": lane["lane_number"],
                 "library_id": lane["library_id"],
-                "sequencing_centre": lane["sequencing_centre"],
+                "sequencing_centre": "GSC",
                 "read_type": read_type,
-                "sequencing_instrument": None,
+                "sequencing_instrument": sequencing_instrument,
             }
 
             lane_infos.append(lane_info)
+
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(lane_infos)
 
     dataset_name = templates.SC_WGS_BAM_NAME_TEMPLATE.format(
         dataset_type="BAM",
@@ -331,21 +339,73 @@ def import_bam(
     return sequence_dataset
 
 
-@click.command()
-@click.argument("storage_name")
-@click.argument("library")
-@click.argument("bam_file_path")
-@click.argument("read_type")
-@click.option("--update",is_flag=True)
-@click.option("--lane_info",default=None)
-@click.option("--tag_name",default=None)
+# @click.command()
+# @click.argument("storage_name")
+# @click.argument("library")
+# @click.argument("bam_file_path")
+# @click.argument("read_type")
+# @click.option("--update",is_flag=True)
+# @click.option("--lane_infos",default=None)
+# @click.option("--tag_name",default=None)
 def main(**kwargs):
     """
     Imports the bam into tantalus by creating a sequence dataset and 
     file resources 
     """
     #Import bam
-    dataset = import_bam(**kwargs)
+
+    library = {
+        "library_id": "A30653",
+        "library_type": "WGS",
+        "index_format": "N",
+    }
+
+    storage_name = "shahlab"
+    bam_file_path = "/shahlab/archive/SA532N/illumina_wgss/A30653/bwa_aligned/SA532N_A30653_3_lanes_hg19_dupsFlagged_bwa_mem.bam"
+    read_type = "P"
+    sequencing_instrument = "HiSeq2500"
+
+    # lane_infos = [
+    # {   'flowcell_id': 'C4AG1ACXX',
+    #     'lane_number': '6',
+    #     'library_id': 'A41086',
+    #     'read_type': 'P',
+    #     'sequencing_centre': 'GSC',
+    #     'sequencing_instrument': "HiSeq2500"},
+    # {   'flowcell_id': 'C3TRAACXX',
+    #     'lane_number': '5',
+    #     'library_id': 'A41086',
+    #     'read_type': 'P',
+    #     'sequencing_centre': 'GSC',
+    #     'sequencing_instrument': "HiSeq2500"},
+    # {   'flowcell_id': 'C4AG1ACXX',
+    #     'lane_number': '7',
+    #     'library_id': 'A41086',
+    #     'read_type': 'P',
+    #     'sequencing_centre': 'GSC',
+    #     'sequencing_instrument': "HiSeq2500"},
+    # {   'flowcell_id': 'C4AG1ACXX',
+    #     'lane_number': '3',
+    #     'library_id': 'A41086',
+    #     'read_type': 'P',
+    #     'sequencing_centre': 'GSC',
+    #     'sequencing_instrument': "HiSeq2500"},
+    # {   'flowcell_id': 'C4AG1ACXX',
+    #     'lane_number': '4',
+    #     'library_id': 'A41086',
+    #     'read_type': 'P',
+    #     'sequencing_centre': 'GSC',
+    #     'sequencing_instrument': "HiSeq2500"},
+    # {   'flowcell_id': 'C4AG1ACXX',
+    #     'lane_number': '5',
+    #     'library_id': 'A41086',
+    #     'read_type': 'P',
+    #     'sequencing_centre': 'GSC',
+    #     'sequencing_instrument': "HiSeq2500"}
+    # ]
+
+    # dataset = import_bam(**kwargs)
+    dataset = import_bam(storage_name, library, bam_file_path, read_type, sequencing_instrument = sequencing_instrument)
 
     print("dataset {}".format(dataset["id"]))
 

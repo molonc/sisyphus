@@ -11,3 +11,6 @@ mock
 paramiko
 #django
 #django-core
+dill
+pypeliner==0.5.7
+networkx
