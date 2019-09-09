@@ -96,13 +96,13 @@ def start_automation(
         tmp_dir,
         storages,
         job_subdir,
+        analysis_info,
         analysis_type,
         alignment_output,
         annotation_output,
         hmmcopy_output,
 ):
     start = time.time()
-
     tantalus_analysis = QCAnalysis(jira, version, args, run_options, storages=storages, update=run_options['update'])
 
     if storages["working_inputs"] != storages["remote_inputs"]:
@@ -134,6 +134,7 @@ def start_automation(
 
     try:
         tantalus_analysis.set_run_status()
+        analysis_info.set_run_status()
 
         run_pipeline = tantalus_analysis.run_pipeline()
 
@@ -174,6 +175,7 @@ def start_automation(
         )
     except Exception:
         tantalus_analysis.set_error_status()
+        analysis_info.set_error_status()
         raise
 
     tantalus_analysis.set_complete_status()
@@ -208,6 +210,8 @@ def start_automation(
     if not run_options["is_test_run"]:
         update_jira_dlp(jira, args['aligner'])
         attach_qc_report(jira, args["library_id"], storages)
+
+    analysis_info.set_finish_status()
     
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
@@ -322,7 +326,7 @@ def main(
     args['brc_flowcell_ids'] = brc_flowcell_ids
     args['smoothing'] = run_options['smoothing']
 
-    analysis_info.set_run_status()
+    
     start_automation(
         jira,
         version,
@@ -335,13 +339,14 @@ def main(
         tmp_dir,
         config['storages'],
         job_subdir,
+        analysis_info,
         analysis_type,
         alignment_output,
         annotation_output,
         hmmcopy_output,
     )
 
-    analysis_info.set_finish_status()
+
 
 
 if __name__ == '__main__':
