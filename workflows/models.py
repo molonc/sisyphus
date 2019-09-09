@@ -958,7 +958,12 @@ class PseudoBulkAnalysis(Analysis):
             variants_filenames = [
                 "metadata.yaml",
                 "{sample_id}_{library_id}_museq.vcf.gz",
-                "{sample_id}_{library_id}__snv_annotations.h5",
+                "{sample_id}_{library_id}_snv_annotations.h5",
+                os.path.join("variant_calling_rawdata", "{sample_id}_{library_id}_variant_calling", "snv", "cosmic_status.h5"),
+                os.path.join("variant_calling_rawdata", "{sample_id}_{library_id}_variant_calling", "snv", "dbsnp_status.h5"),
+                os.path.join("variant_calling_rawdata", "{sample_id}_{library_id}_variant_calling", "snv", "mappability.h5"),
+                os.path.join("variant_calling_rawdata", "{sample_id}_{library_id}_variant_calling", "snv", "snpeff.h5"),
+                os.path.join("variant_calling_rawdata", "{sample_id}_{library_id}_variant_calling", "snv", "tri_nucleotide_context.h5"),
             ]
 
             for snv_caller in ('museq', 'strelka_snv', 'strelka_indel'):
