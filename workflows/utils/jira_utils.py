@@ -43,8 +43,21 @@ def get_parent_issue(jira_id):
     return parent_ticket
 
 
-def update_jira_dlp(jira_id, aligner):
+def comment_jira(jira_id, comment):
+    """
+    Comment on jira ticket
+    """
+
     jira_api = get_jira_api()
+    log.info("Commenting \n{} on ticket {}".format(
+		comment,
+		jira_id)
+	)
+    
+    jira_api.add_comment(jira_id, comment)
+
+
+def update_jira_dlp(jira_id, aligner):
 
     logging.info("Updating description on {}".format(jira_id))
 

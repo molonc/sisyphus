@@ -19,7 +19,7 @@ from dbclients.tantalus import TantalusApi
 from dbclients.basicclient import NotFoundError
 
 from workflows.utils import file_utils, log_utils, colossus_utils
-from workflows.utils.update_jira import update_jira_dlp, add_attachment
+from workflows.utils.update_jira import update_jira_dlp, add_attachment, comment_jira
 
 from models import AnalysisInfo, QCAnalysis, Results
 
@@ -84,6 +84,27 @@ def attach_qc_report(jira, library_id, storages):
     add_attachment(library_ticket, local_path, jira_qc_filename)
 
 
+def get_contamination_comment(jira_ticket):
+    jira_user = os.environ['JIRA_USERNAME']
+    jira_password = os.environ['JIRA_PASSWORD']
+    jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(jira_user, jira_password))
+
+    issue = jira_api.issue(jira_ticket)
+    library_ticket = issue.fields.parent.key
+
+    comment = f"""
+    Hi [~{library_ticket.fields.reporter.key}],
+    
+    This is an automated message. \n 
+    The pipeline detected that over 20% of this library's cell are contaminated. Would you still like to proceed with analysis?
+
+    Best,
+
+    [~{jira_user}]
+    """
+
+    comment_jira(jira_ticket, comment)
+
 def start_automation(
         jira,
         version,
@@ -101,6 +122,7 @@ def start_automation(
         alignment_output,
         annotation_output,
         hmmcopy_output,
+        log_file,
 ):
     start = time.time()
     tantalus_analysis = QCAnalysis(jira, version, args, run_options, storages=storages, update=run_options['update'])
@@ -176,6 +198,12 @@ def start_automation(
     except Exception:
         tantalus_analysis.set_error_status()
         analysis_info.set_error_status()
+
+        with open(log_file) as f:
+            if "LibraryContaminationError" in f:
+                log.error("LibraryContaminationError: over 20% of cells are contaminated")
+
+                get_contamination_comment(jira)
         raise
 
     tantalus_analysis.set_complete_status()
@@ -212,7 +240,7 @@ def start_automation(
         attach_qc_report(jira, args["library_id"], storages)
 
     analysis_info.set_finish_status()
-    
+
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
@@ -233,6 +261,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.option('--skip_missing', is_flag=True)
 @click.option('--local_run', is_flag=True)
 @click.option('--update', is_flag=True)
+@click.option('--override_contamination', is_flag=True)
 @click.option('--is_test_run', is_flag=True)
 @click.option('--sc_config')
 @click.option('--inputs_yaml')
@@ -326,7 +355,7 @@ def main(
     args['brc_flowcell_ids'] = brc_flowcell_ids
     args['smoothing'] = run_options['smoothing']
 
-    
+
     start_automation(
         jira,
         version,
@@ -344,6 +373,7 @@ def main(
         alignment_output,
         annotation_output,
         hmmcopy_output,
+        log_file,
     )
 
 
