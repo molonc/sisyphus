@@ -8,11 +8,12 @@ from dbclients.tantalus import TantalusApi
 colossus_api = ColossusApi()
 tantalus_api = TantalusApi()
 
+log = logging.getLogger('sisyphus')
+
 def get_jira_api():
-    log = logging.getLogger('sisyphus')
     jira_user = os.environ['JIRA_USERNAME']
-    jira_user = os.environ['JIRA_PASSWORD']
-    jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(jira_user, jira_user))
+    jira_password = os.environ['JIRA_PASSWORD']
+    jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(jira_user, jira_password))
 
     return jira_api
 
@@ -105,7 +106,7 @@ def add_attachment(jira_id, attachment_file_path, attachment_filename):
     """
 
     jira_api = get_jira_api()
-    
+
     issue = jira_api.issue(jira_id)
     current_attachments = [a.filename for a in issue.fields.attachment]
 
