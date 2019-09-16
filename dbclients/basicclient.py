@@ -107,8 +107,7 @@ class BasicAPIClient(object):
         Args:
             params: A dict which is changed in place.
         """
-        # Implement specific methods here
-        pass
+        params["page"] = 1
 
     def get_list_pagination_next_page_params(self, params):
         """Get next page pagination parameters specific to this API.
@@ -118,8 +117,7 @@ class BasicAPIClient(object):
         Args:
             params: A dict which is changed in place.
         """
-        # Implement specific methods here
-        pass
+        params["page"] += 1
 
     def list(self, table_name, **fields):
         """ List resources in from endpoint with given filter fields. """

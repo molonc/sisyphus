@@ -28,26 +28,6 @@ class ColossusApi(BasicAPIClient):
             password=os.environ.get("COLOSSUS_API_PASSWORD"),
         )
 
-    def get_list_pagination_initial_params(self, params):
-        """Get initial pagination parameters specific to this API.
-
-        For example, offset and limit for offset/limit pagination.
-
-        Args:
-            params: A dict which is changed in place.
-        """
-        params["page"] = 1
-
-    def get_list_pagination_next_page_params(self, params):
-        """Get next page pagination parameters specific to this API.
-
-        For example, offset and limit for offset/limit pagination.
-
-        Args:
-            params: A dict which is changed in place.
-        """
-        params["page"] += 1
-
     def get_colossus_sublibraries_from_library_id(self, library_id, brief=False):
         """ Gets the sublibrary information from a library id.
         """
