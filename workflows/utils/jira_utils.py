@@ -8,24 +8,53 @@ from dbclients.tantalus import TantalusApi
 colossus_api = ColossusApi()
 tantalus_api = TantalusApi()
 
-log = logging.getLogger('sisyphus')
-JIRA_USER = os.environ['JIRA_USERNAME']
-JIRA_PASSWORD = os.environ['JIRA_PASSWORD']
-jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(JIRA_USER, JIRA_PASSWORD))
+def get_jira_api():
+    log = logging.getLogger('sisyphus')
+    jira_user = os.environ['JIRA_USERNAME']
+    jira_user = os.environ['JIRA_PASSWORD']
+    jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(jira_user, jira_user))
+
+    return jira_api
+
+
+def get_parent_issue(jira_id):
+    """
+    Get parent ticket id
+
+    Args:
+        jira_id (str): Jira ticket id
+
+    Returns:
+        parent_ticket (str): Ticket id of parent ticket
+
+    """
+    jira_api = get_jira_api()
+
+    issue = jira_api.issue(jira_id)
+
+    try:
+        parent_ticket = issue.fields.parent.key
+    
+    except:
+        log.info(f"{jira_id} is not a sub-task")
+        return None
+
+    return parent_ticket
+
 
 def update_jira_dlp(jira_id, aligner):
+    jira_api = get_jira_api()
+
     logging.info("Updating description on {}".format(jira_id))
 
     description = [
         '(/) Alignment with ' + aligner,
         '(/) Hmmcopy',
-        '(/) Classifier',
         '(/) Path to results on blob:',
-        '{noformat}Container: singlecelldata\nresults/' + jira_id + '{noformat}',
+        '{noformat}Container: singlecellresults\nresults/' + jira_id + '{noformat}',
     ]
 
     update_description(jira_id, description, "jbiele", remove_watcher=True)
-
 
 
 def update_jira_tenx(jira_id, args):
@@ -58,6 +87,7 @@ def update_jira_tenx(jira_id, args):
 
 
 def update_description(jira_id, description, assignee, remove_watcher=False):
+    jira_api = get_jira_api()
 
     description = '\n\n'.join(description)
     issue = jira_api.issue(jira_id)
@@ -73,6 +103,9 @@ def add_attachment(jira_id, attachment_file_path, attachment_filename):
     """
     Checks if file is already added to jira ticket; attaches if not. 
     """
+
+    jira_api = get_jira_api()
+    
     issue = jira_api.issue(jira_id)
     current_attachments = [a.filename for a in issue.fields.attachment]
 
