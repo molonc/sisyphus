@@ -8,12 +8,14 @@ scripts.
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-import json
-import os
-import time
+
 import datetime
+import json
 import logging
+import os
 import shutil
+import time
+
 import pandas as pd
 
 try:
@@ -22,17 +24,22 @@ except ImportError:
     from urllib2 import urlopen
 
 from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
-from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
+from dbclients.basicclient import BasicAPIClient, FieldMismatchError
 
 import azure.storage.blob
 from azure.keyvault import KeyVaultClient, KeyVaultAuthentication
 from azure.common.credentials import ServicePrincipalCredentials
 
+import boto3
+import botocore
 
 log = logging.getLogger('sisyphus')
 
 TANTALUS_API_URL = "https://tantalus.canadacentral.cloudapp.azure.com/api/"
 
+
+class IncorrectFileMode(Exception):
+    pass
 
 def get_storage_account_key(
         accountname, client_id, secret_key, tenant_id, keyvault_account
@@ -53,6 +60,212 @@ def get_storage_account_key(
     # passing in empty string for version returns latest key
     secret_bundle = client.get_secret(keyvault, accountname, "")
     return secret_bundle.value
+
+
+class S3StorageClient(object):
+    def __init__(self, storage_bucket, prefix):
+        """
+        storage client for S3
+        :param storage_bucket: bucket name
+        :type storage_bucket: str
+        :param prefix: tantalus prefix
+        :type prefix: str
+        """
+        self.storage_bucket = storage_bucket
+        self.prefix = prefix
+
+        access_id = os.environ['AWS_ACCESS_KEY_ID']
+        access_key = os.environ['AWS_SECRET_ACCESS_KEY']
+        location = os.environ['AWS_DEFAULT_REGION']
+
+        multipart_threshold = 512 * 1024 * 1024
+        num_download_attempts = 5
+        max_concurrency = 1
+        multipart_chunksize = 512 * 1024 * 1024
+        max_io_queue = 100
+        io_chunksize = 1024 * 1024
+
+        self.client = boto3.client('s3', aws_access_key_id=access_id, aws_secret_access_key=access_key)
+        self.resource = boto3.resource('s3', aws_access_key_id=access_id, aws_secret_access_key=access_key)
+        self.location = location
+
+        transfer_config = boto3.s3.transfer.TransferConfig(
+            multipart_threshold=multipart_threshold,
+            num_download_attempts=num_download_attempts,
+            max_concurrency=max_concurrency,
+            multipart_chunksize=multipart_chunksize,
+            max_io_queue=max_io_queue,
+            io_chunksize=io_chunksize
+        )
+        self.transfer = boto3.s3.transfer.S3Transfer(
+            client=self.client,
+            config=transfer_config
+        )
+
+        self.bucket = self.resource.Bucket(self.storage_bucket)
+
+    def get_size(self, key):
+        """
+        return size of key
+        :param key: S3 object key
+        :type key: str
+        :return: size in bytes
+        :rtype: int
+        """
+        s3object = self.bucket.Object(key)
+        return s3object.content_length
+
+    def get_created_time(self, key):
+        """
+        return created time
+        :param key: S3 object key
+        :type key: str
+        :return: creation time
+        :rtype: str
+        """
+        created_time = self.bucket.Object(key).last_modified.isoformat()
+        return created_time
+
+    def get_url(self, key):
+        """
+        generate a presigned url
+        :param key: S3 object key
+        :type key: str
+        :return: url
+        :rtype: str
+        """
+        url = self.client.generate_presigned_url(
+            ClientMethod='get_object',
+            Params={
+                'Bucket': self.storage_bucket,
+                'Key': key
+            },
+            ExpiresIn=604800
+        )
+
+        return url
+
+    def delete(self, key):
+        """
+        delete S3 object
+        :param key: S3 object key
+        :type key: str
+        """
+        self.resource.Object(self.storage_bucket, key).delete()
+
+    def open_file(self, key):
+        """
+        open S3 object for reading
+        :param key: S3 object key
+        :type key: str
+        :return: file obj for reading
+        :rtype: urllib.request.Request
+        """
+        url = self.get_url(key)
+        print(url)
+        return urlopen(url)
+
+    def exists(self, key):
+        """
+        check if key exists
+        :param key: urllib.request.Request
+        :type key: str
+        :return: True if exists
+        :rtype: bool
+        """
+        if not self.bucket.creation_date:
+            return False
+
+        s3object = self.bucket.Object(key)
+        try:
+            s3object.load()
+        except botocore.exceptions.ClientError as e:
+            if e.response['Error']['Code'] == "404":
+                # The object does not exist.
+                return False
+            else:
+                # Something else has gone wrong.
+                raise
+        else:
+            return True
+
+    def list(self, prefix):
+        """
+        list all S3 objects that start with the prefix
+        :param prefix:
+        :type prefix: str
+        :return: generator of s3 objects in bucket
+        :rtype: generator
+        """
+        kwargs = {'Bucket': self.storage_bucket, 'Prefix': prefix}
+        while True:
+            resp = self.client.list_objects_v2(**kwargs)
+
+            for obj in resp.get('Contents', []):
+                yield (obj['Key'])
+
+            try:
+                kwargs['ContinuationToken'] = resp['NextContinuationToken']
+            except KeyError:
+                break
+
+    def write_data(self, key, stream):
+        """
+        write from stream to S3
+        :param key: S3 object key
+        :type key: str
+        :param stream: file obj in read mode
+        :type stream: file IO object
+        """
+        stream.seek(0)
+        try:
+            self.client.put_object(
+                Bucket=self.storage_bucket,
+                Key=key,
+                Body=stream
+            )
+        except TypeError as e:
+            message = "TypeError:" + str(e)
+            message += ". Try opening the stream in binary mode"
+            raise IncorrectFileMode(message)
+
+    def create(self, key, filepath, update=False):
+        """
+        create S3 object from file
+        :param key: S3 object key
+        :type key: str
+        :param filepath: local file path
+        :type filepath: str
+        :param update: update S3 object if paths dont match
+        :type update: bool
+        """
+        if not self.bucket.creation_date:
+            response = self.client.create_bucket(
+                ACL='private',
+                Bucket=self.storage_bucket,
+                CreateBucketConfiguration={
+                    'LocationConstraint': self.location
+                },
+                ObjectLockEnabledForBucket=True,
+            )
+
+        if self.exists(key):
+            log.info("{} already exists on {}".format(key, self.prefix))
+
+            keysize = self.get_size(key)
+            filesize = os.path.getsize(filepath)
+
+            if keysize == filesize:
+                log.info("{} has the same size as {}".format(key, filepath))
+                return
+            elif update:
+                log.info("{} updating from {}".format(key, filepath))
+            else:
+                raise Exception("blob size is {} but local file size is {}".format(keysize, filesize))
+
+        log.info("Creating blob {} from path {}".format(key, filepath))
+
+        self.transfer.upload_file(filepath, self.storage_bucket, key)
 
 
 class BlobStorageClient(object):
@@ -155,7 +368,6 @@ class ServerStorageClient(object):
         filepath = os.path.join(self.storage_directory, filename)
         # TODO: this is currently fixed at pacific time
         return pd.Timestamp(time.ctime(os.path.getmtime(filepath)), tz="Canada/Pacific").isoformat()
-
 
     def get_url(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
@@ -487,9 +699,10 @@ class TantalusApi(BasicAPIClient):
 
         size = storage_client.get_size(file_resource['filename'])
         if size != file_resource['size']:
-            raise DataCorruptionError('file instance {} with path {} has size {} on storage {} but {} in tantalus'.format(
-                file_instance['id'], file_instance['filepath'], size, file_instance['storage']['name'],
-                file_instance['file_resource']['size']))
+            raise DataCorruptionError(
+                'file instance {} with path {} has size {} on storage {} but {} in tantalus'.format(
+                    file_instance['id'], file_instance['filepath'], size, file_instance['storage']['name'],
+                    file_instance['file_resource']['size']))
 
     def add_instance(self, file_resource, storage):
         """
@@ -543,10 +756,12 @@ class TantalusApi(BasicAPIClient):
         file_resources = self.get_dataset_file_resources(dataset_id, dataset_model, filters)
 
         if dataset_model == 'sequencedataset':
-            file_instances = self.list('file_instance', file_resource__sequencedataset__id=dataset_id, storage__name=storage_name)
+            file_instances = self.list('file_instance', file_resource__sequencedataset__id=dataset_id,
+                                       storage__name=storage_name)
 
         elif dataset_model == 'resultsdataset':
-            file_instances = self.list('file_instance', file_resource__resultsdataset__id=dataset_id, storage__name=storage_name)
+            file_instances = self.list('file_instance', file_resource__resultsdataset__id=dataset_id,
+                                       storage__name=storage_name)
 
         else:
             raise ValueError('unrecognized dataset model {}'.format(dataset_model))
@@ -617,7 +832,6 @@ class TantalusApi(BasicAPIClient):
             return False
 
         return True
-
 
     def tag(self, name, sequencedataset_set=(), resultsdataset_set=()):
         """
