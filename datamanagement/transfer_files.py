@@ -124,18 +124,21 @@ class AzureBlobServerDownload(object):
 
         self.tantalus_api.check_file(file_instance)
 
-        # Check any existing file unless we intend to overwrite
-        if os.path.isfile(local_filepath) and not overwrite:
-            if _check_file_same_local(file_resource, local_filepath):
-                logging.info(
-                    "skipping transfer of file resource {} that matches existing file".format(
-                        file_resource["filename"]))
-                return
-            error_message = "target file {filepath} already exists on {storage} with different size".format(
-                filepath=local_filepath,
-                storage=self.to_storage_name,
-            )
-            raise FileAlreadyExists(error_message)
+        if os.path.isfile(local_filepath):
+            if overwrite:
+                os.remove(local_filepath)
+
+            else:
+                if _check_file_same_local(file_resource, local_filepath):
+                    logging.info(
+                        "skipping transfer of file resource {} that matches existing file".format(
+                            file_resource["filename"]))
+                    return
+                error_message = "target file {filepath} already exists on {storage} with different size".format(
+                    filepath=local_filepath,
+                    storage=self.to_storage_name,
+                )
+                raise FileAlreadyExists(error_message)
 
         self.block_blob_service.get_blob_to_path(
             cloud_container,
@@ -295,18 +298,21 @@ class RsyncTransfer(object):
             local_filepath = local_filepath + "/"
             remote_filepath = remote_filepath + "/"
 
-        # Check any existing file unless we intend to overwrite
-        if os.path.isfile(local_filepath) and not overwrite:
-            if _check_file_same_local(file_instance["file_resource"], local_filepath):
-                logging.info(
-                    "skipping transfer of file resource {} that matches existing file".format(
-                        file_resource["filename"]))
-                return
+        if os.path.isfile(local_filepath):
+            if overwrite:
+                os.remove(local_filepath)
 
-            error_message = "target file {filepath} already exists on {storage} with different size".format(
-                filepath=local_filepath, storage=self.to_storage_name)
+            else:
+                if _check_file_same_local(file_instance["file_resource"], local_filepath):
+                    logging.info(
+                        "skipping transfer of file resource {} that matches existing file".format(
+                            file_resource["filename"]))
+                    return
 
-            raise FileAlreadyExists(error_message)
+                error_message = "target file {filepath} already exists on {storage} with different size".format(
+                    filepath=local_filepath, storage=self.to_storage_name)
+
+                raise FileAlreadyExists(error_message)
 
         if file_instance["storage"]["server_ip"] == self.local_transfer:
             remote_location = remote_filepath
