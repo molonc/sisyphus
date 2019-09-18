@@ -126,6 +126,7 @@ class AzureBlobServerDownload(object):
 
         if os.path.isfile(local_filepath):
             if overwrite:
+                logging.info(f'removing existing file {local_filepath}')
                 os.remove(local_filepath)
 
             else:
@@ -300,6 +301,7 @@ class RsyncTransfer(object):
 
         if os.path.isfile(local_filepath):
             if overwrite:
+                logging.info(f'removing existing file {local_filepath}')
                 os.remove(local_filepath)
 
             else:
