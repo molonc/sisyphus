@@ -19,7 +19,7 @@ from dbclients.tantalus import TantalusApi
 from dbclients.basicclient import NotFoundError
 
 from workflows.utils import file_utils, log_utils, colossus_utils
-from workflows.utils.update_jira import update_jira_dlp, add_attachment, comment_jira
+from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
 
 from models import AnalysisInfo, QCAnalysis, Results
 
@@ -285,7 +285,6 @@ def main(
         config_filename=None,
         **run_options
 ):
-    start = time.time()
 
     if config_filename is None:
         config_filename = default_config
