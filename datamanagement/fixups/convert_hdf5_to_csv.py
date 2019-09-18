@@ -94,11 +94,17 @@ def get_h5_info(h5_filepath):
             key_name_map = h5_key_name_map[suffix]
             h5_prefix = h5_filepath[:-len(suffix)]
             return key_name_map, h5_prefix
-    raise Exception('unknown suffix')
+    if 'variant_calling_rawdata' in h5_filepath:
+        logging.warning(f'skipping {h5_filepath}')
+        return None, None
+    raise Exception(f'unknown suffix for {h5_filepath}')
 
 
 def get_h5_csv_info(h5_filepath):
     key_name_map, h5_prefix = get_h5_info(h5_filepath)
+
+    if key_name_map is None:
+        return
 
     for key in get_python2_hdf5_keys(h5_filepath):
         if key.endswith('meta'):
@@ -151,6 +157,9 @@ def run_h5_convert(cache_dir, dataset_id=None, results_type=None, redo=False, dr
 
             found_csv_yaml = False
             for existing_filename in existing_filenames:
+                # Destruct outputs csv.yaml directly, check non destruct files
+                if 'destruct' in existing_filename:
+                    continue
                 if existing_filename.endswith('.csv.gz.yaml'):
                     found_csv_yaml = True
                     break
