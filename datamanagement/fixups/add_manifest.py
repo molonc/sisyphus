@@ -50,17 +50,24 @@ analysis_dir_templates = {
     ('pseudobulk', 'v0.2.20'): ('{ticket_id}/results/', ),
     ('pseudobulk', 'v0.2.25'): ('{ticket_id}/results/', ),
     ('pseudobulk', 'v0.3.0'): ('{ticket_id}/results/', ),
+    ('pseudobulk', 'v0.3.1'): ('{ticket_id}/results/', ),
 }
 
 
-def get_pseudobulk_info(tantalus_api, analysis):
+def get_pseudobulk_info(tantalus_api, results, analysis):
     info = {}
     info['normal_sample'] = {}
     info['normal_sample']['sample_id'] = analysis['args']['matched_normal_sample']
     info['normal_sample']['library_id'] = analysis['args']['matched_normal_library']
     info['tumour_samples'] = []
+    results_samples = [s['sample_id'] for s in results['samples']]
+    results_libraries = [s['library_id'] for s in results['libraries']]
     for dataset_id in analysis['input_datasets']:
         dataset = tantalus_api.get('sequencedataset', id=dataset_id)
+        if dataset['sample']['sample_id'] not in results_samples:
+            continue
+        if dataset['library']['library_id'] not in results_libraries:
+            continue
         if dataset['sample']['sample_id'] == analysis['args']['matched_normal_sample']:
             continue
         if dataset['library']['library_id'] == analysis['args']['matched_normal_library']:
@@ -152,7 +159,7 @@ def add_manifest(jira_ticket=None, update=False):
                 manifest['meta'] = {}
                 manifest['meta']['type'] = results['results_type']
                 manifest['meta']['version'] = results['results_version']
-                manifest['meta'].update(get_pseudobulk_info(tantalus_api, analysis))
+                manifest['meta'].update(get_pseudobulk_info(tantalus_api, results, analysis))
                 manifest['filenames'] = rel_filenames
 
             manifest_io = io.BytesIO()
