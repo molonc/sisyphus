@@ -491,6 +491,31 @@ class TantalusApi(BasicAPIClient):
                 file_instance['id'], file_instance['filepath'], size, file_instance['storage']['name'],
                 file_instance['file_resource']['size']))
 
+    def delete_file(self, file_resource):
+        """
+        Delete a file and remove from all datasets.
+
+        Args:
+            file_resource (dict)
+        """
+
+        file_instances = self.list("file_instance", file_resource=file_resource["id"])
+        for file_instance in file_instances:
+            file_instance = self.update(
+                "file_instance",
+                id=file_instance["id"],
+                is_deleted=True,
+            )
+            logging.info(f"deleted file instance {file_instance['id']}")
+
+        for dataset_type in ("sequencedataset", "resultsdataset"):
+            datasets = self.list(dataset_type, file_resources__id=file_resource["id"])
+            for dataset in datasets:
+                file_resources = list(set(dataset["file_resources"]))
+                file_resources.remove(file_resource["id"])
+                logging.info(f"removing file resource {file_resource['id']} from {dataset['id']}")
+                self.update(dataset_type, id=dataset["id"], file_resources=file_resources)
+
     def add_instance(self, file_resource, storage):
         """
         Add a file instance accounting for the possibility that we are replacing a deleted instance.
