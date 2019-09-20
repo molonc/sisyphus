@@ -108,10 +108,6 @@ def update_description(jira_id, description, assignee, remove_watcher=False):
 
     issue.update(notify=False, assignee={"name": assignee}, description=description)
 
-    # Remove self as watcher
-    if remove_watcher:
-        jira_api.remove_watcher(issue, JIRA_USER)
-
 
 def add_attachment(jira_id, attachment_file_path, attachment_filename):
     """
