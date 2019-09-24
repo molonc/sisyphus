@@ -347,12 +347,12 @@ class TantalusApi(BasicAPIClient):
 
         return client
 
-    def add_file(self, storage_name, filepath, update=False):
-        """ Create a file resource and file instance in the given storage.
+    def _add_or_update_file(self, storage_name, filename, update=False):
+        """ Create or update a file resource and file instance in the given storage.
 
         Args:
             storage_name: storage for file instance
-            filepath: full path to file
+            filename: storage relative filename
 
         Kwargs:
             update: update the file if exists
@@ -376,11 +376,6 @@ class TantalusApi(BasicAPIClient):
         """
         storage = self.get_storage(storage_name)
         storage_client = self.get_storage_client(storage_name)
-
-        log.info('adding file with path {} in storage {}'.format(
-            filepath, storage_name))
-
-        filename = self.get_file_resource_filename(storage_name, filepath)
 
         # Try getting or creating the file resource, will
         # fail if exists with different properties.
@@ -438,6 +433,40 @@ class TantalusApi(BasicAPIClient):
 
         return file_resource, file_instance
 
+    def add_file(self, storage_name, filepath, update=False):
+        """ Create a file resource and file instance in the given storage.
+
+        Args:
+            storage_name: storage for file instance
+            filepath: full path to file
+
+        Kwargs:
+            update: update the file if exists
+
+        Returns:
+            file_resource, file_instance
+
+        For a file that does not exist, create the file resource and
+        file instance on the specific storage and return them.
+
+        If the file already exist in tantalus and the file being
+        added has the same properties, add_file will ensure an instance
+        exists on the given storage.
+
+        If the file already exists in tantalus and the file being added
+        has different properties, functionality will depend on the
+        update kwarg.  If update=False, will raise FieldMismatchError.
+        If update=True, update the file resource, create a file instance
+        on the given storage, and set all other file instances to
+        is_delete=True.
+        """
+        log.info('adding file with path {} in storage {}'.format(
+            filepath, storage_name))
+
+        filename = self.get_file_resource_filename(storage_name, filepath)
+
+        return self._add_or_update_file(storage_name, filename, update=update)
+
     def update_file(self, file_instance):
         """
         Update a file resource to match the file pointed
@@ -449,16 +478,13 @@ class TantalusApi(BasicAPIClient):
         Returns:
             file_instance (dict)
         """
-        storage_client = self.get_storage_client(file_instance['storage']['name'])
+        filename = file_instance['file_resource']['filename']
+        storage_name = file_instance['storage']['name']
 
-        file_resource = self.update(
-            'file_resource',
-            id=file_instance['file_resource']['id'],
-            created=storage_client.get_created_time(file_instance['file_resource']['filename']),
-            size=storage_client.get_size(file_instance['file_resource']['filename']),
-        )
+        log.info('updating file instance {} with filename {} in storage {}'.format(
+            file_instance['id'], filename, storage_name))
 
-        file_instance['file_resource'] = file_resource
+        file_resource, file_instance = self._add_or_update_file(storage_name, filename, update=True)
 
         return file_instance
 
