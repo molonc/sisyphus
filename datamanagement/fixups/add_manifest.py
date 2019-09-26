@@ -43,6 +43,7 @@ analysis_dir_templates = {
     ('hmmcopy', 'v0.3.0'): ('{ticket_id}/results/hmmcopy/', ),
     ('hmmcopy', 'v0.3.1'): ('{ticket_id}/results/hmmcopy/', ),
 
+    ('pseudobulk', 'v0.2.6'): ('{ticket_id}/results/', ),
     ('pseudobulk', 'v0.2.11'): ('{ticket_id}/results/', ),
     ('pseudobulk', 'v0.2.12'): ('{ticket_id}/results/', ),
     ('pseudobulk', 'v0.2.13'): ('{ticket_id}/results/', ),
