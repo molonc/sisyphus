@@ -68,7 +68,16 @@ def update_jira_dlp(jira_id, aligner):
         '{noformat}Container: singlecellresults\nresults/' + jira_id + '{noformat}',
     ]
 
-    update_description(jira_id, description, "jbiele", remove_watcher=True)
+    parent_ticket = get_parent_issue(jira_id)
+
+    library = colossus_api.get("library", jira_ticket=parent_ticket)
+    sample = library["sample"]["sample_id"]    
+
+    if sample.startswith("TFRI"):
+        update_description(jira_id, description, "shwu", remove_watcher=True)
+
+    else:
+       update_description(jira_id, description, "jbiele", remove_watcher=True)
 
 
 def update_jira_tenx(jira_id, args):
