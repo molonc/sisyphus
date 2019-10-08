@@ -85,7 +85,6 @@ def get_analyses_to_run(version, aligner, check=False):
             analysis_info = check_library_for_analysis(
                 library_id,
                 aligner,
-                'align',
                 version
             )
 
@@ -384,7 +383,7 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner):
     return analysis_id
 
 
-def run_screens(analyses_to_run):
+def run_screens(analyses_to_run, version):
     '''
     Mass run of analyses in screens when saltant is down
 
@@ -442,9 +441,11 @@ def check_running_analysis(jira_ticket, analysis_type):
 @click.argument('version')
 @click.argument('aligner')
 @click.option('--check', is_flag=True)
+@click.option('--override_contamination', is_flag=True)
 @click.option('--screen', is_flag=True)
+@click.option('--ignore_status', is_flag=True)
 @click.option('--skip', "-s", multiple=True)
-def main(version, aligner, check=False, screen=False, skip=None):
+def main(version, aligner, check=False, override_contamination=False, screen=False, ignore_status=False, skip=None):
 
     config_path = os.path.join(
         os.environ['HEADNODE_AUTOMATION_DIR'],
@@ -466,17 +467,23 @@ def main(version, aligner, check=False, screen=False, skip=None):
         if skip_analysis in analyses_to_run['qc'].keys():
             del analyses_to_run['qc'][skip_analysis]
 
-    # If saltant is down, run analysis in screens
+    # If saltant is down, run analysis in screens 
     if screen:
         log.info("Running analyses in screens")
-        run_screens(analyses_to_run)
+        run_screens(analyses_to_run, version)
 
     else:
         for qc_analysis in analyses_to_run['qc'].keys():
+            if ignore_status:
+                library_id = analyses_to_run['qc'][qc_analysis]
+                log.info("Running qc for {}".format(qc_analysis))
+                saltant_utils.run_qc(qc_analysis, version, library_id, aligner, config, override_contamination=override_contamination)
+                continue
+
             if not check_running_analysis(qc_analysis, "qc"):
                 library_id = analyses_to_run['qc'][qc_analysis]
                 log.info("Running qc for {}".format(qc_analysis))
-                # saltant_utils.run_qc(align_analysis, version, library_id, aligner, config)
+                saltant_utils.run_qc(qc_analysis, version, library_id, aligner, config, override_contamination=override_contamination)
 
 
 if __name__ == '__main__':

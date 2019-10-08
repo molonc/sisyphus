@@ -6,7 +6,6 @@ import subprocess
 import logging
 from distutils.version import StrictVersion
 
-from utils import log_utils
 import datamanagement.templates as templates
 
 log = logging.getLogger('sisyphus')
@@ -43,7 +42,7 @@ def update_config(config, key, value):
     return False
 
 
-def get_config_override(args):
+def get_config_override(args, run_options):
     """
     Get a dictionary of default configuration options that
     override existing single cell pipeline configuration options.
@@ -59,6 +58,13 @@ def get_config_override(args):
         'smoothing_function': 'modal',
     }
 
+    if run_options["override_contamination"]:
+        config["alignment"] = {
+            'fastq_screen_params': {
+                'strict_validation': False
+            }
+        }
+
     cluster = 'azure'
     update_config(config, 'cluster', cluster)
     update_config(config, 'aligner', args["aligner"])
@@ -68,8 +74,8 @@ def get_config_override(args):
     return config
 
 
-def get_config_string(args):
-    config_string = json.dumps(get_config_override(args))
+def get_config_string(args, run_options):
+    config_string = json.dumps(get_config_override(args, run_options))
     config_string = ''.join(config_string.split()) # Remove all whitespace
     return r"'{}'".format(config_string)
 
@@ -100,7 +106,7 @@ def run_pipeline(
     args = tantalus_analysis.args
     version = tantalus_analysis.version
     run_options = tantalus_analysis.run_options
-    config_override_string = get_config_string(args)
+    config_override_string = get_config_string(args, run_options)
 
     run_cmd = [
         'single_cell qc',
@@ -119,8 +125,8 @@ def run_pipeline(
         '--alignment_output',
         alignment_output,
         '--annotation_output',
-        annotation_output, 
-        '--hmmcopy_output', 
+        annotation_output,
+        '--hmmcopy_output',
         hmmcopy_output,
         '--library_id',
         args['library_id'],

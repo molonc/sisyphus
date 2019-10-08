@@ -8,6 +8,8 @@ import logging
 import subprocess
 from itertools import chain
 
+from jira import JIRA
+
 import workflows.launch_pipeline
 import workflows.generate_inputs
 
@@ -90,10 +92,11 @@ def get_contamination_comment(jira_ticket):
     jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(jira_user, jira_password))
 
     issue = jira_api.issue(jira_ticket)
-    library_ticket = issue.fields.parent.key
+    library_ticket_id = issue.fields.parent.key
+    library_ticket = jira_api.issue(library_ticket_id)
 
     comment = f"""
-    Hi [~{library_ticket.fields.reporter.key}],
+    Hi [~jedwards], [~jbwang], [~jbiele],
     
     This is an automated message. \n 
     The pipeline detected that over 20% of this library's cell are contaminated. Would you still like to proceed with analysis?
@@ -103,7 +106,7 @@ def get_contamination_comment(jira_ticket):
     [~{jira_user}]
     """
 
-    comment_jira(jira_ticket, comment)
+    comment_jira(library_ticket_id, comment)
 
 def start_automation(
         jira,
@@ -122,7 +125,6 @@ def start_automation(
         alignment_output,
         annotation_output,
         hmmcopy_output,
-        log_file,
 ):
     start = time.time()
     tantalus_analysis = QCAnalysis(jira, version, args, run_options, storages=storages, update=run_options['update'])
@@ -195,12 +197,15 @@ def start_automation(
             annotation_output=annotation_output,
             hmmcopy_output=hmmcopy_output,
         )
+
     except Exception:
         tantalus_analysis.set_error_status()
         analysis_info.set_error_status()
-
-        with open(log_file) as f:
-            if "LibraryContaminationError" in f:
+        pipeline_log = os.path.join(
+            scpipeline_dir, "qc", "log", "latest", "pipeline.log")
+        with open(pipeline_log) as f:
+            lines = f.read()
+            if "LibraryContaminationError" in lines:
                 log.error("LibraryContaminationError: over 20% of cells are contaminated")
 
                 get_contamination_comment(jira)
@@ -372,7 +377,6 @@ def main(
         alignment_output,
         annotation_output,
         hmmcopy_output,
-        log_file,
     )
 
 
