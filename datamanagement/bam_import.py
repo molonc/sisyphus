@@ -337,7 +337,7 @@ def import_bam(
     bam_header_info = get_bam_header_info(bam_header)
 
     ref_genome = get_bam_ref_genome(bam_header)
-    aligner_name = get_bam_aligner_name(bam_header)
+    aligner_name = get_bam_aligner_name(bam_header).upper()
 
     logging.info(f"bam header shows reference genome {ref_genome} and aligner {aligner_name}")
 

@@ -6,17 +6,18 @@ import os
 import sys
 import time
 import click
+import shutil
 import socket
 import logging
 import subprocess
 from datetime import datetime
-
+import pandas as pd
 from datamanagement.utils.gsc import get_sequencing_instrument, GSCAPI
 from dbclients.tantalus import TantalusApi
 from datamanagement.utils.utils import (
-        get_lanes_hash, make_dirs, 
-        convert_time, 
-        valid_date, 
+        get_lanes_hash, make_dirs,
+        convert_time,
+        valid_date,
         add_compression_suffix,
         connect_to_client
     )
@@ -25,9 +26,9 @@ from datamanagement.cram_to_bam import create_bam as HelperCram
 from datamanagement.bam_import import import_bam
 
 from datamanagement.templates import (
-        WGS_BAM_NAME_TEMPLATE, 
-        MERGE_BAM_PATH_TEMPLATE, 
-        LANE_BAM_PATH_TEMPLATE, 
+        WGS_BAM_NAME_TEMPLATE,
+        MERGE_BAM_PATH_TEMPLATE,
+        LANE_BAM_PATH_TEMPLATE,
         MULTIPLEXED_LANE_BAM_PATH_TEMPLATE,
 )
 from datamanagement.utils.constants import (
@@ -35,6 +36,7 @@ from datamanagement.utils.constants import (
         SOLEXA_RUN_TYPE_MAP,
         PROTOCOL_ID_MAP
 )
+from transfer_files import *
 
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 gsc_api = GSCAPI()
@@ -59,8 +61,8 @@ def rsync_file(from_path, to_path, sftp=None, remote_host=None):
     subprocess_cmd = [
         "rsync",
         "-avPL",
-        "--chmod=D555",
-        "--chmod=F444",
+        "--chmod=Da+rw",
+        "--chmod=Fa+r",
         transfer_from_path,
         to_path,
     ]
@@ -70,19 +72,19 @@ def rsync_file(from_path, to_path, sftp=None, remote_host=None):
         make_dirs(os.path.dirname(to_path))
         logging.info("Copying file from {} to {}".format(from_path, to_path))
         subprocess.check_call(subprocess_cmd)
-    
+
     # If the file exists and we are using sftp, check size
     elif os.path.isfile(to_path) and sftp:
         remote_file = sftp.stat(from_path)
         if remote_file.st_size != os.path.getsize(to_path):
             logging.info("The size of {} on the GSC does not match {} -- copying new file".format(
-                from_path, 
+                from_path,
                 to_path,
             ))
             subprocess.check_call(subprocess_cmd)
         else:
             logging.info("The file already exists at {} -- skipping import".format(to_path))
-    
+
     # If the file exists and we are not using sftp, check size
     elif os.path.isfile(to_path) and not sftp:
         if os.path.getsize(from_path) != os.path.getsize(to_path):
@@ -109,12 +111,12 @@ def rsync_file(from_path, to_path, sftp=None, remote_host=None):
 
 def get_merge_bam_path(library_type, data_path, library_name, num_lanes, compression=None):
     """
-    Constructs the filename for the source bam based on the bam metadata and joins with 
+    Constructs the filename for the source bam based on the bam metadata and joins with
     the source datapath to create full path to source bam
 
     Args:
         library_type:   (string) WGS or EXOME
-        data_path:      (string) path to original bam 
+        data_path:      (string) path to original bam
         library_name:   (string) internal library ID
         num_lanes:      (string) number of lanes included in bam
         compression:    (String) if bam is spec or uncompressed
@@ -135,20 +137,20 @@ def get_merge_bam_path(library_type, data_path, library_name, num_lanes, compres
 
 
 def get_lane_bam_path(
-        library_type, 
-        data_path, 
-        flowcell_id, 
-        lane_number, 
-        adapter_index_sequence=None, 
+        library_type,
+        data_path,
+        flowcell_id,
+        lane_number,
+        adapter_index_sequence=None,
         compression=None
 ):
     """
-    Constructs the filename for the source bam based on the bam metadata and joins with 
+    Constructs the filename for the source bam based on the bam metadata and joins with
     the source datapath to create full path to source bam
 
     Args:
         library_type:           (string) WGS or RNASEQ
-        data_path:              (string) path to original bam 
+        data_path:              (string) path to original bam
         flowcell_id:            (string) flowcell ID for the lane
         lane_number:            (string) number of lanes included in bam
         adapter_index_sequence: (string) index sequence from GSC
@@ -181,10 +183,10 @@ def get_tantalus_bam_filename(sample, library, lane_infos):
     Args:
         sample:     (dict) the sample associated with the bam
         library:    (dict) the library associated with the bam
-        lane_infos: (list of dictionaries) contains lane info 
+        lane_infos: (list of dictionaries) contains lane info
                     associated with the bam
     Returns:
-        bam_path:   (string) the filename for the bam following 
+        bam_path:   (string) the filename for the bam following
                     naming conventions
     """
     lanes_str = get_lanes_hash(lane_infos)
@@ -202,15 +204,15 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
     """
     Transfers the bams and bais from GSC to destination storage. If the source
     bam is a spec, performs spec to bam conversion and creates a bam index
-    on the destination storage 
+    on the destination storage
 
     Args:
         bam_detail: (dict) contains metadata for the bam
-        bam_paths:  (dict) contains  the source paths, and 
+        bam_paths:  (dict) contains  the source paths, and
                     destination paths for the bam
-        storage:    (string) the name of destination storage to which the 
+        storage:    (string) the name of destination storage to which the
                     bam and bai will be transferred
-        sftp:       (sftp object) the sftp client connected to remote host 
+        sftp:       (sftp object) the sftp client connected to remote host
                     if the script is not run on thost
     """
     if sftp:
@@ -285,7 +287,7 @@ def check_sftp_bam(bam_path, spec_path, sftp=None):
         return bam_path
     except IOError:
         logging.error("The bam does not exist at {} -- checking for spec instead".format(bam_path))
-        
+
     try:
         sftp.stat(spec_path)
         return spec_path
@@ -296,12 +298,13 @@ def check_sftp_bam(bam_path, spec_path, sftp=None):
 
 def rename_bam_paths(bam_detail, storage, sftp=None):
     """
-    Creates full path for the source bam, source bai, destination bam, 
+    Creates full path for the source bam, source bai, destination bam,
     and destination bai
 
     Args:
         bam_detail: (dict) metadata required to create the bam name and path
         storage:    (dict) the destination storage for the bam and bai
+        cache_folder: (string) the destination folder for the bam and bai files
         sftp:       (sftp object) sftp client connected to the remote server
     Returns:
         bam_paths:  (dict) contains the source and destination paths
@@ -312,7 +315,7 @@ def rename_bam_paths(bam_detail, storage, sftp=None):
     else:
         compression = None
 
-    
+
     # Get merge bam path
     if bam_detail["info_type"] == "merge":
         bam_path = get_merge_bam_path(
@@ -347,7 +350,7 @@ def rename_bam_paths(bam_detail, storage, sftp=None):
                 compression="spec"
         )
 
-    # Create bai path 
+    # Create bai path
     source_bai_path = bam_path + ".bai"
 
     # Check the source bam exists, and then transfer
@@ -375,14 +378,14 @@ def rename_bam_paths(bam_detail, storage, sftp=None):
 
     # Create the destination bam name and path
     tantalus_bam_filename = get_tantalus_bam_filename(
-            bam_detail["sample"], 
-            bam_detail["library"], 
+            bam_detail["sample"],
+            bam_detail["library"],
             bam_detail["lane_info"]
     )
     tantalus_bai_filename = tantalus_bam_filename + ".bai"
-    
+
     tantalus_bam_filepath = os.path.join(
-            storage["prefix"], 
+            storage["prefix"],
             tantalus_bam_filename
     )
     tantalus_bai_filepath = os.path.join(
@@ -414,9 +417,9 @@ def get_merge_info(details_list, gsc_api, library, sample, skip_older_than):
         library:            (dict) contains library_id, library_type, index_format
         sample:             (dict) contains sample_id
         skip_older_than:    (string) skip bams older than this date
-    
+
     Returns:
-        merged_lanes:   (set) 
+        merged_lanes:   (set)
     """
     merge_infos = gsc_api.query("merge?library={}".format(library["library_id"]))
     merged_lanes = set()
@@ -425,7 +428,7 @@ def get_merge_info(details_list, gsc_api, library, sample, skip_older_than):
         num_lanes = len(merge_info["merge_xrefs"])
         reference_genome = merge_info["lims_genome_reference"]["path"]
         aligner = merge_info["aligner_software"]["name"]
-        
+
         # Check if data exists
         if data_path is None:
             logging.error("Merge data path is None")
@@ -435,7 +438,7 @@ def get_merge_info(details_list, gsc_api, library, sample, skip_older_than):
             logging.info("skipping merge with no completed date")
             continue
         completed_date = convert_time(merge_info["complete"])
-        # Skip older merges 
+        # Skip older merges
         if skip_older_than is not None and completed_date < skip_older_than:
             logging.info("skipping old merge")
             continue
@@ -490,7 +493,7 @@ def get_merge_info(details_list, gsc_api, library, sample, skip_older_than):
             info_type="merge",
         )
         details_list.append(list_temp)
-    
+
     return merged_lanes
 
 
@@ -589,7 +592,7 @@ def query_gsc(identifier, id_type):
     if ' ' in identifier:
         raise ValueError('space in id "{}"'.format(identifier))
 
-    # Query GSC for library info 
+    # Query GSC for library info
     if id_type == 'library':
         library_infos = gsc_api.query("library?name={}".format(identifier))
     elif id_type == 'sample':
@@ -603,7 +606,7 @@ def get_gsc_details(library_infos, skip_older_than):
     Extract the required metadata from GSC API
 
     Args:
-        library_infos:      (dict) response containing library info 
+        library_infos:      (dict) response containing library info
                             from the GSC API query
         skip_older_than:    (date) skip bams older than this date
 
@@ -642,8 +645,8 @@ def get_gsc_details(library_infos, skip_older_than):
         logging.info("found {}".format(library_type))
         library_name = library_info["name"]
         library = dict(
-            library_id=library_name, 
-            library_type=library_type, 
+            library_id=library_name,
+            library_type=library_type,
             index_format="N"
         )
 
@@ -658,32 +661,114 @@ def get_gsc_details(library_infos, skip_older_than):
 
     return details_list
 
+def transfer_blob(block_blob_service, tantalus_api, to_storage, cache_file_paths):
+    '''
+    Helper function to transfer the files onto blob
+    '''
+    # Get the file name and file path for the bam file
+    local_bam_filepath = cache_file_paths["tantalus_bam_path"]
+    local_bam_filename = cache_file_paths["tantalus_bam_name"]
+    # Create the filepath on the cloud
+    cloud_bam_filepath = os.path.join(to_storage["prefix"], local_bam_filename)
+    cloud_blobname_bam = local_bam_filename
+    cloud_container = to_storage["storage_container"]
+    # If the index file exists, then also get the filename and filepath of it
+    if cache_file_paths["tantalus_bai_path"]:
+        local_bai_filepath = cache_file_paths["tantalus_bai_path"]
+        local_bai_filename = cache_file_paths["tantalus_bai_name"]
+        cloud_bai_filepath = os.path.join(to_storage["prefix"], local_bai_filename)
+        cloud_blobname_bai = local_bai_filename
+    # Check if the file already exists 
+    ## TODO: also check the files have the same size
+    if block_blob_service.exists(cloud_container, cloud_blobname_bam):
+        logging.info("The file %s already exists in %s, container %s" % (cloud_blobname_bam, to_storage["name"], cloud_container))
+        return
+    logging.info("Uploading the files onto blob") 
+    block_blob_service.create_blob_from_path(
+            cloud_container,
+            cloud_blobname_bam,
+            local_bam_filepath,
+            progress_callback=TransferProgress().print_progress,
+            max_connections=16,
+            timeout=10 * 60 * 64,
+        )
+    if cache_file_paths["tantalus_bai_path"]:
+        block_blob_service.create_blob_from_path(
+            cloud_container,
+            cloud_blobname_bai,
+            local_bai_filepath,
+            progress_callback=TransferProgress().print_progress,
+            max_connections=16,
+            timeout=10 * 60 * 64,
+        )
+
+def clean(bam_paths):
+    """
+    """
+    if bam_paths["tantalus_bam_path"] and os.path.exists(bam_paths["tantalus_bam_path"]):
+        os.remove(bam_paths["tantalus_bam_path"])
+        logging.info("The file {} exists and is being deleted".format(bam_paths["tantalus_bam_path"]))
+    if bam_paths["tantalus_bai_path"] and os.path.exists(bam_paths["tantalus_bai_path"]):
+        os.remove(bam_paths["tantalus_bai_path"])
+        logging.info("The file {} exists and is being deleted".format(bam_paths["tantalus_bai_path"]))
+    
+def create_record(output_csv, detail, file_name):
+    """
+    """
+    if not os.path.exists(output_csv):
+        df = pd.DataFrame(columns = ["library_id", "file_name", "sample_id",
+                          "transferred_into_cache_directory", "uploaded_onto_cloud", "recorded_in_tantalus"])
+    else: 
+        df = pd.read_csv(output_csv)
+        if not df.loc[df["file_name"] == file_name].empty:
+            return
+        df = df.append({
+              "library_id": detail["library"]["library_id"], 
+              "file_name": file_name, 
+              "sample_id": detail["sample"]["sample_id"]
+              }, ignore_index=True)
+    df.to_csv(output_csv, index=False)
+
+def update_record(output_csv, file_name, column, value):    
+    df = pd.read_csv(output_csv)
+    df.loc[df["file_name"] == file_name, column] = value
+    df.to_csv(output_csv, index=False)
 
 @click.command()
 @click.argument('ids', nargs=-1)
-@click.argument('storage', nargs=1)
+@click.argument('to_storage', nargs=1)
+@click.option('--cache_storage')
+@click.option('--cache_folder_name')
+@click.option('--delete_cache', is_flag=True)
 @click.option('--id_type', type=click.Choice(['sample', 'library']))
 @click.option('--skip_older_than')
+@click.option('--blob_status_logging_csv')
 @click.option('--tag_name')
 @click.option('--update', is_flag=True)
 @click.option('--skip_file_import', is_flag=True)
 @click.option('--query_only', is_flag=True)
 def main(**kwargs):
     """
-    Queries the GSC for WGS bams. Transfers bams to specified storage if 
+    Queries the GSC for WGS bams. Transfers bams to specified storage if
     necessary and uploads metadata to tantalus
+	
+	If the destination storage is blob, then first cache the files to the local storage 
+	Else, transfer the files directly
 
     Args:
-        ids:                (string) a list of internal IDs to query the GSC for 
-        storage:            (string) destination storage to transfer bams to
-        id_type:            (string) type of ID specified (either sample or library) 
+        ids:                (string) a list of internal IDs to query the GSC for
+        cache_storage:      (string) local temp storage to cache the bam and bai files
+        cache_folder_name:  (string) the folder name under cache_storage that stores the files
+        to_storage:         (string) destination storage to transfer bams to
+        id_type:            (string) type of ID specified (either sample or library)
         skip_older_than:    (string) skip bams older than this date
         tag_name:           (string) tag name to associate the resulting sequence datasets
                             with when importing into tantalus
+        blob_status_logging_csv (string) the log csv file to record the file transferring status
         update:             (flag) specifies whether metadata in tantalus is
                             to be updated or not
         skip_file_import:   (flag) import only new lanes into tantalus
-        query_only:         (flag) only query for the bam paths on the GSC 
+        query_only:         (flag) only query for the bam paths on the GSC
     """
     # Check if this script is being run on thost
     # If not, connect to an ssh client to access /projects/files
@@ -693,10 +778,6 @@ def main(**kwargs):
     else:
         sftp = None
 
-    # Connect to the Tantalus API
-    tantalus_api = TantalusApi()
-    storage = tantalus_api.get_storage(kwargs["storage"])
-
     # Convert the date to the format we want
     if kwargs["skip_older_than"]:
         skip_older_than = valid_date(kwargs["skip_older_than"])
@@ -705,6 +786,15 @@ def main(**kwargs):
     if not kwargs["id_type"]:
         raise Exception("Please specify an ID type (sample or library")
 
+    # Connect to the Tantalus API
+    tantalus_api = TantalusApi()
+    to_storage = tantalus_api.get_storage(kwargs["to_storage"])
+
+    if to_storage["storage_type"] == "blob":
+        cache_storage = tantalus_api.get_storage(kwargs["cache_storage"])
+        cache_folder = kwargs["cache_folder_name"]
+        cache_storage["prefix"] = os.path.join(cache_storage["prefix"], cache_folder)
+    
     details = []
     for identifier in kwargs["ids"]:
         # Query the GSC to see if the ID exists
@@ -717,34 +807,67 @@ def main(**kwargs):
 
         # Get the data from GSC
         details = get_gsc_details(
-                infos, 
+                infos,
                 skip_older_than=kwargs["skip_older_than"],
         )
 
         # Import and transfer each file
         for detail in details:
             # Rename the bams according to internal templates
-            bam_paths = rename_bam_paths(detail, storage, sftp)
-
+            dest_bam_paths = rename_bam_paths(detail, to_storage, sftp)
+            # If the destination storage is a blob storage, then perform an extra caching step
+            if to_storage["storage_type"] == "blob":
+                cache_bam_paths = rename_bam_paths(detail, cache_storage, sftp)	
+                #print(cache_bam_paths, dest_bam_paths)
             # If the bam path does not exist at the source, skip
             # the transfer and import
-            if not bam_paths["source_bam_path"]:
+            if not cache_bam_paths["source_bam_path"]:
                 break
-
             # Skip import if we only wanted to query for paths
             if kwargs["query_only"]:
                 continue
-
             if not kwargs["skip_file_import"]:
-                # Transfer the bam to the specified storage
-                transfer_gsc_bams(detail, bam_paths, storage, sftp)
+                if to_storage["storage_type"] == "blob":
+                    output_csv = kwargs["blob_status_logging_csv"]
+                    create_record(output_csv, detail, cache_bam_paths["tantalus_bam_name"])
+                    block_blob_service = tantalus_api.get_storage_client(to_storage["name"]).blob_service
+                    cloud_blobname_bam = cache_bam_paths["tantalus_bam_name"] 
+                    cloud_container = to_storage["storage_container"]
+                    if not block_blob_service.exists(cloud_container, cloud_blobname_bam):
+                        #Transfer the bam to the specified storage if not exists
+                        if not os.path.exists(cache_bam_paths["tantalus_bam_path"]):
+                            logging.info("The bam file {} does not exists, start caching the file.".format(cache_bam_paths["tantalus_bam_path"]))
+                            transfer_gsc_bams(detail, cache_bam_paths, cache_storage, sftp)
+                        
+                        update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "transferred_into_cache_directory", "TRUE")
+                        logging.info("The bam file already exists in the cache directory, transferring it onto blob.")
+                    
+                        # Then upload the files onto cloud 
+                        transfer_blob(block_blob_service, tantalus_api, to_storage, cache_bam_paths)
+                        update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "uploaded_onto_cloud", "TRUE")
+                        if kwargs["delete_cache"]:
+                            #after transferring the file, delete the cached file
+                            clean(cache_bam_paths)
+                            #delete the empty directory
+                            root = "/".join(cache_bam_paths["tantalus_bam_path"].split("/")[:5])
+                            logging.info("Deleting the cache directory {}.".format(root))
+                            shutil.rmtree(root)
+                    else:
+                        logging.info("The file {} already exists on blob".format(cache_bam_paths["tantalus_bam_name"]))
+
+                else:
+                    if not os.path.exists(dest_bam_paths["tantalus_bam_path"]):
+                        logging.info("The bam file {} does not exists, start transferring the file.".format(dest_bam_paths["tantalus_bam_path"]))
+                        transfer_gsc_bams(detail, dest_bam_paths, to_storage, sftp)
+                    logging.info("The bam file already exists in the destination directory, skip transferring the file.")
 
                 # Add the files to Tantalus
-                logging.info("Importing {} to Tantalus".format(bam_paths["tantalus_bam_path"]))
-
+                
+                logging.info("Importing {} to Tantalus".format(dest_bam_paths["tantalus_bam_path"]))
+                
                 dataset = import_bam(
-                    storage_name=storage["name"],
-                    bam_file_path=bam_paths["tantalus_bam_path"],
+                    storage_name=to_storage["name"],
+                    bam_file_path=dest_bam_paths["tantalus_bam_path"],
                     sample=detail["sample"],
                     library=detail["library"],
                     lane_infos=detail["lane_info"],
@@ -754,7 +877,9 @@ def main(**kwargs):
                 )
 
                 logging.info("Successfully added sequence dataset with ID {}".format(dataset["id"]))
+                update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "recorded_in_tantalus", "TRUE")
             else:
+                
                 logging.info("Importing library {} to tantalus".format(detail["library"]["library_id"]))
                 library_pk = tantalus_api.get_or_create(
                     "dna_library",
@@ -762,7 +887,7 @@ def main(**kwargs):
                     library_type=detail["library"]["library_type"],
                     index_format=detail["library"]["index_format"]
                 )["id"]
-                
+
                 #Only add lanes, libraries, and samples to tantalus
                 logging.info("Importing lanes for library {} to tantalus".format(detail["library"]["library_id"]))
                 for lane in detail["lane_info"]:
@@ -776,8 +901,8 @@ def main(**kwargs):
                         sequencing_instrument=lane["sequencing_instrument"]
                     )
                     logging.info("Successfully created lane {} in tantalus".format(lane["id"]))
-
-
+                
 
 if __name__=='__main__':
     main()
+
