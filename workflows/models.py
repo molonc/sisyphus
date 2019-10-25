@@ -10,6 +10,7 @@ import hashlib
 import subprocess
 import pandas as pd
 import numpy as np
+from io import BytesIO
 from datamanagement.utils import dlp
 import dbclients.tantalus
 import dbclients.colossus
@@ -134,7 +135,7 @@ class Analysis(object):
     """
     A class representing an Analysis model in Tantalus.
     """
-    def __init__(self, analysis_type, jira, version, args, storages, update=False):
+    def __init__(self, analysis_type, jira, version, args, metadata, storages, update=False):
         """
         Create an Analysis object in Tantalus.
         """
@@ -144,6 +145,7 @@ class Analysis(object):
         self.analysis_type = analysis_type
         self.analysis = self.get_or_create_analysis(jira, version, args, update=update)
         self.storages = storages
+        self.metadata = metadata
 
     @property
     def name(self):
@@ -407,6 +409,332 @@ class AlignHmmcopyMixin(object):
         return name
 
 
+class AlignmentAnalysis(AlignHmmcopyMixin, Analysis):
+    """
+    Alignment analysis on Tantalus 
+    """
+    def __init__(self, jira, version, args, run_options, **kwargs):
+        super(QCAnalysis, self).__init__('alignment', jira, version, args, **kwargs)
+        self.run_options = run_options
+
+    @staticmethod
+    def search_input_datasets(args):
+        """
+        Query Tantalus for paired-end fastq datasets given library id and sample id.
+
+        Returns:
+            dataset_ids: list of ids for paired end fastq datasets
+        """
+
+        filter_lanes = []
+        if args['gsc_lanes'] is not None:
+            filter_lanes += args['gsc_lanes']
+        if args['brc_flowcell_ids'] is not None:
+            # Each BRC flowcell has 4 lanes
+            filter_lanes += ['{}_{}'.format(args['brc_flowcell_ids'], i+1) for i in range(4)]
+
+        datasets = tantalus_api.list(
+            'sequence_dataset',
+            library__library_id=args['library_id'],
+            dataset_type='FQ',
+        )
+
+        if not datasets:
+            raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
+
+        dataset_ids = set()
+
+        for dataset in datasets:
+            if len(dataset['sequence_lanes']) != 1:
+                raise Exception('sequence dataset {} has {} lanes'.format(
+                    dataset['id'], len(dataset['sequence_lanes'])))
+
+            lane_id = '{}_{}'.format(
+                dataset['sequence_lanes'][0]['flowcell_id'],
+                dataset['sequence_lanes'][0]['lane_number'],
+            )
+
+            if filter_lanes and (lane_id not in filter_lanes):
+                continue
+
+            dataset_ids.add(dataset['id'])
+
+        return list(dataset_ids)
+
+
+    def check_inputs_yaml(self, inputs_yaml_filename):
+        inputs_dict = file_utils.load_yaml(inputs_yaml_filename)
+
+        lanes = list(self.get_lanes().keys())
+        input_lanes = list(inputs_dict.values())[0]['fastqs'].keys()
+
+        num_cells = len(inputs_dict)
+        fastq_1_set = set()
+        fastq_2_set = set()
+
+        for cell_id, cell_info in inputs_dict.items():
+            fastq_1 = list(cell_info["fastqs"].values())[0]["fastq_1"]
+            fastq_2 = list(cell_info["fastqs"].values())[0]["fastq_2"]
+
+            fastq_1_set.add(fastq_1)
+            fastq_2_set.add(fastq_2)
+
+        if not (num_cells == len(fastq_1_set) == len(fastq_2_set)):
+            raise Exception("number of cells is {} but found {} unique fastq_1 and {} unique fastq_2 in inputs yaml".format(
+                num_cells, len(fastq_1_set), len(fastq_2_set)))
+
+        if set(lanes) != set(input_lanes):
+            raise Exception('lanes in input datasets: {}\nlanes in inputs yaml: {}'.format(
+                lanes, input_lanes
+            ))
+
+    def _generate_cell_metadata(self, storage_name):
+        """ Generates per cell metadata
+
+        Args:
+            storage_name: Which tantalus storage to look at
+        """
+        log.info('Generating cell metadata')
+
+        reference_genome_map = {
+            'HG19': 'grch37',
+            'MM10': 'mm10',
+        }
+
+        sample_info = generate_sample_info(
+            self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
+
+        if sample_info['index_sequence'].duplicated().any():
+            raise Exception('Duplicate index sequences in sample info.')
+
+        if sample_info['cell_id'].duplicated().any():
+            raise Exception('Duplicate cell ids in sample info.')
+
+        lanes = self.get_lanes()
+
+        # Sort by index_sequence, lane id, read end
+        fastq_filepaths = dict()
+
+        # Lane info
+        lane_info = dict()
+
+        tantalus_index_sequences = set()
+        colossus_index_sequences = set()
+
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+
+            if len(dataset['sequence_lanes']) != 1:
+                raise ValueError('unexpected lane count {} for dataset {}'.format(
+                    len(dataset['sequence_lanes']), dataset_id))
+
+            lane_id = tantalus_utils.get_flowcell_lane(
+                dataset['sequence_lanes'][0])
+
+            lane_info[lane_id] = {
+                'sequencing_centre': dataset['sequence_lanes'][0]['sequencing_centre'],
+                'sequencing_instrument': dataset['sequence_lanes'][0]['sequencing_instrument'],
+                'read_type': dataset['sequence_lanes'][0]['read_type'],
+            }
+
+            file_instances = tantalus_api.get_dataset_file_instances(
+                dataset['id'], 'sequencedataset', storage_name)
+
+            for file_instance in file_instances:
+                file_resource = file_instance['file_resource']
+                read_end = file_resource['sequencefileinfo']['read_end']
+                index_sequence = file_resource['sequencefileinfo']['index_sequence']
+                tantalus_index_sequences.add(index_sequence)
+                fastq_filepaths[(index_sequence, lane_id, read_end)] = str(
+                    file_instance['filepath'])
+
+        input_info = {}
+
+        for idx, row in sample_info.iterrows():
+            index_sequence = row['index_sequence']
+
+            if self.run_options.get("is_test_run", False) and (index_sequence not in tantalus_index_sequences):
+                # Skip index sequences that are not found in the Tantalus dataset, since
+                # we need to refer to the original library in Colossus for metadata, but
+                # we don't want to iterate through all the cells present in that library
+                continue
+
+            colossus_index_sequences.add(index_sequence)
+
+            lane_fastqs = collections.defaultdict(dict)
+            for lane_id, lane in lanes.items():
+                lane_fastqs[lane_id]['fastq_1'] = fastq_filepaths[(
+                    index_sequence, lane_id, 1)]
+                lane_fastqs[lane_id]['fastq_2'] = fastq_filepaths[(
+                    index_sequence, lane_id, 2)]
+                lane_fastqs[lane_id]['sequencing_center'] = lane_info[lane_id]['sequencing_centre']
+                lane_fastqs[lane_id]['sequencing_instrument'] = lane_info[lane_id]['sequencing_instrument']
+                lane_fastqs[lane_id]['read_type'] = lane_info[lane_id]['read_type']
+
+            if len(lane_fastqs) == 0:
+                raise Exception('No fastqs for cell_id {}, index_sequence {}'.format(
+                    row['cell_id'], row['index_sequence']))
+
+            bam_filename = templates.SC_WGS_BAM_TEMPLATE.format(
+                library_id=self.args['library_id'],
+                ref_genome=reference_genome_map[self.args['ref_genome']],
+                aligner_name=self.args['aligner'],
+                number_lanes=len(lanes),
+                cell_id=row['cell_id'],
+            )
+
+            bam_filepath = str(tantalus_api.get_filepath(
+                storage_name, bam_filename))
+
+            sample_id = row['sample_id']
+            if self.run_options.get("is_test_run", False):
+                assert 'TEST' in sample_id
+
+            input_info[str(row['cell_id'])] = {
+                'fastqs':       dict(lane_fastqs),
+                'bam':          bam_filepath,
+                'pick_met':     str(row['pick_met']),
+                'condition':    str(row['condition']),
+                'primer_i5':    str(row['primer_i5']),
+                'index_i5':     str(row['index_i5']),
+                'primer_i7':    str(row['primer_i7']),
+                'index_i7':     str(row['index_i7']),
+                'img_col':      int(row['img_col']),
+                'column':       int(row['column']),
+                'row':          int(row['row']),
+                'sample_type':  'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
+                'index_sequence': str(row['primer_i7']) + '-' + str(row['primer_i5']),
+                'sample_id':    str(sample_id),
+            }
+
+        if colossus_index_sequences != tantalus_index_sequences:
+            raise Exception(
+                "index sequences in Colossus and Tantalus do not match")
+
+        return input_info
+
+    def generate_inputs_yaml(self, inputs_yaml_filename):
+        """ Generates a YAML file of input information
+
+        Args:
+            inputs_yaml_filename: the directory to which the YAML file should be saved
+            storage_name: Which tantalus storage to look at
+        """
+
+        input_info = self._generate_cell_metadata(
+            self.storages['working_inputs'])
+
+        with open(inputs_yaml_filename, 'w') as inputs_yaml:
+            yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
+
+        self.check_inputs_yaml(inputs_yaml_filename)
+
+    def get_lanes(self):
+        """
+        Get the lanes for each input dataset for the analysis.
+        """
+        lanes = dict()
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+            for lane in dataset['sequence_lanes']:
+                lane_id = tantalus_utils.get_flowcell_lane(lane)
+                lanes[lane_id] = lane
+        return lanes
+
+    def create_output_datasets(self, tag_name=None, update=False):
+        cell_metadata = self._generate_cell_metadata(
+            self.storages['working_inputs'])
+        sequence_lanes = []
+
+        bam_cell_ids = self.metadata["meta"]["cell_ids"]
+        output_file_info = []
+        for cell_id in bam_cell_ids:
+            for file_type in (".bam", ".bam.bai"):
+                file_info = dict(
+                    analysis_id=self.analysis['id'],
+                    dataset_type='BAM',
+                    sample_id=cell_metadata[cell_id]['sample_id'],
+                    library_id=self.args['library_id'],
+                    library_type='SC_WGS',
+                    index_format='D',
+                    sequence_lanes=sequence_lanes,
+                    ref_genome=self.args['ref_genome'],
+                    aligner_name=self.args['aligner'],
+                    index_sequence=cell_metadata[cell_id]['index_sequence'],
+                    filepath=f"{cell_id}{file_type}",
+                )
+                output_file_info.append(file_info)
+
+        log.info('creating sequence dataset models for output bams')
+
+        output_datasets = dlp.create_sequence_dataset_models(
+            file_info=output_file_info,
+            storage_name=self.storages["working_inputs"],
+            tag_name=tag_name,  # TODO: tag?
+            tantalus_api=tantalus_api,
+            analysis_id=self.get_id(),
+            update=update,
+        )
+
+        log.info("created sequence datasets {}".format(output_datasets))
+
+
+class HmmcopyAnalysis(AlignHmmcopyMixin, Analysis):
+    def __init__(self, jira, version, args, run_options, **kwargs):
+        super(HmmcopyAnalysis, self).__init__(
+            'hmmcopy', jira, version, args, **kwargs)
+        self.run_options = run_options
+
+    def search_input_datasets(self, args):
+        datasets = tantalus_api.list(
+            'sequence_dataset',
+            analysis__jira_ticket=self.jira,
+            library__library_id=args['library_id'],
+            dataset_type='BAM',
+        )
+
+        return [dataset["id"] for dataset in datasets]
+
+    def generate_inputs_yaml(self):
+        log.info("inputs.yaml already created during align analysis")
+        pass
+
+
+class AnnotationAnalysis(AlignHmmcopyMixin, Analysis):
+    def __init__(self, jira, version, args, run_options, **kwargs):
+        super(AnnotationAnalysis, self).__init__(
+            'annotation', jira, version, args, **kwargs)
+        self.run_options = run_options
+
+    def search_input_datasets(self, args):
+        datasets = tantalus_api.list(
+            'sequence_dataset',
+            analysis__jira_ticket=self.jira,
+            library__library_id=args['library_id'],
+            dataset_type='BAM',
+        )
+
+        return [dataset["id"] for dataset in datasets]
+
+    def generate_inputs_yaml(self, inputs_yaml_filename):
+        storage_client = tantalus_api.get_storage_client(
+            self.storages["working_results"])
+        storage_prefix = storage_client.prefix
+        input_info = dict(
+            alignment_metrics=f"alignment/{self.args['library_id']}_alignment_metrics.csv.gz",
+            gc_metrics=f"alignment/{self.args['library_id']}_gc_metrics.csv.gz",
+            hmmcopy_metrics=f"hmmcopy/{self.args['library_id']}_hmmcopy_metrics.csv.gz",
+            hmmcopy_reads=f"hmmcopy/{self.args['library_id']}_reads.csv.gz",
+            segs_pdf_tar=f"hmmcopy/{self.args['library_id']}_segs.tar.gz",
+        )
+
+        for key in input_info:
+            input_info[key] = os.path.join(storage_prefix, input_info[key])
+    
+        with open(inputs_yaml_filename, 'w') as inputs_yaml:
+            yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
+
+
 class QCAnalysis(AlignHmmcopyMixin, Analysis):
     def __init__(self, jira, version, args, run_options, **kwargs):
         super(QCAnalysis, self).__init__('qc', jira, version, args, **kwargs)
@@ -633,18 +961,6 @@ class QCAnalysis(AlignHmmcopyMixin, Analysis):
         """
         cell_metadata = self._generate_cell_metadata(self.storages['working_inputs'])
         sequence_lanes = []
-
-        for lane_id, lane in self.get_lanes().items():
-
-            if self.run_options.get("is_test_run", False):
-                assert 'TEST' in lane["flowcell_id"]
-
-            sequence_lanes.append(dict(
-                flowcell_id=lane["flowcell_id"],
-                lane_number=lane["lane_number"],
-                sequencing_centre=lane["sequencing_centre"],
-                read_type=lane["read_type"],
-            ))
 
         output_file_info = []
         for cell_id, metadata in cell_metadata.items():
@@ -1283,7 +1599,7 @@ class Results:
             tantalus_api.update('results', id=self.get_id(), **{field: field_value})
 
 
-    def get_file_resources(self, update=False, skip_missing=False, analysis_type=None):
+    def get_file_resources(self, metadata_yaml=None, update=False, skip_missing=False, analysis_type=None):
         """
         Create file resources for each results file and return their ids.
         """
@@ -1291,14 +1607,23 @@ class Results:
 
         storage_client = tantalus_api.get_storage_client(self.storage_name)
 
-        if analysis_type == "align":
-            results_filenames = self.tantalus_analysis.get_align_results_filenames()
-        elif analysis_type == "hmmcopy":
-            results_filenames = self.tantalus_analysis.get_hmmcopy_results_filenames()
-        elif analysis_type == "annotation":
-            results_filenames = self.tantalus_analysis.get_annotation_results_filenames()
-        else:
+        if analysis_type is None:
             results_filenames = self.tantalus_analysis.get_results_filenames()
+        elif metadata_yaml is None:
+            raise Exception("metadata yaml file was not given")
+        else:
+            with BytesIO() as input_blob:
+                storage_client.blob_service.get_blob_to_stream(
+                    "results", metadata_yaml, input_blob)
+
+                # Go to beginning of file and convert byte to string
+                input_blob.seek(0)
+                lines = input_blob.read()
+                lines = lines.decode("utf-8")
+                input_blob.close()
+
+            metadata = yaml.safe_load(lines)
+            results_filenames = metadata["filenames"]
 
         for result_filename in results_filenames:
             result_filepath = os.path.join(storage_client.prefix, result_filename)
@@ -1307,7 +1632,7 @@ class Results:
                 logging.warning('skipping missing file: {}'.format(result_filename))
                 continue
 
-            file_resource, file_instance = tantalus_api.add_file(
+            file_resource, _ = tantalus_api.add_file(
                 storage_name=self.storage_name,
                 filepath=result_filepath,
                 update=update,
