@@ -241,22 +241,26 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
         )
     # Otherwise, rsync to destination server
     else:
-        # Transfer the bam
-        rsync_file(
-            from_path=bam_paths["source_bam_path"],
-            to_path=bam_paths["tantalus_bam_path"],
-            sftp=sftp,
-            remote_host=remote_host
-        )
-        # Transfer the bam index if it exists
-        if bam_paths["source_bai_path"]:
-            # Transfer the bai
+        if not os.path.exists(bam_paths["tantalus_bam_path"]):
+            # Transfer the bam if it does not exists
+            logging.info("The bam file does not exist at {}, start to transfer.".format(bam_paths["tantalus_bam_path"]))
             rsync_file(
-                from_path=bam_paths["source_bai_path"],
-                to_path=bam_paths["tantalus_bai_path"],
+                from_path=bam_paths["source_bam_path"],
+                to_path=bam_paths["tantalus_bam_path"],
                 sftp=sftp,
                 remote_host=remote_host
             )
+        # Transfer the bam index if it exists
+        if bam_paths["source_bai_path"]:
+            if not os.path.exists(bam_paths["tantalus_bai_path"]):
+                logging.info("The bam index at {} exists but not available at the target path, start to transfer".format(bam_paths["source_bai_path"]))
+                # Transfer the bai
+                rsync_file(
+                    from_path=bam_paths["source_bai_path"],
+                    to_path=bam_paths["tantalus_bai_path"],
+                    sftp=sftp,
+                    remote_host=remote_host
+                )
         # Create a new bai if the source bai does not exist
         else:
             logging.info("Creating bam index at {}".format(bam_paths["tantalus_bai_path"]))
@@ -667,23 +671,18 @@ def transfer_blob(block_blob_service, tantalus_api, to_storage, cache_file_paths
     '''
     # Get the file name and file path for the bam file
     local_bam_filepath = cache_file_paths["tantalus_bam_path"]
-    local_bam_filename = cache_file_paths["tantalus_bam_name"]
     # Create the filepath on the cloud
-    cloud_bam_filepath = os.path.join(to_storage["prefix"], local_bam_filename)
-    cloud_blobname_bam = local_bam_filename
+    cloud_blobname_bam = cache_file_paths["tantalus_bam_name"]
     cloud_container = to_storage["storage_container"]
     # If the index file exists, then also get the filename and filepath of it
     if cache_file_paths["tantalus_bai_path"]:
         local_bai_filepath = cache_file_paths["tantalus_bai_path"]
-        local_bai_filename = cache_file_paths["tantalus_bai_name"]
-        cloud_bai_filepath = os.path.join(to_storage["prefix"], local_bai_filename)
-        cloud_blobname_bai = local_bai_filename
-    # Check if the file already exists 
-    ## TODO: also check the files have the same size
-    if block_blob_service.exists(cloud_container, cloud_blobname_bam):
-        logging.info("The file %s already exists in %s, container %s" % (cloud_blobname_bam, to_storage["name"], cloud_container))
+        cloud_blobname_bai = cache_file_paths["tantalus_bai_name"]
+    # Check if the bam and bai files are already on cloud, if they are, stop the uploading process
+    if (block_blob_service.exists(cloud_container, cloud_blobname_bam) and block_blob_service.exists(cloud_container, cloud_blobname_bai)):
+        logging.info("The bam and index file %s already exists in %s, container %s" % (cloud_blobname_bam, to_storage["name"], cloud_container))
         return
-    logging.info("Uploading the files onto blob") 
+    logging.info("Uploading the bam and bai files onto blob")
     block_blob_service.create_blob_from_path(
             cloud_container,
             cloud_blobname_bam,
@@ -692,8 +691,8 @@ def transfer_blob(block_blob_service, tantalus_api, to_storage, cache_file_paths
             max_connections=16,
             timeout=10 * 60 * 64,
         )
-    if cache_file_paths["tantalus_bai_path"]:
-        block_blob_service.create_blob_from_path(
+
+    block_blob_service.create_blob_from_path(
             cloud_container,
             cloud_blobname_bai,
             local_bai_filepath,
@@ -833,14 +832,14 @@ def main(**kwargs):
                     block_blob_service = tantalus_api.get_storage_client(to_storage["name"]).blob_service
                     cloud_blobname_bam = cache_bam_paths["tantalus_bam_name"] 
                     cloud_container = to_storage["storage_container"]
-                    if not block_blob_service.exists(cloud_container, cloud_blobname_bam):
+                    if not (block_blob_service.exists(cloud_container, cloud_blobname_bam) and block_blob_service.exists(cloud_container, cache_bam_paths["tantalus_bai_name"])):
                         #Transfer the bam to the specified storage if not exists
-                        if not os.path.exists(cache_bam_paths["tantalus_bam_path"]):
-                            logging.info("The bam file {} does not exists, start caching the file.".format(cache_bam_paths["tantalus_bam_path"]))
+                        if not (os.path.exists(cache_bam_paths["tantalus_bam_path"]) and os.path.exists(cache_bam_paths["tantalus_bai_path"])):
+                            logging.info("The bam or bai file for {} does not exist at the cache directory, start caching the file.".format(cache_bam_paths["tantalus_bam_name"]))
                             transfer_gsc_bams(detail, cache_bam_paths, cache_storage, sftp)
                         
                         update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "transferred_into_cache_directory", "TRUE")
-                        logging.info("The bam file already exists in the cache directory, transferring it onto blob.")
+                        logging.info("The bam file exists in the cache directory, transferring it onto cloud.")
                     
                         # Then upload the files onto cloud 
                         transfer_blob(block_blob_service, tantalus_api, to_storage, cache_bam_paths)
@@ -854,7 +853,7 @@ def main(**kwargs):
                             shutil.rmtree(root)
                     else:
                         logging.info("The file {} already exists on blob".format(cache_bam_paths["tantalus_bam_name"]))
-
+                        update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "uploaded_onto_cloud", "TRUE")
                 else:
                     if not os.path.exists(dest_bam_paths["tantalus_bam_path"]):
                         logging.info("The bam file {} does not exists, start transferring the file.".format(dest_bam_paths["tantalus_bam_path"]))

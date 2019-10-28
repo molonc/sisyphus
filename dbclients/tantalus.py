@@ -388,7 +388,7 @@ class TantalusApi(BasicAPIClient):
             file_resource = self.get_or_create(
                 'file_resource',
                 filename=filename,
-                created=storage_client.get_created_time(filename),
+                #created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
             )
             log.info('file resource has id {}'.format(file_resource['id']))

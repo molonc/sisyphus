@@ -19,11 +19,11 @@ from datamanagement.utils.constants import LOGGING_FORMAT
 
 def add_sequence_dataset(
                 tantalus_api,
-                storage_name, 
+                storage_name,
                 sample,
-                library, 
+                library,
                 dataset_type,
-                sequence_lanes, 
+                sequence_lanes,
                 bam_file_path,
                 reference_genome,
                 aligner,
@@ -31,7 +31,7 @@ def add_sequence_dataset(
                 tag_name=None,
                 update=False):
         """
-        Add a sequence dataset, gets or creates the required sample, library, 
+        Add a sequence dataset, gets or creates the required sample, library,
         and sequence lanes for the dataset
 
         Args:
@@ -39,7 +39,7 @@ def add_sequence_dataset(
             dataset_type (str)
             sample_id (dict):       contains: sample_id
             library (dict):         contains: library_id, library_type, index_format
-            sequence_lanes (list):  contains: flowcell_id, read_type, lane_number, 
+            sequence_lanes (list):  contains: flowcell_id, read_type, lane_number,
                                     sequencing_centre, sequencing_instrument, library_id
             bam_file_path (str):    bam file path to data included in dataset
             reference_genome (str)
@@ -48,7 +48,7 @@ def add_sequence_dataset(
             tags (list)
         Returns:
             sequence_dataset (dict)
-        """ 
+        """
         # Create the sample
         sample = tantalus_api.get_or_create(
             "sample",
@@ -208,7 +208,7 @@ def get_bam_ref_genome(bam_header):
 
     if not found_match:
         raise Exception("Unrecognized reference genome {}".format(sq_as))
-    
+
     return reference_genome
 
 
@@ -242,6 +242,8 @@ def get_bam_aligner_name(bam_header):
                 version = version[:version.index("-r")]
             version = version.replace(".", "_")
             return bwa_variant + "_" + version
+        if pg["CL"] == "Sambamba":
+            pass
         else:
             raise ValueError(f"unrecognized aligner in {pg}")
     raise Exception("no aligner name found")
@@ -316,15 +318,15 @@ def import_bam(
         bam_file_path:  (string) filepath to bam on destination storage
         sample:         (dict) contains sample_id
         library:        (dict) contains library_id, library_type, index_format
-        lane_infos:     (dict) contains flowcell_id, lane_number, 
-                        adapter_index_sequence, sequencing_cenre, read_type, 
+        lane_infos:     (dict) contains flowcell_id, lane_number,
+                        adapter_index_sequence, sequencing_cenre, read_type,
                         reference_genome, aligner
         read_type:      (string) read type for the run
         tag_name:       (string)
         update:         (boolean)
     Returns:
         sequence_dataset:   (dict) sequence dataset created on tantalus
-    """ 
+    """
     tantalus_api = TantalusApi()
 
     # Get a url allowing access regardless of whether the file
@@ -332,7 +334,6 @@ def import_bam(
     storage_client = tantalus_api.get_storage_client(storage_name)
     bam_filename = tantalus_api.get_file_resource_filename(storage_name, bam_file_path)
     bam_url = storage_client.get_url(bam_filename)
-
     bam_header = pysam.AlignmentFile(bam_url).header
     bam_header_info = get_bam_header_info(bam_header)
 
@@ -411,8 +412,8 @@ def import_bam(
 @click.option("--tag_name",default=None)
 def main(storage_name, bam_file_path, **kwargs):
     """
-    Imports the bam into tantalus by creating a sequence dataset and 
-    file resources 
+    Imports the bam into tantalus by creating a sequence dataset and
+    file resources
     """
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
