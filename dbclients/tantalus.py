@@ -15,6 +15,7 @@ import datetime
 import logging
 import shutil
 import pandas as pd
+from io import BytesIO
 
 try:
     from urllib.request import urlopen
@@ -140,7 +141,20 @@ class BlobStorageClient(object):
         log.info("Creating blob {} from path {}".format(blobname, filepath))
         self.blob_service.create_blob_from_path(
             self.storage_container, blobname, filepath)
+        
+    def read(self, blobname):
+        with BytesIO() as input_blob:
+            self.blob_service.get_blob_to_stream(
+                self.storage_container, blobname, input_blob)
 
+            # Go to beginning of file and convert byte to string
+            input_blob.seek(0)
+            lines = input_blob.read()
+            lines = lines.decode("utf-8")
+            input_blob.close()
+            
+        return lines
+        
 
 class ServerStorageClient(object):
     def __init__(self, storage_directory, prefix):
@@ -389,7 +403,7 @@ class TantalusApi(BasicAPIClient):
             log.info('file resource has id {}'.format(file_resource['id']))
         except FieldMismatchError:
             if not update:
-                log.exception('file resource with filename has different properties, not updating'.format(
+                log.exception('file resource with filename {} has different properties, not updating'.format(
                     filename))
                 raise
             file_resource = None
