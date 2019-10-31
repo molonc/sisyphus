@@ -10,7 +10,6 @@ import hashlib
 import subprocess
 import pandas as pd
 import numpy as np
-from io import BytesIO
 from datamanagement.utils import dlp
 import dbclients.tantalus
 import dbclients.colossus
