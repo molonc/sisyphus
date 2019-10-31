@@ -211,6 +211,7 @@ def start_automation(
             docker_server=config['docker_server'],
             output_dir=output_dir,
             dirs=dirs,
+            bams_dir=bams_dir,
         )
 
     except Exception:
