@@ -1,7 +1,9 @@
+import click
 import logging
 import io
 import itertools
 import yaml
+import sys
 import pandas as pd
 
 import dbclients.tantalus
@@ -9,10 +11,6 @@ import dbclients.basicclient
 import datamanagement.transfer_files
 from datamanagement.utils.constants import LOGGING_FORMAT
 
-logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
-
-tantalus_api = dbclients.tantalus.TantalusApi()
-storage_client = tantalus_api.get_storage_client('singlecellresults')
 
 destruct_cols = [
     'prediction_id',
@@ -129,7 +127,7 @@ destruct_yaml = '''columns:
   name: balanced
 - dtype: str
   name: rearrangement_type
-header: true
+header: false
 sep: "\\t"
 '''
 
@@ -146,7 +144,7 @@ destruct_library_yaml = '''columns:
   name: is_normal
 - dtype: float
   name: patient_id
-header: true
+header: false
 sep: "\\t"
 '''
 
@@ -157,39 +155,61 @@ cell_counts_yaml = '''columns:
   name: cell_id
 - dtype: int
   name: read_count
-header: true
+header: false
 sep: ','
 '''
 
-pseudobulk_results = list(tantalus_api.list('resultsdataset', results_type='pseudobulk'))
 
-for results in pseudobulk_results:
-    file_resources1 = tantalus_api.get_dataset_file_resources(results['id'], 'resultsdataset', filters={'filename__endswith': '_destruct.csv.gz.yaml'})
-    file_resources2 = tantalus_api.get_dataset_file_resources(results['id'], 'resultsdataset', filters={'filename__endswith': '_destruct_library.csv.gz.yaml'})
+@click.command()
+@click.argument('storage_name')
+@click.option('--ticket_id')
+@click.option('--commit', is_flag=True)
+def fix_destruct_header(storage_name, ticket_id=None):
+    ''' Fix destruct headers
+    '''
+    logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
 
-    for file_resource in itertools.chain(file_resources1, file_resources2):
-        filename = file_resource['filename']
-        url = storage_client.get_url(filename)
+    tantalus_api = dbclients.tantalus.TantalusApi()
+    storage_client = tantalus_api.get_storage_client(storage_name)
 
-        if filename.endswith('cell_counts_destruct.csv.gz.yaml'):
-            continue
+    if ticket_id is not None:
+        pseudobulk_results = list(tantalus_api.list('resultsdataset', results_type='pseudobulk', analysis__jira_ticket=ticket_id))
+    else:
+        pseudobulk_results = list(tantalus_api.list('resultsdataset', results_type='pseudobulk'))
 
-        elif filename.endswith('destruct_library.csv.gz.yaml'):
-            yaml_text = destruct_library_yaml
-            yaml_type = 'destruct_library_yaml'
+    for results in pseudobulk_results:
+        file_resources1 = tantalus_api.get_dataset_file_resources(results['id'], 'resultsdataset', filters={'filename__endswith': '_destruct.csv.gz.yaml'})
+        file_resources2 = tantalus_api.get_dataset_file_resources(results['id'], 'resultsdataset', filters={'filename__endswith': '_destruct_library.csv.gz.yaml'})
 
-        else:
-            yaml_text = destruct_yaml
-            yaml_type = 'destruct_yaml'
+        for file_resource in itertools.chain(file_resources1, file_resources2):
+            filename = file_resource['filename']
+            url = storage_client.get_url(filename)
 
-        metadata = yaml.load(storage_client.open_file(filename))
-        if '\t' in metadata['columns'][0]['name']:
-            logging.info(f'file {filename} appears is corrupt')
-            logging.info(f'replaceing {filename} contents with {yaml_type}')
-            stream = io.BytesIO()
-            stream.write(yaml_text.encode('utf-8'))
-            storage_client.write_data(filename, stream)
-            file_instance = tantalus_api.get('file_instance', file_resource=file_resource['id'], storage__name='singlecellresults')
-            tantalus_api.update_file(file_instance)
+            if filename.endswith('cell_counts_destruct.csv.gz.yaml'):
+                yaml_text = cell_counts_yaml
+                yaml_type = 'cell_counts_yaml'
+                continue
 
+            elif filename.endswith('destruct_library.csv.gz.yaml'):
+                yaml_text = destruct_library_yaml
+                yaml_type = 'destruct_library_yaml'
+                continue
+
+            else:
+                yaml_text = destruct_yaml
+                yaml_type = 'destruct_yaml'
+
+            metadata = yaml.load(storage_client.open_file(filename))
+            if '\t' in metadata['columns'][0]['name']:
+                logging.info(f'file {filename} appears is corrupt')
+                logging.info(f'replaceing {filename} contents with {yaml_type}')
+                stream = io.BytesIO()
+                stream.write(yaml_text.encode('utf-8'))
+                storage_client.write_data(filename, stream)
+
+
+
+if __name__ == "__main__":
+    logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
+    fix_destruct_header()
 

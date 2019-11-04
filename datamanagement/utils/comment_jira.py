@@ -2,12 +2,12 @@ import os
 import sys
 import logging
 from jira import JIRA, JIRAError
-from utils.constants import LOGGING_FORMAT
+from datamanagement.utils.constants import LOGGING_FORMAT
 
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
-JIRA_USER = os.environ['JIRA_USER']
+JIRA_USER = os.environ['JIRA_USERNAME']
 JIRA_PASSWORD = os.environ['JIRA_PASSWORD']
 jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(JIRA_USER, JIRA_PASSWORD))
 
