@@ -82,7 +82,7 @@ def add_sequence_dataset(
 
             # Optional fields for create
             for field_name in ("read_type", "sequencing_centre", "sequencing_instrument"):
-                if field_name in lane_fields:
+                if field_name in lane:
                     lane_fields[field_name] = lane[field_name]
                 else:
                     logging.warning(f"field {field_name} missing for lane {lane['flowcell_id']}_{lane['lane_number']}")

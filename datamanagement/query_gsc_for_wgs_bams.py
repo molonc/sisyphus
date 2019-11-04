@@ -241,7 +241,9 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
         )
     # Otherwise, rsync to destination server
     else:
-        bam_size_match = size_match(bam_paths["tantalus_bam_path"], bam_paths["source_bam_path"], "10.9.208.161", "qfliu")
+        bam_size_match = False
+        if os.path.exists(bam_paths["tantalus_bam_path"]):
+            bam_size_match = size_match(bam_paths["tantalus_bam_path"], bam_paths["source_bam_path"], "10.9.208.161", "qfliu")
         if not (os.path.exists(bam_paths["tantalus_bam_path"]) and bam_size_match):
             # Transfer the bam if it does not exists
             logging.info("The bam file does not exist at {} or file sizes don't match, start to transfer.".format(bam_paths["tantalus_bam_path"]))
@@ -749,6 +751,22 @@ def size_match(local_file_path, remote_file_path, ip_address, username):
     local_size = subprocess.check_output('stat -c%s "{}"'.format(local_file_path), shell=True)
     return remote_size==local_size
 
+def size_match_cloud_txshah(blob_client, txshah_ip, username, cloud_container, file_path_remote, file_name_cloud):
+    current_ip = socket.gethostbyname(socket.gethostname())
+    ssh = ''
+    if current_ip != txshah_ip:
+        ssh = 'ssh {}@{} '.format(username, txshah_ip)
+    file_exists_remote = subprocess.check_output('{}[[ -f {} ]] && echo "True" || echo "False"'.format(ssh, file_path_remote), shell=True).decode("utf-8").strip("\n")
+    file_exists_cloud = blob_client.blob_service.exists(cloud_container, file_name_cloud)
+    match = False
+    if file_exists_remote=='True' and file_exists_cloud:
+        size_remote = int(subprocess.check_output('{}stat -c%s "{}"'.format(ssh, remote_file_path), shell=True).decode("utf-8").strip("\n"))
+        size_cloud = blob_client.get_size(file_name_cloud)
+        match = (size_remote == size_cloud)
+    if not (file_exists_remote=='True' and file_exists_cloud):
+        logging.info("The file {} does not exist on cloud or txshah/".format(file_name_cloud))
+    return match
+
 @click.command()
 @click.argument('ids', nargs=-1)
 @click.argument('to_storage', nargs=1)
@@ -785,6 +803,9 @@ def main(**kwargs):
         skip_file_import:   (flag) import only new lanes into tantalus
         query_only:         (flag) only query for the bam paths on the GSC
     """
+    with open("/ssd/sda1/qfliu/ov133_list.txt", "r") as f:
+        lines = f.readlines()
+    files = [i.strip('\n') for i in lines]
     # Check if this script is being run on thost
     # If not, connect to an ssh client to access /projects/files
     if socket.gethostname() != "txshah":
@@ -830,6 +851,10 @@ def main(**kwargs):
         for detail in details:
             # Rename the bams according to internal templates
             dest_bam_paths = rename_bam_paths(detail, to_storage, sftp)
+            if dest_bam_paths['source_bam_path'] not in files:
+                logging.info("The file {} is not in the file list, skip.".format(dest_bam_paths['source_bam_path']))
+                continue
+            logging.info("The file {} is in the file list, continue processing.".format(dest_bam_paths['source_bam_path']))
             # If the destination storage is a blob storage, then perform an extra caching step
             if to_storage["storage_type"] == "blob":
                 cache_bam_paths = rename_bam_paths(detail, cache_storage, sftp)
@@ -845,13 +870,18 @@ def main(**kwargs):
                 if to_storage["storage_type"] == "blob":
                     output_csv = kwargs["blob_status_logging_csv"]
                     create_record(output_csv, detail, cache_bam_paths["tantalus_bam_name"])
-                    block_blob_service = tantalus_api.get_storage_client(to_storage["name"]).blob_service
+                    blob_client = tantalus_api.get_storage_client(to_storage["name"])
+                    block_blob_service = blob_client.blob_service
                     cloud_blobname_bam = cache_bam_paths["tantalus_bam_name"]
                     cloud_blobname_bai = cache_bam_paths["tantalus_bai_name"]
                     cloud_container = to_storage["storage_container"]
                     bam_exists = block_blob_service.exists(cloud_container, cloud_blobname_bam)
                     bai_exists = block_blob_service.exists(cloud_container, cloud_blobname_bai)
+                    #TODO: check if the file sizes match (cloud and gsc)
+                    #cloud_size_match_bam = size_match_cloud_txshah(blob_client, '10.9.208.161', 'qfliu', cloud_container, cache_bam_paths["source_bam_path"], cloud_blobname_bam)
+                    #if not (bam_exists and bai_exists and cloud_size_match_bam):
                     if not (bam_exists and bai_exists):
+                        logging.info("The bam or bai file doesn't exist on cloud or the file sizes don't match on cloud, continue processing.")
                         if os.path.exists(cache_bam_paths["tantalus_bam_path"]) and os.path.exists(cache_bam_paths["tantalus_bai_path"]):
                             bam_size_match = size_match(cache_bam_paths["tantalus_bam_path"], cache_bam_paths["source_bam_path"], "10.9.208.161", "qfliu")
                             if not bam_size_match:
@@ -869,7 +899,7 @@ def main(**kwargs):
                         update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "uploaded_onto_cloud", "TRUE")
 
                     else:
-                        logging.info("The file {} already exists on blob".format(cache_bam_paths["tantalus_bam_name"]))
+                        logging.info("The file {} already exists on blob and file sizes match, skip caching.".format(cache_bam_paths["tantalus_bam_name"]))
                         update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "uploaded_onto_cloud", "TRUE")
                 else:
                     if not os.path.exists(dest_bam_paths["tantalus_bam_path"]):
@@ -923,7 +953,6 @@ def main(**kwargs):
                         sequencing_instrument=lane["sequencing_instrument"]
                     )
                     logging.info("Successfully created lane {} in tantalus".format(lane["id"]))
-
 
 if __name__=='__main__':
     main()
