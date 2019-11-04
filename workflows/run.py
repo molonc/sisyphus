@@ -29,7 +29,8 @@ from models import AnalysisInfo, QCAnalysis, Results
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
 stream_handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 stream_handler.setFormatter(formatter)
 log.addHandler(stream_handler)
 log.propagate = False
@@ -50,7 +51,8 @@ def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
 
 def attach_qc_report(jira, library_id, storages):
 
-    storage_client = tantalus_api.get_storage_client(storages["remote_results"])
+    storage_client = tantalus_api.get_storage_client(
+        storages["remote_results"])
     results_dataset = tantalus_api.get(
         "resultsdataset",
         name="{}_annotation".format(jira)
@@ -62,7 +64,7 @@ def attach_qc_report(jira, library_id, storages):
     qc_report = list(tantalus_api.get_dataset_file_resources(
         results_dataset["id"],
         "resultsdataset",
-        {"filename__endswith":qc_filename}
+        {"filename__endswith": qc_filename}
     ))
 
     blobname = qc_report[0]["filename"]
@@ -79,7 +81,8 @@ def attach_qc_report(jira, library_id, storages):
     )
 
     # Get library ticket
-    analysis = colossus_api.get("analysis_information", analysis_jira_ticket=jira)
+    analysis = colossus_api.get(
+        "analysis_information", analysis_jira_ticket=jira)
     library_ticket = analysis["library"]["jira_ticket"]
 
     log.info("Adding report to parent ticket of {}".format(jira))
@@ -89,7 +92,8 @@ def attach_qc_report(jira, library_id, storages):
 def get_contamination_comment(jira_ticket):
     jira_user = os.environ['JIRA_USERNAME']
     jira_password = os.environ['JIRA_PASSWORD']
-    jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(jira_user, jira_password))
+    jira_api = JIRA('https://www.bcgsc.ca/jira/',
+                    basic_auth=(jira_user, jira_password))
 
     issue = jira_api.issue(jira_ticket)
     library_ticket_id = issue.fields.parent.key
@@ -107,6 +111,7 @@ def get_contamination_comment(jira_ticket):
     """
 
     comment_jira(library_ticket_id, comment)
+
 
 def start_automation(
         jira,
@@ -154,12 +159,12 @@ def start_automation(
     else:
         inputs_yaml = run_options['inputs_yaml']
 
-    tantalus_analysis.add_inputs_yaml(inputs_yaml, update=run_options['update'])
+    tantalus_analysis.add_inputs_yaml(
+        inputs_yaml, update=run_options['update'])
 
     try:
         tantalus_analysis.set_run_status()
         analysis_info.set_run_status()
-
         run_pipeline = tantalus_analysis.run_pipeline()
 
         dirs = [
@@ -221,12 +226,12 @@ def start_automation(
 
     for analysis_type in ["align", "hmmcopy", "annotation"]:
         output_result_ids = log_utils.sentinel(
-            'Creating {} output results'.format(analysis_type),
-            tantalus_analysis.create_output_results,
-            update=run_options['update'],
-            skip_missing=run_options['skip_missing'],
-            analysis_type=analysis_type
-        )
+        'Creating {} output results'.format(analysis_type),
+        tantalus_analysis.create_output_results,
+        update=run_options['update'],
+        skip_missing=run_options['skip_missing'],
+        analysis_type=analysis_type
+    )
 
     if storages["working_inputs"] != storages["remote_inputs"] and output_datasets_ids != []:
         log_utils.sentinel(
@@ -250,7 +255,8 @@ def start_automation(
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
 
-default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
+default_config = os.path.join(os.path.dirname(
+    os.path.realpath(__file__)), 'config', 'normal_config.json')
 
 
 @click.command()
@@ -321,13 +327,12 @@ def main(
     run_options['job_subdir'] = job_subdir
 
     pipeline_dir = os.path.join(
-        tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"],
+        tantalus_api.get("storage", name=config["storages"]["local_results"])[
+            "storage_directory"],
         job_subdir)
 
     results_dir = os.path.join('singlecellresults', 'results', job_subdir)
-
     scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', job_subdir)
-
     tmp_dir = os.path.join('singlecelltemp', 'temp', job_subdir)
 
     storage_result_prefix = tantalus_api.get_storage_client("singlecellresults").prefix
@@ -359,7 +364,6 @@ def main(
     args['brc_flowcell_ids'] = brc_flowcell_ids
     args['smoothing'] = run_options['smoothing']
 
-
     start_automation(
         jira,
         version,
@@ -378,8 +382,6 @@ def main(
         annotation_output,
         hmmcopy_output,
     )
-
-
 
 
 if __name__ == '__main__':

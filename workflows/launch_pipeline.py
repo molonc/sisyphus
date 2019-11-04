@@ -107,7 +107,7 @@ def run_pipeline(
     version = tantalus_analysis.version
     run_options = tantalus_analysis.run_options
     config_override_string = get_config_string(args, run_options)
-
+    
     run_cmd = [
         'single_cell qc',
     ]
