@@ -23,11 +23,16 @@ def download_datasets(results_type, from_storage_name, to_storage_name):
     # Download most recent first
     dataset_ids = reversed(sorted(dataset_ids))
 
+    failed = False
     for dataset_id in dataset_ids:
         try:
             transfer_dataset(tantalus_api, dataset_id, 'resultsdataset', from_storage_name, to_storage_name)
         except:
             logging.exception(f'failed to download {dataset_id}')
+            failed = True
+
+    if failed:
+        raise Exception('one or more downloads failed')
 
 
 if __name__ == "__main__":
