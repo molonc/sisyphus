@@ -754,7 +754,6 @@ class AnnotationAnalysis(Analysis):
             align_analysis = tantalus_api.get(
                 "analysis",
                 jira_ticket=jira,
-                version=version,
                 analysis_type__name="align",
             )
         except:
@@ -1338,6 +1337,7 @@ class Results:
 
     def get_or_create_results(self, update=False, skip_missing=False, analysis_type=None):
         log.info('Searching for existing results {}'.format(self.name))
+        storage_client = tantalus_api.get_storage_client(self.storage_name)
 
         try:
             results = tantalus_api.get(
@@ -1361,10 +1361,11 @@ class Results:
             analysis_type=analysis_type,
         )
 
+        metadata = yaml.safe_load(storage_client.open_file(metadata_yaml))
         data = {
             'name': self.name,
             'results_type': self.analysis_type,
-            'results_version': self.pipeline_version,
+            'results_version': metadata["meta"]["version"],
             'analysis': self.analysis,
             'file_resources': self.file_resources,
             'samples': self.samples,
@@ -1406,6 +1407,24 @@ class Results:
         else:
             metadata = yaml.safe_load(storage_client.open_file(metadata_yaml))
             results_filenames = metadata["filenames"]
+            if self.analysis_type == "align":
+                results_filenames = [
+                    os.path.join(
+                        self.tantalus_analysis.jira,
+                        "results",
+                        "alignment",
+                        filename,
+                    ) for filename in results_filenames
+                ]
+            else:
+                results_filenames = [
+                    os.path.join(
+                        self.tantalus_analysis.jira,
+                        "results",
+                        self.analysis_type,
+                        filename,
+                    ) for filename in results_filenames
+                ]
 
         for result_filename in results_filenames:
             result_filepath = os.path.join(storage_client.prefix, result_filename)
