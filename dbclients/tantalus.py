@@ -28,21 +28,18 @@ import azure.storage.blob
 from azure.keyvault import KeyVaultClient, KeyVaultAuthentication
 from azure.common.credentials import ServicePrincipalCredentials
 
-
 log = logging.getLogger('sisyphus')
 
 TANTALUS_API_URL = "https://tantalus.canadacentral.cloudapp.azure.com/api/"
 
 
-def get_storage_account_key(
-        accountname, client_id, secret_key, tenant_id, keyvault_account
-):
+def get_storage_account_key(accountname, client_id, secret_key, tenant_id, keyvault_account):
     def auth_callback(server, resource, scope):
         credentials = ServicePrincipalCredentials(
             client_id=client_id,
             secret=secret_key,
             tenant=tenant_id,
-            resource="https://vault.azure.net"
+            resource="https://vault.azure.net",
         )
         token = credentials.token
         return token['token_type'], token['access_token']
@@ -66,24 +63,21 @@ class BlobStorageClient(object):
         tenant_id = os.environ["TENANT_ID"]
         keyvault_account = os.environ['AZURE_KEYVAULT_ACCOUNT']
 
-        storage_key = get_storage_account_key(
-            self.storage_account, client_id, secret_key,
-            tenant_id, keyvault_account)
+        storage_key = get_storage_account_key(self.storage_account, client_id, secret_key, tenant_id, keyvault_account)
 
         self.blob_service = azure.storage.blob.BlockBlobService(
             account_name=self.storage_account,
-            account_key=storage_key)
+            account_key=storage_key,
+        )
         self.blob_service.MAX_BLOCK_SIZE = 64 * 1024 * 1024
 
     def get_size(self, blobname):
-        properties = self.blob_service.get_blob_properties(
-            self.storage_container, blobname)
+        properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
         blobsize = properties.properties.content_length
         return blobsize
 
     def get_created_time(self, blobname):
-        properties = self.blob_service.get_blob_properties(
-            self.storage_container, blobname)
+        properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
         created_time = properties.properties.last_modified.isoformat()
         return created_time
 
@@ -104,8 +98,7 @@ class BlobStorageClient(object):
         return blob_url
 
     def delete(self, blobname):
-        self.blob_service.delete_blob(
-            self.storage_container, blob_name=blobname)
+        self.blob_service.delete_blob(self.storage_container, blob_name=blobname)
 
     def open_file(self, blobname):
         url = self.get_url(blobname)
@@ -120,10 +113,7 @@ class BlobStorageClient(object):
 
     def write_data(self, blobname, stream):
         stream.seek(0)
-        return self.blob_service.create_blob_from_stream(
-            self.storage_container,
-            blob_name=blobname,
-            stream=stream)
+        return self.blob_service.create_blob_from_stream(self.storage_container, blob_name=blobname, stream=stream)
 
     def create(self, blobname, filepath, update=False):
         if self.exists(blobname):
@@ -133,18 +123,15 @@ class BlobStorageClient(object):
             filesize = os.path.getsize(filepath)
 
             if blobsize == filesize:
-                log.info("{} has the same size as {}".format(
-                    blobname, filepath))
+                log.info("{} has the same size as {}".format(blobname, filepath))
                 return
             elif update:
                 log.info("{} updating from {}".format(blobname, filepath))
             else:
-                raise Exception(
-                    "blob size is {} but local file size is {}".format(blobsize, filesize))
+                raise Exception("blob size is {} but local file size is {}".format(blobsize, filesize))
 
         log.info("Creating blob {} from path {}".format(blobname, filepath))
-        self.blob_service.create_blob_from_path(
-            self.storage_container, blobname, filepath)
+        self.blob_service.create_blob_from_path(self.storage_container, blobname, filepath)
 
 
 class ServerStorageClient(object):
@@ -199,17 +186,14 @@ class ServerStorageClient(object):
             filesize = os.path.getsize(filepath)
 
             if storagefilesize == filesize:
-                log.info("{} has the same size as {}".format(
-                    filename, filepath))
+                log.info("{} has the same size as {}".format(filename, filepath))
                 return
             elif update:
                 log.info("{} updating from {}".format(filename, filepath))
             else:
-                raise Exception("storage file size is {} but local file size is {}".format(
-                    storagefilesize, filesize))
+                raise Exception("storage file size is {} but local file size is {}".format(storagefilesize, filesize))
 
-        log.info("Creating storage file {} from path {}".format(
-            filename, filepath))
+        log.info("Creating storage file {} from path {}".format(filename, filepath))
         tantalus_filepath = os.path.join(self.storage_directory, filename)
         if not os.path.samefile(filepath, tantalus_filepath):
             shutil.copy(filepath, tantalus_filepath)
@@ -276,7 +260,10 @@ class TantalusApi(BasicAPIClient):
 
         if not filepath.startswith(storage['prefix']):
             raise ValueError('file {} not in storage {} with prefix {}'.format(
-                filepath, storage['name'], storage['prefix']))
+                filepath,
+                storage['name'],
+                storage['prefix'],
+            ))
 
         filename = filepath[len(storage['prefix']):]
         filename = filename.lstrip('/')
@@ -344,11 +331,9 @@ class TantalusApi(BasicAPIClient):
         storage = self.get_storage(storage_name)
 
         if storage['storage_type'] == 'blob':
-            client = BlobStorageClient(
-                storage['storage_account'], storage['storage_container'], storage['prefix'])
+            client = BlobStorageClient(storage['storage_account'], storage['storage_container'], storage['prefix'])
         elif storage['storage_type'] == 'server':
-            client = ServerStorageClient(
-                storage['storage_directory'], storage['prefix'])
+            client = ServerStorageClient(storage['storage_directory'], storage['prefix'])
         else:
             return ValueError('unsupported storage type {}'.format(storage['storage_type']))
 
@@ -398,8 +383,7 @@ class TantalusApi(BasicAPIClient):
             log.info('file resource has id {}'.format(file_resource['id']))
         except FieldMismatchError:
             if not update:
-                log.exception('file resource with filename {} has different properties, not updating'.format(
-                    filename))
+                log.exception('file resource with filename {} has different properties, not updating'.format(filename))
                 raise
             file_resource = None
 
@@ -415,20 +399,17 @@ class TantalusApi(BasicAPIClient):
                 'file_resource',
                 filename=filename,
             )
-            log.info('updating file resource {}'.format(
-                file_resource['id']))
+            log.info('updating file resource {}'.format(file_resource['id']))
 
             # Delete all existing instances
-            file_instances = self.list(
-                "file_instance", file_resource=file_resource["id"])
+            file_instances = self.list("file_instance", file_resource=file_resource["id"])
             for file_instance in file_instances:
                 file_instance = self.update(
                     'file_instance',
                     id=file_instance['id'],
                     is_deleted=True,
                 )
-                log.info('deleted file instance {}'.format(
-                    file_instance['id']))
+                log.info('deleted file instance {}'.format(file_instance['id']))
 
             # Update the file properties
             file_resource = self.update(
@@ -470,8 +451,7 @@ class TantalusApi(BasicAPIClient):
         on the given storage, and set all other file instances to
         is_delete=True.
         """
-        log.info('adding file with path {} in storage {}'.format(
-            filepath, storage_name))
+        log.info('adding file with path {} in storage {}'.format(filepath, storage_name))
 
         filename = self.get_file_resource_filename(storage_name, filepath)
 
@@ -492,10 +472,12 @@ class TantalusApi(BasicAPIClient):
         storage_name = file_instance['storage']['name']
 
         log.info('updating file instance {} with filename {} in storage {}'.format(
-            file_instance['id'], filename, storage_name))
+            file_instance['id'],
+            filename,
+            storage_name,
+        ))
 
-        file_resource, file_instance = self._add_or_update_file(
-            storage_name, filename, update=True)
+        file_resource, file_instance = self._add_or_update_file(storage_name, filename, update=True)
 
         return file_instance
 
@@ -514,8 +496,7 @@ class TantalusApi(BasicAPIClient):
         if file_instance['is_deleted']:
             return
 
-        storage_client = self.get_storage_client(
-            file_instance['storage']['name'])
+        storage_client = self.get_storage_client(file_instance['storage']['name'])
 
         file_resource = file_instance["file_resource"]
 
@@ -525,9 +506,10 @@ class TantalusApi(BasicAPIClient):
 
         size = storage_client.get_size(file_resource['filename'])
         if size != file_resource['size']:
-            raise DataCorruptionError('file instance {} with path {} has size {} on storage {} but {} in tantalus'.format(
-                file_instance['id'], file_instance['filepath'], size, file_instance['storage']['name'],
-                file_instance['file_resource']['size']))
+            raise DataCorruptionError(
+                'file instance {} with path {} has size {} on storage {} but {} in tantalus'.format(
+                    file_instance['id'], file_instance['filepath'], size, file_instance['storage']['name'],
+                    file_instance['file_resource']['size']))
 
     def delete_file(self, file_resource):
         """
@@ -537,8 +519,7 @@ class TantalusApi(BasicAPIClient):
             file_resource (dict)
         """
 
-        file_instances = self.list(
-            "file_instance", file_resource=file_resource["id"])
+        file_instances = self.list("file_instance", file_resource=file_resource["id"])
         for file_instance in file_instances:
             file_instance = self.update(
                 "file_instance",
@@ -548,15 +529,12 @@ class TantalusApi(BasicAPIClient):
             logging.info(f"deleted file instance {file_instance['id']}")
 
         for dataset_type in ("sequencedataset", "resultsdataset"):
-            datasets = self.list(
-                dataset_type, file_resources__id=file_resource["id"])
+            datasets = self.list(dataset_type, file_resources__id=file_resource["id"])
             for dataset in datasets:
                 file_resources = list(set(dataset["file_resources"]))
                 file_resources.remove(file_resource["id"])
-                logging.info(
-                    f"removing file resource {file_resource['id']} from {dataset['id']}")
-                self.update(
-                    dataset_type, id=dataset["id"], file_resources=file_resources)
+                logging.info(f"removing file resource {file_resource['id']} from {dataset['id']}")
+                self.update(dataset_type, id=dataset["id"], file_resources=file_resources)
 
     def add_instance(self, file_resource, storage):
         """
@@ -607,23 +585,26 @@ class TantalusApi(BasicAPIClient):
         if filters == None:
             filters = {}
 
-        file_resources = self.get_dataset_file_resources(
-            dataset_id, dataset_model, filters)
+        file_resources = self.get_dataset_file_resources(dataset_id, dataset_model, filters)
 
         if dataset_model == 'sequencedataset':
             file_instances = self.list(
-                'file_instance', file_resource__sequencedataset__id=dataset_id, storage__name=storage_name)
+                'file_instance',
+                file_resource__sequencedataset__id=dataset_id,
+                storage__name=storage_name,
+            )
 
         elif dataset_model == 'resultsdataset':
             file_instances = self.list(
-                'file_instance', file_resource__resultsdataset__id=dataset_id, storage__name=storage_name)
+                'file_instance',
+                file_resource__resultsdataset__id=dataset_id,
+                storage__name=storage_name,
+            )
 
         else:
-            raise ValueError(
-                'unrecognized dataset model {}'.format(dataset_model))
+            raise ValueError('unrecognized dataset model {}'.format(dataset_model))
 
-        file_instances = dict([(f['file_resource']['id'], f)
-                               for f in file_instances])
+        file_instances = dict([(f['file_resource']['id'], f) for f in file_instances])
 
         # Each file resource should have a file instance on the given
         # storage unless not all files have been copied to the requested
@@ -660,16 +641,13 @@ class TantalusApi(BasicAPIClient):
             filters = {}
 
         if dataset_model == 'sequencedataset':
-            file_resources = self.list(
-                'file_resource', sequencedataset__id=dataset_id, **filters)
+            file_resources = self.list('file_resource', sequencedataset__id=dataset_id, **filters)
 
         elif dataset_model == 'resultsdataset':
-            file_resources = self.list(
-                'file_resource', resultsdataset__id=dataset_id, **filters)
+            file_resources = self.list('file_resource', resultsdataset__id=dataset_id, **filters)
 
         else:
-            raise ValueError(
-                'unrecognized dataset model {}'.format(dataset_model))
+            raise ValueError('unrecognized dataset model {}'.format(dataset_model))
 
         return file_resources
 
@@ -686,8 +664,7 @@ class TantalusApi(BasicAPIClient):
         """
 
         try:
-            self.get_dataset_file_instances(
-                dataset["id"], 'sequencedataset', storage_name)
+            self.get_dataset_file_instances(dataset["id"], 'sequencedataset', storage_name)
 
         except DataNotOnStorageError:
             return False
@@ -715,12 +692,9 @@ class TantalusApi(BasicAPIClient):
         }
         payload = json.dumps(fields, cls=DjangoJSONEncoder)
 
-        r = self.session.post(
-            endpoint_url,
-            data=payload)
+        r = self.session.post(endpoint_url, data=payload)
 
         if not r.ok:
-            raise Exception('failed with error: "{}", reason: "{}"'.format(
-                r.reason, r.text))
+            raise Exception('failed with error: "{}", reason: "{}"'.format(r.reason, r.text))
 
         return r.json()
