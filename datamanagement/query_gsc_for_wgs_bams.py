@@ -241,9 +241,10 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
         )
     # Otherwise, rsync to destination server
     else:
+        username = os.environ["SERVER_USER"]
         bam_size_match = False
         if os.path.exists(bam_paths["tantalus_bam_path"]):
-            bam_size_match = size_match(bam_paths["tantalus_bam_path"], bam_paths["source_bam_path"], "10.9.208.161", "qfliu")
+            bam_size_match = size_match(bam_paths["tantalus_bam_path"], bam_paths["source_bam_path"], "10.9.208.161", username)
         if not (os.path.exists(bam_paths["tantalus_bam_path"]) and bam_size_match):
             # Transfer the bam if it does not exists
             logging.info("The bam file does not exist at {} or file sizes don't match, start to transfer.".format(bam_paths["tantalus_bam_path"]))
@@ -257,7 +258,7 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
         if bam_paths["source_bai_path"]:
             #logging.info(bam_paths["source_bai_path"])
             if os.path.exists(bam_paths["tantalus_bai_path"]):
-                bai_size_match = size_match(bam_paths["tantalus_bai_path"], bam_paths["source_bai_path"], "10.9.208.161", "qfliu")
+                bai_size_match = size_match(bam_paths["tantalus_bai_path"], bam_paths["source_bai_path"], "10.9.208.161", username)
                 if not (bai_size_match):
                     logging.info("The bam index at {} exists but not available at the target path or the sizes don't match, start to transfer".format(bam_paths["source_bai_path"]))
                     # Transfer the bai
@@ -788,7 +789,7 @@ def size_match_cloud_txshah(blob_client, txshah_ip, username, cloud_container, f
         size_cloud = blob_client.get_size(file_name_cloud)
         match = (size_remote == size_cloud)
     if not (file_exists_remote=='True' and file_exists_cloud):
-        logging.info("The file {} does not exist on cloud or txshah/".format(file_name_cloud))
+        logging.info("The file {} does not exist on cloud or txshah.".format(file_name_cloud))
     return match
 
 @click.command()
@@ -892,6 +893,7 @@ def main(**kwargs):
                 continue
             if not kwargs["skip_file_import"]:
                 if to_storage["storage_type"] == "blob":
+                    username = os.environ["SERVER_USER"]
                     output_csv = kwargs["blob_status_logging_csv"]
                     create_record(output_csv, detail, cache_bam_paths["tantalus_bam_name"], cache_bam_paths["source_bam_path"])
                     blob_client = tantalus_api.get_storage_client(to_storage["name"])
@@ -910,7 +912,7 @@ def main(**kwargs):
                     #if not (bam_exists and bai_exists):
                         logging.info("The bam or bai file doesn't exist on cloud or the file sizes don't match on cloud, continue processing.")
                         if os.path.exists(cache_bam_paths["tantalus_bam_path"]) and os.path.exists(cache_bam_paths["tantalus_bai_path"]):
-                            bam_size_match = size_match(cache_bam_paths["tantalus_bam_path"], cache_bam_paths["source_bam_path"], "10.9.208.161", "qfliu")
+                            bam_size_match = size_match(cache_bam_paths["tantalus_bam_path"], cache_bam_paths["source_bam_path"], "10.9.208.161", username)
                             if not bam_size_match:
                                 transfer_gsc_bams(detail, cache_bam_paths, cache_storage, sftp)
 
