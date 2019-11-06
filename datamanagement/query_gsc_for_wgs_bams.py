@@ -255,17 +255,27 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
             )
         # Transfer the bam index if it exists
         if bam_paths["source_bai_path"]:
-            if not os.path.exists(bam_paths["tantalus_bai_path"]):
-                logging.info("The bam index at {} exists but not available at the target path, start to transfer".format(bam_paths["source_bai_path"]))
-                # Transfer the bai
+            #logging.info(bam_paths["source_bai_path"])
+            if os.path.exists(bam_paths["tantalus_bai_path"]):
+                bai_size_match = size_match(bam_paths["tantalus_bai_path"], bam_paths["source_bai_path"], "10.9.208.161", "qfliu")
+                if not (bai_size_match):
+                    logging.info("The bam index at {} exists but not available at the target path or the sizes don't match, start to transfer".format(bam_paths["source_bai_path"]))
+                    # Transfer the bai
+                    rsync_file(
+                        from_path=bam_paths["source_bai_path"],
+                        to_path=bam_paths["tantalus_bai_path"],
+                        sftp=sftp,
+                        remote_host=remote_host
+                    )
+            else:
                 rsync_file(
-                    from_path=bam_paths["source_bai_path"],
-                    to_path=bam_paths["tantalus_bai_path"],
-                    sftp=sftp,
-                    remote_host=remote_host
-                )
+                        from_path=bam_paths["source_bai_path"],
+                        to_path=bam_paths["tantalus_bai_path"],
+                        sftp=sftp,
+                        remote_host=remote_host
+                    )
         # Create a new bai if the source bai does not exist
-        else:
+        if not bam_paths["source_bai_path"]:
             logging.info("Creating bam index at {}".format(bam_paths["tantalus_bai_path"]))
             cmd = [ 'samtools',
                 'index',
@@ -451,6 +461,7 @@ def get_merge_info(details_list, gsc_api, library, sample, skip_older_than):
             continue
         lane_infos = []
         for merge_xref in merge_info["merge_xrefs"]:
+            logging.info("Current merge_xref is {}".format(merge_xref))
             if merge_xref["object_type"] == "metadata.aligned_libcore":
                 aligned_libcore = gsc_api.query("aligned_libcore/{}/info".format(merge_xref["object_id"]))
                 libcore = aligned_libcore["libcore"]
@@ -713,6 +724,7 @@ def transfer_blob(block_blob_service, tantalus_api, to_storage, cache_file_paths
 
 def clean(bam_paths):
     """
+    Delete the bam and bai files in the given path.
     """
     if bam_paths["tantalus_bam_path"] and os.path.exists(bam_paths["tantalus_bam_path"]):
         os.remove(bam_paths["tantalus_bam_path"])
@@ -721,24 +733,36 @@ def clean(bam_paths):
         os.remove(bam_paths["tantalus_bai_path"])
         logging.info("The file {} exists and is being deleted".format(bam_paths["tantalus_bai_path"]))
 
-def create_record(output_csv, detail, file_name):
+def create_record(output_csv, detail, file_name, original_file_name):
     """
+    Create the transfer record for the given file.
     """
     if not os.path.exists(output_csv):
-        df = pd.DataFrame(columns = ["library_id", "file_name", "sample_id",
-                          "transferred_into_cache_directory", "uploaded_onto_cloud", "recorded_in_tantalus"])
+        df = pd.DataFrame(columns = [
+            "library_id", 
+            "file_name", 
+            "sample_id",
+            "original_file_name", 
+            "transferred_into_cache_directory", 
+            "uploaded_onto_cloud", 
+            "recorded_in_tantalus"
+            ])
     else:
         df = pd.read_csv(output_csv)
         if not df.loc[df["file_name"] == file_name].empty:
             return
         df = df.append({
               "library_id": detail["library"]["library_id"],
+              "original_file_name": original_file_name,
               "file_name": file_name,
               "sample_id": detail["sample"]["sample_id"]
               }, ignore_index=True)
     df.to_csv(output_csv, index=False)
 
 def update_record(output_csv, file_name, column, value):
+    '''
+    Update a record for the given file.
+    '''
     df = pd.read_csv(output_csv)
     df.loc[df["file_name"] == file_name, column] = value
     df.to_csv(output_csv, index=False)
@@ -760,7 +784,7 @@ def size_match_cloud_txshah(blob_client, txshah_ip, username, cloud_container, f
     file_exists_cloud = blob_client.blob_service.exists(cloud_container, file_name_cloud)
     match = False
     if file_exists_remote=='True' and file_exists_cloud:
-        size_remote = int(subprocess.check_output('{}stat -c%s "{}"'.format(ssh, remote_file_path), shell=True).decode("utf-8").strip("\n"))
+        size_remote = int(subprocess.check_output('{}stat -c%s "{}"'.format(ssh, file_path_remote), shell=True).decode("utf-8").strip("\n"))
         size_cloud = blob_client.get_size(file_name_cloud)
         match = (size_remote == size_cloud)
     if not (file_exists_remote=='True' and file_exists_cloud):
@@ -869,7 +893,7 @@ def main(**kwargs):
             if not kwargs["skip_file_import"]:
                 if to_storage["storage_type"] == "blob":
                     output_csv = kwargs["blob_status_logging_csv"]
-                    create_record(output_csv, detail, cache_bam_paths["tantalus_bam_name"])
+                    create_record(output_csv, detail, cache_bam_paths["tantalus_bam_name"], cache_bam_paths["source_bam_path"])
                     blob_client = tantalus_api.get_storage_client(to_storage["name"])
                     block_blob_service = blob_client.blob_service
                     cloud_blobname_bam = cache_bam_paths["tantalus_bam_name"]
@@ -878,9 +902,12 @@ def main(**kwargs):
                     bam_exists = block_blob_service.exists(cloud_container, cloud_blobname_bam)
                     bai_exists = block_blob_service.exists(cloud_container, cloud_blobname_bai)
                     #TODO: check if the file sizes match (cloud and gsc)
-                    #cloud_size_match_bam = size_match_cloud_txshah(blob_client, '10.9.208.161', 'qfliu', cloud_container, cache_bam_paths["source_bam_path"], cloud_blobname_bam)
-                    #if not (bam_exists and bai_exists and cloud_size_match_bam):
-                    if not (bam_exists and bai_exists):
+                    cloud_size_match_bam = size_match_cloud_txshah(blob_client, '10.9.208.161', 'qfliu', cloud_container, cache_bam_paths["source_bam_path"], cloud_blobname_bam)
+                    logging.info("The remote and cloud file sizes match for {}: {}.".format(cloud_blobname_bam, cloud_size_match_bam))
+                    print(type(cloud_size_match_bam))
+                    update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "size_match_cloud_remote", "TRUE")          
+                    if not (bam_exists and bai_exists and cloud_size_match_bam):
+                    #if not (bam_exists and bai_exists):
                         logging.info("The bam or bai file doesn't exist on cloud or the file sizes don't match on cloud, continue processing.")
                         if os.path.exists(cache_bam_paths["tantalus_bam_path"]) and os.path.exists(cache_bam_paths["tantalus_bai_path"]):
                             bam_size_match = size_match(cache_bam_paths["tantalus_bam_path"], cache_bam_paths["source_bam_path"], "10.9.208.161", "qfliu")
@@ -953,7 +980,7 @@ def main(**kwargs):
                         sequencing_instrument=lane["sequencing_instrument"]
                     )
                     logging.info("Successfully created lane {} in tantalus".format(lane["id"]))
-
+            
 if __name__=='__main__':
     main()
 
