@@ -59,11 +59,7 @@ def get_config_override(args, run_options):
     }
 
     if run_options["override_contamination"]:
-        config["alignment"] = {
-            'fastq_screen_params': {
-                'strict_validation': False
-            }
-        }
+        config["alignment"] = {'fastq_screen_params': {'strict_validation': False}}
 
     cluster = 'azure'
     update_config(config, 'cluster', cluster)
@@ -85,28 +81,31 @@ def run_pipeline2(*args, **kwargs):
 
 
 def run_pipeline(
-    results_dir,
-    analysis_type,
-    scpipeline_dir,
-    tmp_dir,
-    tantalus_analysis,
-    args,
-    run_options,
-    inputs_yaml,
-    context_config_file,
-    docker_env_file,
-    docker_server,
-    output_dir,
-    bams_dir=None,
-    max_jobs='400',
-    dirs=(),
-    ):
+        results_dir,
+        analysis_type,
+        scpipeline_dir,
+        tmp_dir,
+        tantalus_analysis,
+        args,
+        run_options,
+        inputs_yaml,
+        context_config_file,
+        docker_env_file,
+        docker_server,
+        output_dir,
+        bams_dir=None,
+        max_jobs='400',
+        dirs=(),
+):
 
     args = tantalus_analysis.args
     version = tantalus_analysis.version
     run_options = tantalus_analysis.run_options
     config_override_string = get_config_string(args, run_options)
-    
+
+    if analysis_type == "align":
+        analysis_type = "alignment"
+
     run_cmd = [
         f'single_cell {analysis_type}',
         '--input_yaml',
@@ -133,7 +132,7 @@ def run_pipeline(
             '--bams_dir',
             bams_dir,
         ]
-    
+
     if not run_options['saltant']:
         run_cmd += ['--loglevel', 'DEBUG']
     if run_options['local_run']:

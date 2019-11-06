@@ -23,7 +23,7 @@ from dbclients.basicclient import NotFoundError
 from workflows.utils import file_utils, log_utils, colossus_utils
 from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
 
-from workflows.models import AnalysisInfo, AlignmentAnalysis, HmmcopyAnalysis, AnnotationAnalysis, Results
+from workflows.models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, AnnotationAnalysis, Results
 
 
 log = logging.getLogger('sisyphus')
@@ -133,8 +133,8 @@ def start_automation(
 ):
     start = time.time()
 
-    if analysis_type == "alignment":
-        tantalus_analysis = AlignmentAnalysis(
+    if analysis_type == "align":
+        tantalus_analysis = AlignAnalysis(
             jira, version, args, run_options, storages=storages, update=run_options['update'])
     elif analysis_type == "hmmcopy":
         tantalus_analysis = HmmcopyAnalysis(
@@ -258,7 +258,7 @@ def start_automation(
             storages["working_inputs"],
         )
 
-    # Update Jira ticket
+    Update Jira ticket
     if not run_options["is_test_run"]:
         update_jira_dlp(jira, args['aligner'])
         attach_qc_report(jira, args["library_id"], storages)
@@ -278,7 +278,7 @@ default_config = os.path.join(os.path.dirname(
 @click.argument('version')
 @click.argument('library_id')
 @click.argument('aligner', type=click.Choice(['A', "M"]))
-@click.argument('analysis_type', type=click.Choice(['alignment', 'hmmcopy', 'annotation']))
+@click.argument('analysis_type', type=click.Choice(['align', 'hmmcopy', 'annotation']))
 @click.option('--gsc_lanes')
 @click.option('--brc_flowcell_ids')
 @click.option('--config_filename')
@@ -356,7 +356,7 @@ def main(
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
 
     bams_dir = None
-    if analysis_type == "alignment":
+    if analysis_type == "align":
         bams_dir = os.path.join(
             storage_result_prefix,
             jira,
