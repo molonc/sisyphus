@@ -13,6 +13,7 @@ colossus_api = ColossusApi()
 
 log = logging.getLogger('sisyphus')
 
+
 def get_lanes_from_bams_datasets(library_type):
     '''
     Get lanes of all bam datasets
@@ -24,10 +25,7 @@ def get_lanes_from_bams_datasets(library_type):
         bam_lanes (list)
     '''
     bam_lanes = []
-    bam_datasets = tantalus_api.list('sequence_dataset',
-        library__library_type__name=library_type,
-        dataset_type="BAM"
-    )
+    bam_datasets = tantalus_api.list('sequence_dataset', library__library_type__name=library_type, dataset_type="BAM")
     for bam_dataset in bam_datasets:
         for lane in bam_dataset['sequence_lanes']:
             bam_lanes.append((lane['flowcell_id'], lane['lane_number']))
@@ -52,9 +50,10 @@ def search_for_unaligned_data(library_type):
     unaligned_lanes = []
     libraries_to_analyze = set()
 
-    fastq_datasets = tantalus_api.list('sequence_dataset',
+    fastq_datasets = tantalus_api.list(
+        'sequence_dataset',
         library__library_type__name=library_type,
-        dataset_type="FQ"
+        dataset_type="FQ",
     )
     for fastq_dataset in fastq_datasets:
         library_id = fastq_dataset['library']['library_id']
@@ -62,37 +61,23 @@ def search_for_unaligned_data(library_type):
             flowcell_id = lane['flowcell_id']
             lane_number = lane['lane_number']
             if (flowcell_id, lane_number) not in bam_lanes:
-                log.info("Library {}: Unaligned data for lane {}_{}".format(
-                    library_id,
-                    flowcell_id,
-                    lane_number
-                    )
-                )
-                unaligned_lanes.append("{}_{}".format(
-                    lane['flowcell_id'],
-                    lane['lane_number']
-                    )
-                )
+                log.info("Library {}: Unaligned data for lane {}_{}".format(library_id, flowcell_id, lane_number))
+                unaligned_lanes.append("{}_{}".format(lane['flowcell_id'], lane['lane_number']))
 
     sequencing_ids = set()
     for lane in unaligned_lanes:
-        try:
-            lane_infos = list(colossus_api.list('lane', flow_cell_id=lane))
-        except NotFoundError as e:
-            log.info(e)
-            lane_infos = None
+        lane_infos = list(colossus_api.list('lane', flow_cell_id=lane))
+        if not lane_infos:
             continue
         # Get sequencing associated with lanes
-        if lane_infos is not None:
-            for lane_info in lane_infos:
-                sequencing_ids.add(lane_info['sequencing'])
+        for lane_info in lane_infos:
+            sequencing_ids.add(lane_info['sequencing'])
 
     # Get libraries associated with library
     libraries_to_analyze = set()
     for sequencing_id in sequencing_ids:
         sequencing = colossus_api.get('sequencing', id=sequencing_id)
         libraries_to_analyze.add(sequencing['library'])
-
 
     return list(libraries_to_analyze)
 
@@ -110,14 +95,8 @@ def search_for_no_hmmcopy_data():
     library_type = "SC_WGS"
     bam_lanes = get_lanes_from_bams_datasets(library_type)
 
-
-    # TODO: Filter for complete hmmcopy analysis only
-    # Filtering for all hmmcopy will not catch all lanes that need hmmcopy
     hmmcopy_lane_inputs = []
-    hmmcopy_analyses = tantalus_api.list('analysis',
-        analysis_type__name="hmmcopy",
-        status="complete"
-    )
+    hmmcopy_analyses = tantalus_api.list('analysis', analysis_type__name="hmmcopy", status="complete")
     for hmmcopy_analysis in hmmcopy_analyses:
         for dataset_id in hmmcopy_analysis['input_datasets']:
             dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
@@ -151,4 +130,3 @@ def search_for_no_hmmcopy_data():
         libraries_to_analyze.add(sequencing['library'])
 
     return list(libraries_to_analyze)
-
