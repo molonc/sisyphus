@@ -25,12 +25,10 @@ from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_
 
 from workflows.models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, AnnotationAnalysis, Results
 
-
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
 stream_handler = logging.StreamHandler()
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 stream_handler.setFormatter(formatter)
 log.addHandler(stream_handler)
 log.propagate = False
@@ -43,31 +41,26 @@ def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
     tantalus_api = TantalusApi()
 
     for dataset_id in dataset_ids:
-        transfer_dataset(tantalus_api, dataset_id,
-                         'sequencedataset', from_storage, to_storage)
+        transfer_dataset(tantalus_api, dataset_id, 'sequencedataset', from_storage, to_storage)
 
     for results_id in results_ids:
-        transfer_dataset(tantalus_api, results_id,
-                         'resultsdataset', from_storage, to_storage)
+        transfer_dataset(tantalus_api, results_id, 'resultsdataset', from_storage, to_storage)
 
 
 def attach_qc_report(jira, library_id, storages):
 
-    storage_client = tantalus_api.get_storage_client(
-        storages["remote_results"])
-    results_dataset = tantalus_api.get(
-        "resultsdataset",
-        name="{}_annotation".format(jira)
-    )
+    storage_client = tantalus_api.get_storage_client(storages["remote_results"])
+    results_dataset = tantalus_api.get("resultsdataset", name="{}_annotation".format(jira))
 
     qc_filename = "{}_QC_report.html".format(library_id)
     jira_qc_filename = "{}_{}_QC_report.html".format(library_id, jira)
 
-    qc_report = list(tantalus_api.get_dataset_file_resources(
-        results_dataset["id"],
-        "resultsdataset",
-        {"filename__endswith": qc_filename}
-    ))
+    qc_report = list(
+        tantalus_api.get_dataset_file_resources(
+            results_dataset["id"],
+            "resultsdataset",
+            {"filename__endswith": qc_filename},
+        ))
 
     blobname = qc_report[0]["filename"]
     local_dir = os.path.join("qc_reports", jira)
@@ -79,12 +72,11 @@ def attach_qc_report(jira, library_id, storages):
     blob = storage_client.blob_service.get_blob_to_path(
         container_name="results",
         blob_name=blobname,
-        file_path=local_path
+        file_path=local_path,
     )
 
     # Get library ticket
-    analysis = colossus_api.get(
-        "analysis_information", analysis_jira_ticket=jira)
+    analysis = colossus_api.get("analysis_information", analysis_jira_ticket=jira)
     library_ticket = analysis["library"]["jira_ticket"]
 
     log.info("Adding report to parent ticket of {}".format(jira))
@@ -94,8 +86,7 @@ def attach_qc_report(jira, library_id, storages):
 def get_contamination_comment(jira_ticket):
     jira_user = os.environ['JIRA_USERNAME']
     jira_password = os.environ['JIRA_PASSWORD']
-    jira_api = JIRA('https://www.bcgsc.ca/jira/',
-                    basic_auth=(jira_user, jira_password))
+    jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(jira_user, jira_password))
 
     issue = jira_api.issue(jira_ticket)
     library_ticket_id = issue.fields.parent.key
@@ -135,20 +126,37 @@ def start_automation(
 
     if analysis_type == "align":
         tantalus_analysis = AlignAnalysis(
-            jira, version, args, run_options, storages=storages, update=run_options['update'])
+            jira,
+            version,
+            args,
+            run_options,
+            storages=storages,
+            update=run_options['update'],
+        )
     elif analysis_type == "hmmcopy":
         tantalus_analysis = HmmcopyAnalysis(
-            jira, version, args, run_options, storages=storages, update=run_options['update'])
+            jira,
+            version,
+            args,
+            run_options,
+            storages=storages,
+            update=run_options['update'],
+        )
     elif analysis_type == "annotation":
         tantalus_analysis = AnnotationAnalysis(
-            jira, version, args, run_options, storages=storages, update=run_options['update'])
+            jira,
+            version,
+            args,
+            run_options,
+            storages=storages,
+            update=run_options['update'],
+        )
     else:
         raise Exception(f"{analysis_type} is not a valid analysis type")
 
     if storages["working_inputs"] != storages["remote_inputs"]:
         log_utils.sentinel(
-            'Transferring input datasets from {} to {}'.format(
-                storages["remote_inputs"], storages["working_inputs"]),
+            'Transferring input datasets from {} to {}'.format(storages["remote_inputs"], storages["working_inputs"]),
             transfer_inputs,
             tantalus_analysis.get_input_datasets(),
             tantalus_analysis.get_input_results(),
@@ -157,12 +165,9 @@ def start_automation(
         )
 
     if run_options['inputs_yaml'] is None:
-        local_results_storage = tantalus_api.get(
-            'storage',
-            name=storages['local_results'])['storage_directory']
+        local_results_storage = tantalus_api.get('storage', name=storages['local_results'])['storage_directory']
 
-        inputs_yaml = os.path.join(
-            local_results_storage, job_subdir, analysis_type, 'inputs.yaml')
+        inputs_yaml = os.path.join(local_results_storage, job_subdir, analysis_type, 'inputs.yaml')
         log_utils.sentinel(
             'Generating inputs yaml',
             tantalus_analysis.generate_inputs_yaml,
@@ -171,8 +176,7 @@ def start_automation(
     else:
         inputs_yaml = run_options['inputs_yaml']
 
-    tantalus_analysis.add_inputs_yaml(
-        inputs_yaml, update=run_options['update'])
+    tantalus_analysis.add_inputs_yaml(inputs_yaml, update=run_options['update'])
 
     try:
         tantalus_analysis.set_run_status()
@@ -217,15 +221,13 @@ def start_automation(
     except Exception:
         tantalus_analysis.set_error_status()
         analysis_info.set_error_status()
-        pipeline_log = os.path.join(
-            scpipeline_dir, "qc", "log", "latest", "pipeline.log")
+        pipeline_log = os.path.join(scpipeline_dir, "qc", "log", "latest", "pipeline.log")
 
         if not run_options["skip_pipeline"] or not run_options["override_contamination"]:
             with open(pipeline_log) as f:
                 lines = f.read()
                 if "LibraryContaminationError" in lines:
-                    log.error(
-                        "LibraryContaminationError: over 20% of cells are contaminated")
+                    log.error("LibraryContaminationError: over 20% of cells are contaminated")
 
                     get_contamination_comment(jira)
 
@@ -244,13 +246,12 @@ def start_automation(
         tantalus_analysis.create_output_results,
         update=run_options['update'],
         skip_missing=run_options['skip_missing'],
-        analysis_type=analysis_type
+        analysis_type=analysis_type,
     )
 
     if storages["working_inputs"] != storages["remote_inputs"] and output_dataset_ids != []:
         log_utils.sentinel(
-            'Transferring input datasets from {} to {}'.format(
-                storages["working_inputs"], storages["remote_inputs"]),
+            'Transferring input datasets from {} to {}'.format(storages["working_inputs"], storages["remote_inputs"]),
             transfer_inputs,
             output_dataset_ids,
             output_results_ids,
@@ -258,7 +259,7 @@ def start_automation(
             storages["working_inputs"],
         )
 
-    Update Jira ticket
+    # Update Jira ticket
     if not run_options["is_test_run"]:
         update_jira_dlp(jira, args['aligner'])
         attach_qc_report(jira, args["library_id"], storages)
@@ -269,8 +270,7 @@ def start_automation(
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
 
-default_config = os.path.join(os.path.dirname(
-    os.path.realpath(__file__)), 'config', 'normal_config.json')
+default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
 
 
 @click.command()
@@ -299,17 +299,15 @@ default_config = os.path.join(os.path.dirname(
 @click.option('--alignment_metrics')
 @click.option('--jobs', type=int, default=1000)
 @click.option('--saltant', is_flag=True)
-def main(
-        jira,
-        version,
-        library_id,
-        aligner,
-        analysis_type,
-        gsc_lanes=None,
-        brc_flowcell_ids=None,
-        config_filename=None,
-        **run_options
-):
+def main(jira,
+         version,
+         library_id,
+         aligner,
+         analysis_type,
+         gsc_lanes=None,
+         brc_flowcell_ids=None,
+         config_filename=None,
+         **run_options):
 
     if config_filename is None:
         config_filename = default_config
@@ -317,10 +315,7 @@ def main(
     if not templates.JIRA_ID_RE.match(jira):
         raise Exception(f'Invalid SC ID: {jira}')
 
-    aligner_map = {
-        'A':    'BWA_ALN_0_5_7',
-        'M':    'BWA_MEM_0_7_6A'
-    }
+    aligner_map = {'A': 'BWA_ALN_0_5_7', 'M': 'BWA_MEM_0_7_6A'}
 
     aligner = aligner_map[aligner]
 
@@ -341,33 +336,22 @@ def main(
     run_options['job_subdir'] = job_subdir
 
     pipeline_dir = os.path.join(
-        tantalus_api.get("storage", name=config["storages"]["local_results"])[
-            "storage_directory"],
-        job_subdir)
+        tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], job_subdir)
 
     results_dir = os.path.join('singlecellresults', 'results', job_subdir)
     scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', job_subdir)
     tmp_dir = os.path.join('singlecelltemp', 'temp', job_subdir)
 
-    storage_result_prefix = tantalus_api.get_storage_client(
-        "singlecellresults").prefix
-    output_dir = os.path.join(storage_result_prefix,
-                              jira, "results", analysis_type)
+    storage_result_prefix = tantalus_api.get_storage_client("singlecellresults").prefix
+    output_dir = os.path.join(storage_result_prefix, jira, "results", analysis_type)
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
 
     bams_dir = None
     if analysis_type == "align":
-        bams_dir = os.path.join(
-            storage_result_prefix,
-            jira,
-            "results",
-            "bams"
-        )
+        bams_dir = os.path.join(storage_result_prefix, jira, "results", "bams")
 
     log_file = log_utils.init_log_files(pipeline_dir)
-    log_utils.setup_sentinel(
-        run_options['sisyphus_interactive'],
-        os.path.join(pipeline_dir, analysis_type))
+    log_utils.setup_sentinel(run_options['sisyphus_interactive'], os.path.join(pipeline_dir, analysis_type))
 
     # Create analysis information object on Colossus
     analysis_info = AnalysisInfo(jira)

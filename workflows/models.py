@@ -1364,7 +1364,7 @@ class Results:
         data = {
             'name': self.name,
             'results_type': self.analysis_type,
-            'results_version': metadata_yaml["version"],
+            'results_version': self.pipeline_version,
             'analysis': self.analysis,
             'file_resources': self.file_resources,
             'samples': self.samples,
