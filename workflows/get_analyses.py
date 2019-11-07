@@ -90,9 +90,8 @@ def get_analyses_to_run(version, aligner, check=False):
             if analysis_info is None:
                 continue
 
+            jira_ticket = analysis_info['jira_ticket']
             if not analysis_info["analysis_created"]:
-                jira_ticket = analysis_info['jira_ticket']
-                analyses_tickets['align'][jira_ticket] = library_id
                 log.info(f"need to create {analysis_info['name']}")
                 tantalus_analysis = create_tantalus_analysis(
                     analysis_info['name'],
@@ -109,15 +108,16 @@ def get_analyses_to_run(version, aligner, check=False):
                     aligner,
                 )
 
+            analyses_tickets['align'][jira_ticket] = library_id
+
         log.info("Checking libraries needing hmmcopy")
         for library_id in no_hmmcopy_libraries:
             analysis_info = check_library_for_analysis(library_id, aligner, version, "hmmcopy")
             if analysis_info is None:
                 continue
 
+            jira_ticket = analysis_info['jira_ticket']
             if not analysis_info["analysis_created"]:
-                jira_ticket = analysis_info['jira_ticket']
-                analyses_tickets['hmmcopy'][jira_ticket] = library_id
                 log.info(f"need to create {analysis_info['name']}")
                 tantalus_analysis = create_tantalus_analysis(
                     analysis_info['name'],
@@ -127,6 +127,8 @@ def get_analyses_to_run(version, aligner, check=False):
                     version,
                 )
 
+            analyses_tickets['hmmcopy'][jira_ticket] = library_id
+
         log.info("Checking libraries needing annotation")
         for library_id in no_annotation_libraries:
             analysis_info = check_library_for_analysis(library_id, aligner, version, "annotation")
@@ -134,9 +136,8 @@ def get_analyses_to_run(version, aligner, check=False):
             if analysis_info is None:
                 continue
 
+            jira_ticket = analysis_info['jira_ticket']
             if not analysis_info["analysis_created"]:
-                jira_ticket = analysis_info['jira_ticket']
-                analyses_tickets['annotation'][jira_ticket] = library_id
                 log.info(f"need to create {analysis_info['name']}")
                 tantalus_analysis = create_tantalus_analysis(
                     analysis_info['name'],
@@ -145,6 +146,8 @@ def get_analyses_to_run(version, aligner, check=False):
                     'annotation',
                     version,
                 )
+
+            analyses_tickets['annotation'][jira_ticket] = library_id
 
     return analyses_tickets
 
