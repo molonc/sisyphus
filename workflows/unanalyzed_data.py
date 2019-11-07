@@ -143,7 +143,7 @@ def search_for_no_hmmcopy_data(bam_lanes):
     return list(libraries_to_analyze)
 
 
-def search_for_no_annotation_data(version):
+def search_for_no_annotation_data():
     """ 
     Search tantalus for all hmmcopy analyses with a specific version without annotations
 
