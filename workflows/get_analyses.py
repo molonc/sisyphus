@@ -558,12 +558,9 @@ def main(version, aligner, check=False, override_contamination=False, screen=Fal
             raise Exception('Invalid Jira ticket to be skipped: {}'.format(skip_analysis))
 
         log.info("Skipping analysis on {}".format(skip_analysis))
-        if skip_analysis in analyses_to_run['align'].keys():
-            del analyses_to_run['align'][skip_analysis]
-        if skip_analysis in analyses_to_run['hmmcopy'].keys():
-            del analyses_to_run['hmmcopy'][skip_analysis]
-        if skip_analysis in analyses_to_run['annotation'].keys():
-            del analyses_to_run['annotation'][skip_analysis]
+        for analysis_type, ticket_library in analyses_to_run.items():
+            if skip_analysis in ticket_library:
+                del analyses_to_run[analysis_type][skip_analysis]
 
     # If saltant is down, run analysis in screens
     if screen:
@@ -573,10 +570,9 @@ def main(version, aligner, check=False, override_contamination=False, screen=Fal
 
     for analysis_type, ticket_library in analyses_to_run.items():
         for ticket in ticket_library:
-            library_id = ticket_library["library"]
+            library_id = ticket_library[ticket]
             if not check_running_analysis(ticket, analysis_type):
-                library_id = analyses_to_run["align"][ticket]
-                log.info(f"Running align for {ticket}")
+                log.info(f"Running {analysis_type} for {ticket}")
                 saltant_utils.run_analysis(
                     analysis_type,
                     ticket,
