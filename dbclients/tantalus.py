@@ -148,7 +148,6 @@ class ServerStorageClient(object):
         # TODO: this is currently fixed at pacific time
         return pd.Timestamp(time.ctime(os.path.getmtime(filepath)), tz="Canada/Pacific").isoformat()
 
-
     def get_url(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
         return filepath
@@ -589,10 +588,18 @@ class TantalusApi(BasicAPIClient):
         file_resources = self.get_dataset_file_resources(dataset_id, dataset_model, filters)
 
         if dataset_model == 'sequencedataset':
-            file_instances = self.list('file_instance', file_resource__sequencedataset__id=dataset_id, storage__name=storage_name)
+            file_instances = self.list(
+                'file_instance',
+                file_resource__sequencedataset__id=dataset_id,
+                storage__name=storage_name,
+            )
 
         elif dataset_model == 'resultsdataset':
-            file_instances = self.list('file_instance', file_resource__resultsdataset__id=dataset_id, storage__name=storage_name)
+            file_instances = self.list(
+                'file_instance',
+                file_resource__resultsdataset__id=dataset_id,
+                storage__name=storage_name,
+            )
 
         else:
             raise ValueError('unrecognized dataset model {}'.format(dataset_model))
@@ -663,7 +670,6 @@ class TantalusApi(BasicAPIClient):
             return False
 
         return True
-
 
     def tag(self, name, sequencedataset_set=(), resultsdataset_set=()):
         """

@@ -59,11 +59,7 @@ def get_config_override(args, run_options):
     }
 
     if run_options["override_contamination"]:
-        config["alignment"] = {
-            'fastq_screen_params': {
-                'strict_validation': False
-            }
-        }
+        config["alignment"] = {'fastq_screen_params': {'strict_validation': False}}
 
     cluster = 'azure'
     update_config(config, 'cluster', cluster)
@@ -85,64 +81,57 @@ def run_pipeline2(*args, **kwargs):
 
 
 def run_pipeline(
-    results_dir,
-    scpipeline_dir,
-    tmp_dir,
-    tantalus_analysis,
-    args,
-    run_options,
-    inputs_yaml,
-    context_config_file,
-    docker_env_file,
-    docker_server,
-    alignment_output,
-    annotation_output,
-    hmmcopy_output,
-    max_jobs='400',
-    dirs=(),
-    analysis_type=None
-    ):
+        results_dir,
+        analysis_type,
+        scpipeline_dir,
+        tmp_dir,
+        tantalus_analysis,
+        args,
+        run_options,
+        inputs_yaml,
+        context_config_file,
+        docker_env_file,
+        docker_server,
+        output_dir,
+        bams_dir=None,
+        max_jobs='400',
+        dirs=(),
+):
 
     args = tantalus_analysis.args
     version = tantalus_analysis.version
     run_options = tantalus_analysis.run_options
     config_override_string = get_config_string(args, run_options)
-    
-    run_cmd = [
-        'single_cell qc',
-    ]
 
     if analysis_type == "align":
         analysis_type = "alignment"
-        run_cmd += ["--{}".format(analysis_type)]
 
-    elif analysis_type == "hmmcopy":
-        run_cmd += ["--hmmcopy"]
-
-    run_cmd += [
+    run_cmd = [
+        f'single_cell {analysis_type}',
         '--input_yaml',
         inputs_yaml,
-        '--alignment_output',
-        alignment_output,
-        '--annotation_output',
-        annotation_output,
-        '--hmmcopy_output',
-        hmmcopy_output,
+        '--out_dir',
+        output_dir,
+        '--tmpdir',
+        tmp_dir,
+        '--pipelinedir',
+        scpipeline_dir,
         '--library_id',
         args['library_id'],
         '--config_override',
         config_override_string,
-        '--tmpdir',
-        tmp_dir,
         '--maxjobs',
         str(max_jobs),
         '--nocleanup',
         '--sentinel_only',
-        '--pipelinedir',
-        scpipeline_dir,
         '--context_config',
         context_config_file,
     ]
+    if analysis_type == "alignment":
+        run_cmd += [
+            '--bams_dir',
+            bams_dir,
+        ]
 
     if not run_options['saltant']:
         run_cmd += ['--loglevel', 'DEBUG']
