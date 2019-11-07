@@ -105,6 +105,22 @@ def get_contamination_comment(jira_ticket):
     comment_jira(library_ticket_id, comment)
 
 
+def load_ticket(jira):
+    log.info(f"Loading {jira} into Montage")
+    try:
+        # TODO: add directory in config
+        subprocess.call([
+            'ssh',
+            '-t',
+            'loader',
+            f"bash /home/uu/montageloader2_flora/load_ticket.sh {jira}",
+        ])
+    except Exception as e:
+        raise Exception(f"failed to load ticket: {e}")
+
+    log.info(f"Successfully loaded {jira} into Montage")
+
+
 def start_automation(
         jira,
         version,
@@ -269,6 +285,8 @@ def start_automation(
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
+    load_ticket(jira)
+
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
 
@@ -279,6 +297,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.argument('library_id')
 @click.argument('aligner', type=click.Choice(['A', "M"]))
 @click.argument('analysis_type', type=click.Choice(['align', 'hmmcopy', 'annotation']))
+@click.option('--load_only', is_flag=True)
 @click.option('--gsc_lanes')
 @click.option('--brc_flowcell_ids')
 @click.option('--config_filename')
@@ -304,10 +323,15 @@ def main(jira,
          library_id,
          aligner,
          analysis_type,
+         load_only=False,
          gsc_lanes=None,
          brc_flowcell_ids=None,
          config_filename=None,
          **run_options):
+
+    if load_only:
+        load_ticket(jira)
+        return "complete"
 
     if config_filename is None:
         config_filename = default_config
