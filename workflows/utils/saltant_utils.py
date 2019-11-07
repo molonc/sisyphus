@@ -8,6 +8,8 @@ from saltant.constants import SUCCESSFUL, FAILED
 from workflows.utils import tantalus_utils
 
 client = None
+
+
 def get_client():
     global client
     if client is None:
@@ -101,10 +103,7 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name,
         task_type_id=task_type_id,
     )
 
-    log.debug('Created task instance {} in saltant in task queue {}'.format(
-        new_task_instance.uuid,
-        task_queue_name
-    ))
+    log.debug('Created task instance {} in saltant in task queue {}'.format(new_task_instance.uuid, task_queue_name))
 
     if wait == True:
         with wait_for_task_instance(new_task_instance):
@@ -171,51 +170,25 @@ def transfer_files(jira, config, tag_name, from_storage, to_storage):
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 
 
-def run_qc(jira, version, library_id, aligner, config, override_contamination=False):
-    name = "{}_{}_{}_qc".format(jira, library_id, aligner)
-    queue_name = config['headnode_task_queue']
-    
-    args = {
-        'jira':             jira,
-        'version':          version,
-        'library_id':       library_id,
-        'aligner':          aligner,
-        'override_contamination': override_contamination,
-    }
-
-    task_type_id = get_task_type_id("Run QC")
-    get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
-
-
-def run_align(jira, version, library_id, aligner, config):
-    name = "{}_{}_{}_align".format(jira, library_id, aligner)
+def run_analysis(analysis_type, jira, version, library_id, aligner, config):
+    name = f"{jira}_{library_id}_{aligner}_{analysis_type}"
     queue_name = config['headnode_task_queue']
 
     args = {
-        'jira':             jira,
-        'version':          version,
-        'analysis_type':    'align',
-        'library_id':       library_id,
-        'aligner':          aligner,
+        'jira': jira,
+        'version': version,
+        'analysis_type': 'hmmcopy',
+        'library_id': library_id,
+        'aligner': aligner,
     }
 
-    task_type_id = get_task_type_id("Run Align")
-    get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
+    if analysis_type == "align":
+        task_type_id = get_task_type_id("Run Align")
+    elif analysis_type == "hmmcopy":
+        task_type_id = get_task_type_id("Run Hmmcopy")
+    elif analysis_type == "annotation":
+        task_type_id = get_task_type_id("Run Annotation")
 
-
-def run_hmmcopy(jira, version, library_id, aligner, config):
-    name = "{}_{}_{}_hmmcopy".format(jira, library_id, aligner)
-    queue_name = config['headnode_task_queue']
-
-    args = {
-        'jira':             jira,
-        'version':          version,
-        'analysis_type':    'hmmcopy',
-        'library_id':       library_id,
-        'aligner':          aligner,
-    }
-
-    task_type_id = get_task_type_id("Run Hmmcopy")
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 
 

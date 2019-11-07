@@ -66,9 +66,11 @@ def get_analyses_to_run(version, aligner, check=False):
     Returns:
         analyses_tickets (list): List of JIRA tickets
     '''
-    unanalyzed_data_libraries = search_for_unaligned_data("SC_WGS")
-    no_hmmcopy_libraries = search_for_no_hmmcopy_data()
-    no_annotation_libraries = search_for_no_annotation_data(version)
+    library_type = "SC_WGS"
+    bam_lanes = get_lanes_from_bams_datasets(library_type)
+    unanalyzed_data_libraries = search_for_unaligned_data(library_type, bam_lanes)
+    no_hmmcopy_libraries = search_for_no_hmmcopy_data(bam_lanes)
+    no_annotation_libraries = search_for_no_annotation_data()
 
     analyses_tickets = dict(
         align=dict(),
@@ -85,56 +87,64 @@ def get_analyses_to_run(version, aligner, check=False):
         for library_id in unanalyzed_data_libraries:
             analysis_info = check_library_for_analysis(library_id, aligner, version, "align")
 
-            if analysis_info is not None and not analysis_info["analysis_created"]:
+            if analysis_info is None:
+                continue
+
+            if not analysis_info["analysis_created"]:
                 jira_ticket = analysis_info['jira_ticket']
                 analyses_tickets['align'][jira_ticket] = library_id
                 log.info(f"need to create {analysis_info['name']}")
-                # tantalus_analysis = create_tantalus_analysis(
-                #     analysis_info['name'],
-                #     jira_ticket,
-                #     analysis_info['library_id'],
-                #     'align',
-                #     version,
-                # )
+                tantalus_analysis = create_tantalus_analysis(
+                    analysis_info['name'],
+                    jira_ticket,
+                    analysis_info['library_id'],
+                    'align',
+                    version,
+                )
 
-                # colossus_analysis = create_colossus_analysis(
-                #     analysis_info['library_id'],
-                #     jira_ticket,
-                #     version,
-                #     aligner,
-                # )
+                colossus_analysis = create_colossus_analysis(
+                    analysis_info['library_id'],
+                    jira_ticket,
+                    version,
+                    aligner,
+                )
 
         log.info("Checking libraries needing hmmcopy")
         for library_id in no_hmmcopy_libraries:
             analysis_info = check_library_for_analysis(library_id, aligner, version, "hmmcopy")
+            if analysis_info is None:
+                continue
 
-            if analysis_info is not None and not analysis_info["analysis_created"]:
+            if not analysis_info["analysis_created"]:
                 jira_ticket = analysis_info['jira_ticket']
                 analyses_tickets['hmmcopy'][jira_ticket] = library_id
                 log.info(f"need to create {analysis_info['name']}")
-                # tantalus_analysis = create_tantalus_analysis(
-                #     analysis_info['name'],
-                #     jira_ticket,
-                #     analysis_info['library_id'],
-                #     'hmmcopy',
-                #     version,
-                # )
+                tantalus_analysis = create_tantalus_analysis(
+                    analysis_info['name'],
+                    jira_ticket,
+                    analysis_info['library_id'],
+                    'hmmcopy',
+                    version,
+                )
 
         log.info("Checking libraries needing annotation")
         for library_id in no_annotation_libraries:
             analysis_info = check_library_for_analysis(library_id, aligner, version, "annotation")
 
-            if analysis_info is not None and not analysis_info["analysis_created"]:
+            if analysis_info is None:
+                continue
+
+            if not analysis_info["analysis_created"]:
                 jira_ticket = analysis_info['jira_ticket']
                 analyses_tickets['annotation'][jira_ticket] = library_id
                 log.info(f"need to create {analysis_info['name']}")
-                # tantalus_analysis = create_tantalus_analysis(
-                #     analysis_info['name'],
-                #     jira_ticket,
-                #     analysis_info['library_id'],
-                #     'annotation',
-                #     version,
-                # )
+                tantalus_analysis = create_tantalus_analysis(
+                    analysis_info['name'],
+                    jira_ticket,
+                    analysis_info['library_id'],
+                    'annotation',
+                    version,
+                )
 
     return analyses_tickets
 
@@ -209,7 +219,7 @@ def check_library_for_analysis(library_id, aligner, version, analysis_type):
     lanes_hashed = "{}".format(lanes.hexdigest()[:8])
 
     # Previously we were only running QC analyses and so we need to check
-    # whether the library has already been ran under QC
+    # whether the library has already been ran under QC and ignore if so
     qc_analysis_name = templates.SC_ANALYSIS_NAME_TEMPLATE.format(
         analysis_type='qc',
         aligner=aligner,
@@ -220,6 +230,7 @@ def check_library_for_analysis(library_id, aligner, version, analysis_type):
 
     qc_analysis = list(tantalus_api.list("analysis", name=qc_analysis_name, version=version))
     if len(qc_analysis) == 1:
+        log.info(f"Data for {library_id} has already been ran under QC")
         analysis_info = dict(
             name=qc_analysis_name,
             library_id=library_id,
@@ -279,7 +290,7 @@ def check_library_for_analysis(library_id, aligner, version, analysis_type):
         try:
             align_analysis = tantalus_api.get("analysis", name=align_analysis_name)
             jira_ticket = align_analysis["jira_ticket"]
-            log.info("Analysis ticket {} already exists for {};".format(
+            log.info("Analysis ticket {} already exists for {}".format(
                 jira_ticket,
                 library_id,
             ))
@@ -293,19 +304,14 @@ def check_library_for_analysis(library_id, aligner, version, analysis_type):
 
         except NotFoundError:
             log.info("JIRA ticket needs to be created for align analysis")
-            # jira_ticket = create_analysis_jira_ticket(library_id)
+            jira_ticket = create_analysis_jira_ticket(library_id)
+
             analysis_info = dict(
                 name=analysis_name,
                 library_id=library_id,
-                jira_ticket="SC-9999",
+                jira_ticket=jira_ticket,
                 analysis_created=False,
             )
-            # analysis_info = dict(
-            #     name=analysis_name,
-            #     library_id=library_id,
-            #     jira_ticket=jira_ticket,
-            #     analysis_created=False,
-            # )
 
     return analysis_info
 
@@ -488,22 +494,22 @@ def run_screens(analyses_to_run, version):
     # FIXME: Find out how to pass command to screen to create new windows
     # Right now a screen is being created for each analysis -- needs cleanup
 
-    for qc_analysis in analyses_to_run['qc']:
-        log.info("Running align for {}".format(qc_analysis))
-        analysis_type = "qc"
-        analysis_screen = screenutils.Screen(qc_analysis, initialize=True)
-        stdout_file = "logs/{}_{}.out".format(qc_analysis, analysis_type)
-        stderr_file = "logs/{}_{}.err".format(qc_analysis, analysis_type)
+    for analysis_type, ticket_library in analyses_to_run.items():
+        for ticket in ticket_library:
+            library_id = ticket_library["library"]
+            analysis_screen = screenutils.Screen(ticket, initialize=True)
+            stdout_file = "logs/{}_{}.out".format(ticket, analysis_type)
+            stderr_file = "logs/{}_{}.err".format(ticket, analysis_type)
 
-        cmd_str = "{} {} {} {} {} --update > {} 2> {}".format(
-            python_cmd,
-            run_file,
-            qc_analysis,
-            version,
-            analysis_type,
-            stdout_file,
-            stderr_file,
-        )
+            cmd_str = "{} {} {} {} {} --update > {} 2> {}".format(
+                python_cmd,
+                run_file,
+                ticket,
+                version,
+                analysis_type,
+                stdout_file,
+                stderr_file,
+            )
 
         analysis_screen.send_commands(cmd_str)
 
@@ -563,26 +569,17 @@ def main(version, aligner, check=False, override_contamination=False, screen=Fal
     if screen:
         log.info("Running analyses in screens")
         run_screens(analyses_to_run, version)
+        return "Running in screens"
 
-    else:
-        for analysis in analyses_to_run["align"].keys():
-            if not check_running_analysis(analysis, "align"):
-                library_id = analyses_to_run["align"][analysis]
-                log.info(f"Running align for {analysis}")
-                saltant_utils.run_qc(
-                    analysis,
-                    version,
-                    library_id,
-                    aligner,
-                    config,
-                    override_contamination=override_contamination,
-                )
-        for analysis in analyses_to_run["hmmcopy"].keys():
-            if not check_running_analysis(analysis, "hmmcopy"):
-                library_id = analyses_to_run["hmmcopy"][analysis]
-                log.info(f"Running hmmcopy for {analysis}")
-                saltant_utils.run_hmmcopy(
-                    analysis,
+    for analysis_type, ticket_library in analyses_to_run.items():
+        for ticket in ticket_library:
+            library_id = ticket_library["library"]
+            if not check_running_analysis(ticket, analysis_type):
+                library_id = analyses_to_run["align"][ticket]
+                log.info(f"Running align for {ticket}")
+                saltant_utils.run_analysis(
+                    analysis_type,
+                    ticket,
                     version,
                     library_id,
                     aligner,
