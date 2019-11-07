@@ -103,6 +103,8 @@ def search_for_no_hmmcopy_data():
             for lane in dataset['sequence_lanes']:
                 hmmcopy_lane_inputs.append((lane['flowcell_id'], lane['lane_number']))
 
+    # TODO: need to consider lanes that have already been ran under QC
+
     no_hmmcopy_lanes = []
     for lane in bam_lanes:
         if lane not in hmmcopy_lane_inputs:
@@ -111,22 +113,50 @@ def search_for_no_hmmcopy_data():
 
     sequencing_ids = set()
     for lane in no_hmmcopy_lanes:
-        try:
-            lane_infos = list(colossus_api.list('lane', flow_cell_id=lane))
-        except NotFoundError as e:
-            log.info(e)
-            lane_infos = None
+        lane_infos = list(colossus_api.list('lane', flow_cell_id=lane))
+        if not lane_infos:
             continue
 
         # Get sequencing associated with lanes
-        if lane_infos is not None:
-            for lane_info in lane_infos:
-                sequencing_ids.add(lane_info['sequencing'])
+        for lane_info in lane_infos:
+            sequencing_ids.add(lane_info['sequencing'])
 
     # Get libraries associated with library
     libraries_to_analyze = set()
     for sequencing_id in sequencing_ids:
         sequencing = colossus_api.get('sequencing', id=sequencing_id)
         libraries_to_analyze.add(sequencing['library'])
+
+    return list(libraries_to_analyze)
+
+
+def search_for_no_annotation_data(version):
+    """ 
+    Search tantalus for all hmmcopy analyses with a specific version without annotations
+
+    Returns:
+        libraries_to_analyze (list): list of library ids
+    """
+    libraries_to_analyze = set()
+    hmmcopy_analyses = tantalus_api.list(
+        'analysis',
+        analysis_type__name="hmmcopy",
+        status="complete",
+        version=version,
+    )
+    annotation_analyses = tantalus_api.list(
+        'analysis',
+        analysis_type__name="annotation",
+        status="complete",
+        version=version,
+    )
+
+    annotation_tickets = [analysis["jira_ticket"] for analysis in annotation_analyses]
+    hmmcopy_tickets = [analysis["jira_ticket"] for analysis in hmmcopy_analyses]
+
+    for ticket in hmmcopy_tickets:
+        if ticket not in annotation_tickets:
+            log.info(f"need to run annotations on library {ticket['args']['library_id']}")
+            libraries_to_analyze.add(ticket["args"]["library_id"])
 
     return list(libraries_to_analyze)
