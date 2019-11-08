@@ -707,9 +707,9 @@ class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
 
     def generate_inputs_yaml(self, inputs_yaml_filename):
         storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
-        input_info = yaml.load(
+        input_info = yaml.safe_load(
             storage_client.open_file(os.path.join(
-                {self.jira},
+                self.jira,
                 "results",
                 "alignment",
                 "input.yaml",
