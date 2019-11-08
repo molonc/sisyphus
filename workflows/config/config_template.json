@@ -1,20 +1,20 @@
 {
-    "_comment": "Use this config as an example. Create your own and save it as normal_config.json", 
-    "email": "jpham@bccrc.ca", 
+    "_comment": "Use this config as an example. Create your own and save it as normal_config.json",
+    "email": "jpham@bccrc.ca",
     "storages": {
-        "local_results": "jphamvm", 
-        "working_inputs": "singlecellblob", 
+        "local_results": "jphamvm",
+        "working_inputs": "singlecellblob",
         "working_results": "singlecellresults",
-        "remote_results": "singlecellresults", 
+        "remote_results": "singlecellresults",
         "remote_inputs": "singlecellblob"
     },
     "context_config_file": {
-        "saltant" : "/path/to/content_config.yaml/on/saltant/repo/",
-        "sisyphus" : "/path/to/content_config.yaml/on/sisyphus/repo/"
+        "saltant": "/path/to/content_config.yaml/on/saltant/repo/",
+        "sisyphus": "/path/to/content_config.yaml/on/sisyphus/repo/"
     },
-    "docker_env_file": "/home/jpham/set-docker-credentials.sh", 
+    "docker_env_file": "/home/jpham/set-docker-credentials.sh",
     "user": "jpham",
     "docker_sock_path": "/var/run/docker.sock",
     "docker_path": "/usr/bin/docker",
-    "docker_server": "scdnaprod.azurecr.io"
+    "docker_server": "scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline",
 }

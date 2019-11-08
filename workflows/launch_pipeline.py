@@ -169,8 +169,7 @@ def run_pipeline(
             '{d}:{d}'.format(d=d),
         ])
 
-    docker_cmd.append('{}/scp/single_cell_pipeline:{}'.format(docker_server, version))
-
+    docker_cmd.append(f'{docker_cmd}:{version}')
     run_cmd = docker_cmd + run_cmd
 
     if (tantalus_analysis.analysis_type == 'hmmcopy'):
