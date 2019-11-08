@@ -169,7 +169,7 @@ def run_pipeline(
             '{d}:{d}'.format(d=d),
         ])
 
-    docker_cmd.append(f'{docker_cmd}:{version}')
+    docker_cmd.append(f'{docker_server}:{version}')
     run_cmd = docker_cmd + run_cmd
 
     if (tantalus_analysis.analysis_type == 'hmmcopy'):
