@@ -95,7 +95,7 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name,
     for task_instance in task_instance_list:
         if get_task_instance_status(task_instance.uuid) == 'running':
             task_instance.terminate()
-
+            
     new_task_instance = executable_task_instances.create(
         name=name,
         arguments=args,
@@ -177,7 +177,7 @@ def run_analysis(analysis_type, jira, version, library_id, aligner, config, over
     args = {
         'jira': jira,
         'version': version,
-        'analysis_type': 'hmmcopy',
+        'analysis_type': analysis_type,
         'library_id': library_id,
         'aligner': aligner,
         'override_contamination': override_contamination,
