@@ -48,8 +48,11 @@ class AnalysisInfo:
     def set_error_status(self):
         self.update('error')
 
-    def set_finish_status(self):
-        self.update('complete')
+    def set_finish_status(self, analysis_type=None):
+        if analysis_type is not None:
+            self.update(f'complete_{analysis_type}')
+        else:
+            self.update('complete')
 
     def update(self, status):
         data = {
@@ -566,6 +569,7 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
                 assert 'TEST' in sample_id
 
             input_info[str(row['cell_id'])] = {
+                'bam': None,
                 'fastqs': dict(lane_fastqs),
                 'pick_met': str(row['pick_met']),
                 'condition': str(row['condition']),
@@ -616,6 +620,7 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
         metadata_yaml_path = os.path.join(self.jira, "results", "bams", "metadata.yaml")
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
 
+        sample_info = generate_sample_info(self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
         cell_metadata = self._generate_cell_metadata(self.storages['working_inputs'])
         sequence_lanes = []
 
@@ -653,17 +658,18 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
             )
 
             for filepath in (bam_filepath, bai_filepath):
+                sublibrary_info = colossus_api.get("sublibraries", cell_id=cell_id)
                 file_info = dict(
                     analysis_id=self.analysis['id'],
                     dataset_type='BAM',
-                    sample_id=cell_metadata[cell_id]['sample_id'],
+                    sample_id=sublibrary_info["sample_id"]['sample_id'],
                     library_id=self.args['library_id'],
                     library_type='SC_WGS',
                     index_format='D',
                     sequence_lanes=sequence_lanes,
                     ref_genome=self.args['ref_genome'],
                     aligner_name=self.args['aligner'],
-                    index_sequence=cell_metadata[cell_id]['index_sequence'],
+                    index_sequence=f"{sublibrary_info['primer_i7']}-{sublibrary_info['primer_i5']}",
                     filepath=filepath,
                 )
                 output_file_info.append(file_info)
@@ -709,7 +715,7 @@ class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
             storage_client.open_file(os.path.join(
                 self.jira,
                 "results",
-                "alignment",
+                "align",
                 "input.yaml",
             )))
 
@@ -804,12 +810,19 @@ class AnnotationAnalysis(Analysis):
             alignment_input_info[key] = os.path.join(
                 storage_prefix,
                 self.jira,
+                "results",
                 alignment_prefix,
                 alignment_input_info[key],
             )
 
         for key in hmmcopy_input_info:
-            hmmcopy_input_info[key] = os.path.join(storage_prefix, self.jira, hmmcopy_prefix, hmmcopy_input_info[key])
+            hmmcopy_input_info[key] = os.path.join(
+                storage_prefix, 
+                self.jira, 
+                "results", 
+                hmmcopy_prefix, 
+                hmmcopy_input_info[key],
+            )
 
         input_info = {**alignment_input_info, **hmmcopy_input_info}
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
@@ -857,7 +870,6 @@ class PseudoBulkAnalysis(Analysis):
             inputs_yaml_filename: the directory to which the YAML file should be saved
             storage_name: Which tantalus storage to look at
         """
-        storage_name = self.storages['working_inputs']
 
         make_dirs(os.path.dirname(inputs_yaml_filename))
 
@@ -869,6 +881,7 @@ class PseudoBulkAnalysis(Analysis):
         normal_library_type = None
 
         for dataset_id in self.analysis['input_datasets']:
+            storage_name = self.storages['working_inputs']
             dataset = self.get_dataset(dataset_id)
 
             library_id = dataset['library']['library_id']
@@ -877,6 +890,16 @@ class PseudoBulkAnalysis(Analysis):
 
             is_normal = (sample_id == self.args['matched_normal_sample']
                          and library_id == self.args['matched_normal_library'])
+
+            if is_normal:
+                file_resources = list(tantalus_api.get_dataset_file_resources(
+                    dataset_id, 'sequencedataset', filters={'filename__endswith': '.bam'}))
+                single_file_resource_id = file_resources[0]["id"]
+
+                file_instances = list(tantalus_api.list(
+                    "file_instance", file_resource=single_file_resource_id))
+                storage_name = file_instances[0]["storage"]["name"]
+
 
             dataset_class = ('tumour', 'normal')[is_normal]
 
@@ -1347,10 +1370,7 @@ class Results:
         except NotFoundError:
             results = None
 
-        if analysis_type == "align":
-            metadata_yaml = os.path.join(self.tantalus_analysis.jira, "results", "alignment", "metadata.yaml")
-        else:
-            metadata_yaml = os.path.join(self.tantalus_analysis.jira, "results", self.analysis_type, "metadata.yaml")
+        metadata_yaml = os.path.join(self.tantalus_analysis.jira, "results", self.analysis_type, "metadata.yaml")
 
         self.file_resources = self.get_file_resources(
             metadata_yaml=metadata_yaml,
@@ -1405,24 +1425,14 @@ class Results:
         else:
             metadata = yaml.safe_load(storage_client.open_file(metadata_yaml))
             results_filenames = metadata["filenames"]
-            if self.analysis_type == "align":
-                results_filenames = [
-                    os.path.join(
-                        self.tantalus_analysis.jira,
-                        "results",
-                        "alignment",
-                        filename,
-                    ) for filename in results_filenames
-                ]
-            else:
-                results_filenames = [
-                    os.path.join(
-                        self.tantalus_analysis.jira,
-                        "results",
-                        self.analysis_type,
-                        filename,
-                    ) for filename in results_filenames
-                ]
+            results_filenames = [
+                os.path.join(
+                    self.tantalus_analysis.jira,
+                    "results",
+                    self.analysis_type,
+                    filename,
+                ) for filename in results_filenames
+            ]
 
         for result_filename in results_filenames:
             result_filepath = os.path.join(storage_client.prefix, result_filename)

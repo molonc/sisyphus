@@ -172,15 +172,6 @@ def run_pipeline(
     docker_cmd.append(f'{docker_server}:{version}')
     run_cmd = docker_cmd + run_cmd
 
-    if (tantalus_analysis.analysis_type == 'hmmcopy'):
-        alignment_metrics = templates.ALIGNMENT_METRICS.format(
-            results_dir=results_dir,
-            library_id=args['library_id'],
-        )
-
-        log.info('Using alignment metrics file {}'.format(alignment_metrics))
-        run_cmd += ['--alignment_metrics', alignment_metrics]
-
     if run_options['sc_config'] is not None:
         run_cmd += ['--config_file', run_options['sc_config']]
     if run_options['interactive']:

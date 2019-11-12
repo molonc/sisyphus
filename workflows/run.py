@@ -237,7 +237,9 @@ def start_automation(
     except Exception:
         tantalus_analysis.set_error_status()
         analysis_info.set_error_status()
-        pipeline_log = os.path.join(scpipeline_dir, "qc", "log", "latest", "pipeline.log")
+        if analysis_type == "align":
+            analysis_type = "alignment"
+        pipeline_log = os.path.join(scpipeline_dir, analysis_type, "log", "latest", "pipeline.log")
 
         if not run_options["skip_pipeline"] or not run_options["override_contamination"]:
             with open(pipeline_log) as f:
@@ -276,16 +278,17 @@ def start_automation(
         )
 
     # Update Jira ticket
-    if not run_options["is_test_run"]:
+    analysis_info.set_finish_status(analysis_type)
+    if analysis_type == "annotation" and not run_options["is_test_run"]:
         update_jira_dlp(jira, args['aligner'])
         attach_qc_report(jira, args["library_id"], storages)
-
-    analysis_info.set_finish_status()
+        analysis_info.set_finish_status()
 
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
-    load_ticket(jira)
+    if analysis_type == "annotation":
+        load_ticket(jira)
 
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
