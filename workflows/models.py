@@ -50,7 +50,7 @@ class AnalysisInfo:
 
     def set_finish_status(self, analysis_type=None):
         if analysis_type is not None:
-            self.update(f'complete_{analysis_type}')
+            self.update(f'{analysis_type}_complete')
         else:
             self.update('complete')
 
@@ -793,7 +793,7 @@ class AnnotationAnalysis(Analysis):
         storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
         storage_prefix = storage_client.prefix
 
-        alignment_prefix = "alignment"
+        alignment_prefix = "align"
         alignment_input_info = dict(
             alignment_metrics=f"{self.args['library_id']}_alignment_metrics.csv.gz",
             gc_metrics=f"{self.args['library_id']}_gc_metrics.csv.gz",
