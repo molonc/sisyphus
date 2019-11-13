@@ -30,9 +30,8 @@ from azure.common.credentials import ServicePrincipalCredentials
 
 
 log = logging.getLogger('sisyphus')
-
+logging.getLogger().setLevel(logging.INFO)
 TANTALUS_API_URL = "https://tantalus.canadacentral.cloudapp.azure.com/api/"
-
 
 def get_storage_account_key(
         accountname, client_id, secret_key, tenant_id, keyvault_account
@@ -347,12 +346,12 @@ class TantalusApi(BasicAPIClient):
 
         return client
 
-    def add_file(self, storage_name, filepath, update=False):
-        """ Create a file resource and file instance in the given storage.
+    def _add_or_update_file(self, storage_name, filename, update=False):
+        """ Create or update a file resource and file instance in the given storage.
 
         Args:
             storage_name: storage for file instance
-            filepath: full path to file
+            filename: storage relative filename
 
         Kwargs:
             update: update the file if exists
@@ -377,24 +376,19 @@ class TantalusApi(BasicAPIClient):
         storage = self.get_storage(storage_name)
         storage_client = self.get_storage_client(storage_name)
 
-        log.info('adding file with path {} in storage {}'.format(
-            filepath, storage_name))
-
-        filename = self.get_file_resource_filename(storage_name, filepath)
-
         # Try getting or creating the file resource, will
         # fail if exists with different properties.
         try:
             file_resource = self.get_or_create(
                 'file_resource',
                 filename=filename,
-                #created=storage_client.get_created_time(filename),
+                created=storage_client.get_created_time(filename),
                 size=storage_client.get_size(filename),
             )
             log.info('file resource has id {}'.format(file_resource['id']))
         except FieldMismatchError:
             if not update:
-                log.exception('file resource with filename has different properties, not updating'.format(
+                log.exception('file resource with filename {} has different properties, not updating'.format(
                     filename))
                 raise
             file_resource = None
@@ -438,6 +432,40 @@ class TantalusApi(BasicAPIClient):
 
         return file_resource, file_instance
 
+    def add_file(self, storage_name, filepath, update=False):
+        """ Create a file resource and file instance in the given storage.
+
+        Args:
+            storage_name: storage for file instance
+            filepath: full path to file
+
+        Kwargs:
+            update: update the file if exists
+
+        Returns:
+            file_resource, file_instance
+
+        For a file that does not exist, create the file resource and
+        file instance on the specific storage and return them.
+
+        If the file already exist in tantalus and the file being
+        added has the same properties, add_file will ensure an instance
+        exists on the given storage.
+
+        If the file already exists in tantalus and the file being added
+        has different properties, functionality will depend on the
+        update kwarg.  If update=False, will raise FieldMismatchError.
+        If update=True, update the file resource, create a file instance
+        on the given storage, and set all other file instances to
+        is_delete=True.
+        """
+        log.info('adding file with path {} in storage {}'.format(
+            filepath, storage_name))
+
+        filename = self.get_file_resource_filename(storage_name, filepath)
+
+        return self._add_or_update_file(storage_name, filename, update=update)
+
     def update_file(self, file_instance):
         """
         Update a file resource to match the file pointed
@@ -449,16 +477,13 @@ class TantalusApi(BasicAPIClient):
         Returns:
             file_instance (dict)
         """
-        storage_client = self.get_storage_client(file_instance['storage']['name'])
+        filename = file_instance['file_resource']['filename']
+        storage_name = file_instance['storage']['name']
 
-        file_resource = self.update(
-            'file_resource',
-            id=file_instance['file_resource']['id'],
-            created=storage_client.get_created_time(file_instance['file_resource']['filename']),
-            size=storage_client.get_size(file_instance['file_resource']['filename']),
-        )
+        log.info('updating file instance {} with filename {} in storage {}'.format(
+            file_instance['id'], filename, storage_name))
 
-        file_instance['file_resource'] = file_resource
+        file_resource, file_instance = self._add_or_update_file(storage_name, filename, update=True)
 
         return file_instance
 
@@ -490,6 +515,30 @@ class TantalusApi(BasicAPIClient):
             raise DataCorruptionError('file instance {} with path {} has size {} on storage {} but {} in tantalus'.format(
                 file_instance['id'], file_instance['filepath'], size, file_instance['storage']['name'],
                 file_instance['file_resource']['size']))
+    def delete_file(self, file_resource):
+        """
+        Delete a file and remove from all datasets.
+
+        Args:
+            file_resource (dict)
+        """
+
+        file_instances = self.list("file_instance", file_resource=file_resource["id"])
+        for file_instance in file_instances:
+            file_instance = self.update(
+                "file_instance",
+                id=file_instance["id"],
+                is_deleted=True,
+            )
+            logging.info(f"deleted file instance {file_instance['id']}")
+
+        for dataset_type in ("sequencedataset", "resultsdataset"):
+            datasets = self.list(dataset_type, file_resources__id=file_resource["id"])
+            for dataset in datasets:
+                file_resources = list(set(dataset["file_resources"]))
+                file_resources.remove(file_resource["id"])
+                logging.info(f"removing file resource {file_resource['id']} from {dataset['id']}")
+                self.update(dataset_type, id=dataset["id"], file_resources=file_resources)
 
     def add_instance(self, file_resource, storage):
         """
@@ -649,3 +698,87 @@ class TantalusApi(BasicAPIClient):
                 r.reason, r.text))
 
         return r.json()
+
+def curation_update_datasets(self, curation_name, datasets, operation):
+    """
+    Args:
+        curation: (string) The name of the curation.
+        datasets: (list) A list of dataset ids that will be deleted/added.
+        operation: (string) The operation that will be performed to the given curation.
+
+    Returns:
+        curation (dict)
+    """
+    assert operation in ["delete", "add"], "Please provide a valid operation"
+    #user = os.environ["TANTALUS_API_USER"]
+    try:
+        #check if any datasets are provided
+        if not datasets:
+            logging.info("No datasets were given, exit the function.")
+            return curation
+        #get the curation that will be modified
+        curation = self.get("curation", name=curation_name)
+        #get the id and the version of the current curation
+        curation_id = curation["id"]
+        previous_version = curation["version"]
+        #increase the version
+        new_version = "v" + str(int(previous_version[1:].split(".")[0]) + 1) + ".0.0"
+        datasets_set = set(datasets)
+        #get the list of datasets that currently associated with the curation
+        existing_datasets = set(curation["sequencedatasets"])
+        field_changed = False
+        #check if the operation is adding datasets to the curation
+        if operation == "add":
+            for dataset in datasets_set:
+                logging.info("Adding the dataset {}".format(dataset))
+                # check if the current dataset is already in the curation.
+                if dataset in existing_datasets:
+                    logging.info("The dataset {} is already in curation {}, skip.".format(dataset, curation_name))
+                    continue
+                #create an entry in curation_dataset model
+                self.create("curation_dataset",
+                    curation_instance=curation_id,
+                    sequencedataset_instance=dataset,
+                    version=new_version)
+                field_changed = True
+        #check if the operation is deleting datasets to the curation
+        if operation == "delete":
+            for dataset in datasets_set:
+                logging.info("Deleting the dataset {}".format(dataset))
+                #check if the dataset is in the curation
+                if dataset not in existing_datasets:
+                    logging.info("The dataset {} is not in curation {}, skip.".format(dataset, curation_name))
+                    continue
+                #if the dataset is in the curation, remove it.
+                existing_datasets.remove(dataset)
+                #remove the entry in curation dataset table.
+                curation_dataset = self.get("curation_dataset",
+                    curation_instance=curation_id,
+                    sequencedataset_instance=dataset,
+                    version=previous_version)
+                self.delete("curation_dataset", id=curation_dataset["id"])
+                field_changed = True
+        # if the dataset set is changed, update the curation version and the version of the current
+        # datasets in the curation, else, skip.
+        if field_changed:
+            if existing_datasets:
+                logging.info("Updating the version of datasets {}".format(list(existing_datasets)))
+                #next, update the version of the existing datasets
+                for old_dataset in existing_datasets:
+                    old_curation_dataset = self.get("curation_dataset",
+                        curation_instance=curation_id,
+                        sequencedataset_instance=old_dataset,
+                        version=previous_version)
+                    logging.info("updating {}".format(old_curation_dataset["id"]))
+                    self.update("curation_dataset",
+                        id=old_curation_dataset["id"],
+                        version=new_version)
+                    logging.info("The instance was updated")
+            logging.info("Update the curation version.")
+            curation = self.update("curation", id=curation_id, version=new_version)
+        #if no change was performed, then display the message to the user.
+        if not field_changed:
+            logging.info("No change detected.")
+        return self.get("curation", name=curation_name)
+    except NotFoundError:
+        raise Exception("The curation {} does not exist, create it first.".format(curation_name))
