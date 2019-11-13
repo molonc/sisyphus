@@ -194,7 +194,6 @@ def start_automation(
     try:
         tantalus_analysis.set_run_status()
         analysis_info.set_run_status()
-        run_pipeline = tantalus_analysis.run_pipeline()
 
         dirs = [
             pipeline_dir,
@@ -212,11 +211,9 @@ def start_automation(
         else:
             context_config_file = config['context_config_file']['sisyphus']
 
-        # TODO: refactor into the run_pipeline command of each analysis and add specifics of output_dir / bam_dir specific to analysis
         log_utils.sentinel(
             'Running single_cell qc',
-            run_pipeline,
-            analysis_type=analysis_type,
+            tantalus_analysis.run_pipeline,
             scpipeline_dir=scpipeline_dir,
             tmp_dir=tmp_dir,
             tantalus_analysis=tantalus_analysis,

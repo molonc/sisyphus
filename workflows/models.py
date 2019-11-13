@@ -686,11 +686,42 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
 
         return [tantalus_results.get_id()]
 
-    def run_pipeline(self):
-        if self.run_options["skip_pipeline"]:
-            return run_pipeline2
-        else:
-            return run_pipeline
+    def run_pipeline(
+            self,
+            scpipeline_dir,
+            tmp_dir,
+            tantalus_analysis,
+            args,
+            run_options,
+            context_config_file,
+            docker_env_file,
+            docker_server,
+            dirs,
+        ):
+
+        launch_pipeline.run_pipeline(
+            self.analysis_type,
+            scpipeline_dir=scpipeline_dir,
+            tmp_dir=tmp_dir,
+            tantalus_analysis=tantalus_analysis,
+            args=self.args,
+            run_options=self.run_options,
+            inputs_yaml=self.inputs_yaml_filename,
+            context_config_file=context_config_file,
+            docker_env_file=docker_env_file,
+            docker_server=docker_server,
+            output_dirs={
+                'bams_dir': self.bams_dir,
+                'output_dir': self.results_dir,
+            },
+            max_jobs='400',
+            dirs=dirs,
+        )
+        # ?? not sure what to do with skip_pipeline
+        # if self.run_options["skip_pipeline"]:
+        #     return run_pipeline2
+        # else:
+        #     return run_pipeline
 
 
 class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):

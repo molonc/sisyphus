@@ -91,8 +91,7 @@ def run_pipeline(
         context_config_file,
         docker_env_file,
         docker_server,
-        output_dir,
-        bams_dir=None,
+        output_dirs,
         max_jobs='400',
         dirs=(),
 ):
@@ -126,10 +125,11 @@ def run_pipeline(
         '--context_config',
         context_config_file,
     ]
-    if analysis_type == "alignment":
+
+    for option_name, output_dir in output_dirs.items():
         run_cmd += [
-            '--bams_dir',
-            bams_dir,
+            '--' + option_name,
+            output_dir,
         ]
 
     if not run_options['saltant']:
