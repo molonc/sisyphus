@@ -136,7 +136,7 @@ class Analysis(object):
     """
     A class representing an Analysis model in Tantalus.
     """
-    def __init__(self, analysis_type, jira, version, args, storages, update=False):
+    def __init__(self, analysis_type, jira, version, args, storages, run_options, update=False):
         """
         Create an Analysis object in Tantalus.
         """
@@ -147,6 +147,7 @@ class Analysis(object):
         self.analysis_type = analysis_type
         self.analysis = self.get_or_create_analysis(jira, version, args, update=update)
         self.storages = storages
+        self.run_options = run_options
 
     @property
     def name(self):
@@ -337,15 +338,7 @@ class Analysis(object):
         """
         Create the set of output results produced by this analysis.
         """
-        tantalus_results = Results(
-            self,
-            self.storages['working_results'],
-            update=update,
-            skip_missing=skip_missing,
-            analysis_type=analysis_type,
-        )
-
-        return [tantalus_results.get_id()]
+        return []
 
     def get_input_samples(self):
         """
@@ -398,9 +391,10 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
     """
     Align analysis on Tantalus 
     """
-    def __init__(self, jira, version, args, run_options, **kwargs):
-        super(AlignAnalysis, self).__init__('align', jira, version, args, **kwargs)
-        self.run_options = run_options
+    def __init__(self, jira, version, args, storages, run_options, **kwargs):
+        super(AlignAnalysis, self).__init__('align', jira, version, args, storages, run_options, **kwargs)
+        self.bams_dir = os.path.join(jira, "results", "bams")
+        self.results_dir = os.path.join(jira, "results", self.analysis_type)
 
     @staticmethod
     def search_input_datasets(args):
@@ -605,11 +599,15 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
         return lanes
 
     def create_output_datasets(self, tag_name=None, update=False):
+        """ Create BAM datasets in tantalus.
+        """
         storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
-        metadata_yaml_path = os.path.join(self.jira, "results", "bams", "metadata.yaml")
+        metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
 
+        # TODO: Unused
         sample_info = generate_sample_info(self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
+        # TODO: Unused
         cell_metadata = self._generate_cell_metadata(self.storages['working_inputs'])
         sequence_lanes = []
 
@@ -633,20 +631,17 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
             bam_filename = bam_template.format(cell_id=cell_id)
             bam_filepath = os.path.join(
                 storage_client.prefix,
-                self.jira,
-                "results",
-                "bams",
+                self.bams_dir,
                 bam_filename,
             )
             bai_filepath = os.path.join(
                 storage_client.prefix,
-                self.jira,
-                "results",
-                "bams",
+                self.bams_dir,
                 f'{bam_filename}.bai',
             )
 
             for filepath in (bam_filepath, bai_filepath):
+                # TODO: this will be slow if it hits colossus for each file
                 sublibrary_info = colossus_api.get("sublibraries", cell_id=cell_id)
                 file_info = dict(
                     analysis_id=self.analysis['id'],
@@ -676,6 +671,21 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
 
         log.info("created sequence datasets {}".format(output_datasets))
 
+    def create_output_results(self, update=False, skip_missing=False, analysis_type=None):
+        """
+        Create the set of output results produced by this analysis.
+        """
+        tantalus_results = Results(
+            self,
+            self.storages['working_results'],
+            self.results_dir,
+            update=update,
+            skip_missing=skip_missing,
+            analysis_type=analysis_type,
+        )
+
+        return [tantalus_results.get_id()]
+
     def run_pipeline(self):
         if self.run_options["skip_pipeline"]:
             return run_pipeline2
@@ -684,9 +694,9 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
 
 
 class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
-    def __init__(self, jira, version, args, run_options, **kwargs):
-        super(HmmcopyAnalysis, self).__init__('hmmcopy', jira, version, args, **kwargs)
-        self.run_options = run_options
+    def __init__(self, jira, version, args, storages, run_options, **kwargs):
+        super(HmmcopyAnalysis, self).__init__('hmmcopy', jira, version, args, storages, run_options, **kwargs)
+        self.results_dir = os.path.join(jira, "results", self.analysis_type)
 
     def search_input_datasets(self, args):
         datasets = tantalus_api.list(
@@ -732,11 +742,26 @@ class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
         else:
             return run_pipeline
 
+    def create_output_results(self, update=False, skip_missing=False, analysis_type=None):
+        """
+        Create the set of output results produced by this analysis.
+        """
+        tantalus_results = Results(
+            self,
+            self.storages['working_results'],
+            self.results_dir,
+            update=update,
+            skip_missing=skip_missing,
+            analysis_type=analysis_type,
+        )
+
+        return [tantalus_results.get_id()]
+
 
 class AnnotationAnalysis(Analysis):
-    def __init__(self, jira, version, args, run_options, **kwargs):
-        super(AnnotationAnalysis, self).__init__('annotation', jira, version, args, **kwargs)
-        self.run_options = run_options
+    def __init__(self, jira, version, args, storages, run_options, **kwargs):
+        super(AnnotationAnalysis, self).__init__('annotation', jira, version, args, storages, run_options, **kwargs)
+        self.results_dir = os.path.join(jira, "results", self.analysis_type)
 
     def generate_unique_name(self, jira, version, args, input_datasets, input_results):
         """
@@ -822,6 +847,21 @@ class AnnotationAnalysis(Analysis):
             return run_pipeline2
         else:
             return run_pipeline
+
+    def create_output_results(self, update=False, skip_missing=False, analysis_type=None):
+        """
+        Create the set of output results produced by this analysis.
+        """
+        tantalus_results = Results(
+            self,
+            self.storages['working_results'],
+            self.results_dir,
+            update=update,
+            skip_missing=skip_missing,
+            analysis_type=analysis_type,
+        )
+
+        return [tantalus_results.get_id()]
 
 
 class PseudoBulkAnalysis(Analysis):
@@ -1324,13 +1364,14 @@ class Results:
     """
     A class representing a Results model in Tantalus.
     """
-    def __init__(self, tantalus_analysis, storage_name, update=False, skip_missing=False, analysis_type=None):
+    def __init__(self, tantalus_analysis, storage_name, results_dir, update=False, skip_missing=False, analysis_type=None):
         """
         Create a Results object in Tantalus.
         """
 
         self.tantalus_analysis = tantalus_analysis
         self.storage_name = storage_name
+        self.results_dir = results_dir
         self.name = '{}_{}'.format(self.tantalus_analysis.jira, analysis_type)
         self.analysis = self.tantalus_analysis.get_id()
         self.analysis_type = analysis_type
@@ -1359,7 +1400,7 @@ class Results:
         except NotFoundError:
             results = None
 
-        metadata_yaml = os.path.join(self.tantalus_analysis.jira, "results", self.analysis_type, "metadata.yaml")
+        metadata_yaml = os.path.join(self.results_dir, "metadata.yaml")
 
         self.file_resources = self.get_file_resources(
             metadata_yaml=metadata_yaml,
@@ -1416,9 +1457,7 @@ class Results:
             results_filenames = metadata["filenames"]
             results_filenames = [
                 os.path.join(
-                    self.tantalus_analysis.jira,
-                    "results",
-                    self.analysis_type,
+                    self.results_dir,
                     filename,
                 ) for filename in results_filenames
             ]

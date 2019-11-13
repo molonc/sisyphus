@@ -128,15 +128,12 @@ def start_automation(
         run_options,
         config,
         pipeline_dir,
-        results_dir,
         scpipeline_dir,
         tmp_dir,
         storages,
         job_subdir,
         analysis_info,
         analysis_type,
-        output_dir,
-        bams_dir=None,
 ):
     start = time.time()
 
@@ -145,8 +142,8 @@ def start_automation(
             jira,
             version,
             args,
+            storages,
             run_options,
-            storages=storages,
             update=run_options['update'],
         )
     elif analysis_type == "hmmcopy":
@@ -154,8 +151,8 @@ def start_automation(
             jira,
             version,
             args,
+            storages,
             run_options,
-            storages=storages,
             update=run_options['update'],
         )
     elif analysis_type == "annotation":
@@ -163,8 +160,8 @@ def start_automation(
             jira,
             version,
             args,
+            storages,
             run_options,
-            storages=storages,
             update=run_options['update'],
         )
     else:
@@ -215,10 +212,10 @@ def start_automation(
         else:
             context_config_file = config['context_config_file']['sisyphus']
 
+        # TODO: refactor into the run_pipeline command of each analysis and add specifics of output_dir / bam_dir specific to analysis
         log_utils.sentinel(
             'Running single_cell qc',
             run_pipeline,
-            results_dir=results_dir,
             analysis_type=analysis_type,
             scpipeline_dir=scpipeline_dir,
             tmp_dir=tmp_dir,
@@ -229,9 +226,7 @@ def start_automation(
             context_config_file=context_config_file,
             docker_env_file=config['docker_env_file'],
             docker_server=config['docker_server'],
-            output_dir=output_dir,
             dirs=dirs,
-            bams_dir=bams_dir,
         )
 
     except Exception:
@@ -365,17 +360,10 @@ def main(jira,
     pipeline_dir = os.path.join(
         tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], job_subdir)
 
-    results_dir = os.path.join('singlecellresults', 'results', job_subdir)
     scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', job_subdir)
     tmp_dir = os.path.join('singlecelltemp', 'temp', job_subdir)
 
-    storage_result_prefix = tantalus_api.get_storage_client("singlecellresults").prefix
-    output_dir = os.path.join(storage_result_prefix, jira, "results", analysis_type)
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
-
-    bams_dir = None
-    if analysis_type == "align":
-        bams_dir = os.path.join(storage_result_prefix, jira, "results", "bams")
 
     log_file = log_utils.init_log_files(pipeline_dir)
     log_utils.setup_sentinel(run_options['sisyphus_interactive'], os.path.join(pipeline_dir, analysis_type))
@@ -404,15 +392,12 @@ def main(jira,
         run_options,
         config,
         pipeline_dir,
-        results_dir,
         scpipeline_dir,
         tmp_dir,
         config['storages'],
         job_subdir,
         analysis_info,
         analysis_type,
-        output_dir,
-        bams_dir=bams_dir,
     )
 
 
