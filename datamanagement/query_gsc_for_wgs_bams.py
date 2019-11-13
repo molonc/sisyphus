@@ -439,7 +439,7 @@ def get_merge_info(details_list, gsc_api, library, sample, skip_older_than):
     Returns:
         merged_lanes:   (set)
     """
-    merge_infos = gsc_api.query("merge?library={}".format(library["library_id"]))
+    merge_infos = gsc_api.query("merge?library={}&production=true".format(library["library_id"]))
     merged_lanes = set()
     for merge_info in merge_infos:
         data_path = merge_info["data_path"]
