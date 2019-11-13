@@ -20,7 +20,7 @@ from datamanagement.transfer_files import transfer_dataset
 from workflows.generate_inputs import generate_sample_info
 from workflows.launch_pipeline import *
 import datamanagement.templates as templates
-from datamanagement.utils.utils import get_analysis_lanes_hash
+from datamanagement.utils.utils import get_datasets_lanes_hash
 from workflows.utils import tantalus_utils, file_utils
 
 log = logging.getLogger('sisyphus')
@@ -381,18 +381,7 @@ class DLPAnalysisMixin(object):
     Common functionality for DLP analyses (align, hmmcopy)
     """
     def generate_unique_name(self, jira, version, args, input_datasets, input_results):
-
-        lanes = set()
-
-        for input_dataset in input_datasets:
-            dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
-            for sequence_lane in dataset['sequence_lanes']:
-                lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
-                lanes.add(lane)
-
-        lanes = ", ".join(sorted(lanes))
-        lanes = hashlib.md5(lanes.encode('utf-8'))
-        lanes_hashed = "{}".format(lanes.hexdigest()[:8])
+        lanes_hashed = get_datasets_lanes_hash(tantalus_api, input_datasets)
 
         name = templates.SC_ANALYSIS_NAME_TEMPLATE.format(
             analysis_type=self.analysis_type,
@@ -1244,7 +1233,7 @@ class TenXAnalysis(Analysis):
 
         sequence_lanes = self.get_lane_ids()
 
-        lanes_hashed = get_analysis_lanes_hash(tantalus_api, self.analysis)
+        lanes_hashed = get_datasets_lanes_hash(tantalus_api, self.analysis["input_datasets"])
 
         bam_filepath = os.path.join(storage_client["prefix"], library_id, "bams.tar.gz")
         file_resource, file_instance = tantalus_api.add_file(storage_name, bam_filepath, update=True)
