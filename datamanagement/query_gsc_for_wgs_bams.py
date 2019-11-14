@@ -740,12 +740,12 @@ def create_record(output_csv, detail, file_name, original_file_name):
     """
     if not os.path.exists(output_csv):
         df = pd.DataFrame(columns = [
-            "library_id", 
-            "file_name", 
+            "library_id",
+            "file_name",
             "sample_id",
-            "original_file_name", 
-            "transferred_into_cache_directory", 
-            "uploaded_onto_cloud", 
+            "original_file_name",
+            "transferred_into_cache_directory",
+            "uploaded_onto_cloud",
             "recorded_in_tantalus"
             ])
     else:
@@ -903,11 +903,9 @@ def main(**kwargs):
                     cloud_container = to_storage["storage_container"]
                     bam_exists = block_blob_service.exists(cloud_container, cloud_blobname_bam)
                     bai_exists = block_blob_service.exists(cloud_container, cloud_blobname_bai)
-                    #TODO: check if the file sizes match (cloud and gsc)
-                    cloud_size_match_bam = size_match_cloud_txshah(blob_client, '10.9.208.161', 'qfliu', cloud_container, cache_bam_paths["source_bam_path"], cloud_blobname_bam)
+                    cloud_size_match_bam = size_match_cloud_txshah(blob_client, '10.9.208.161', username, cloud_container, cache_bam_paths["source_bam_path"], cloud_blobname_bam)
                     logging.info("The remote and cloud file sizes match for {}: {}.".format(cloud_blobname_bam, cloud_size_match_bam))
-                    print(type(cloud_size_match_bam))
-                    update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "size_match_cloud_remote", "TRUE")          
+                    update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "size_match_cloud_remote", "TRUE")
                     if not (bam_exists and bai_exists and cloud_size_match_bam):
                     #if not (bam_exists and bai_exists):
                         logging.info("The bam or bai file doesn't exist on cloud or the file sizes don't match on cloud, continue processing.")
@@ -982,7 +980,6 @@ def main(**kwargs):
                         sequencing_instrument=lane["sequencing_instrument"]
                     )
                     logging.info("Successfully created lane {} in tantalus".format(lane["id"]))
-            
+
 if __name__=='__main__':
     main()
-

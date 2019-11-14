@@ -15,6 +15,8 @@ import datetime
 import logging
 import shutil
 import pandas as pd
+import socket
+import subprocess
 
 try:
     from urllib.request import urlopen
@@ -142,16 +144,29 @@ class BlobStorageClient(object):
 
 
 class ServerStorageClient(object):
-    def __init__(self, storage_directory, prefix):
-        self.storage_directory = storage_directory
-        self.prefix = prefix
+    def __init__(self, storage_obj):
+        self.storage_directory = storage_obj["storage_directory"]
+        self.prefix = storage_obj["prefix"]
+        self.server_ip = storage_obj["server_ip"]
+        current_ip = socket.gethostbyname(socket.gethostname())
+        self.on_server = (current_ip == self.server_ip)
+        #Remember to setup the serverless login before using the script
+        self.username = os.environ["SERVER_USER"]
 
     def get_size(self, filename):
-        filepath = os.path.join(self.storage_directory, filename)
-        return os.path.getsize(filepath)
+        filepath = self.get_url(filename)
+        if self.on_server:
+            return os.path.getsize(filepath)
+        if not self.exists(filename):
+            logging.info("The file {} does not exists at {}".format(filename, self.storage_directory))
+            return
+        command = 'ssh {}@{} stat -c%s "{}"'.format(self.username, self.server_ip, filepath)
+        remote_size = int(subprocess.check_output(command, shell=True).decode("utf-8").strip("\n"))
+        return remote_size
+
 
     def get_created_time(self, filename):
-        filepath = os.path.join(self.storage_directory, filename)
+        filepath = self.get_url(filename)
         # TODO: this is currently fixed at pacific time
         return pd.Timestamp(time.ctime(os.path.getmtime(filepath)), tz="Canada/Pacific").isoformat()
 
@@ -161,24 +176,37 @@ class ServerStorageClient(object):
         return filepath
 
     def delete(self, filename):
-        os.remove(self.get_url(filename))
+        if self.on_server:
+            os.remove(self.get_url(filename))
 
     def open_file(self, filename):
-        filepath = os.path.join(self.storage_directory, filename)
-        return open(filepath)
+        filepath = self.get_url(filename)
+        if self.on_server:
+            logging.info("The file {} is on the local storage, opening the file.".format(filename))
+            return open(filepath)
+        logging.info("The file {} is not on the local storage, cann't open it.".format(filename))
 
     def exists(self, filename):
-        filepath = os.path.join(self.storage_directory, filename)
-        return os.path.exists(filepath)
+        filepath = self.get_url(filename)
+        if self.on_server:
+            return os.path.exists(filepath)
+        command = "ssh {}@{} [[ -f {} ]] && echo 'True' || echo 'False'".format(self.username, self.server_ip, filepath)
+        file_exist = (subprocess.check_output(command, shell=True).decode("utf-8").strip("\n") == "True")
+        return file_exist
 
     def list(self, prefix):
-        for root, dirs, files in os.walk(os.path.join(self.storage_directory, prefix)):
-            for filename in files:
-                yield os.path.join(root, filename)
+        #list all the files in the given predix, under the storage directory
+        if self.on_server:
+            for root, dirs, files in os.walk(os.path.join(self.storage_directory, prefix)):
+                for filename in files:
+                    yield os.path.join(root, filename)
+        else:
+            command = "find $({}) -type f -not -path '*/\.*'".format(prefix)
+            pass
 
     def write_data(self, filename, stream):
         stream.seek(0)
-        filepath = os.path.join(self.storage_directory, filename)
+        filepath = self.get_url(filename)
         dirname = os.path.dirname(filepath)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
@@ -208,25 +236,29 @@ class ServerStorageClient(object):
 
 
 class DataError(Exception):
-    """ An general data error.
+    """
+    A general data error.
     """
     pass
 
 
 class DataCorruptionError(DataError):
-    """ An error raised for data file corruption.
+    """
+    An error raised for data file corruption.
     """
     pass
 
 
 class DataMissingError(DataError):
-    """ An error raised when data is missing from the expected location.
+    """
+    An error raised when data is missing from the expected location.
     """
     pass
 
 
 class DataNotOnStorageError(Exception):
-    """ An error when data is not on the requested storage.
+    """
+    An error when data is not on the requested storage.
     """
     pass
 
@@ -309,7 +341,7 @@ class TantalusApi(BasicAPIClient):
         self.cached_storages[storage_name] = storage
 
         return storage
-
+    '''
     def get_cache_client(self, storage_directory):
         """ Retrieve a client for the given cache
 
@@ -320,7 +352,7 @@ class TantalusApi(BasicAPIClient):
             storage client object
         """
         return ServerStorageClient(storage_directory, storage_directory)
-
+    '''
     def get_storage_client(self, storage_name):
         """ Retrieve a client for the given storage
 
@@ -338,7 +370,8 @@ class TantalusApi(BasicAPIClient):
         if storage['storage_type'] == 'blob':
             client = BlobStorageClient(storage['storage_account'], storage['storage_container'], storage['prefix'])
         elif storage['storage_type'] == 'server':
-            client = ServerStorageClient(storage['storage_directory'], storage['prefix'])
+            #client = ServerStorageClient(storage['storage_directory'], storage['prefix'])
+            client = ServerStorageClient(storage)
         else:
             return ValueError('unsupported storage type {}'.format(storage['storage_type']))
 
