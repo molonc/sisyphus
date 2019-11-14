@@ -254,25 +254,7 @@ class Analysis(object):
             update=update,
         )
 
-        logs = self.analysis["logs"]
-        logs.append(file_resource["id"])
-        tantalus_api.update('analysis', id=self.get_id(), logs=logs)
-
-    def add_metadata_yaml(self, metadata_yaml, update=False):
-        """
-        Add the metadata yaml to the logs field of the analysis.
-        """
-
-        log.info('Adding inputs yaml file {} to {}'.format(metadata_yaml, self.name))
-
-        file_resource, _ = tantalus_api.add_file(
-            storage_name=self.storages['working_results'],
-            filepath=metadata_yaml,
-            update=update,
-        )
-        logs = self.analysis["logs"]
-        logs.append(file_resource["id"])
-        tantalus_api.update('analysis', id=self.get_id(), logs=logs)
+        tantalus_api.update('analysis', id=self.get_id(), logs=[file_resource['id']])
 
     def get_dataset(self, dataset_id):
         """
@@ -1484,13 +1466,14 @@ class Results:
     """
     A class representing a Results model in Tantalus.
     """
-    def __init__(self,
-                 tantalus_analysis,
-                 storage_name,
-                 results_dir,
-                 update=False,
-                 skip_missing=False,
-                 analysis_type=None):
+    def __init__(
+            self,
+            tantalus_analysis,
+            storage_name,
+            results_dir,
+            update=False,
+            skip_missing=False,
+            analysis_type=None):
         """
         Create a Results object in Tantalus.
         """
@@ -1526,28 +1509,34 @@ class Results:
         except NotFoundError:
             results = None
 
-        metadata_yaml = os.path.join(self.results_dir, "metadata.yaml")
+        # Load the metadata.yaml file, assumed to exist in the root of the results directory
+        metadata_filename = os.path.join(self.results_dir, "metadata.yaml")
+        metadata = yaml.safe_load(storage_client.open_file(metadata_filename))
 
-        # Add metadata.yaml to tantalus
-        self.tantalus_analysis.add_metadata_yaml(
-            metadata_yaml=os.path.join(storage_client.prefix, metadata_yaml),
-            update=update,
-        )
+        # Add all files to tantalus including the metadata.yaml file
+        file_resource_ids = set()
+        for filename in metadata["filenames"] + ['metadata.yaml']:
+            filename = os.path.join(self.results_dir, filename)
+            filepath = os.path.join(storage_client.prefix, filename)
 
-        self.file_resources = self.get_file_resources(
-            metadata_yaml=metadata_yaml,
-            update=update,
-            skip_missing=skip_missing,
-            analysis_type=analysis_type,
-        )
+            if not storage_client.exists(filename) and skip_missing:
+                logging.warning('skipping missing file: {}'.format(filename))
+                continue
 
-        metadata = yaml.safe_load(storage_client.open_file(metadata_yaml))
+            file_resource, _ = tantalus_api.add_file(
+                storage_name=self.storage_name,
+                filepath=filepath,
+                update=update,
+            )
+
+            file_resource_ids.add(file_resource["id"])
+
         data = {
             'name': self.name,
             'results_type': self.analysis_type,
             'results_version': metadata["meta"]["version"],
             'analysis': self.analysis,
-            'file_resources': self.file_resources,
+            'file_resources': list(file_resource_ids),
             'samples': self.samples,
             'libraries': self.libraries,
         }
@@ -1572,42 +1561,6 @@ class Results:
         field_value = vars(self)[field]
         if self.results[field] != field_value:
             tantalus_api.update('results', id=self.get_id(), **{field: field_value})
-
-    def get_file_resources(self, metadata_yaml=None, update=False, skip_missing=False, analysis_type=None):
-        """
-        Create file resources for each results file and return their ids.
-        """
-        file_resource_ids = set()
-        storage_client = tantalus_api.get_storage_client(self.storage_name)
-
-        if analysis_type is None:
-            results_filenames = self.tantalus_analysis.get_results_filenames()
-        elif metadata_yaml is None:
-            raise Exception("metadata yaml file was not given")
-        else:
-            metadata = yaml.safe_load(storage_client.open_file(metadata_yaml))
-            results_filenames = metadata["filenames"]
-            results_filenames = [os.path.join(
-                self.results_dir,
-                filename,
-            ) for filename in results_filenames]
-
-        for result_filename in results_filenames:
-            result_filepath = os.path.join(storage_client.prefix, result_filename)
-
-            if not storage_client.exists(result_filename) and skip_missing:
-                logging.warning('skipping missing file: {}'.format(result_filename))
-                continue
-
-            file_resource, _ = tantalus_api.add_file(
-                storage_name=self.storage_name,
-                filepath=result_filepath,
-                update=update,
-            )
-
-            file_resource_ids.add(file_resource["id"])
-
-        return list(file_resource_ids)
 
     def get_id(self):
         return self.results['id']
