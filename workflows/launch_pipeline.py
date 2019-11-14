@@ -82,11 +82,11 @@ def run_pipeline2(*args, **kwargs):
 
 def run_pipeline(
         analysis_type,
+        args,
+        version,
+        run_options,
         scpipeline_dir,
         tmp_dir,
-        tantalus_analysis,
-        args,
-        run_options,
         inputs_yaml,
         context_config_file,
         docker_env_file,
@@ -96,9 +96,6 @@ def run_pipeline(
         dirs=(),
 ):
 
-    args = tantalus_analysis.args
-    version = tantalus_analysis.version
-    run_options = tantalus_analysis.run_options
     config_override_string = get_config_string(args, run_options)
 
     run_cmd = [

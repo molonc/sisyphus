@@ -696,9 +696,6 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
             self,
             scpipeline_dir,
             tmp_dir,
-            tantalus_analysis,
-            args,
-            run_options,
             inputs_yaml,
             context_config_file,
             docker_env_file,
@@ -710,13 +707,13 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
 
         else:
             return launch_pipeline.run_pipeline(
-                "alignment", # analysis type needs to be alignment for scpipeline
+                analysis_type="alignment",
+                args=self.args,
+                version=self.version,
+                run_options=self.run_options,
                 scpipeline_dir=scpipeline_dir,
                 tmp_dir=tmp_dir,
-                tantalus_analysis=tantalus_analysis,
-                args=self.args,
-                run_options=self.run_options,
-                inputs_yaml=self.inputs_yaml_filename,
+                inputs_yaml=inputs_yaml,
                 context_config_file=context_config_file,
                 docker_env_file=docker_env_file,
                 docker_server=docker_server,
@@ -727,12 +724,6 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
                 max_jobs='400',
                 dirs=dirs,
             )
-
-        # ?? not sure what to do with skip_pipeline
-        # if self.run_options["skip_pipeline"]:
-        #     return run_pipeline2
-        # else:
-        #     return run_pipeline
 
 
 class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
@@ -797,9 +788,6 @@ class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
             self,
             scpipeline_dir,
             tmp_dir,
-            tantalus_analysis,
-            args,
-            run_options,
             inputs_yaml,
             context_config_file,
             docker_env_file,
@@ -811,13 +799,13 @@ class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
 
         else:
             return launch_pipeline.run_pipeline(
-                self.analysis_type,
+                analysis_type="hmmcopy",
+                args=self.args,
+                version=self.version,
+                run_options=self.run_options,
                 scpipeline_dir=scpipeline_dir,
                 tmp_dir=tmp_dir,
-                tantalus_analysis=tantalus_analysis,
-                args=self.args,
-                run_options=self.run_options,
-                inputs_yaml=self.inputs_yaml_filename,
+                inputs_yaml=inputs_yaml,
                 context_config_file=context_config_file,
                 docker_env_file=docker_env_file,
                 docker_server=docker_server,
@@ -917,9 +905,6 @@ class AnnotationAnalysis(Analysis):
             self,
             scpipeline_dir,
             tmp_dir,
-            tantalus_analysis,
-            args,
-            run_options,
             inputs_yaml,
             context_config_file,
             docker_env_file,
@@ -931,13 +916,13 @@ class AnnotationAnalysis(Analysis):
 
         else:
             return launch_pipeline.run_pipeline(
-                self.analysis_type,
+                analysis_type="annotation",
+                args=self.args,
+                version=self.version,
+                run_options=self.run_options,
                 scpipeline_dir=scpipeline_dir,
                 tmp_dir=tmp_dir,
-                tantalus_analysis=tantalus_analysis,
-                args=self.args,
-                run_options=self.run_options,
-                inputs_yaml=self.inputs_yaml_filename,
+                inputs_yaml=inputs_yaml,
                 context_config_file=context_config_file,
                 docker_env_file=docker_env_file,
                 docker_server=docker_server,
