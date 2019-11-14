@@ -929,6 +929,7 @@ def main(**kwargs):
                         logging.info("The file {} already exists on blob and file sizes match, skip caching.".format(cache_bam_paths["tantalus_bam_name"]))
                         update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "uploaded_onto_cloud", "TRUE")
                 else:
+                    create_record(output_csv, detail, dest_bam_paths["tantalus_bam_name"], dest_bam_paths["source_bam_path"])
                     if not os.path.exists(dest_bam_paths["tantalus_bam_path"]):
                         logging.info("The bam file {} does not exists, start transferring the file.".format(dest_bam_paths["tantalus_bam_path"]))
                         transfer_gsc_bams(detail, dest_bam_paths, to_storage, sftp)
@@ -938,7 +939,7 @@ def main(**kwargs):
                             transfer_gsc_bams(detail, dest_bam_paths, to_storage, sftp)
                         else:
                             logging.info("The bam file already exists in the destination directory, skip transferring the file.")
-
+                    update_record(output_csv, dest_bam_paths["tantalus_bam_name"], "transferred_onto_shahlab", "TRUE")
                 # Add the files to Tantalus
                 #TODO: check if the file resources if already on tantalus, if not, then add it, else, skip it
                 logging.info("Importing {} to Tantalus".format(dest_bam_paths["tantalus_bam_path"]))
