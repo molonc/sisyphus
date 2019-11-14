@@ -20,7 +20,7 @@ from datamanagement.transfer_files import transfer_dataset
 from workflows.generate_inputs import generate_sample_info
 from workflows import launch_pipeline
 import datamanagement.templates as templates
-from datamanagement.utils.utils import get_datasets_lanes_hash
+from datamanagement.utils.utils import get_datasets_lanes_hash, get_lanes_hash
 from workflows.utils import tantalus_utils, file_utils
 
 log = logging.getLogger('sisyphus')
@@ -947,6 +947,134 @@ class AnnotationAnalysis(Analysis):
         )
 
         return [tantalus_results.get_id()]
+
+
+class SplitWGSBamAnalysis(Analysis):
+    def __init__(self, jira, version, args, output_dirs, run_options, **kwargs):
+        super(SplitWGSBamAnalysis, self).__init__('split_wgs_bams', jira, version, args, output_dirs, **kwargs)
+        self.run_options = run_options
+        self.bams_dir = os.path.join(jira, "results", self.analysis_type)
+
+        # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
+        self.split_size = 10000000
+
+    def search_input_datasets(self, args):
+        datasets = tantalus_api.get(
+            "sequencedataset",
+            sample__sample_id=args["sample_id"],
+            library__library_id=args["library_id"],
+            aligner=args["aligner"],
+            ref_genome=args["ref_genome"],
+            dataset_type="BAM",
+        )
+
+        return [datasets["id"]]
+
+    def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+        lanes_hashed = get_datasets_lanes_hash(tantalus_api, input_datasets)
+
+        name = templates.SC_ANALYSIS_NAME_TEMPLATE.format(
+            analysis_type=self.analysis_type,
+            aligner=args['aligner'],
+            ref_genome=args['ref_genome'],
+            library_id=args['library_id'],
+            lanes_hashed=lanes_hashed,
+        )
+
+        return name
+
+    def generate_inputs_yaml(self, inputs_yaml_filename):
+        assert len(self.analysis['input_datasets']) == 1
+
+        dataset_id = self.analysis['input_datasets'][0]
+        file_instances = tantalus_api.get_dataset_file_instances(
+            dataset_id, 'sequencedataset', self.storages['working_inputs'])
+
+        input_info = {}
+        for file_instance in file_instances:
+            if file_instance['file_resource']['filename'].endswith('.bam'):
+                input_info['bam'] = str(file_instance['filepath'])
+
+        with open(inputs_yaml_filename, 'w') as inputs_yaml:
+            yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
+
+    def run_pipeline(
+            self,
+            scpipeline_dir,
+            tmp_dir,
+            inputs_yaml,
+            context_config_file,
+            docker_env_file,
+            docker_server,
+            dirs,
+        ):
+        if self.run_options["skip_pipeline"]:
+            return launch_pipeline.run_pipeline2()
+
+        else:
+            return launch_pipeline.run_pipeline(
+                analysis_type='split_wgs_bam',
+                args=self.args,
+                version=self.version,
+                run_options=self.run_options,
+                scpipeline_dir=scpipeline_dir,
+                tmp_dir=tmp_dir,
+                inputs_yaml=inputs_yaml,
+                context_config_file=context_config_file,
+                docker_env_file=docker_env_file,
+                docker_server=docker_server,
+                output_dirs={
+                    'output_dir': self.results_dir,
+                },
+                max_jobs='400',
+                dirs=dirs,
+            )
+
+    def create_output_datasets(self, update=False):
+        """
+        Create the set of output sequence datasets produced by this analysis.
+        """
+        assert len(self.analysis['input_datasets']) == 1
+        input_dataset = self.get_dataset(self.analysis['input_datasets'][0])
+
+        storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
+        metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
+        metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
+
+        name = templates.WGS_SPLIT_BAM_NAME_TEMPLATE.format(
+            dataset_type="BAM",
+            sample_id=input_dataset["sample"]["sample_id"],
+            library_type=input_dataset["library"]["library_type"],
+            library_id=input_dataset["library"]["library_id"],
+            lanes_str=get_lanes_hash(input_dataset["sequence_lanes"]),
+            split_length=self.split_size,
+        )
+
+        file_resources = []
+        for filename in metadata_yaml["filenames"] + ['metadata.yaml']:
+            filepath = os.path.join(
+                storage_client.prefix, self.bams_dir, filename)
+            file_resource, file_instance = tantalus_api.add_file(
+                self.storages["working_results"], filepath, update=update)
+            file_resources.append(file_resource["id"])
+
+        output_dataset = tantalus_api.get_or_create(
+            "sequencedataset",
+            name=name,
+            dataset_type="BAM",
+            sample=input_dataset["sample"]["id"],
+            library=input_dataset["library"]["id"],
+            sequence_lanes=[a["id"] for a in input_dataset["sequence_lanes"]],
+            file_resources=file_resources,
+            aligner=input_dataset["aligner"],
+            reference_genome=input_dataset["reference_genome"],
+            region_split_length=self.split_size,
+            analysis=self.analysis['id'],
+        )
+
+        log.info("Created sequence dataset {}".format(name))
+
+        return [output_dataset]
 
 
 class PseudoBulkAnalysis(Analysis):

@@ -12,6 +12,7 @@ from jira import JIRA
 
 import workflows.launch_pipeline
 import workflows.generate_inputs
+import workflows.models
 
 import datamanagement.templates as templates
 from datamanagement.transfer_files import transfer_dataset
@@ -23,7 +24,6 @@ from dbclients.basicclient import NotFoundError
 from workflows.utils import file_utils, log_utils, colossus_utils
 from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
 
-from workflows.models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, AnnotationAnalysis, Results
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
@@ -138,7 +138,7 @@ def start_automation(
     start = time.time()
 
     if analysis_type == "align":
-        tantalus_analysis = AlignAnalysis(
+        tantalus_analysis = workflow.models.AlignAnalysis(
             jira,
             version,
             args,
@@ -147,7 +147,7 @@ def start_automation(
             update=run_options['update'],
         )
     elif analysis_type == "hmmcopy":
-        tantalus_analysis = HmmcopyAnalysis(
+        tantalus_analysis = workflow.models.HmmcopyAnalysis(
             jira,
             version,
             args,
@@ -156,7 +156,16 @@ def start_automation(
             update=run_options['update'],
         )
     elif analysis_type == "annotation":
-        tantalus_analysis = AnnotationAnalysis(
+        tantalus_analysis = workflows.models.AnnotationAnalysis(
+            jira,
+            version,
+            args,
+            storages,
+            run_options,
+            update=run_options['update'],
+        )
+    elif analysis_type == "split_wgs_bam":
+        tantalus_analysis = workflows.models.SplitWGSBamAnalysis(
             jira,
             version,
             args,
@@ -364,7 +373,7 @@ def main(jira,
     log_utils.setup_sentinel(run_options['sisyphus_interactive'], os.path.join(pipeline_dir, analysis_type))
 
     # Create analysis information object on Colossus
-    analysis_info = AnalysisInfo(jira)
+    analysis_info = workflow.models.AnalysisInfo(jira)
 
     log.info('Library ID: {}'.format(library_id))
 
