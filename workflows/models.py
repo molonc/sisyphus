@@ -18,7 +18,7 @@ from datamanagement.utils.utils import make_dirs
 from datamanagement.transfer_files import transfer_dataset
 
 from workflows.generate_inputs import generate_sample_info
-from workflows.launch_pipeline import *
+from workflows import launch_pipeline
 import datamanagement.templates as templates
 from datamanagement.utils.utils import get_datasets_lanes_hash
 from workflows.utils import tantalus_utils, file_utils
@@ -254,7 +254,25 @@ class Analysis(object):
             update=update,
         )
 
-        tantalus_api.update('analysis', id=self.get_id(), logs=[file_resource['id']])
+        logs = self.analysis["logs"]
+        logs.append(file_resource["id"])
+        tantalus_api.update('analysis', id=self.get_id(), logs=logs)
+
+    def add_metadata_yaml(self, metadata_yaml, update=False):
+        """
+        Add the metadata yaml to the logs field of the analysis.
+        """
+
+        log.info('Adding inputs yaml file {} to {}'.format(metadata_yaml, self.name))
+
+        file_resource, _ = tantalus_api.add_file(
+            storage_name=self.storages['working_results'],
+            filepath=metadata_yaml,
+            update=update,
+        )
+        logs = self.analysis["logs"]
+        logs.append(file_resource["id"])
+        tantalus_api.update('analysis', id=self.get_id(), logs=logs)
 
     def get_dataset(self, dataset_id):
         """
@@ -598,6 +616,17 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
                 lanes[lane_id] = lane
         return lanes
 
+    def get_cell_index_sequences(self):
+        sublibrary_info = colossus_api.list("sublibraries", library__pool_id=self.args["library_id"])
+        cell_index_sequences = dict()
+        for sublibrary in sublibrary_info:
+            cell_index_sequences[sublibrary["cell_id"]] = dict(
+                index_sequence=f"{sublibrary['primer_i7']}-{sublibrary['primer_i5']}",
+                sample_id=sublibrary["sample_id"]['sample_id'],
+            )
+
+        return cell_index_sequences
+
     def create_output_datasets(self, tag_name=None, update=False):
         """ Create BAM datasets in tantalus.
         """
@@ -605,10 +634,7 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
         metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
 
-        # TODO: Unused
-        sample_info = generate_sample_info(self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
-        # TODO: Unused
-        cell_metadata = self._generate_cell_metadata(self.storages['working_inputs'])
+        cell_index_sequences = self.get_cell_index_sequences()
         sequence_lanes = []
 
         for lane_id, lane in self.get_lanes().items():
@@ -641,19 +667,17 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
             )
 
             for filepath in (bam_filepath, bai_filepath):
-                # TODO: this will be slow if it hits colossus for each file
-                sublibrary_info = colossus_api.get("sublibraries", cell_id=cell_id)
                 file_info = dict(
                     analysis_id=self.analysis['id'],
                     dataset_type='BAM',
-                    sample_id=sublibrary_info["sample_id"]['sample_id'],
+                    sample_id=cell_index_sequences[cell_id]['sample_id'],
                     library_id=self.args['library_id'],
                     library_type='SC_WGS',
                     index_format='D',
                     sequence_lanes=sequence_lanes,
                     ref_genome=self.args['ref_genome'],
                     aligner_name=self.args['aligner'],
-                    index_sequence=f"{sublibrary_info['primer_i7']}-{sublibrary_info['primer_i5']}",
+                    index_sequence=cell_index_sequences[cell_id]['index_sequence'],
                     filepath=filepath,
                 )
                 output_file_info.append(file_info)
@@ -693,30 +717,35 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
             tantalus_analysis,
             args,
             run_options,
+            inputs_yaml,
             context_config_file,
             docker_env_file,
             docker_server,
             dirs,
-        ):
+    ):
+        if self.run_options["skip_pipeline"]:
+            return launch_pipeline.run_pipeline2()
 
-        launch_pipeline.run_pipeline(
-            self.analysis_type,
-            scpipeline_dir=scpipeline_dir,
-            tmp_dir=tmp_dir,
-            tantalus_analysis=tantalus_analysis,
-            args=self.args,
-            run_options=self.run_options,
-            inputs_yaml=self.inputs_yaml_filename,
-            context_config_file=context_config_file,
-            docker_env_file=docker_env_file,
-            docker_server=docker_server,
-            output_dirs={
-                'bams_dir': self.bams_dir,
-                'output_dir': self.results_dir,
-            },
-            max_jobs='400',
-            dirs=dirs,
-        )
+        else:
+            return launch_pipeline.run_pipeline(
+                "alignment", # analysis type needs to be alignment for scpipeline
+                scpipeline_dir=scpipeline_dir,
+                tmp_dir=tmp_dir,
+                tantalus_analysis=tantalus_analysis,
+                args=self.args,
+                run_options=self.run_options,
+                inputs_yaml=self.inputs_yaml_filename,
+                context_config_file=context_config_file,
+                docker_env_file=docker_env_file,
+                docker_server=docker_server,
+                output_dirs={
+                    'bams_dir': self.bams_dir,
+                    'output_dir': self.results_dir,
+                },
+                max_jobs='400',
+                dirs=dirs,
+            )
+
         # ?? not sure what to do with skip_pipeline
         # if self.run_options["skip_pipeline"]:
         #     return run_pipeline2
@@ -767,12 +796,6 @@ class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(hmmcopy_input_info, inputs_yaml, default_flow_style=False)
 
-    def run_pipeline(self):
-        if self.run_options["skip_pipeline"]:
-            return run_pipeline2
-        else:
-            return run_pipeline
-
     def create_output_results(self, update=False, skip_missing=False, analysis_type=None):
         """
         Create the set of output results produced by this analysis.
@@ -787,6 +810,41 @@ class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
         )
 
         return [tantalus_results.get_id()]
+
+    def run_pipeline(
+            self,
+            scpipeline_dir,
+            tmp_dir,
+            tantalus_analysis,
+            args,
+            run_options,
+            inputs_yaml,
+            context_config_file,
+            docker_env_file,
+            docker_server,
+            dirs,
+    ):
+        if self.run_options["skip_pipeline"]:
+            return launch_pipeline.run_pipeline2()
+
+        else:
+            return launch_pipeline.run_pipeline(
+                self.analysis_type,
+                scpipeline_dir=scpipeline_dir,
+                tmp_dir=tmp_dir,
+                tantalus_analysis=tantalus_analysis,
+                args=self.args,
+                run_options=self.run_options,
+                inputs_yaml=self.inputs_yaml_filename,
+                context_config_file=context_config_file,
+                docker_env_file=docker_env_file,
+                docker_server=docker_server,
+                output_dirs={
+                    'output_dir': self.results_dir,
+                },
+                max_jobs='400',
+                dirs=dirs,
+            )
 
 
 class AnnotationAnalysis(Analysis):
@@ -862,10 +920,10 @@ class AnnotationAnalysis(Analysis):
 
         for key in hmmcopy_input_info:
             hmmcopy_input_info[key] = os.path.join(
-                storage_prefix, 
-                self.jira, 
-                "results", 
-                hmmcopy_prefix, 
+                storage_prefix,
+                self.jira,
+                "results",
+                hmmcopy_prefix,
                 hmmcopy_input_info[key],
             )
 
@@ -873,11 +931,40 @@ class AnnotationAnalysis(Analysis):
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
 
-    def run_pipeline(self):
+    def run_pipeline(
+            self,
+            scpipeline_dir,
+            tmp_dir,
+            tantalus_analysis,
+            args,
+            run_options,
+            inputs_yaml,
+            context_config_file,
+            docker_env_file,
+            docker_server,
+            dirs,
+    ):
         if self.run_options["skip_pipeline"]:
-            return run_pipeline2
+            return launch_pipeline.run_pipeline2()
+
         else:
-            return run_pipeline
+            return launch_pipeline.run_pipeline(
+                self.analysis_type,
+                scpipeline_dir=scpipeline_dir,
+                tmp_dir=tmp_dir,
+                tantalus_analysis=tantalus_analysis,
+                args=self.args,
+                run_options=self.run_options,
+                inputs_yaml=self.inputs_yaml_filename,
+                context_config_file=context_config_file,
+                docker_env_file=docker_env_file,
+                docker_server=docker_server,
+                output_dirs={
+                    'output_dir': self.results_dir,
+                },
+                max_jobs='400',
+                dirs=dirs,
+            )
 
     def create_output_results(self, update=False, skip_missing=False, analysis_type=None):
         """
@@ -952,14 +1039,16 @@ class PseudoBulkAnalysis(Analysis):
                          and library_id == self.args['matched_normal_library'])
 
             if is_normal:
-                file_resources = list(tantalus_api.get_dataset_file_resources(
-                    dataset_id, 'sequencedataset', filters={'filename__endswith': '.bam'}))
+                file_resources = list(
+                    tantalus_api.get_dataset_file_resources(
+                        dataset_id,
+                        'sequencedataset',
+                        filters={'filename__endswith': '.bam'},
+                    ))
                 single_file_resource_id = file_resources[0]["id"]
 
-                file_instances = list(tantalus_api.list(
-                    "file_instance", file_resource=single_file_resource_id))
+                file_instances = list(tantalus_api.list("file_instance", file_resource=single_file_resource_id))
                 storage_name = file_instances[0]["storage"]["name"]
-
 
             dataset_class = ('tumour', 'normal')[is_normal]
 
@@ -1395,7 +1484,13 @@ class Results:
     """
     A class representing a Results model in Tantalus.
     """
-    def __init__(self, tantalus_analysis, storage_name, results_dir, update=False, skip_missing=False, analysis_type=None):
+    def __init__(self,
+                 tantalus_analysis,
+                 storage_name,
+                 results_dir,
+                 update=False,
+                 skip_missing=False,
+                 analysis_type=None):
         """
         Create a Results object in Tantalus.
         """
@@ -1432,6 +1527,12 @@ class Results:
             results = None
 
         metadata_yaml = os.path.join(self.results_dir, "metadata.yaml")
+
+        # Add metadata.yaml to tantalus
+        self.tantalus_analysis.add_metadata_yaml(
+            metadata_yaml=os.path.join(storage_client.prefix, metadata_yaml),
+            update=update,
+        )
 
         self.file_resources = self.get_file_resources(
             metadata_yaml=metadata_yaml,
@@ -1486,12 +1587,10 @@ class Results:
         else:
             metadata = yaml.safe_load(storage_client.open_file(metadata_yaml))
             results_filenames = metadata["filenames"]
-            results_filenames = [
-                os.path.join(
-                    self.results_dir,
-                    filename,
-                ) for filename in results_filenames
-            ]
+            results_filenames = [os.path.join(
+                self.results_dir,
+                filename,
+            ) for filename in results_filenames]
 
         for result_filename in results_filenames:
             result_filepath = os.path.join(storage_client.prefix, result_filename)

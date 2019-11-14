@@ -212,7 +212,7 @@ def start_automation(
             context_config_file = config['context_config_file']['sisyphus']
 
         log_utils.sentinel(
-            'Running single_cell qc',
+            f'Running single_cell {analysis_type}',
             tantalus_analysis.run_pipeline,
             scpipeline_dir=scpipeline_dir,
             tmp_dir=tmp_dir,
@@ -242,8 +242,6 @@ def start_automation(
                     get_contamination_comment(jira)
 
         raise Exception("pipeline failed")
-
-    tantalus_analysis.set_complete_status()
 
     output_dataset_ids = log_utils.sentinel(
         'Creating output datasets',
@@ -281,6 +279,9 @@ def start_automation(
 
     if analysis_type == "annotation":
         load_ticket(jira)
+
+    # TODO: confirm with andrew whether to move this down here
+    tantalus_analysis.set_complete_status()
 
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')

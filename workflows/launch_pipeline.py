@@ -101,15 +101,10 @@ def run_pipeline(
     run_options = tantalus_analysis.run_options
     config_override_string = get_config_string(args, run_options)
 
-    if analysis_type == "align":
-        analysis_type = "alignment"
-
     run_cmd = [
         f'single_cell {analysis_type}',
         '--input_yaml',
         inputs_yaml,
-        '--out_dir',
-        output_dir,
         '--tmpdir',
         tmp_dir,
         '--pipelinedir',
@@ -128,7 +123,7 @@ def run_pipeline(
 
     for option_name, output_dir in output_dirs.items():
         run_cmd += [
-            '--' + option_name,
+            f'--{option_name}',
             output_dir,
         ]
 
