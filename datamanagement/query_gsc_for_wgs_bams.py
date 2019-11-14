@@ -932,7 +932,12 @@ def main(**kwargs):
                     if not os.path.exists(dest_bam_paths["tantalus_bam_path"]):
                         logging.info("The bam file {} does not exists, start transferring the file.".format(dest_bam_paths["tantalus_bam_path"]))
                         transfer_gsc_bams(detail, dest_bam_paths, to_storage, sftp)
-                    logging.info("The bam file already exists in the destination directory, skip transferring the file.")
+                    else:
+                        if not size_match(dest_bam_paths["tantalus_bam_path"], dest_bam_paths["source_bam_path"], "10.9.208.161", username):
+                            logging.info("The file exists but the size does not match, start transferring")
+                            transfer_gsc_bams(detail, dest_bam_paths, to_storage, sftp)
+                        else:
+                            logging.info("The bam file already exists in the destination directory, skip transferring the file.")
 
                 # Add the files to Tantalus
                 #TODO: check if the file resources if already on tantalus, if not, then add it, else, skip it
