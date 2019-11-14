@@ -962,7 +962,7 @@ def main(**kwargs):
                     logging.info("Deleting the cache directory {}.".format(root))
                     if os.path.exists(root):
                         shutil.rmtree(root)
-                update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "recorded_in_tantalus", "TRUE")
+                update_record(output_csv, dest_bam_paths["tantalus_bam_name"], "recorded_in_tantalus", "TRUE")
             else:
 
                 logging.info("Importing library {} to tantalus".format(detail["library"]["library_id"]))
