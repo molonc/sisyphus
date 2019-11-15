@@ -950,8 +950,8 @@ class AnnotationAnalysis(Analysis):
 
 
 class SplitWGSBamAnalysis(Analysis):
-    def __init__(self, jira, version, args, output_dirs, run_options, **kwargs):
-        super(SplitWGSBamAnalysis, self).__init__('split_wgs_bams', jira, version, args, output_dirs, **kwargs)
+    def __init__(self, jira, version, args, storages, run_options, **kwargs):
+        super(SplitWGSBamAnalysis, self).__init__('split_wgs_bam', jira, version, args, storages, run_options, **kwargs)
         self.run_options = run_options
         self.bams_dir = os.path.join(jira, "results", self.analysis_type)
 
@@ -964,7 +964,7 @@ class SplitWGSBamAnalysis(Analysis):
             sample__sample_id=args["sample_id"],
             library__library_id=args["library_id"],
             aligner=args["aligner"],
-            ref_genome=args["ref_genome"],
+            reference_genome=args["ref_genome"],
             dataset_type="BAM",
         )
 
@@ -1024,7 +1024,7 @@ class SplitWGSBamAnalysis(Analysis):
                 docker_env_file=docker_env_file,
                 docker_server=docker_server,
                 output_dirs={
-                    'output_dir': self.results_dir,
+                    'output_dir': self.bams_dir,
                 },
                 max_jobs='400',
                 dirs=dirs,
