@@ -356,6 +356,11 @@ class Analysis(object):
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
             input_samples.add(dataset['sample']['id'])
+
+        for dataset_id in self.analysis['input_results']:
+            dataset = self.get_results(dataset_id)
+            input_samples.add([sample['id'] for sample in dataset["samples"]])
+
         return list(input_samples)
 
     def get_input_libraries(self):
@@ -367,6 +372,11 @@ class Analysis(object):
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
             input_libraries.add(dataset['library']['id'])
+
+        for dataset_id in self.analysis['input_results']:
+            dataset = self.get_results(dataset_id)
+            input_samples.add([library['id'] for library in dataset["libraries"]])
+
         return list(input_libraries)
 
     def get_results_filenames(self):
@@ -817,10 +827,10 @@ class AnnotationAnalysis(Analysis):
 
         for key in hmmcopy_input_info:
             hmmcopy_input_info[key] = os.path.join(
-                storage_prefix, 
-                self.jira, 
-                "results", 
-                hmmcopy_prefix, 
+                storage_prefix,
+                self.jira,
+                "results",
+                hmmcopy_prefix,
                 hmmcopy_input_info[key],
             )
 
@@ -1383,7 +1393,7 @@ class Results:
         data = {
             'name': self.name,
             'results_type': self.analysis_type,
-            'results_version': metadata["meta"]["version"],
+            'results_version': f"v{metadata['meta']['version']}",
             'analysis': self.analysis,
             'file_resources': self.file_resources,
             'samples': self.samples,
