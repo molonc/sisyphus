@@ -24,7 +24,6 @@ from dbclients.basicclient import NotFoundError
 from workflows.utils import file_utils, log_utils, colossus_utils
 from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
 
-
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
 stream_handler = logging.StreamHandler()
@@ -105,22 +104,6 @@ def get_contamination_comment(jira_ticket):
     comment_jira(library_ticket_id, comment)
 
 
-def load_ticket(jira):
-    log.info(f"Loading {jira} into Montage")
-    try:
-        # TODO: add directory in config
-        subprocess.call([
-            'ssh',
-            '-t',
-            'loader',
-            f"bash /home/uu/montageloader2_flora/load_ticket.sh {jira}",
-        ])
-    except Exception as e:
-        raise Exception(f"failed to load ticket: {e}")
-
-    log.info(f"Successfully loaded {jira} into Montage")
-
-
 def start_automation(
         jira,
         version,
@@ -138,7 +121,7 @@ def start_automation(
     start = time.time()
 
     if analysis_type == "align":
-        tantalus_analysis = workflow.models.AlignAnalysis(
+        tantalus_analysis = workflows.models.AlignAnalysis(
             jira,
             version,
             args,
@@ -147,7 +130,7 @@ def start_automation(
             update=run_options['update'],
         )
     elif analysis_type == "hmmcopy":
-        tantalus_analysis = workflow.models.HmmcopyAnalysis(
+        tantalus_analysis = workflows.models.HmmcopyAnalysis(
             jira,
             version,
             args,
@@ -209,16 +192,30 @@ def start_automation(
             config['docker_path'],
             config['docker_sock_path'],
         ]
+        docker_options = {
+            'loglevel': run_options['loglevel'],
+            'submit': run_options['submit'],
+            'nativespec': run_options['nativespec'],
+            'storage_config': run_options['storage_config'],
+            'config_file': run_options['config_file'],
+            'config_override': run_options['config_override'],
+            'maxjobs': run_options['maxjobs'],
+            'repopulate': run_options['repopulate'],
+            'rerun': run_options['rerun'],
+            'nocleanup': run_options['nocleanup'],
+            'sentinel_only': run_options['sentinel_only'],
+            'interactive': run_options['interactive'],
+            'run_with_docker': run_options['run_with_docker'],
+        }
+
         # Pass all server storages to docker
         for storage_name in storages.values():
             storage = tantalus_api.get('storage', name=storage_name)
             if storage['storage_type'] == 'server':
                 dirs.append(storage['storage_directory'])
 
-        if run_options['saltant']:
-            context_config_file = config['context_config_file']['saltant']
-        else:
-            context_config_file = config['context_config_file']['sisyphus']
+        context_config_file = config['context_config_file']['saltant'] if run_options['saltant'] else config[
+            'context_config_file']['sisyphus']
 
         log_utils.sentinel(
             f'Running single_cell {analysis_type}',
@@ -230,22 +227,26 @@ def start_automation(
             docker_env_file=config['docker_env_file'],
             docker_server=config['docker_server'],
             dirs=dirs,
+            docker_options=docker_options,
         )
 
     except Exception:
         tantalus_analysis.set_error_status()
         analysis_info.set_error_status()
-        if analysis_type == "align":
-            analysis_type = "alignment"
-        pipeline_log = os.path.join(scpipeline_dir, analysis_type, "log", "latest", "pipeline.log")
 
-        if not run_options["skip_pipeline"] or not run_options["override_contamination"]:
-            with open(pipeline_log) as f:
-                lines = f.read()
-                if "LibraryContaminationError" in lines:
-                    log.error("LibraryContaminationError: over 20% of cells are contaminated")
+        # TOOD: finalize if we should remove below
 
-                    get_contamination_comment(jira)
+        # if analysis_type == "align":
+        #     analysis_type = "alignment"
+        # pipeline_log = os.path.join(scpipeline_dir, analysis_type, "log", "latest", "pipeline.log")
+
+        # if not run_options["skip_pipeline"] or not run_options["override_contamination"]:
+        #     with open(pipeline_log) as f:
+        #         lines = f.read()
+        #         if "LibraryContaminationError" in lines:
+        #             log.error("LibraryContaminationError: over 20% of cells are contaminated")
+
+        #             get_contamination_comment(jira)
 
         raise Exception("pipeline failed")
 
@@ -275,16 +276,9 @@ def start_automation(
 
     # Update Jira ticket
     analysis_info.set_finish_status(analysis_type)
-    if analysis_type == "annotation" and not run_options["is_test_run"]:
-        update_jira_dlp(jira, args['aligner'])
-        attach_qc_report(jira, args["library_id"], storages)
-        analysis_info.set_finish_status()
 
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
-
-    if analysis_type == "annotation":
-        load_ticket(jira)
 
     # TODO: confirm with andrew whether to move this down here
     tantalus_analysis.set_complete_status()
@@ -298,8 +292,12 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.argument('version')
 @click.argument('library_id')
 @click.argument('aligner', type=click.Choice(['A', "M"]))
-@click.argument('analysis_type', type=click.Choice(['align', 'hmmcopy', 'annotation']))
-@click.option('--load_only', is_flag=True)
+@click.argument('analysis_type', type=click.Choice([
+    'align',
+    'hmmcopy',
+    'annotation',
+    'split_wgs_bam',
+]))
 @click.option('--gsc_lanes')
 @click.option('--brc_flowcell_ids')
 @click.option('--config_filename')
@@ -315,25 +313,41 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.option('--clean', is_flag=True)
 @click.option('--tag', type=str, default='')
 @click.option('--smoothing', default='modal', type=click.Choice(['modal', 'loess']))
-@click.option('--interactive', is_flag=True)
 @click.option('--sisyphus_interactive', is_flag=True)
-@click.option('--alignment_metrics')
 @click.option('--jobs', type=int, default=1000)
 @click.option('--saltant', is_flag=True)
-def main(jira,
-         version,
-         library_id,
-         aligner,
-         analysis_type,
-         load_only=False,
-         gsc_lanes=None,
-         brc_flowcell_ids=None,
-         config_filename=None,
-         **run_options):
-
-    if load_only:
-        load_ticket(jira)
-        return "complete"
+# TODO: maybe find a way to group parameters
+# docker options
+@click.option('--loglevel', type=click.Choice([
+    "CRITICAL",
+    "ERROR",
+    "WARNING",
+    "INFO",
+    "DEBUG",
+]), default="DEBUG")
+@click.option('--submit')
+@click.option('--nativespec')
+@click.option('--storage_config')
+@click.option('--config_file')
+@click.option('--config_override')
+@click.option('--maxjobs', type=int, default=400)
+@click.option('--repopulate', is_flag=True)
+@click.option('--rerun', is_flag=True)
+@click.option('--nocleanup', is_flag=True)
+@click.option('--interactive', is_flag=True)
+@click.option('--sentinel_only', is_flag=True)
+@click.option('--run_with_docker', is_flag=True)
+def main(
+        jira,
+        version,
+        library_id,
+        aligner,
+        analysis_type,
+        gsc_lanes=None,
+        brc_flowcell_ids=None,
+        config_filename=None,
+        **run_options,
+):
 
     if config_filename is None:
         config_filename = default_config
@@ -373,7 +387,7 @@ def main(jira,
     log_utils.setup_sentinel(run_options['sisyphus_interactive'], os.path.join(pipeline_dir, analysis_type))
 
     # Create analysis information object on Colossus
-    analysis_info = workflow.models.AnalysisInfo(jira)
+    analysis_info = workflows.models.AnalysisInfo(jira)
 
     log.info('Library ID: {}'.format(library_id))
 

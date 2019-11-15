@@ -92,10 +92,10 @@ def run_pipeline(
         docker_env_file,
         docker_server,
         output_dirs,
-        max_jobs='400',
         dirs=(),
+        docker_options={},
 ):
-
+    # TODO: go through docker options and add to run_cmd
     config_override_string = get_config_string(args, run_options)
 
     run_cmd = [
@@ -111,12 +111,24 @@ def run_pipeline(
         '--config_override',
         config_override_string,
         '--maxjobs',
-        str(max_jobs),
+        str(docker_options['maxjobs']),
         '--nocleanup',
         '--sentinel_only',
         '--context_config',
         context_config_file,
     ]
+
+    for docker_option, value in docker_options.items():
+        if isinstance(value, bool):
+            run_cmd += [
+                f'--{docker_option}',
+            ]
+        # check value non empty
+        elif value:
+            run_cmd += [
+                f'--{docker_option}',
+                value,
+            ]
 
     for option_name, output_dir in output_dirs.items():
         run_cmd += [
@@ -124,8 +136,6 @@ def run_pipeline(
             output_dir,
         ]
 
-    if not run_options['saltant']:
-        run_cmd += ['--loglevel', 'DEBUG']
     if run_options['local_run']:
         run_cmd += ["--submit", "local"]
 

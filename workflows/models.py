@@ -22,6 +22,7 @@ from workflows import launch_pipeline
 import datamanagement.templates as templates
 from datamanagement.utils.utils import get_datasets_lanes_hash, get_lanes_hash
 from workflows.utils import tantalus_utils, file_utils
+from workflows.utils.jira_utils import add_attachment, update_jira_dlp
 
 log = logging.getLogger('sisyphus')
 
@@ -701,6 +702,7 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
             docker_env_file,
             docker_server,
             dirs,
+            docker_options,
     ):
         if self.run_options["skip_pipeline"]:
             return launch_pipeline.run_pipeline2()
@@ -721,8 +723,8 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
                     'bams_dir': self.bams_dir,
                     'output_dir': self.results_dir,
                 },
-                max_jobs='400',
                 dirs=dirs,
+                docker_options=docker_options,
             )
 
 
@@ -793,6 +795,7 @@ class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
             docker_env_file,
             docker_server,
             dirs,
+            docker_options,
     ):
         if self.run_options["skip_pipeline"]:
             return launch_pipeline.run_pipeline2()
@@ -812,8 +815,8 @@ class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
                 output_dirs={
                     'output_dir': self.results_dir,
                 },
-                max_jobs='400',
                 dirs=dirs,
+                docker_options=docker_options,
             )
 
 
@@ -910,6 +913,7 @@ class AnnotationAnalysis(Analysis):
             docker_env_file,
             docker_server,
             dirs,
+            docker_options,
     ):
         if self.run_options["skip_pipeline"]:
             return launch_pipeline.run_pipeline2()
@@ -929,8 +933,8 @@ class AnnotationAnalysis(Analysis):
                 output_dirs={
                     'output_dir': self.results_dir,
                 },
-                max_jobs='400',
                 dirs=dirs,
+                docker_options=docker_options,
             )
 
     def create_output_results(self, update=False, skip_missing=False, analysis_type=None):
@@ -947,6 +951,65 @@ class AnnotationAnalysis(Analysis):
         )
 
         return [tantalus_results.get_id()]
+
+    def update_jira_ticket(self):
+        """ Assign to wetlab, add completion description, and upload QC report """
+        update_jira_dlp(self.jira, self.args['aligner'])
+        attach_qc_report(self.jira, self.args['library_id'], self.storages)
+
+    def attach_qc_report(self):
+        storage_client = tantalus_api.get_storage_client(self.storages["remote_results"])
+        results_dataset = tantalus_api.get(
+            "resultsdataset",
+            name=f"{self.jira}_annotation",
+        )
+
+        jira_qc_filename = f"{self.args['library_id']}_{self.jira}_QC_report.html"
+
+        # Get qc report name from tantalus
+        qc_reports = list(
+            tantalus_api.get_dataset_file_resources(
+                results_dataset["id"],
+                "resultsdataset",
+                {"filename__endswith": f"{self.args['library_id']}_QC_report.html"},
+            ))
+
+        assert len(qc_reports) == 1
+
+        blobname = qc_reports[0]["filename"]
+        local_dir = os.path.join("qc_reports", self.jira)
+        local_path = os.path.join(local_dir, jira_qc_filename)
+        if not os.path.exists(local_dir):
+            os.makedirs(local_dir)
+
+        # Download blob
+        blob = storage_client.blob_service.get_blob_to_path(
+            container_name="results",
+            blob_name=blobname,
+            file_path=local_path,
+        )
+
+        # Get library ticket
+        analysis = colossus_api.get("analysis_information", analysis_jira_ticket=self.jira)
+        library_ticket = analysis["library"]["jira_ticket"]
+
+        log.info("Adding report to parent ticket of {}".format(self.jira))
+        add_attachment(library_ticket, local_path, jira_qc_filename)
+
+    def load_ticket(self):
+        log.info(f"Loading {self.jira} into Montage")
+        try:
+            # TODO: add directory in config
+            subprocess.call([
+                'ssh',
+                '-t',
+                'loader',
+                f"bash /home/uu/montageloader2_flora/load_ticket.sh {self.jira}",
+            ])
+        except Exception as e:
+            raise Exception(f"failed to load ticket: {e}")
+
+        log.info(f"Successfully loaded {self.jira} into Montage")
 
 
 class SplitWGSBamAnalysis(Analysis):
@@ -987,8 +1050,8 @@ class SplitWGSBamAnalysis(Analysis):
         assert len(self.analysis['input_datasets']) == 1
 
         dataset_id = self.analysis['input_datasets'][0]
-        file_instances = tantalus_api.get_dataset_file_instances(
-            dataset_id, 'sequencedataset', self.storages['working_inputs'])
+        file_instances = tantalus_api.get_dataset_file_instances(dataset_id, 'sequencedataset',
+                                                                 self.storages['working_inputs'])
 
         input_info = {}
         for file_instance in file_instances:
@@ -1007,7 +1070,8 @@ class SplitWGSBamAnalysis(Analysis):
             docker_env_file,
             docker_server,
             dirs,
-        ):
+            docker_options,
+    ):
         if self.run_options["skip_pipeline"]:
             return launch_pipeline.run_pipeline2()
 
@@ -1026,8 +1090,8 @@ class SplitWGSBamAnalysis(Analysis):
                 output_dirs={
                     'output_dir': self.results_dir,
                 },
-                max_jobs='400',
                 dirs=dirs,
+                docker_options=docker_options,
             )
 
     def create_output_datasets(self, update=False):
@@ -1052,10 +1116,12 @@ class SplitWGSBamAnalysis(Analysis):
 
         file_resources = []
         for filename in metadata_yaml["filenames"] + ['metadata.yaml']:
-            filepath = os.path.join(
-                storage_client.prefix, self.bams_dir, filename)
+            filepath = os.path.join(storage_client.prefix, self.bams_dir, filename)
             file_resource, file_instance = tantalus_api.add_file(
-                self.storages["working_results"], filepath, update=update)
+                self.storages["working_results"],
+                filepath,
+                update=update,
+            )
             file_resources.append(file_resource["id"])
 
         output_dataset = tantalus_api.get_or_create(
@@ -1579,14 +1645,13 @@ class Results:
     """
     A class representing a Results model in Tantalus.
     """
-    def __init__(
-            self,
-            tantalus_analysis,
-            storage_name,
-            results_dir,
-            update=False,
-            skip_missing=False,
-            analysis_type=None):
+    def __init__(self,
+                 tantalus_analysis,
+                 storage_name,
+                 results_dir,
+                 update=False,
+                 skip_missing=False,
+                 analysis_type=None):
         """
         Create a Results object in Tantalus.
         """
