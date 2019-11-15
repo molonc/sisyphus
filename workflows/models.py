@@ -359,7 +359,8 @@ class Analysis(object):
 
         for dataset_id in self.analysis['input_results']:
             dataset = self.get_results(dataset_id)
-            input_samples.add([sample['id'] for sample in dataset["samples"]])
+            for sample in dataset["samples"]:
+                input_samples.add(sample['id'])
 
         return list(input_samples)
 
@@ -375,7 +376,8 @@ class Analysis(object):
 
         for dataset_id in self.analysis['input_results']:
             dataset = self.get_results(dataset_id)
-            input_samples.add([library['id'] for library in dataset["libraries"]])
+            for library in dataset["libraries"]:
+                input_libraries.add(library['id'])
 
         return list(input_libraries)
 
