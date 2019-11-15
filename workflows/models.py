@@ -904,14 +904,19 @@ class PseudoBulkAnalysis(Analysis):
                          and library_id == self.args['matched_normal_library'])
 
             if is_normal:
-                file_resources = list(tantalus_api.get_dataset_file_resources(
-                    dataset_id, 'sequencedataset', filters={'filename__endswith': '.bam'}))
+                file_resources = list(
+                    tantalus_api.get_dataset_file_resources(
+                        dataset_id,
+                        'sequencedataset',
+                        filters={'filename__endswith': '.bam'},
+                    ))
                 single_file_resource_id = file_resources[0]["id"]
 
                 file_instances = list(tantalus_api.list(
-                    "file_instance", file_resource=single_file_resource_id))
+                    "file_instance",
+                    file_resource=single_file_resource_id,
+                ))
                 storage_name = file_instances[0]["storage"]["name"]
-
 
             dataset_class = ('tumour', 'normal')[is_normal]
 
@@ -1445,6 +1450,8 @@ class Results:
                     filename,
                 ) for filename in results_filenames
             ]
+
+            results_filenames += [metadata_yaml]
 
         for result_filename in results_filenames:
             result_filepath = os.path.join(storage_client.prefix, result_filename)
