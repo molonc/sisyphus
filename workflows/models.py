@@ -956,6 +956,7 @@ class SplitWGSBamAnalysis(Analysis):
             library__library_id=args["library_id"],
             aligner__name__startswith=args["aligner"],
             reference_genome__name=args["ref_genome"],
+            region_split_length=None,
             dataset_type="BAM",
         )
 
@@ -1030,7 +1031,7 @@ class SplitWGSBamAnalysis(Analysis):
         assert len(self.analysis['input_datasets']) == 1
         input_dataset = self.get_dataset(self.analysis['input_datasets'][0])
 
-        storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
+        storage_client = tantalus_api.get_storage_client(self.storages["working_inputs"])
         metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
 
@@ -1039,7 +1040,9 @@ class SplitWGSBamAnalysis(Analysis):
             sample_id=input_dataset["sample"]["sample_id"],
             library_type=input_dataset["library"]["library_type"],
             library_id=input_dataset["library"]["library_id"],
-            lanes_str=get_lanes_hash(input_dataset["sequence_lanes"]),
+            lanes_hash=get_lanes_hash(input_dataset["sequence_lanes"]),
+            aligner=input_dataset['aligner'],
+            reference_genome=input_dataset['reference_genome'],
             split_length=self.split_size,
         )
 
@@ -1048,7 +1051,7 @@ class SplitWGSBamAnalysis(Analysis):
             filepath = os.path.join(
                 storage_client.prefix, self.bams_dir, filename)
             file_resource, file_instance = tantalus_api.add_file(
-                self.storages["working_results"], filepath, update=update)
+                self.storages["working_inputs"], filepath, update=update)
             file_resources.append(file_resource["id"])
 
         output_dataset = tantalus_api.get_or_create(
@@ -1086,6 +1089,7 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
             sample__sample_id=args['sample_id'],
             aligner__name__startswith=args["aligner"],
             reference_genome__name=args["ref_genome"],
+            region_split_length=None,
             dataset_type='BAM',
         )
 

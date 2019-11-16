@@ -171,7 +171,7 @@ def start_automation(
 
     tantalus_analysis.set_complete_status()
 
-    comment_jira(jira_id, 'finished {analysis_type} analysis')
+    comment_jira(jira_id, f'finished {analysis_type} analysis')
 
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
@@ -182,7 +182,7 @@ analysis_types = [
 ]
 
 @click.command()
-@click.argument('analysis_type', type=click.Choice(analysis_types)))
+@click.argument('analysis_type', type=click.Choice(analysis_types))
 @click.argument('jira_id')
 @click.argument('version')
 @click.argument('sample_id')
