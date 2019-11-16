@@ -130,10 +130,12 @@ class BasicAPIClient(object):
             if field.name in fields:
                 get_params[field.name] = fields[field.name]
 
+        filter_fields = set(get_params.keys())
+
         # Since we are not accepting related fields for checking
         # they must be implemented as a filter for this endpoint
         for field_name in fields:
-            if "__" in field_name and field_name not in get_params:
+            if "__" in field_name and field_name not in filter_fields:
                 raise ValueError("field {} not accepted for {}".format(
                     field_name, table_name))
 
@@ -146,6 +148,8 @@ class BasicAPIClient(object):
             )
 
             for result in list_results["results"]:
+
+                filtered = False
                 for field_name, field_value in fields.items():
                     # Currently no support for checking related model fields
                     if "__" in field_name:
@@ -192,13 +196,18 @@ class BasicAPIClient(object):
                         field_value = set(field_value)
 
                     if result_field != field_value:
-                        raise FieldMismatchError(
-                            "field {} mismatches for model {}, set to {} not {}".format(
-                                field_name, result["id"], result_field, field_value
+                        if result_field in filter_fields:
+                            raise FieldMismatchError(
+                                "field {} mismatches for model {}, set to {} not {}".format(
+                                    field_name, result["id"], result_field, field_value
+                                )
                             )
-                        )
+                        else:
+                            filtered = True
+                            continue
 
-                yield result
+                if not filtered:
+                    yield result
 
             if list_results.get("next") is None:
                 break
