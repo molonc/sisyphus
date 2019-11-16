@@ -954,8 +954,8 @@ class SplitWGSBamAnalysis(Analysis):
             "sequencedataset",
             sample__sample_id=args["sample_id"],
             library__library_id=args["library_id"],
-            aligner=args["aligner"],
-            reference_genome=args["ref_genome"],
+            aligner__name=args["aligner"],
+            reference_genome__name=args["ref_genome"],
             dataset_type="BAM",
         )
 
@@ -981,10 +981,10 @@ class SplitWGSBamAnalysis(Analysis):
         file_instances = tantalus_api.get_dataset_file_instances(
             dataset_id, 'sequencedataset', self.storages['working_inputs'])
 
-        input_info = {}
+        input_info = {'normal': {}}
         for file_instance in file_instances:
             if file_instance['file_resource']['filename'].endswith('.bam'):
-                input_info['bam'] = str(file_instance['filepath'])
+                input_info['normal']['bam'] = str(file_instance['filepath'])
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
@@ -999,6 +999,9 @@ class SplitWGSBamAnalysis(Analysis):
             docker_server,
             dirs,
         ):
+        storage_client = tantalus_api.get_storage_client(self.storages["working_inputs"])
+        bams_path = os.path.join(storage_client.prefix, self.bams_dir)
+
         if self.run_options["skip_pipeline"]:
             return workflows.launchsc.run_pipeline2()
 
@@ -1014,7 +1017,7 @@ class SplitWGSBamAnalysis(Analysis):
                 docker_env_file=docker_env_file,
                 docker_server=docker_server,
                 output_dirs={
-                    'output_dir': self.bams_dir,
+                    'out_dir': bams_path,
                 },
                 max_jobs='400',
                 dirs=dirs,
