@@ -954,7 +954,7 @@ class SplitWGSBamAnalysis(Analysis):
             "sequencedataset",
             sample__sample_id=args["sample_id"],
             library__library_id=args["library_id"],
-            aligner__name=args["aligner"],
+            aligner__name__startswith=args["aligner"],
             reference_genome__name=args["ref_genome"],
             dataset_type="BAM",
         )

@@ -221,7 +221,7 @@ def main(
     if not templates.JIRA_ID_RE.match(jira_id):
         raise Exception(f'Invalid SC ID: {jira_id}')
 
-    aligner_map = {'A': 'BWA_ALN_0_5_7', 'M': 'BWA_MEM_0_7_6A'}
+    aligner_map = {'A': 'BWA_ALN', 'M': 'BWA_MEM'}
     aligner = aligner_map[aligner]
 
     config = file_utils.load_json(config_filename)
