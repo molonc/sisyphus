@@ -48,7 +48,7 @@ def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
 
 
 def start_automation(
-        jira,
+        jira_id,
         version,
         args,
         run_options,
@@ -63,7 +63,7 @@ def start_automation(
     start = time.time()
 
     tantalus_analysis = workflows.models.SplitWGSBamAnalysis(
-        jira,
+        jira_id,
         version,
         args,
         storages,
@@ -166,7 +166,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 
 
 @click.command()
-@click.argument('jira')
+@click.argument('jira_id')
 @click.argument('version')
 @click.argument('sample_id')
 @click.argument('library_id')
@@ -187,7 +187,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.option('--jobs', type=int, default=1000)
 @click.option('--saltant', is_flag=True)
 def main(
-        jira,
+        jira_id,
         version,
         sample_id,
         library_id,
@@ -202,15 +202,15 @@ def main(
     if config_filename is None:
         config_filename = default_config
 
-    if not templates.JIRA_ID_RE.match(jira):
-        raise Exception(f'Invalid SC ID: {jira}')
+    if not templates.JIRA_ID_RE.match(jira_id):
+        raise Exception(f'Invalid SC ID: {jira_id}')
 
     aligner_map = {'A': 'BWA_ALN_0_5_7', 'M': 'BWA_MEM_0_7_6A'}
     aligner = aligner_map[aligner]
 
     config = file_utils.load_json(config_filename)
 
-    job_subdir = jira + run_options['tag']
+    job_subdir = jira_id + run_options['tag']
 
     run_options['job_subdir'] = job_subdir
 
@@ -234,7 +234,7 @@ def main(
     args['ref_genome'] = ref_genome
 
     start_automation(
-        jira,
+        jira_id,
         version,
         args,
         run_options,
