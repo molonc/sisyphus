@@ -174,6 +174,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.option('--config_filename')
 @click.option('--skip_pipeline', is_flag=True)
 @click.option('--skip_missing', is_flag=True)
+@click.option('--local_run', is_flag=True)
 @click.option('--update', is_flag=True)
 @click.option('--is_test_run', is_flag=True)
 @click.option('--sc_config')
@@ -184,7 +185,6 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.option('--sisyphus_interactive', is_flag=True)
 @click.option('--jobs', type=int, default=1000)
 @click.option('--saltant', is_flag=True)
-@click.option('--local_run', is_flag=True)
 def main(
         jira,
         version,
