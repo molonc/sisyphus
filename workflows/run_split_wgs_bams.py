@@ -21,8 +21,8 @@ from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 from dbclients.basicclient import NotFoundError
 
-from workflows.utils import file_utils, log_utils, colossus_utils
-from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
+from workflows.utils import file_utils, log_utils
+from workflows.utils.jira_utils import comment_jira
 
 
 log = logging.getLogger('sisyphus')
@@ -157,8 +157,9 @@ def start_automation(
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
-    # TODO: confirm with andrew whether to move this down here
     tantalus_analysis.set_complete_status()
+
+    comment_jira(jira_id, 'finished {analysis_type} analysis')
 
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
