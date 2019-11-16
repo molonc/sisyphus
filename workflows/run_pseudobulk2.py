@@ -48,6 +48,7 @@ def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
 
 
 def start_automation(
+        analysis_type,
         jira_id,
         version,
         args,
@@ -58,18 +59,29 @@ def start_automation(
         tmp_dir,
         storages,
         job_subdir,
-        analysis_type='',
 ):
     start = time.time()
 
-    tantalus_analysis = workflows.models.SplitWGSBamAnalysis(
-        jira_id,
-        version,
-        args,
-        storages,
-        run_options,
-        update=run_options['update'],
-    )
+    if analysis_type == 'split_wgs_bam':
+        tantalus_analysis = workflows.models.SplitWGSBamAnalysis(
+            jira_id,
+            version,
+            args,
+            storages,
+            run_options,
+            update=run_options['update'],
+        )
+    elif analysis_type == 'merge_cell_bams':
+        tantalus_analysis = workflows.models.SplitTumourAnalysis(
+            jira_id,
+            version,
+            args,
+            storages,
+            run_options,
+            update=run_options['update'],
+        )
+    else:
+        raise Exception(f'unsupported analysis type {analysis_type}')
 
     if storages["working_inputs"] != storages["remote_inputs"]:
         log_utils.sentinel(
@@ -164,8 +176,13 @@ def start_automation(
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
 
+analysis_types = [
+    'split_wgs_bam',
+    'merge_cell_bams',
+]
 
 @click.command()
+@click.argument('analysis_type', type=click.Choice(analysis_types)))
 @click.argument('jira_id')
 @click.argument('version')
 @click.argument('sample_id')
@@ -187,6 +204,7 @@ default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'conf
 @click.option('--jobs', type=int, default=1000)
 @click.option('--saltant', is_flag=True)
 def main(
+        analysis_type,
         jira_id,
         version,
         sample_id,
@@ -196,8 +214,6 @@ def main(
         config_filename=None,
         **run_options
     ):
-
-    analysis_type = 'split_wgs_bam'
 
     if config_filename is None:
         config_filename = default_config
@@ -234,6 +250,7 @@ def main(
     args['ref_genome'] = ref_genome
 
     start_automation(
+        analysis_type,
         jira_id,
         version,
         args,
@@ -244,7 +261,6 @@ def main(
         tmp_dir,
         config['storages'],
         job_subdir,
-        'split_wgs_bam',
     )
 
 

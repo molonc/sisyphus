@@ -1084,8 +1084,8 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
             'sequence_dataset',
             library__library_id=args['library_id'],
             sample__sample_id=args['sample_id'],
-            aligner=args["aligner"],
-            reference_genome=args["ref_genome"],
+            aligner__name__startswith=args["aligner"],
+            reference_genome__name=args["ref_genome"],
             dataset_type='BAM',
         )
 
@@ -1150,6 +1150,9 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
             docker_server,
             dirs,
         ):
+        storage_client = tantalus_api.get_storage_client(self.storages["working_inputs"])
+        bams_path = os.path.join(storage_client.prefix, self.bams_dir)
+
         if self.run_options["skip_pipeline"]:
             return workflows.launchsc.run_pipeline2()
 
@@ -1165,7 +1168,7 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
                 docker_env_file=docker_env_file,
                 docker_server=docker_server,
                 output_dirs={
-                    'output_dir': self.bams_dir,
+                    'out_dir': bams_path,
                 },
                 max_jobs='400',
                 dirs=dirs,
