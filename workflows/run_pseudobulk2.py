@@ -304,6 +304,41 @@ def variant_calling(
     )
 
 
+@analysis.command()
+@global_options
+@click.argument('sample_id')
+@click.argument('library_id')
+@click.argument('normal_sample_id')
+@click.argument('normal_library_id')
+def breakpoint_calling(
+        jira_id,
+        version,
+        sample_id,
+        library_id,
+        normal_sample_id,
+        normal_library_id,
+        config_filename=None,
+        **run_options
+    ):
+
+    analysis_name = 'breakpoint_calling'
+
+    args = {}
+    args['sample_id'] = sample_id
+    args['library_id'] = library_id
+    args['normal_sample_id'] = normal_sample_id
+    args['normal_library_id'] = normal_library_id
+
+    main(
+        analysis_name,
+        jira_id,
+        version,
+        args,
+        config_filename,
+        **run_options,
+    )
+
+
 def main(
         analysis_name,
         jira_id,
