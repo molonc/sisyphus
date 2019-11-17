@@ -1074,14 +1074,12 @@ class SplitWGSBamAnalysis(Analysis):
 
 
 def get_passed_cell_ids(results_id, storage_name):
-    assert len(self.analysis['input_results']) == 1
-
     # Find the metrics file in the annotation results
     results = tantalus_api.get('results', id=results_id)
     assert len(results['libraries']) == 1
     library_id = results['libraries'][0]['library_id']
     file_instances = tantalus_api.get_dataset_file_instances(
-        results_id, 'resultsdataset', self.storages['working_results'],
+        results_id, 'resultsdataset', storage_name,
         filters={'filename__endswith': f'{library_id}_metrics.csv.gz'})
     assert len(file_instances) == 1
     file_instance = file_instances[0]
@@ -1490,19 +1488,19 @@ class BreakpointCallingAnalysis(Analysis):
             dataset = self.get_dataset(dataset_id)
 
             if dataset['sample']['sample_id'] == self.args['normal_sample_id']:
-                assert 'normal_wgs' not in input_info
-                input_info['normal_wgs'] = {}
+                assert 'normal' not in input_info
+                input_info['normal'] = {}
 
                 file_instances = tantalus_api.get_dataset_file_instances(
                     dataset_id, 'sequencedataset', self.storages['working_inputs'],
                     filters={'filename__endswith': '.bam'})
 
                 assert len(file_instances) == 1
-                input_info['normal_wgs']['bam'] = str(file_instances[0]['filepath'])
+                input_info['normal']['bam'] = str(file_instances[0]['filepath'])
 
             elif dataset['sample']['sample_id'] == self.args['sample_id']:
-                assert 'tumour_cells' not in input_info
-                input_info['tumour_cells'] = {}
+                assert 'tumour' not in input_info
+                input_info['tumour'] = {}
 
                 index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
 
@@ -1524,8 +1522,8 @@ class BreakpointCallingAnalysis(Analysis):
                     if cell_id not in cell_ids:
                         continue
 
-                    input_info['tumour_cells'][cell_id] = {}
-                    input_info['tumour_cells'][cell_id]['bam'] = str(file_instance['filepath'])
+                    input_info['tumour'][cell_id] = {}
+                    input_info['tumour'][cell_id]['bam'] = str(file_instance['filepath'])
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
@@ -1548,7 +1546,7 @@ class BreakpointCallingAnalysis(Analysis):
 
         else:
             return workflows.launchsc.run_pipeline(
-                analysis_type='variant_calling',
+                analysis_type='breakpoint_calling',
                 version=self.version,
                 run_options=self.run_options,
                 scpipeline_dir=scpipeline_dir,
