@@ -980,12 +980,12 @@ class SplitWGSBamAnalysis(Analysis):
 
         dataset_id = self.analysis['input_datasets'][0]
         file_instances = tantalus_api.get_dataset_file_instances(
-            dataset_id, 'sequencedataset', self.storages['working_inputs'])
+            dataset_id, 'sequencedataset', self.storages['working_inputs'],
+            filters={'filename__endswith': '.bam'})
 
         input_info = {'normal': {}}
         for file_instance in file_instances:
-            if file_instance['file_resource']['filename'].endswith('.bam'):
-                input_info['normal']['bam'] = str(file_instance['filepath'])
+            input_info['normal']['bam'] = str(file_instance['filepath'])
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
@@ -1144,7 +1144,8 @@ class MergeCellBamsAnalysis(Analysis):
 
         dataset_id = self.analysis['input_datasets'][0]
         file_instances = tantalus_api.get_dataset_file_instances(
-            dataset_id, 'sequencedataset', self.storages['working_inputs'])
+            dataset_id, 'sequencedataset', self.storages['working_inputs'],
+            filters={'filename__endswith': '.bam'})
 
         cell_ids = self.get_passed_cell_ids()
 
@@ -1153,9 +1154,6 @@ class MergeCellBamsAnalysis(Analysis):
         input_info = {'cell_bams': {}}
         for file_instance in file_instances:
             file_resource = file_instance['file_resource']
-
-            if not file_resource['filename'].endswith('.bam'):
-                continue
 
             index_sequence = file_resource['sequencefileinfo']['index_sequence']
             cell_id = index_sequence_sublibraries[index_sequence]['cell_id']
@@ -1358,6 +1356,153 @@ class VariantCallingAnalysis(Analysis):
                 input_info['tumour'] = bam_info
             else:
                 raise Exception(f'unrecognized dataset {dataset_id}')
+
+        with open(inputs_yaml_filename, 'w') as inputs_yaml:
+            yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
+
+    def run_pipeline(
+            self,
+            scpipeline_dir,
+            tmp_dir,
+            inputs_yaml,
+            context_config_file,
+            docker_env_file,
+            docker_server,
+            dirs,
+        ):
+        storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
+        out_path = os.path.join(storage_client.prefix, self.out_dir)
+
+        if self.run_options["skip_pipeline"]:
+            return workflows.launchsc.run_pipeline2()
+
+        else:
+            return workflows.launchsc.run_pipeline(
+                analysis_type='variant_calling',
+                version=self.version,
+                run_options=self.run_options,
+                scpipeline_dir=scpipeline_dir,
+                tmp_dir=tmp_dir,
+                inputs_yaml=inputs_yaml,
+                context_config_file=context_config_file,
+                docker_env_file=docker_env_file,
+                docker_server=docker_server,
+                output_dirs={
+                    'out_dir': out_path,
+                },
+                max_jobs='400',
+                dirs=dirs,
+            )
+
+    def create_output_results(self, update=False, skip_missing=False, analysis_type=None):
+        """
+        Create the set of output results produced by this analysis.
+        """
+        tantalus_results = Results(
+            self,
+            self.storages['working_results'],
+            self.out_dir,
+            update=update,
+            skip_missing=skip_missing,
+            analysis_type=analysis_type,
+        )
+
+        return [tantalus_results.get_id()]
+
+
+class BreakpointCallingAnalysis(Analysis):
+    def __init__(self, jira, version, args, storages, run_options, **kwargs):
+        super(BreakpointCallingAnalysis, self).__init__('breakpoint_calling', jira, version, args, storages, run_options, **kwargs)
+        self.run_options = run_options
+        self.out_dir = os.path.join(jira, "results", self.analysis_type)
+
+    def search_input_datasets(self, args):
+        tumour_dataset = tantalus_api.get(
+            'sequencedataset',
+            dataset_type='BAM',
+            analysis__jira_ticket=self.jira,
+            library__library_id=args['library_id'],
+            sample__sample_id=args['sample_id'],
+            region_split_size=None,
+        )
+
+        # TODO: kludge related to the fact that aligner are equivalent between minor versions
+        aligner_name = None
+        if tumour_dataset['aligner'].startswith('BWA_MEM'):
+            aligner_name = 'BWA_MEM'
+        elif tumour_dataset['aligner'].startswith('BWA_ALN'):
+            aligner_name = 'BWA_ALN'
+        else:
+            raise Exception('unknown aligner')
+
+        # TODO: this could also work for normals that are cells
+        normal_dataset = tantalus_api.get(
+            'sequencedataset',
+            dataset_type='BAM',
+            sample__sample_id=args['normal_sample_id'],
+            library__library_id=args['normal_library_id'],
+            aligner__name__startswith=aligner_name,
+            reference_genome__name=tumour_dataset['reference_genome'],
+            region_split_length=None,
+        )
+
+        return [tumour_dataset['id'], normal_dataset['id']]
+
+    def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+        assert len(input_datasets) == 2
+        for dataset_id in input_datasets:
+            dataset = self.get_dataset(dataset_id)
+            if dataset['sample']['sample_id'] == args['sample_id']:
+                tumour_dataset = dataset
+
+        name = templates.SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE.format(
+            analysis_type=self.analysis_type,
+            aligner=tumour_dataset['aligner'],
+            ref_genome=tumour_dataset['reference_genome'],
+            library_id=tumour_dataset['library']['library_id'],
+            sample_id=tumour_dataset['sample']['sample_id'],
+            lanes_hashed=get_lanes_hash(tumour_dataset["sequence_lanes"]),
+        )
+
+        return name
+
+    def generate_inputs_yaml(self, inputs_yaml_filename):
+        assert len(self.analysis['input_datasets']) == 2
+
+        input_info = {}
+
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+
+            if dataset['sample']['sample_id'] == self.args['normal_sample_id']:
+                assert 'normal_wgs' not in input_info
+                input_info['normal_wgs'] = {}
+
+                file_instances = tantalus_api.get_dataset_file_instances(
+                    dataset_id, 'sequencedataset', self.storages['working_inputs'],
+                    filters={'filename__endswith': '.bam'})
+
+                assert len(file_instances) == 1
+                input_info['normal_wgs']['bam'] = str(file_instances[0]['filepath'])
+
+            elif dataset['sample']['sample_id'] == self.args['sample_id']:
+                assert 'tumour_cells' not in input_info
+                input_info['tumour_cells'] = {}
+
+                index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
+
+                file_instances = tantalus_api.get_dataset_file_instances(
+                    dataset_id, 'sequencedataset', self.storages['working_inputs'],
+                    filters={'filename__endswith': '.bam'})
+
+                for file_instance in file_instances:
+                    file_resource = file_instance['file_resource']
+
+                    index_sequence = file_resource['sequencefileinfo']['index_sequence']
+                    cell_id = index_sequence_sublibraries[index_sequence]['cell_id']
+
+                    input_info['tumour_cells'][cell_id] = {}
+                    input_info['tumour_cells'][cell_id]['bam'] = str(file_instance['filepath'])
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)

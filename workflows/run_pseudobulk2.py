@@ -68,6 +68,8 @@ def start_automation(
         analysis_type = workflows.models.MergeCellBamsAnalysis
     elif analysis_name == 'variant_calling':
         analysis_type = workflows.models.VariantCallingAnalysis
+    elif analysis_name == 'breakpoint_calling':
+        analysis_type = workflows.models.BreakpointCallingAnalysis
 
     analysis = analysis_type(
         jira_id,
