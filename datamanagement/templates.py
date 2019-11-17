@@ -86,12 +86,22 @@ SC_WGS_FQ_NAME_TEMPLATE = "-".join([
     "{lane}",
 ])
 
-SC_ANALYSIS_NAME_TEMPLATE = "_".join([
+SC_QC_ANALYSIS_NAME_TEMPLATE = "_".join([
     "sc",
     "{analysis_type}",
     "{aligner}",
     "{ref_genome}",
     "{library_id}",
+    "{lanes_hashed}"   
+])
+
+SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE = "_".join([
+    "sc",
+    "{analysis_type}",
+    "{aligner}",
+    "{ref_genome}",
+    "{library_id}",
+    "{sample_id}",
     "{lanes_hashed}"   
 ])
 

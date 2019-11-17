@@ -377,7 +377,7 @@ class DLPAnalysisMixin(object):
     def generate_unique_name(self, jira, version, args, input_datasets, input_results):
         lanes_hashed = get_datasets_lanes_hash(tantalus_api, input_datasets)
 
-        name = templates.SC_ANALYSIS_NAME_TEMPLATE.format(
+        name = templates.SC_QC_ANALYSIS_NAME_TEMPLATE.format(
             analysis_type=self.analysis_type,
             aligner=args['aligner'],
             ref_genome=args['ref_genome'],
@@ -965,7 +965,7 @@ class SplitWGSBamAnalysis(Analysis):
     def generate_unique_name(self, jira, version, args, input_datasets, input_results):
         lanes_hashed = get_datasets_lanes_hash(tantalus_api, input_datasets)
 
-        name = templates.SC_ANALYSIS_NAME_TEMPLATE.format(
+        name = templates.SC_QC_ANALYSIS_NAME_TEMPLATE.format(
             analysis_type=self.analysis_type,
             aligner=args['aligner'],
             ref_genome=args['ref_genome'],
@@ -1102,6 +1102,22 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
         )
 
         return [results["id"]]
+
+    def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+        assert len(self.analysis['input_datasets']) == 1
+        dataset_id = self.analysis['input_datasets'][0]
+        dataset = self.get_dataset(dataset_id)
+
+        name = templates.SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE.format(
+            analysis_type=self.analysis_type,
+            aligner=dataset['aligner'],
+            ref_genome=dataset['reference_genome'],
+            library_id=dataset['library']['library_id'],
+            sample_id=dataset['sample']['sample_id'],
+            lanes_hashed=get_lanes_hash(dataset["sequence_lanes"]),
+        )
+
+        return name
 
     def get_passed_cell_ids(self):
         assert len(self.analysis['input_results']) == 1
