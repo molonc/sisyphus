@@ -176,35 +176,45 @@ def start_automation(
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
 
-analysis_types = [
-    'split_wgs_bam',
-    'merge_cell_bams',
+
+_global_options = [
+    click.argument('jira_id'),
+    click.argument('version'),
+    click.option('--config_filename'),
+    click.option('--skip_pipeline', is_flag=True),
+    click.option('--skip_missing', is_flag=True),
+    click.option('--local_run', is_flag=True),
+    click.option('--update', is_flag=True),
+    click.option('--is_test_run', is_flag=True),
+    click.option('--sc_config'),
+    click.option('--inputs_yaml'),
+    click.option('--clean', is_flag=True),
+    click.option('--tag', type=str, default=''),
+    click.option('--interactive', is_flag=True),
+    click.option('--sisyphus_interactive', is_flag=True),
+    click.option('--jobs', type=int, default=1000),
+    click.option('--saltant', is_flag=True),
 ]
 
-@click.command()
-@click.argument('analysis_type', type=click.Choice(analysis_types))
-@click.argument('jira_id')
-@click.argument('version')
+
+def global_options(func):
+    for option in reversed(_global_options):
+        func = option(func)
+    return func
+
+
+@click.group()
+def analysis():
+    pass
+
+
+@analysis.command()
+@global_options
 @click.argument('sample_id')
 @click.argument('library_id')
-@click.argument('aligner', type=click.Choice(['A', "M"]))
+@click.argument('aligner', type=click.Choice(['BWA_ALN', "BWA_MEM"]))
 @click.argument('ref_genome')
-@click.option('--config_filename')
-@click.option('--skip_pipeline', is_flag=True)
-@click.option('--skip_missing', is_flag=True)
-@click.option('--local_run', is_flag=True)
-@click.option('--update', is_flag=True)
-@click.option('--is_test_run', is_flag=True)
-@click.option('--sc_config')
-@click.option('--inputs_yaml')
-@click.option('--clean', is_flag=True)
-@click.option('--tag', type=str, default='')
-@click.option('--interactive', is_flag=True)
-@click.option('--sisyphus_interactive', is_flag=True)
-@click.option('--jobs', type=int, default=1000)
-@click.option('--saltant', is_flag=True)
-def main(
-        analysis_type,
+def split_wgs_bam(
         jira_id,
         version,
         sample_id,
@@ -215,14 +225,67 @@ def main(
         **run_options
     ):
 
+    analysis_type = 'split_wgs_bam'
+
+    args = {}
+    args['sample_id'] = sample_id
+    args['library_id'] = library_id
+    args['aligner'] = aligner
+    args['ref_genome'] = ref_genome
+
+    main(
+        analysis_type,
+        jira_id,
+        version,
+        args,
+        config_filename,
+        **run_options
+    )
+
+
+@analysis.command()
+@global_options
+@click.argument('sample_id')
+@click.argument('library_id')
+def merge_cell_bams(
+        jira_id,
+        version,
+        sample_id,
+        library_id,
+        config_filename=None,
+        **run_options
+    ):
+
+    analysis_type = 'merge_cell_bams'
+
+    args = {}
+    args['sample_id'] = sample_id
+    args['library_id'] = library_id
+
+    main(
+        analysis_type,
+        jira_id,
+        version,
+        args,
+        config_filename,
+        run_options,
+    )
+
+
+def main(
+        analysis_type,
+        jira_id,
+        version,
+        args,
+        config_filename=None,
+        **run_options
+    ):
+
     if config_filename is None:
         config_filename = default_config
 
     if not templates.JIRA_ID_RE.match(jira_id):
         raise Exception(f'Invalid SC ID: {jira_id}')
-
-    aligner_map = {'A': 'BWA_ALN', 'M': 'BWA_MEM'}
-    aligner = aligner_map[aligner]
 
     config = file_utils.load_json(config_filename)
 
@@ -241,14 +304,6 @@ def main(
     log_file = log_utils.init_log_files(pipeline_dir)
     log_utils.setup_sentinel(run_options['sisyphus_interactive'], os.path.join(pipeline_dir, analysis_type))
 
-    log.info('Library ID: {}'.format(library_id))
-
-    args = {}
-    args['sample_id'] = sample_id
-    args['library_id'] = library_id
-    args['aligner'] = aligner
-    args['ref_genome'] = ref_genome
-
     start_automation(
         analysis_type,
         jira_id,
@@ -265,4 +320,4 @@ def main(
 
 
 if __name__ == '__main__':
-    main()
+    analysis()
