@@ -1083,42 +1083,47 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
         self.split_size = 10000000
 
     def search_input_datasets(self, args):
-        datasets = tantalus_api.list(
+        dataset = tantalus_api.get(
             'sequence_dataset',
+            analysis__jira_ticket=self.jira,
             library__library_id=args['library_id'],
             sample__sample_id=args['sample_id'],
-            aligner__name__startswith=args["aligner"],
-            reference_genome__name=args["ref_genome"],
-            region_split_length=None,
             dataset_type='BAM',
         )
 
-        if len(datasets) == 0:
-            raise Exception('no tumour datasets')
+        return [dataset["id"]]
 
-        # Search through the list of datasets and get the most appropriate given lanes
-        datasets_info = []
-        for idx, dataset in enumerate(datasets):
-            num_lanes = len(dataset['sequence_lanes'])
-            lanes_hash = get_lanes_hash(dataset['sequence_lanes'])
-            datasets_info.append(dict(
-                dataset_id=dataset['id'],
-                num_lanes=num_lanes,
-                lanes_hash=lanes_hash,
-                dataset_idx=idx,
-            ))
-        datasets_info = pd.DataFrame(datasets_info)
+    def search_input_results(self, args):
+        results = tantalus_api.get(
+            'resultsdataset',
+            analysis__jira_ticket=self.jira,
+            libraries__library_id=args['library_id'],
+            results_type='annotation',
+        )
 
-        max_lanes = datasets_info['num_lanes'].max()
-        datasets_info = datasets_info[datasets_info['num_lanes'] == max_lanes]
+        return [results["id"]]
 
-        if len(datasets_info.index) > 1:
-            raise Exception('multiple datasets {}'.format(list(datasets_info['dataset_id'].values)))
+    def get_passed_cell_ids(self):
+        assert len(self.analysis['input_results']) == 1
 
-        idx = datasets_info.iloc[0]['dataset_idx']
-        dataset = datasets[idx]
+        # Find the metrics file in the annotation results
+        library_id = self.args['library_id']
+        results_id = self.analysis['input_results'][0]
+        file_instances = tantalus_api.get_dataset_file_instances(
+            results_id, 'resultsdataset', self.storages['working_inputs'],
+            filters={'filename__endswith': f'{library_id}_metrics.csv.gz'})
+        assert len(file_instances) == 1
+        file_instance = file_instances[0]
 
-        return [dataset['id']]
+        storage_client = tantalus_api.get_storage_client(file_instance['storage']['name'])
+        f = storage_client.open_file(file_instance['filepath'])
+        alignment_metrics = pd.read_csv(f)
+
+        # Filter cells marked as contaminated
+        alignment_metrics = alignment_metrics[~alignment_metrics["is_contaminated"]]
+        alignment_metrics = alignment_metrics[alignment_metrics['experimental_condition'] != 'NTC']
+
+        return set(alignment_metrics['cell_id'].values)
 
     def generate_inputs_yaml(self, inputs_yaml_filename):
         assert len(self.analysis['input_datasets']) == 1
@@ -1126,6 +1131,8 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
         dataset_id = self.analysis['input_datasets'][0]
         file_instances = tantalus_api.get_dataset_file_instances(
             dataset_id, 'sequencedataset', self.storages['working_inputs'])
+
+        cell_ids = self.get_passed_cell_ids()
 
         index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
 
@@ -1138,6 +1145,9 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
 
             index_sequence = file_resource['sequencefileinfo']['index_sequence']
             cell_id = index_sequence_sublibraries[index_sequence]['cell_id']
+
+            if not cell_id in cell_ids:
+                continue
 
             input_info['cell_bams'][cell_id]['bam'] = str(file_instance['filepath'])
 
