@@ -1428,7 +1428,7 @@ class BreakpointCallingAnalysis(Analysis):
             analysis__jira_ticket=self.jira,
             library__library_id=args['library_id'],
             sample__sample_id=args['sample_id'],
-            region_split_size=None,
+            region_split_length=None,
         )
 
         # TODO: kludge related to the fact that aligner are equivalent between minor versions
