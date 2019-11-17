@@ -1073,6 +1073,29 @@ class SplitWGSBamAnalysis(Analysis):
         return [output_dataset]
 
 
+def get_passed_cell_ids(results_id, storage_name):
+    assert len(self.analysis['input_results']) == 1
+
+    # Find the metrics file in the annotation results
+    results = tantalus_api.get('results', id=results_id)
+    assert len(results['libraries']) == 1
+    library_id = results['libraries'][0]['library_id']
+    file_instances = tantalus_api.get_dataset_file_instances(
+        results_id, 'resultsdataset', self.storages['working_results'],
+        filters={'filename__endswith': f'{library_id}_metrics.csv.gz'})
+    assert len(file_instances) == 1
+    file_instance = file_instances[0]
+
+    storage_client = tantalus_api.get_storage_client(file_instance['storage']['name'])
+    f = storage_client.open_file(file_instance['file_resource']['filename'])
+    alignment_metrics = pd.read_csv(f, compression='gzip')
+
+    # Filter cells marked as contaminated
+    alignment_metrics = alignment_metrics[~alignment_metrics["is_contaminated"]]
+
+    return set(alignment_metrics['cell_id'].values)
+
+
 class MergeCellBamsAnalysis(Analysis):
     def __init__(self, jira, version, args, storages, run_options, **kwargs):
         super(MergeCellBamsAnalysis, self).__init__('merge_cell_bams', jira, version, args, storages, run_options, **kwargs)
@@ -1118,27 +1141,6 @@ class MergeCellBamsAnalysis(Analysis):
 
         return name
 
-    def get_passed_cell_ids(self):
-        assert len(self.analysis['input_results']) == 1
-
-        # Find the metrics file in the annotation results
-        library_id = self.args['library_id']
-        results_id = self.analysis['input_results'][0]
-        file_instances = tantalus_api.get_dataset_file_instances(
-            results_id, 'resultsdataset', self.storages['working_results'],
-            filters={'filename__endswith': f'{library_id}_metrics.csv.gz'})
-        assert len(file_instances) == 1
-        file_instance = file_instances[0]
-
-        storage_client = tantalus_api.get_storage_client(file_instance['storage']['name'])
-        f = storage_client.open_file(file_instance['file_resource']['filename'])
-        alignment_metrics = pd.read_csv(f, compression='gzip')
-
-        # Filter cells marked as contaminated
-        alignment_metrics = alignment_metrics[~alignment_metrics["is_contaminated"]]
-
-        return set(alignment_metrics['cell_id'].values)
-
     def generate_inputs_yaml(self, inputs_yaml_filename):
         assert len(self.analysis['input_datasets']) == 1
 
@@ -1147,7 +1149,10 @@ class MergeCellBamsAnalysis(Analysis):
             dataset_id, 'sequencedataset', self.storages['working_inputs'],
             filters={'filename__endswith': '.bam'})
 
-        cell_ids = self.get_passed_cell_ids()
+        assert len(self.analysis['input_results']) == 1
+        cell_ids = get_passed_cell_ids(
+            self.analysis['input_results'][0],
+            self.storages['working_results'])
 
         index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
 
@@ -1448,6 +1453,16 @@ class BreakpointCallingAnalysis(Analysis):
 
         return [tumour_dataset['id'], normal_dataset['id']]
 
+    def search_input_results(self, args):
+        results = tantalus_api.get(
+            'resultsdataset',
+            analysis__jira_ticket=self.jira,
+            libraries__library_id=args['library_id'],
+            results_type='annotation',
+        )
+
+        return [results["id"]]
+
     def generate_unique_name(self, jira, version, args, input_datasets, input_results):
         assert len(input_datasets) == 2
         for dataset_id in input_datasets:
@@ -1491,6 +1506,11 @@ class BreakpointCallingAnalysis(Analysis):
 
                 index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
 
+                assert len(self.analysis['input_results']) == 1
+                cell_ids = get_passed_cell_ids(
+                    self.analysis['input_results'][0],
+                    self.storages['working_results'])
+
                 file_instances = tantalus_api.get_dataset_file_instances(
                     dataset_id, 'sequencedataset', self.storages['working_inputs'],
                     filters={'filename__endswith': '.bam'})
@@ -1500,6 +1520,9 @@ class BreakpointCallingAnalysis(Analysis):
 
                     index_sequence = file_resource['sequencefileinfo']['index_sequence']
                     cell_id = index_sequence_sublibraries[index_sequence]['cell_id']
+
+                    if cell_id not in cell_ids:
+                        continue
 
                     input_info['tumour_cells'][cell_id] = {}
                     input_info['tumour_cells'][cell_id]['bam'] = str(file_instance['filepath'])
