@@ -1254,17 +1254,135 @@ class MergeCellBamsAnalysis(DLPAnalysisMixin, Analysis):
 
 class VariantCallingAnalysis(DLPAnalysisMixin, Analysis):
     def __init__(self, jira, version, args, run_options, **kwargs):
-        super(SplitTumourAnalysis, self).__init__('splittumour', jira, version, args, **kwargs)
+        super(VariantCallingAnalysis, self).__init__('variant_calling', jira, version, args, **kwargs)
         self.run_options = run_options
+        self.out_dir = os.path.join(jira, "results", self.analysis_type)
+
+        # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
+        self.split_size = 10000000
 
     def search_input_datasets(self, args):
-        raise
+        tumour_dataset = tantalus_api.get(
+            'sequencedataset',
+            dataset_type='BAM',
+            analysis__jira_ticket=self.jira,
+            library__library_id=args['library_id'],
+            sample__sample_id=args['sample_id'],
+            region_split_size=self.split_size,
+        )
+
+        normal_dataset = tantalus_api.get(
+            'sequencedataset',
+            dataset_type='BAM',
+            sample__sample_id=args['normal_sample_id'],
+            library__library_id=args['normal_library_id'],
+            aligner__name__startswith=tumour_dataset['aligner'],
+            reference_genome__name=tumour_dataset['ref_genome'],
+            region_split_length=self.split_size,
+        )
+
+        return [tumour_dataset['id'], normal_dataset['id']]
 
     def generate_inputs_yaml(self, inputs_yaml_filename):
-        raise
+        assert len(self.analysis['input_datasets']) == 2
 
-    def run_pipeline(self):
-        raise
+        input_info = {}
+
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.get_dataset(dataset_id)
+
+            storage_client = tantalus_api.get_storage_client(self.storages['working_inputs'])
+
+            # Read the metadata yaml file
+            file_instances = tantalus_api.get_dataset_file_instances(
+                dataset_id, 'sequencedataset', self.storages['working_inputs'],
+                filters={'filename__endswith': 'metadata.yaml'})
+            assert len(file_instances) == 1
+            file_instance = file_instances[0]
+            metadata = yaml.safe_load(storage_client.open_file(file_instance['file_resource']['filename']))
+
+            # All filenames relative to metadata.yaml
+            base_dir = file_instance['file_resource']['filename'].replace('metadata.yaml', '')
+
+            file_instances = tantalus_api.get_dataset_file_instances(
+                dataset_id, 'sequencedataset', self.storages['working_inputs'],
+                filters={'filename__endswith': '.bam'})
+
+            bam_info = {}
+            template = metadata['meta']['bams']['template']
+            for instance in metadata['meta']['bams']['instances']:
+                region = instance['region']
+
+                bams_filename = template.format(**instance)
+                assert bams_filename in metadata['filenames']
+                assert region not in bam_info
+
+                bam_info[region] = {}
+                bam_info[region]['bam'] = os.path.join(
+                    storage_client.prefix,
+                    base_dir,
+                    bams_filename)
+
+            if dataset['sample']['sample_id'] == self.args['normal_sample_id']:
+                assert 'normal' not in input_info
+                input_info['normal'] = bam_info
+            elif dataset['sample']['sample_id'] == self.args['sample_id']:
+                assert 'tumour' not in input_info
+                input_info['tumour'] = bam_info
+            else:
+                raise Exception(f'unrecognized dataset {dataset_id}')
+
+        with open(inputs_yaml_filename, 'w') as inputs_yaml:
+            yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
+
+    def run_pipeline(
+            self,
+            scpipeline_dir,
+            tmp_dir,
+            inputs_yaml,
+            context_config_file,
+            docker_env_file,
+            docker_server,
+            dirs,
+        ):
+        storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
+        out_path = os.path.join(storage_client.prefix, self.out_dir)
+
+        if self.run_options["skip_pipeline"]:
+            return workflows.launchsc.run_pipeline2()
+
+        else:
+            return workflows.launchsc.run_pipeline(
+                analysis_type='variant_calling',
+                version=self.version,
+                run_options=self.run_options,
+                scpipeline_dir=scpipeline_dir,
+                tmp_dir=tmp_dir,
+                inputs_yaml=inputs_yaml,
+                context_config_file=context_config_file,
+                docker_env_file=docker_env_file,
+                docker_server=docker_server,
+                output_dirs={
+                    'out_dir': out_path,
+                },
+                max_jobs='400',
+                dirs=dirs,
+            )
+
+    def create_output_results(self, update=False, skip_missing=False, analysis_type=None):
+        """
+        Create the set of output results produced by this analysis.
+        """
+        tantalus_results = Results(
+            self,
+            self.storages['working_results'],
+            self.results_dir,
+            update=update,
+            skip_missing=skip_missing,
+            analysis_type=analysis_type,
+        )
+
+        return [tantalus_results.get_id()]
 
 
 class PseudoBulkAnalysis(Analysis):
