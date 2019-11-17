@@ -1073,7 +1073,7 @@ class SplitWGSBamAnalysis(Analysis):
         return [output_dataset]
 
 
-class MergeCellBamsAnalysis(DLPAnalysisMixin, Analysis):
+class MergeCellBamsAnalysis(Analysis):
     def __init__(self, jira, version, args, storages, run_options, **kwargs):
         super(MergeCellBamsAnalysis, self).__init__('merge_cell_bams', jira, version, args, storages, run_options, **kwargs)
         self.run_options = run_options
@@ -1252,9 +1252,9 @@ class MergeCellBamsAnalysis(DLPAnalysisMixin, Analysis):
         return [output_dataset]
 
 
-class VariantCallingAnalysis(DLPAnalysisMixin, Analysis):
-    def __init__(self, jira, version, args, run_options, **kwargs):
-        super(VariantCallingAnalysis, self).__init__('variant_calling', jira, version, args, **kwargs)
+class VariantCallingAnalysis(Analysis):
+    def __init__(self, jira, version, args, storages, run_options, **kwargs):
+        super(VariantCallingAnalysis, self).__init__('variant_calling', jira, version, args, storages, run_options, **kwargs)
         self.run_options = run_options
         self.out_dir = os.path.join(jira, "results", self.analysis_type)
 
@@ -1282,6 +1282,21 @@ class VariantCallingAnalysis(DLPAnalysisMixin, Analysis):
         )
 
         return [tumour_dataset['id'], normal_dataset['id']]
+
+    def generate_unique_name(self, jira, version, args, input_datasets, input_results):
+        assert len(input_datasets) == 1
+        dataset = self.get_dataset(input_datasets[0])
+
+        name = templates.SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE.format(
+            analysis_type=self.analysis_type,
+            aligner=dataset['aligner'],
+            ref_genome=dataset['reference_genome'],
+            library_id=dataset['library']['library_id'],
+            sample_id=dataset['sample']['sample_id'],
+            lanes_hashed=get_lanes_hash(dataset["sequence_lanes"]),
+        )
+
+        return name
 
     def generate_inputs_yaml(self, inputs_yaml_filename):
         assert len(self.analysis['input_datasets']) == 2
