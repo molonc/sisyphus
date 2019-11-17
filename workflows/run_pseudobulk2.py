@@ -48,7 +48,7 @@ def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
 
 
 def start_automation(
-        analysis_type,
+        analysis_name,
         jira_id,
         version,
         args,
@@ -62,33 +62,28 @@ def start_automation(
 ):
     start = time.time()
 
-    if analysis_type == 'split_wgs_bam':
-        tantalus_analysis = workflows.models.SplitWGSBamAnalysis(
-            jira_id,
-            version,
-            args,
-            storages,
-            run_options,
-            update=run_options['update'],
-        )
-    elif analysis_type == 'merge_cell_bams':
-        tantalus_analysis = workflows.models.MergeCellBamsAnalysis(
-            jira_id,
-            version,
-            args,
-            storages,
-            run_options,
-            update=run_options['update'],
-        )
-    else:
-        raise Exception(f'unsupported analysis type {analysis_type}')
+    if analysis_name == 'split_wgs_bam':
+        analysis_type = workflows.models.SplitWGSBamAnalysis
+    elif analysis_name == 'merge_cell_bams':
+        analysis_type = workflows.models.MergeCellBamsAnalysis
+    elif analysis_name == 'variant_calling':
+        analysis_type = workflows.models.VariantCallingAnalysis
+
+    analysis = analysis_type(
+        jira_id,
+        version,
+        args,
+        storages,
+        run_options,
+        update=run_options['update'],
+    )
 
     if storages["working_inputs"] != storages["remote_inputs"]:
         log_utils.sentinel(
             'Transferring input datasets from {} to {}'.format(storages["remote_inputs"], storages["working_inputs"]),
             transfer_inputs,
-            tantalus_analysis.get_input_datasets(),
-            tantalus_analysis.get_input_results(),
+            analysis.get_input_datasets(),
+            analysis.get_input_results(),
             storages["remote_inputs"],
             storages["working_inputs"],
         )
@@ -96,19 +91,19 @@ def start_automation(
     if run_options['inputs_yaml'] is None:
         local_results_storage = tantalus_api.get('storage', name=storages['local_results'])['storage_directory']
 
-        inputs_yaml = os.path.join(local_results_storage, job_subdir, analysis_type, 'inputs.yaml')
+        inputs_yaml = os.path.join(local_results_storage, job_subdir, analysis_name, 'inputs.yaml')
         log_utils.sentinel(
             'Generating inputs yaml',
-            tantalus_analysis.generate_inputs_yaml,
+            analysis.generate_inputs_yaml,
             inputs_yaml,
         )
     else:
         inputs_yaml = run_options['inputs_yaml']
 
-    tantalus_analysis.add_inputs_yaml(inputs_yaml, update=run_options['update'])
+    analysis.add_inputs_yaml(inputs_yaml, update=run_options['update'])
 
     try:
-        tantalus_analysis.set_run_status()
+        analysis.set_run_status()
 
         dirs = [
             pipeline_dir,
@@ -127,8 +122,8 @@ def start_automation(
             context_config_file = config['context_config_file']['sisyphus']
 
         log_utils.sentinel(
-            f'Running single_cell {analysis_type}',
-            tantalus_analysis.run_pipeline,
+            f'Running single_cell {analysis_name}',
+            analysis.run_pipeline,
             scpipeline_dir=scpipeline_dir,
             tmp_dir=tmp_dir,
             inputs_yaml=inputs_yaml,
@@ -139,21 +134,21 @@ def start_automation(
         )
 
     except Exception:
-        tantalus_analysis.set_error_status()
+        analysis.set_error_status()
         raise Exception("pipeline failed")
 
     output_dataset_ids = log_utils.sentinel(
         'Creating output datasets',
-        tantalus_analysis.create_output_datasets,
+        analysis.create_output_datasets,
         update=run_options['update'],
     )
 
     output_results_ids = log_utils.sentinel(
-        'Creating {} output results'.format(analysis_type),
-        tantalus_analysis.create_output_results,
+        'Creating {} output results'.format(analysis_name),
+        analysis.create_output_results,
         update=run_options['update'],
         skip_missing=run_options['skip_missing'],
-        analysis_type=analysis_type,
+        analysis_name=analysis_name,
     )
 
     if storages["working_inputs"] != storages["remote_inputs"] and output_dataset_ids != []:
@@ -169,9 +164,9 @@ def start_automation(
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
 
-    tantalus_analysis.set_complete_status()
+    analysis.set_complete_status()
 
-    comment_jira(jira_id, f'finished {analysis_type} analysis')
+    comment_jira(jira_id, f'finished {analysis_name} analysis')
 
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
@@ -225,7 +220,7 @@ def split_wgs_bam(
         **run_options
     ):
 
-    analysis_type = 'split_wgs_bam'
+    analysis_name = 'split_wgs_bam'
 
     args = {}
     args['sample_id'] = sample_id
@@ -234,7 +229,7 @@ def split_wgs_bam(
     args['ref_genome'] = ref_genome
 
     main(
-        analysis_type,
+        analysis_name,
         jira_id,
         version,
         args,
@@ -256,14 +251,14 @@ def merge_cell_bams(
         **run_options
     ):
 
-    analysis_type = 'merge_cell_bams'
+    analysis_name = 'merge_cell_bams'
 
     args = {}
     args['sample_id'] = sample_id
     args['library_id'] = library_id
 
     main(
-        analysis_type,
+        analysis_name,
         jira_id,
         version,
         args,
@@ -289,7 +284,7 @@ def variant_calling(
         **run_options
     ):
 
-    analysis_type = 'variant_calling'
+    analysis_name = 'variant_calling'
 
     args = {}
     args['sample_id'] = sample_id
@@ -298,7 +293,7 @@ def variant_calling(
     args['normal_library_id'] = normal_library_id
 
     main(
-        analysis_type,
+        analysis_name,
         jira_id,
         version,
         args,
@@ -308,7 +303,7 @@ def variant_calling(
 
 
 def main(
-        analysis_type,
+        analysis_name,
         jira_id,
         version,
         args,
@@ -337,10 +332,10 @@ def main(
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
 
     log_file = log_utils.init_log_files(pipeline_dir)
-    log_utils.setup_sentinel(run_options['sisyphus_interactive'], os.path.join(pipeline_dir, analysis_type))
+    log_utils.setup_sentinel(run_options['sisyphus_interactive'], os.path.join(pipeline_dir, analysis_name))
 
     start_automation(
-        analysis_type,
+        analysis_name,
         jira_id,
         version,
         args,

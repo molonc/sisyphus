@@ -1376,7 +1376,7 @@ class VariantCallingAnalysis(DLPAnalysisMixin, Analysis):
         tantalus_results = Results(
             self,
             self.storages['working_results'],
-            self.results_dir,
+            self.out_dir,
             update=update,
             skip_missing=skip_missing,
             analysis_type=analysis_type,
