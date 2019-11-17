@@ -1073,9 +1073,9 @@ class SplitWGSBamAnalysis(Analysis):
         return [output_dataset]
 
 
-class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
-    def __init__(self, jira, version, args, run_options, **kwargs):
-        super(SplitTumourAnalysis, self).__init__('splittumour', jira, version, args, **kwargs)
+class MergeCellBamsAnalysis(DLPAnalysisMixin, Analysis):
+    def __init__(self, jira, version, args, storages, run_options, **kwargs):
+        super(MergeCellBamsAnalysis, self).__init__('merge_cell_bams', jira, version, args, storages, run_options, **kwargs)
         self.run_options = run_options
         self.bams_dir = os.path.join(jira, "results", self.analysis_type)
 
@@ -1104,9 +1104,8 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
         return [results["id"]]
 
     def generate_unique_name(self, jira, version, args, input_datasets, input_results):
-        assert len(self.analysis['input_datasets']) == 1
-        dataset_id = self.analysis['input_datasets'][0]
-        dataset = self.get_dataset(dataset_id)
+        assert len(input_datasets) == 1
+        dataset = self.get_dataset(input_datasets[0])
 
         name = templates.SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE.format(
             analysis_type=self.analysis_type,
@@ -1126,18 +1125,17 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
         library_id = self.args['library_id']
         results_id = self.analysis['input_results'][0]
         file_instances = tantalus_api.get_dataset_file_instances(
-            results_id, 'resultsdataset', self.storages['working_inputs'],
+            results_id, 'resultsdataset', self.storages['working_results'],
             filters={'filename__endswith': f'{library_id}_metrics.csv.gz'})
         assert len(file_instances) == 1
         file_instance = file_instances[0]
 
         storage_client = tantalus_api.get_storage_client(file_instance['storage']['name'])
-        f = storage_client.open_file(file_instance['filepath'])
-        alignment_metrics = pd.read_csv(f)
+        f = storage_client.open_file(file_instance['file_resource']['filename'])
+        alignment_metrics = pd.read_csv(f, compression='gzip')
 
         # Filter cells marked as contaminated
         alignment_metrics = alignment_metrics[~alignment_metrics["is_contaminated"]]
-        alignment_metrics = alignment_metrics[alignment_metrics['experimental_condition'] != 'NTC']
 
         return set(alignment_metrics['cell_id'].values)
 
@@ -1165,6 +1163,7 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
             if not cell_id in cell_ids:
                 continue
 
+            input_info['cell_bams'][cell_id] = {}
             input_info['cell_bams'][cell_id]['bam'] = str(file_instance['filepath'])
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
@@ -1211,7 +1210,7 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
         assert len(self.analysis['input_datasets']) == 1
         input_dataset = self.get_dataset(self.analysis['input_datasets'][0])
 
-        storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
+        storage_client = tantalus_api.get_storage_client(self.storages["working_inputs"])
         metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
 
@@ -1220,7 +1219,9 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
             sample_id=input_dataset["sample"]["sample_id"],
             library_type=input_dataset["library"]["library_type"],
             library_id=input_dataset["library"]["library_id"],
-            lanes_str=get_lanes_hash(input_dataset["sequence_lanes"]),
+            lanes_hash=get_lanes_hash(input_dataset["sequence_lanes"]),
+            aligner=input_dataset['aligner'],
+            reference_genome=input_dataset['reference_genome'],
             split_length=self.split_size,
         )
 
@@ -1229,7 +1230,7 @@ class SplitTumourAnalysis(DLPAnalysisMixin, Analysis):
             filepath = os.path.join(
                 storage_client.prefix, self.bams_dir, filename)
             file_resource, file_instance = tantalus_api.add_file(
-                self.storages["working_results"], filepath, update=update)
+                self.storages["working_inputs"], filepath, update=update)
             file_resources.append(file_resource["id"])
 
         output_dataset = tantalus_api.get_or_create(

@@ -72,7 +72,7 @@ def start_automation(
             update=run_options['update'],
         )
     elif analysis_type == 'merge_cell_bams':
-        tantalus_analysis = workflows.models.SplitTumourAnalysis(
+        tantalus_analysis = workflows.models.MergeCellBamsAnalysis(
             jira_id,
             version,
             args,
@@ -268,7 +268,7 @@ def merge_cell_bams(
         version,
         args,
         config_filename,
-        run_options,
+        **run_options,
     )
 
 
