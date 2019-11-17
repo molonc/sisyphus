@@ -1258,8 +1258,8 @@ class VariantCallingAnalysis(Analysis):
         self.run_options = run_options
         self.out_dir = os.path.join(jira, "results", self.analysis_type)
 
-        # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
-        self.split_size = 10000000
+    # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
+    split_size = 10000000
 
     def search_input_datasets(self, args):
         tumour_dataset = tantalus_api.get(
@@ -1268,32 +1268,44 @@ class VariantCallingAnalysis(Analysis):
             analysis__jira_ticket=self.jira,
             library__library_id=args['library_id'],
             sample__sample_id=args['sample_id'],
-            region_split_size=self.split_size,
+            region_split_length=self.split_size,
         )
+
+        # TODO: kludge related to the fact that aligner are equivalent between minor versions
+        aligner_name = None
+        if tumour_dataset['aligner'].startswith('BWA_MEM'):
+            aligner_name = 'BWA_MEM'
+        elif tumour_dataset['aligner'].startswith('BWA_ALN'):
+            aligner_name = 'BWA_ALN'
+        else:
+            raise Exception('unknown aligner')
 
         normal_dataset = tantalus_api.get(
             'sequencedataset',
             dataset_type='BAM',
             sample__sample_id=args['normal_sample_id'],
             library__library_id=args['normal_library_id'],
-            aligner__name__startswith=tumour_dataset['aligner'],
-            reference_genome__name=tumour_dataset['ref_genome'],
+            aligner__name__startswith=aligner_name,
+            reference_genome__name=tumour_dataset['reference_genome'],
             region_split_length=self.split_size,
         )
 
         return [tumour_dataset['id'], normal_dataset['id']]
 
     def generate_unique_name(self, jira, version, args, input_datasets, input_results):
-        assert len(input_datasets) == 1
-        dataset = self.get_dataset(input_datasets[0])
+        assert len(input_datasets) == 2
+        for dataset_id in input_datasets:
+            dataset = self.get_dataset(dataset_id)
+            if dataset['sample']['sample_id'] == args['sample_id']:
+                tumour_dataset = dataset
 
         name = templates.SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE.format(
             analysis_type=self.analysis_type,
-            aligner=dataset['aligner'],
-            ref_genome=dataset['reference_genome'],
-            library_id=dataset['library']['library_id'],
-            sample_id=dataset['sample']['sample_id'],
-            lanes_hashed=get_lanes_hash(dataset["sequence_lanes"]),
+            aligner=tumour_dataset['aligner'],
+            ref_genome=tumour_dataset['reference_genome'],
+            library_id=tumour_dataset['library']['library_id'],
+            sample_id=tumour_dataset['sample']['sample_id'],
+            lanes_hashed=get_lanes_hash(tumour_dataset["sequence_lanes"]),
         )
 
         return name
