@@ -1257,7 +1257,7 @@ class VariantCallingAnalysis(Analysis):
     def __init__(self, jira, version, args, storages, run_options, **kwargs):
         super(VariantCallingAnalysis, self).__init__('variant_calling', jira, version, args, storages, run_options, **kwargs)
         self.run_options = run_options
-        self.out_dir = os.path.join(jira, "results", self.analysis_type)
+        self.out_dir = os.path.join(jira, "results", self.analysis_type, args['sample_id'])
 
     # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
     split_size = 10000000
@@ -1417,7 +1417,7 @@ class BreakpointCallingAnalysis(Analysis):
     def __init__(self, jira, version, args, storages, run_options, **kwargs):
         super(BreakpointCallingAnalysis, self).__init__('breakpoint_calling', jira, version, args, storages, run_options, **kwargs)
         self.run_options = run_options
-        self.out_dir = os.path.join(jira, "results", self.analysis_type)
+        self.out_dir = os.path.join(jira, "results", self.analysis_type, args['sample_id'])
 
     def search_input_datasets(self, args):
         tumour_dataset = tantalus_api.get(
