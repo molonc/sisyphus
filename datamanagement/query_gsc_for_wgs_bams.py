@@ -797,10 +797,11 @@ def size_match_cloud_txshah(blob_client, txshah_ip, username, cloud_container, f
 @click.argument('to_storage', nargs=1)
 @click.option('--cache_storage')
 @click.option('--cache_folder_name')
+@click.option('--file_list', nargs=1)
 @click.option('--delete_cache', is_flag=True)
 @click.option('--id_type', type=click.Choice(['sample', 'library']))
 @click.option('--skip_older_than')
-@click.option('--blob_status_logging_csv')
+@click.option('--transfer_status_logging_csv')
 @click.option('--tag_name')
 @click.option('--update', is_flag=True)
 @click.option('--skip_file_import', is_flag=True)
@@ -822,15 +823,16 @@ def main(**kwargs):
         skip_older_than:    (string) skip bams older than this date
         tag_name:           (string) tag name to associate the resulting sequence datasets
                             with when importing into tantalus
-        blob_status_logging_csv (string) the log csv file to record the file transferring status
+        transfer_status_logging_csv (string) the log csv file to record the file transferring status
         update:             (flag) specifies whether metadata in tantalus is
                             to be updated or not
         skip_file_import:   (flag) import only new lanes into tantalus
         query_only:         (flag) only query for the bam paths on the GSC
     """
-    with open("/ssd/sda1/qfliu/ov133_list.txt", "r") as f:
-        lines = f.readlines()
-    files = [i.strip('\n') for i in lines]
+    if kwargs["file_list"]:
+        with open(kwargs["file_list"], "r") as f:
+            lines = f.readlines()
+        files = [i.strip('\n') for i in lines]
     username = os.environ["SERVER_USER"]
     # Check if this script is being run on thost
     # If not, connect to an ssh client to access /projects/files
@@ -877,7 +879,7 @@ def main(**kwargs):
         for detail in details:
             # Rename the bams according to internal templates
             dest_bam_paths = rename_bam_paths(detail, to_storage, sftp)
-            if dest_bam_paths['source_bam_path'] not in files:
+            if kwargs["file_list"] and (dest_bam_paths['source_bam_path'] not in files):
                 logging.info("The file {} is not in the file list, skip.".format(dest_bam_paths['source_bam_path']))
                 continue
             logging.info("The file {} is in the file list, continue processing.".format(dest_bam_paths['source_bam_path']))
@@ -895,7 +897,7 @@ def main(**kwargs):
             if not kwargs["skip_file_import"]:
                 if to_storage["storage_type"] == "blob":
                     username = os.environ["SERVER_USER"]
-                    output_csv = kwargs["blob_status_logging_csv"]
+                    output_csv = kwargs["transfer_status_logging_csv"]
                     create_record(output_csv, detail, cache_bam_paths["tantalus_bam_name"], cache_bam_paths["source_bam_path"])
                     blob_client = tantalus_api.get_storage_client(to_storage["name"])
                     block_blob_service = blob_client.blob_service
@@ -930,7 +932,7 @@ def main(**kwargs):
                         logging.info("The file {} already exists on blob and file sizes match, skip caching.".format(cache_bam_paths["tantalus_bam_name"]))
                         update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "uploaded_onto_cloud", "TRUE")
                 else:
-                    output_csv = kwargs["blob_status_logging_csv"]
+                    output_csv = kwargs["transfer_status_logging_csv"]
                     create_record(output_csv, detail, dest_bam_paths["tantalus_bam_name"], dest_bam_paths["source_bam_path"])
                     if not os.path.exists(dest_bam_paths["tantalus_bam_path"]):
                         logging.info("The bam file {} does not exists, start transferring the file.".format(dest_bam_paths["tantalus_bam_path"]))
