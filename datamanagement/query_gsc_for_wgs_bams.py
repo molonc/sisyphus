@@ -831,6 +831,7 @@ def main(**kwargs):
     with open("/ssd/sda1/qfliu/ov133_list.txt", "r") as f:
         lines = f.readlines()
     files = [i.strip('\n') for i in lines]
+    username = os.environ["SERVER_USER"]
     # Check if this script is being run on thost
     # If not, connect to an ssh client to access /projects/files
     if socket.gethostname() != "txshah":
@@ -886,7 +887,7 @@ def main(**kwargs):
                 #print(cache_bam_paths, dest_bam_paths)
             # If the bam path does not exist at the source, skip
             # the transfer and import
-            if not cache_bam_paths["source_bam_path"]:
+            if to_storage["storage_type"] == "blob" and not cache_bam_paths["source_bam_path"]:
                 break
             # Skip import if we only wanted to query for paths
             if kwargs["query_only"]:
@@ -929,6 +930,7 @@ def main(**kwargs):
                         logging.info("The file {} already exists on blob and file sizes match, skip caching.".format(cache_bam_paths["tantalus_bam_name"]))
                         update_record(output_csv, cache_bam_paths["tantalus_bam_name"], "uploaded_onto_cloud", "TRUE")
                 else:
+                    output_csv = kwargs["blob_status_logging_csv"]
                     create_record(output_csv, detail, dest_bam_paths["tantalus_bam_name"], dest_bam_paths["source_bam_path"])
                     if not os.path.exists(dest_bam_paths["tantalus_bam_path"]):
                         logging.info("The bam file {} does not exists, start transferring the file.".format(dest_bam_paths["tantalus_bam_path"]))
@@ -939,7 +941,7 @@ def main(**kwargs):
                             transfer_gsc_bams(detail, dest_bam_paths, to_storage, sftp)
                         else:
                             logging.info("The bam file already exists in the destination directory, skip transferring the file.")
-                    update_record(output_csv, dest_bam_paths["tantalus_bam_name"], "transferred_onto_shahlab", "TRUE")
+                    update_record(output_csv, dest_bam_paths["tantalus_bam_name"], "transferred_into_cache_directory", "TRUE")
                 # Add the files to Tantalus
                 #TODO: check if the file resources if already on tantalus, if not, then add it, else, skip it
                 logging.info("Importing {} to Tantalus".format(dest_bam_paths["tantalus_bam_path"]))

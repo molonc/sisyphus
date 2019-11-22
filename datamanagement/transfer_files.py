@@ -12,7 +12,7 @@ import time
 import traceback
 from azure.storage.blob import BlockBlobService, ContainerPermissions
 from datamanagement.utils.constants import LOGGING_FORMAT
-from dbclients.tantalus import TantalusApi, NotFoundError
+from dbclients.tantalus import TantalusApi, NotFoundError, DataNotOnStorageError
 from datamanagement.utils.utils import make_dirs
 import click
 
@@ -472,10 +472,16 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
     to_storage = tantalus_api.get("storage", name=to_storage_name)
     from_storage = tantalus_api.get("storage", name=from_storage_name)
 
+    try:
+        file_instances = tantalus_api.get_dataset_file_instances(dataset_id, dataset_model, from_storage_name)
+    except DataNotOnStorageError:
+        from_storage_name_set = set(["singlecellblob", "singlecellresults"])
+        from_storage_name_set.remove(from_storage_name)
+        from_storage_name = list(from_storage_name_set)[0]
+        from_storage = tantalus_api.get("storage", name=from_storage_name)
+        file_instances = tantalus_api.get_dataset_file_instances(dataset_id, dataset_model, from_storage_name)
+    
     f_transfer = get_file_transfer_function(tantalus_api, from_storage, to_storage)
-
-    file_instances = tantalus_api.get_dataset_file_instances(dataset_id, dataset_model, from_storage_name)
-
     for file_instance in file_instances:
         file_resource = file_instance["file_resource"]
 
@@ -486,21 +492,25 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
             other_file_instance = None
 
         if other_file_instance is not None and not other_file_instance['is_deleted']:
-            logging.info(
-                "skipping file resource {} that already exists on storage {}".format(
-                    file_resource["filename"], to_storage["name"]
+            logging.info("The file resource {} already exists on storage {}, checking if sizes match.".format(file_resource["filename"],to_storage["name"]))
+            local_size = os.path.getsize(other_file_instance["filepath"])
+            local_exists = os.path.exists(other_file_instance["filepath"])
+            if (local_size == other_file_instance["file_resource"]["size"]) and local_exists:  
+                logging.info(
+                    "skipping file resource {} that already exists on storage {} with the correct file size.".format(
+                        file_resource["filename"], to_storage["name"]
+                    )
                 )
-            )
-            continue
+           
+                continue
 
         overwrite = (other_file_instance is not None and other_file_instance['is_deleted'])
-
         logging.info(
             "starting transfer {} to {}".format(
                 file_resource["filename"], to_storage["name"]))
 
         _transfer_files_with_retry(f_transfer, file_instance, overwrite=overwrite)
-
+ 
         tantalus_api.add_instance(file_resource, to_storage)
 
 
