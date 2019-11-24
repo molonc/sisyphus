@@ -140,7 +140,7 @@ def start_automation(
         raise Exception("pipeline failed")
 
     output_dataset_ids = log_utils.sentinel(
-        'Creating output datasets',
+        'Creating {} output datasets'.format(analysis_name),
         analysis.create_output_datasets,
         update=run_options['update'],
     )
@@ -150,7 +150,7 @@ def start_automation(
         analysis.create_output_results,
         update=run_options['update'],
         skip_missing=run_options['skip_missing'],
-        analysis_name=analysis_name,
+        analysis_type=analysis_name,
     )
 
     if storages["working_inputs"] != storages["remote_inputs"] and output_dataset_ids != []:
