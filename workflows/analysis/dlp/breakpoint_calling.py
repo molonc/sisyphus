@@ -15,8 +15,9 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
         super(BreakpointCallingAnalysis, self).__init__('breakpoint_calling', jira, version, args, storages, run_options, **kwargs)
         self.out_dir = os.path.join(jira, "results", self.analysis_type, 'sample_{}'.format(args['sample_id']))
 
-    def search_input_datasets(self, analysis_type, jira, version, args):
-        tumour_dataset = self.tantalus_api.get(
+    @classmethod
+    def search_input_datasets(cls, tantalus_api, analysis_type, jira, version, args):
+        tumour_dataset = tantalus_api.get(
             'sequencedataset',
             dataset_type='BAM',
             analysis__jira_ticket=jira,
@@ -35,7 +36,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             raise Exception('unknown aligner')
 
         # TODO: this could also work for normals that are cells
-        normal_dataset = self.tantalus_api.get(
+        normal_dataset = tantalus_api.get(
             'sequencedataset',
             dataset_type='BAM',
             sample__sample_id=args['normal_sample_id'],
@@ -47,8 +48,9 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
         return [tumour_dataset['id'], normal_dataset['id']]
 
-    def search_input_results(self, analysis_type, jira, version, args):
-        results = self.tantalus_api.get(
+    @classmethod
+    def search_input_results(cls, tantalus_api, analysis_type, jira, version, args):
+        results = tantalus_api.get(
             'resultsdataset',
             analysis__jira_ticket=jira,
             libraries__library_id=args['library_id'],
@@ -57,10 +59,11 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
         return [results["id"]]
 
-    def generate_unique_name(self, analysis_type, jira, version, args, input_datasets, input_results):
+    @classmethod
+    def generate_unique_name(cls, tantalus_api, analysis_type, jira, version, args, input_datasets, input_results):
         assert len(input_datasets) == 2
         for dataset_id in input_datasets:
-            dataset = self.get_dataset(dataset_id)
+            dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
             if dataset['sample']['sample_id'] == args['sample_id']:
                 tumour_dataset = dataset
 
@@ -83,7 +86,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
         input_info = {}
 
         for dataset_id in self.analysis['input_datasets']:
-            dataset = self.get_dataset(dataset_id)
+            dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
 
             if dataset['sample']['sample_id'] == self.args['normal_sample_id']:
                 assert 'normal' not in input_info

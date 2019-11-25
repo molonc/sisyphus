@@ -17,8 +17,9 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
         # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
         self.split_size = 10000000
 
-    def search_input_datasets(self, analysis_type, jira, version, args):
-        dataset = self.tantalus_api.get(
+    @classmethod
+    def search_input_datasets(cls, tantalus_api, analysis_type, jira, version, args):
+        dataset = tantalus_api.get(
             "sequencedataset",
             sample__sample_id=args["sample_id"],
             library__library_id=args["library_id"],
@@ -30,8 +31,9 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
 
         return [dataset["id"]]
 
-    def generate_unique_name(self, analysis_type, jira, version, args, input_datasets, input_results):
-        lanes_hashed = get_datasets_lanes_hash(self.tantalus_api, input_datasets)
+    @classmethod
+    def generate_unique_name(cls, tantalus_api, analysis_type, jira, version, args, input_datasets, input_results):
+        lanes_hashed = get_datasets_lanes_hash(tantalus_api, input_datasets)
 
         name = templates.SC_QC_ANALYSIS_NAME_TEMPLATE.format(
             analysis_type=analysis_type,
@@ -97,8 +99,7 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
         Create the set of output sequence datasets produced by this analysis.
         """
         assert len(self.analysis['input_datasets']) == 1
-        input_dataset = self.get_dataset(self.analysis['input_datasets'][0])
-
+        input_dataset = self.tantalus_api.get('sequence_dataset', id=self.analysis['input_datasets'][0])
         storage_client = self.tantalus_api.get_storage_client(self.storages["working_inputs"])
         metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))

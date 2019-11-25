@@ -14,16 +14,17 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
         self.out_dir = os.path.join(jira, "results", self.analysis_type, 'sample_{}'.format(args['sample_id']))
 
     # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
-    split_size = 10000000
+    region_split_length = 10000000
 
-    def search_input_datasets(self, analysis_type, jira, version, args):
-        tumour_dataset = self.tantalus_api.get(
+    @classmethod
+    def search_input_datasets(cls, tantalus_api, analysis_type, jira, version, args):
+        tumour_dataset = tantalus_api.get(
             'sequencedataset',
             dataset_type='BAM',
             analysis__jira_ticket=jira,
             library__library_id=args['library_id'],
             sample__sample_id=args['sample_id'],
-            region_split_length=self.split_size,
+            region_split_length=cls.region_split_length,
         )
 
         # TODO: kludge related to the fact that aligner are equivalent between minor versions
@@ -35,22 +36,23 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
         else:
             raise Exception('unknown aligner')
 
-        normal_dataset = self.tantalus_api.get(
+        normal_dataset = tantalus_api.get(
             'sequencedataset',
             dataset_type='BAM',
             sample__sample_id=args['normal_sample_id'],
             library__library_id=args['normal_library_id'],
             aligner__name__startswith=aligner_name,
             reference_genome__name=tumour_dataset['reference_genome'],
-            region_split_length=self.split_size,
+            region_split_length=cls.region_split_length,
         )
 
         return [tumour_dataset['id'], normal_dataset['id']]
 
-    def generate_unique_name(self, analysis_type, jira, version, args, input_datasets, input_results):
+    @classmethod
+    def generate_unique_name(cls, tantalus_api, analysis_type, jira, version, args, input_datasets, input_results):
         assert len(input_datasets) == 2
         for dataset_id in input_datasets:
-            dataset = self.get_dataset(dataset_id)
+            dataset = tantalus_api.get('sequencedataset', id=dataset_id)
             if dataset['sample']['sample_id'] == args['sample_id']:
                 tumour_dataset = dataset
 
@@ -71,7 +73,7 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
         input_info = {}
 
         for dataset_id in self.analysis['input_datasets']:
-            dataset = self.get_dataset(dataset_id)
+            dataset = self.tantalus_api.get('sequencedataset', id=dataset_id)
 
             storage_client = self.tantalus_api.get_storage_client(self.storages['working_inputs'])
 

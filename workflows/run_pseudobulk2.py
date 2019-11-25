@@ -66,15 +66,15 @@ def start_automation(
     start = time.time()
 
     if analysis_name == 'split_wgs_bam':
-        analysis_type = workflows.analysis.dlp.split_wgs_bam.SplitWGSBamAnalysis
+        create_from_args = workflows.analysis.dlp.split_wgs_bam.SplitWGSBamAnalysis.create_from_args
     elif analysis_name == 'merge_cell_bams':
-        analysis_type = workflows.analysis.dlp.merge_cell_bams.MergeCellBamsAnalysis
+        create_from_args = workflows.analysis.dlp.merge_cell_bams.MergeCellBamsAnalysis.create_from_args
     elif analysis_name == 'variant_calling':
-        analysis_type = workflows.analysis.dlp.variant_calling.VariantCallingAnalysis
+        create_from_args = workflows.analysis.dlp.variant_calling.VariantCallingAnalysis.create_from_args
     elif analysis_name == 'breakpoint_calling':
-        analysis_type = workflows.analysis.dlp.breakpoint_calling.BreakpointCallingAnalysis
+        create_from_args = workflows.analysis.dlp.breakpoint_calling.BreakpointCallingAnalysis.create_from_args
 
-    analysis = analysis_type(
+    analysis = create_from_args(
         jira_id,
         version,
         args,

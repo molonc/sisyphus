@@ -8,19 +8,26 @@ class Analysis:
     """
     A class representing an Analysis model in Tantalus.
     """
-    def __init__(self, analysis_type, jira, version, args, storages, run_options, update=False):
+    def __init__(self, tantalus_api, analysis, storages, run_options, update=False):
         """
         Create an Analysis object in Tantalus.
         """
-        self.tantalus_api = dbclients.tantalus.TantalusApi()
-
+        self.tantalus_api = tantalus_api
+        self.analysis = analysis
         if storages is None:
             raise Exception("no storages specified for Analysis")
         self.storages = storages
-
         self.run_options = run_options
 
-        self.analysis = self.get_or_create_analysis(analysis_type, jira, version, args, update=update)
+    @classmethod
+    def get_from_id(cls, tantalus_api, id, storages, run_options, update=False):
+        analysis = tantalus_api.get('analysis', id=id)
+        cls(tantalus_api, analysis, storages, run_options, update=update)
+
+    @classmethod
+    def create_from_args(cls, tantalus_api, analysis_type, jira, version, args, storages, run_options, update=False):
+        analysis = cls.get_or_create_analysis(analysis_type, jira, version, args)
+        cls(tantalus_api, analysis, storages, run_options, update=update)
 
     @property
     def analysis_type(self):
@@ -46,19 +53,37 @@ class Analysis:
     def status(self):
         return self.analysis['status']
 
-    def generate_unique_name(self, analysis_type, jira, version, args, input_datasets, input_results):
+    @classmethod
+    def search_input_datasets(cls, tantalus_api, analysis_type, jira, version, args):
+        """
+        Get the list of input datasets required to run this analysis.
+        """
+
+        return []
+
+    @classmethod
+    def search_input_results(cls, tantalus_api, analysis_type, jira, version, args):
+        """
+        Get the list of input results required to run this analysis.
+        """
+        return []
+
+    @classmethod
+    def generate_unique_name(cls, tantalus_api, analysis_type, jira, version, args, input_datasets, input_results):
         raise NotImplementedError()
 
-    def get_or_create_analysis(self, analysis_type, jira, version, args, update=False):
+    @classmethod
+    def get_or_create_analysis(cls, tantalus_api, analysis_type, jira, version, args, update=False):
         """
         Get the analysis by querying Tantalus. Create the analysis
         if it doesn't exist. Set the input dataset ids.
         """
 
-        input_datasets = self.search_input_datasets(analysis_type, jira, version, args)
-        input_results = self.search_input_results(analysis_type, jira, version, args)
+        input_datasets = cls.search_input_datasets(tantalus_api, analysis_type, jira, version, args)
+        input_results = cls.search_input_results(tantalus_api, analysis_type, jira, version, args)
 
-        name = self.generate_unique_name(
+        name = cls.generate_unique_name(
+            tantalus_api,
             analysis_type,
             jira,
             version,
@@ -79,20 +104,10 @@ class Analysis:
 
         keys = ['name']
 
-        analysis = self.tantalus_api.create(
+        analysis = tantalus_api.create(
             'analysis', fields, keys, get_existing=True, do_update=update)
 
         return analysis
-
-    def get_input_datasets(self):
-        """ Get input dataset ids
-        """
-        return self.analysis['input_datasets']
-
-    def get_input_results(self):
-        """ Get input results ids
-        """
-        return self.analysis['input_results']
 
     def add_inputs_yaml(self, inputs_yaml, update=False):
         """
@@ -109,17 +124,12 @@ class Analysis:
 
         self.tantalus_api.update('analysis', id=self.get_id(), logs=[file_resource['id']])
 
-    def get_dataset(self, dataset_id):
+    def set_ready_status(self):
         """
-        Get a dataset by id.
+        Set run status of analysis to running.
         """
-        return self.tantalus_api.get('sequence_dataset', id=dataset_id)
-
-    def get_results(self, results_id):
-        """
-        Get a results by id.
-        """
-        return self.tantalus_api.get('results', id=results_id)
+        self.update_status('ready')
+        self.update_last_updated()
 
     def set_run_status(self):
         """
@@ -166,19 +176,6 @@ class Analysis:
     def get_id(self):
         return self.analysis['id']
 
-    def search_input_datasets(self, analysis_type, jira, version, args):
-        """
-        Get the list of input datasets required to run this analysis.
-        """
-
-        return []
-
-    def search_input_results(self, analysis_type, jira, version, args):
-        """
-        Get the list of input results required to run this analysis.
-        """
-        return []
-
     def create_output_datasets(self, update=False):
         """
         Create the set of output sequence datasets produced by this analysis.
@@ -198,7 +195,7 @@ class Analysis:
         """
         input_samples = set()
         for dataset_id in self.analysis['input_datasets']:
-            dataset = self.get_dataset(dataset_id)
+            dataset = self.tantalus_api.get('sequencedataset', id=dataset_id)
             input_samples.add(dataset['sample']['id'])
         return list(input_samples)
 
@@ -209,7 +206,7 @@ class Analysis:
         """
         input_libraries = set()
         for dataset_id in self.analysis['input_datasets']:
-            dataset = self.get_dataset(dataset_id)
+            dataset = self.tantalus_api.get('sequencedataset', id=dataset_id)
             input_libraries.add(dataset['library']['id'])
         return list(input_libraries)
 
