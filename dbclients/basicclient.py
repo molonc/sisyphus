@@ -22,6 +22,10 @@ class NotFoundError(Exception):
     pass
 
 
+class ExistsError(Exception):
+    pass
+
+
 class FieldMismatchError(Exception):
     pass
 
@@ -92,6 +96,24 @@ class BasicAPIClient(object):
         try:
             next(list_results)
             raise Exception("more than 1 object for {}, {}".format(table_name, fields))
+        except StopIteration:
+            pass
+
+        return result
+
+    def get2(self, table_name, filters):
+        """ Check if a resource exists and if so return it. """
+
+        list_results = self.filter(table_name, filters)
+
+        try:
+            result = next(list_results)
+        except StopIteration:
+            raise NotFoundError("no object for {}, {}".format(table_name, filters))
+
+        try:
+            next(list_results)
+            raise Exception("more than 1 object for {}, {}".format(table_name, filters))
         except StopIteration:
             pass
 
@@ -248,12 +270,99 @@ class BasicAPIClient(object):
             # Set up for the next page
             self.get_list_pagination_next_page_params(get_params)
 
-    def create(self, table_name, **fields):
-        """ Create the resource and return it. """
+    def create(self, table_name, fields, keys, get_existing=False, do_update=False):
+        """ Create the resource and return it.
+        
+        Args:
+            table_name (str): name of the table
+            fields (dict): field names and values for new record
+            keys (list): fields to act as primary keys
 
-        return self.coreapi_client.action(
-            self.coreapi_schema, [table_name, "create"], params=fields
-        )
+        Kwargs:
+            get_existing (bool): get existing if possible
+            update (bool): update existing if necessary
+
+        First try to create the new record.  On failure if requested,
+        subset the fields to those with filters and attempt to get the
+        single existing record.  If the existing record is diffrent update
+        if requested.
+        """
+
+        filters = {a: fields[a] for a in keys}
+
+        try:
+            result = self.get2(table_name, filters)
+        except NotFoundError:
+            result = None
+
+        # Existing result not expected, raise
+        if result is not None and not get_existing:
+            raise ExistsError(f'existing record in {table_name} with id {result["id"]}')
+
+        # No existing record found, attempt create
+        if result is None:
+            return self.coreapi_client.action(
+                self.coreapi_schema, [table_name, "create"], params=fields)
+
+        # Record exists, check equality
+        is_equal = True
+        for field_name, field_value in fields.items():
+            if field_name not in result:
+                raise Exception(
+                    "field {} not in {}".format(field_name, table_name)
+                )
+
+            result_field = result[field_name]
+
+            # Response has nested foreign key relationship
+            try:
+                result_field = result[field_name]["id"]
+            except (TypeError, KeyError):
+                pass
+
+            # Response has nested many to many
+            many = False
+            try:
+                result_field = [a["id"] for a in result[field_name]]
+                many = True
+            except TypeError:
+                pass
+
+            # Response is non nested many to many
+            try:
+                result_field = [a+0 for a in result[field_name]]
+                many = True
+            except TypeError:
+                pass
+
+            # Response is a timestamp
+            try:
+                if result[field_name] and isinstance(result[field_name], str):
+                    result_field = pd.Timestamp(result[field_name])
+                    field_value = pd.Timestamp(field_value)
+            except (ValueError, TypeError):
+                pass
+
+            if many:
+                result_field = set(result_field)
+                field_value = set(field_value)
+
+            if result_field != field_value:
+                is_equal = False
+
+                if not do_update:
+                    raise FieldMismatchError(
+                        "field {} mismatches for model {}, set to {} not {}".format(
+                            field_name, result["id"], result_field, field_value
+                        )
+                    )
+
+        # If not equal, update
+        if not is_equal:
+            assert do_update
+            result = self.update(table_name, id=result['id'], **fields)
+
+        return result
 
     def get_or_create(self, table_name, **fields):
         """ Check if a resource exists in and if so return it.
