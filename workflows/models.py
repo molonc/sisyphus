@@ -2122,19 +2122,12 @@ class Results:
             'libraries': self.libraries,
         }
 
-        if results is not None:
-            log.info('Found existing results {}'.format(self.name))
-            if update:
-                log.info("Updating {} ".format(self.name))
-                tantalus_api.update('results', results["id"], **data)
+        keys = [
+            'name',
+            'results_type',
+        ]
 
-            results = tantalus_api.get("results", name=self.name)
-
-        else:
-            log.info('Creating results {}'.format(self.name))
-
-            # TODO: created timestamp for results
-            results = tantalus_api.create('results', **data)
+        results = tantalus_api.create('results', data, keys, get_existing=True, do_update=update)
 
         return results
 
