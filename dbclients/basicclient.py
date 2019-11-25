@@ -352,8 +352,8 @@ class BasicAPIClient(object):
 
                 if not do_update:
                     raise FieldMismatchError(
-                        "field {} mismatches for model {}, set to {} not {}".format(
-                            field_name, result["id"], result_field, field_value
+                        "field {} mismatches for {} model {}, set to {} not {}".format(
+                            field_name, table_name, result["id"], result_field, field_value
                         )
                     )
 

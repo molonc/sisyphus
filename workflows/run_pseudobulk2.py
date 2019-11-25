@@ -12,7 +12,10 @@ from jira import JIRA
 
 import workflows.launch_pipeline
 import workflows.generate_inputs
-import workflows.models
+import workflows.analysis.dlp.split_wgs_bam
+import workflows.analysis.dlp.merge_cell_bams
+import workflows.analysis.dlp.variant_calling
+import workflows.analysis.dlp.breakpoint_calling
 
 import datamanagement.templates as templates
 from datamanagement.transfer_files import transfer_dataset
@@ -63,13 +66,13 @@ def start_automation(
     start = time.time()
 
     if analysis_name == 'split_wgs_bam':
-        analysis_type = workflows.models.SplitWGSBamAnalysis
+        analysis_type = workflows.analysis.dlp.split_wgs_bam.SplitWGSBamAnalysis
     elif analysis_name == 'merge_cell_bams':
-        analysis_type = workflows.models.MergeCellBamsAnalysis
+        analysis_type = workflows.analysis.dlp.merge_cell_bams.MergeCellBamsAnalysis
     elif analysis_name == 'variant_calling':
-        analysis_type = workflows.models.VariantCallingAnalysis
+        analysis_type = workflows.analysis.dlp.variant_calling.VariantCallingAnalysis
     elif analysis_name == 'breakpoint_calling':
-        analysis_type = workflows.models.BreakpointCallingAnalysis
+        analysis_type = workflows.analysis.dlp.breakpoint_calling.BreakpointCallingAnalysis
 
     analysis = analysis_type(
         jira_id,
