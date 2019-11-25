@@ -180,55 +180,21 @@ class Analysis(object):
 
         name = self.generate_unique_name(jira, version, args, input_datasets, input_results)
 
-        log.info('Searching for existing analysis {}'.format(name))
+        fields = {
+            'name': name,
+            'analysis_type': self.analysis_type,
+            'jira_ticket': jira,
+            'args': args,
+            'status': 'idle',
+            'input_datasets': input_datasets,
+            'input_results': input_results,
+            'version': version,
+        }
 
-        try:
-            analysis = tantalus_api.get('analysis', name=name, jira_ticket=jira)
-        except NotFoundError:
-            analysis = None
+        keys = ['name', 'analysis_type', 'jira_ticket']
 
-        if analysis is not None:
-            log.info('Found existing analysis {}'.format(name))
-
-            updated = False
-
-            fields_to_check = {
-                'args': (args, lambda a, b: a != b),
-                'version': (version, lambda a, b: a != b),
-                'input_datasets': (input_datasets, lambda a, b: set(a) != set(b)),
-                'input_results': (input_results, lambda a, b: set(a) != set(b)),
-            }
-
-            for field_name, (new_data, f_check) in fields_to_check.items():
-                if f_check(analysis[field_name], new_data):
-                    if update:
-                        tantalus_api.update('analysis', id=analysis['id'], **{field_name: new_data})
-                        updated = True
-                        log.info('{} for analysis {} changed, previously {}, now {}'.format(
-                            field_name, name, analysis[field_name], new_data))
-                    else:
-                        log.warning('{} for analysis {} have changed, previously {}, now {}'.format(
-                            field_name, name, analysis[field_name], new_data))
-
-            if updated:
-                analysis = tantalus_api.get('analysis', name=name, jira_ticket=jira)
-
-        else:
-            log.info('Creating analysis {}'.format(name))
-
-            data = {
-                'name': name,
-                'jira_ticket': jira,
-                'args': args,
-                'status': 'idle',
-                'input_datasets': input_datasets,
-                'input_results': input_results,
-                'version': version,
-                'analysis_type': self.analysis_type,
-            }
-
-            # TODO: created timestamp for analysis
-            analysis = tantalus_api.create('analysis', **data)
+        analysis = tantalus_api.create(
+            'analysis', fields, keys, get_existing=True, do_update=update)
 
         return analysis
 
