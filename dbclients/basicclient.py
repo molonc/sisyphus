@@ -79,8 +79,6 @@ class BasicAPIClient(object):
                     log.error("Failed all retry attempts")
                     raise
 
-
-
     def get(self, table_name, **fields):
         """ Check if a resource exists and if so return it. """
 
@@ -100,7 +98,7 @@ class BasicAPIClient(object):
         return result
 
     def get_list_pagination_initial_params(self, params):
-        """Get initial pagination parameters specific to this API.
+        """ Get initial pagination parameters specific to this API.
 
         For example, offset and limit for offset/limit pagination.
 
@@ -110,7 +108,7 @@ class BasicAPIClient(object):
         params["page"] = 1
 
     def get_list_pagination_next_page_params(self, params):
-        """Get next page pagination parameters specific to this API.
+        """ Get next page pagination parameters specific to this API.
 
         For example, offset and limit for offset/limit pagination.
 
@@ -118,6 +116,41 @@ class BasicAPIClient(object):
             params: A dict which is changed in place.
         """
         params["page"] += 1
+
+    def filter(self, table_name, filters):
+        """ List resources in from endpoint with given filter fields.
+
+        Args:
+            table_name (str): the name of the table to query
+            filters (dict): the name and value to filter by
+        """
+        list_field_names = set()
+        for field in self.coreapi_schema[table_name]["list"].fields:
+            list_field_names.add(field.name)
+
+        get_params = {}
+        for field_name in filters:
+            if field_name in self.pagination_param_names:
+                raise Exception(f'pagination param {field_name} not permitted in filters')
+            if field_name not in list_field_names:
+                raise Exception(f'unsupported filter field {field_name}')
+            get_params[field_name] = filters[field_name]
+
+        # Add in pagination params
+        self.get_list_pagination_initial_params(get_params)
+
+        while True:
+            list_results = self.coreapi_client.action(
+                self.coreapi_schema, [table_name, "list"], params=get_params)
+
+            for result in list_results["results"]:
+                yield result
+
+            if list_results.get("next") is None:
+                break
+
+            # Set up for the next page
+            self.get_list_pagination_next_page_params(get_params)
 
     def list(self, table_name, **fields):
         """ List resources in from endpoint with given filter fields. """
@@ -234,7 +267,6 @@ class BasicAPIClient(object):
         return self.coreapi_client.action(
             self.coreapi_schema, [table_name, "create"], params=fields
         )
-
 
     @staticmethod
     def join_urls(*pieces):
