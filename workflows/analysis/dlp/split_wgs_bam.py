@@ -1,6 +1,8 @@
 import os
 import yaml
 import logging
+import click
+import pandas as pd
 
 import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
@@ -147,3 +149,57 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
 
 
 workflows.analysis.base.Analysis.register_analysis(SplitWGSBamAnalysis)
+
+
+def create_analysis(jira_id, version, args):
+    analysis = SplitWGSBamAnalysis.create_from_args(jira_id, version, args)
+    logging.info(f'created analysis {analysis["id"]}')
+
+    if analysis.status.lower() in ('error', 'unknown'):
+        analysis.set_ready_status()
+
+    else:
+        logging.warning(f'analysis {analysis["id"]} has status {analysis.status}')
+
+
+@click.group()
+def analysis():
+    pass
+
+
+@analysis.command()
+@click.argument('jira_id')
+@click.argument('version')
+@click.argument('sample_id')
+@click.argument('library_id')
+@click.argument('aligner')
+@click.argument('ref_genome')
+def create_single_analysis(jira_id, version, sample_id, library_id, aligner, ref_genome):
+    args = {}
+    args['sample_id'] = sample_id
+    args['library_id'] = library_id
+    args['aligner'] = aligner
+    args['ref_genome'] = ref_genome
+
+    create_analysis(jira_id, version, args)
+
+
+@analysis.command()
+@click.argument('jira_id')
+@click.argument('version')
+@click.argument('info_table')
+def create_multiple_analyses(jira_id, version, info_table):
+    info = pd.read_csv(info_table)
+
+    for idx, row in info:
+        args = {}
+        args['sample_id'] = row['sample_id']
+        args['library_id'] = row['library_id']
+        args['aligner'] = row['aligner']
+        args['ref_genome'] = row['ref_genome']
+
+        create_analysis(jira_id, version, args)
+
+
+if __name__ == '__main__':
+    analysis()

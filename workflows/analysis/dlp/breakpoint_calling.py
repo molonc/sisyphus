@@ -1,5 +1,8 @@
 import os
 import yaml
+import logging
+import click
+import pandas as pd
 
 import dbclients.colossus
 import workflows.analysis.base
@@ -189,3 +192,56 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
 workflows.analysis.base.Analysis.register_analysis(BreakpointCallingAnalysis)
 
+
+def create_analysis(jira_id, version, args):
+    analysis = BreakpointCallingAnalysis.create_from_args(jira_id, version, args)
+    logging.info(f'created analysis {analysis["id"]}')
+
+    if analysis.status.lower() in ('error', 'unknown'):
+        analysis.set_ready_status()
+
+    else:
+        logging.warning(f'analysis {analysis["id"]} has status {analysis.status}')
+
+
+@click.group()
+def analysis():
+    pass
+
+
+@analysis.command()
+@click.argument('jira_id')
+@click.argument('version')
+@click.argument('sample_id')
+@click.argument('library_id')
+@click.argument('normal_sample_id')
+@click.argument('normal_library_id')
+def create_single_analysis(jira_id, version, sample_id, library_id, normal_sample_id, normal_library_id):
+    args = {}
+    args['sample_id'] = sample_id
+    args['library_id'] = library_id
+    args['normal_sample_id'] = normal_sample_id
+    args['normal_library_id'] = normal_library_id
+
+    create_analysis(jira_id, version, args)
+
+
+@analysis.command()
+@click.argument('jira_id')
+@click.argument('version')
+@click.argument('info_table')
+def create_multiple_analyses(jira_id, version, info_table):
+    info = pd.read_csv(info_table)
+
+    for idx, row in info:
+        args = {}
+        args['sample_id'] = row['sample_id']
+        args['library_id'] = row['library_id']
+        args['normal_sample_id'] = row['normal_sample_id']
+        args['normal_library_id'] = row['normal_library_id']
+
+        create_analysis(jira_id, version, args)
+
+
+if __name__ == '__main__':
+    analysis()

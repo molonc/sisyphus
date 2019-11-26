@@ -204,7 +204,7 @@ def analysis():
 @click.argument('version')
 @click.argument('sample_id')
 @click.argument('library_id')
-def create_single_analysis(jira_id, version, sample_id, library_id):
+def create_single_analysis(jira_id, version, sample_id, library_id, aligner, ref_genome):
     args = {}
     args['sample_id'] = sample_id
     args['library_id'] = library_id
