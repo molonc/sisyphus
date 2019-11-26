@@ -232,7 +232,7 @@ def create_single_analysis(jira_id, version, sample_id, library_id, normal_sampl
 def create_multiple_analyses(version, info_table):
     info = pd.read_csv(info_table)
 
-    for idx, row in info:
+    for idx, row in info.items():
         jira_id = row['jira_id']
 
         args = {}
