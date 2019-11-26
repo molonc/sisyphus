@@ -185,14 +185,17 @@ workflows.analysis.base.Analysis.register_analysis(MergeCellBamsAnalysis)
 
 
 def create_analysis(jira_id, version, args):
-    analysis = MergeCellBamsAnalysis.create_from_args(jira_id, version, args)
-    logging.info(f'created analysis {analysis["id"]}')
+    tantalus_api = dbclients.tantalus.TantalusApi()
+
+    analysis = MergeCellBamsAnalysis.create_from_args(tantalus_api, jira_id, version, args)
+
+    logging.info(f'created analysis {analysis.get_id()}')
 
     if analysis.status.lower() in ('error', 'unknown'):
         analysis.set_ready_status()
 
     else:
-        logging.warning(f'analysis {analysis["id"]} has status {analysis.status}')
+        logging.warning(f'analysis {analysis.get_id()} has status {analysis.status}')
 
 
 @click.group()
@@ -205,7 +208,7 @@ def analysis():
 @click.argument('version')
 @click.argument('sample_id')
 @click.argument('library_id')
-def create_single_analysis(jira_id, version, sample_id, library_id, aligner, ref_genome):
+def create_single_analysis(jira_id, version, sample_id, library_id):
     args = {}
     args['sample_id'] = sample_id
     args['library_id'] = library_id
@@ -219,14 +222,17 @@ def create_single_analysis(jira_id, version, sample_id, library_id, aligner, ref
 def create_multiple_analyses(version, info_table):
     info = pd.read_csv(info_table)
 
-    for idx, row in info.items():
+    for idx, row in info.iterrows():
         jira_id = row['jira_id']
 
         args = {}
         args['sample_id'] = row['sample_id']
         args['library_id'] = row['library_id']
 
-        create_analysis(jira_id, version, args)
+        try:
+            create_analysis(jira_id, version, args)
+        except:
+            logging.exception(f'create analysis failed for {jira_id}')
 
 
 if __name__ == '__main__':
