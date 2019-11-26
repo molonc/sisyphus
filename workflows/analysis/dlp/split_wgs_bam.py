@@ -10,9 +10,11 @@ import workflows.analysis.dlp.results_import as results_import
 
 
 class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
-    def __init__(self, jira, version, args, storages, run_options, **kwargs):
-        super(SplitWGSBamAnalysis, self).__init__('split_wgs_bam', jira, version, args, storages, run_options, **kwargs)
-        self.bams_dir = os.path.join(jira, "results", self.analysis_type)
+    analysis_type_ = 'split_wgs_bam'
+
+    def __init__(self, *args, **kwargs):
+        super(SplitWGSBamAnalysis, self).__init__(*args, **kwargs)
+        self.bams_dir = os.path.join(self.jira, "results", self.analysis_type)
 
         # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
         self.split_size = 10000000
@@ -45,12 +47,12 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
 
         return name
 
-    def generate_inputs_yaml(self, inputs_yaml_filename):
+    def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         assert len(self.analysis['input_datasets']) == 1
 
         dataset_id = self.analysis['input_datasets'][0]
         file_instances = self.tantalus_api.get_dataset_file_instances(
-            dataset_id, 'sequencedataset', self.storages['working_inputs'],
+            dataset_id, 'sequencedataset', storages['working_inputs'],
             filters={'filename__endswith': '.bam'})
 
         input_info = {'normal': {}}
@@ -69,18 +71,20 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
             docker_env_file,
             docker_server,
             dirs,
+            run_options,
+            storages,
         ):
-        storage_client = self.tantalus_api.get_storage_client(self.storages["working_inputs"])
+        storage_client = self.tantalus_api.get_storage_client(storages["working_inputs"])
         bams_path = os.path.join(storage_client.prefix, self.bams_dir)
 
-        if self.run_options["skip_pipeline"]:
+        if run_options["skip_pipeline"]:
             return workflows.analysis.dlp.launchsc.run_pipeline2()
 
         else:
             return workflows.analysis.dlp.launchsc.run_pipeline(
                 analysis_type='split_wgs_bam',
                 version=self.version,
-                run_options=self.run_options,
+                run_options=run_options,
                 scpipeline_dir=scpipeline_dir,
                 tmp_dir=tmp_dir,
                 inputs_yaml=inputs_yaml,
@@ -100,7 +104,7 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
         """
         assert len(self.analysis['input_datasets']) == 1
         input_dataset = self.tantalus_api.get('sequence_dataset', id=self.analysis['input_datasets'][0])
-        storage_client = self.tantalus_api.get_storage_client(self.storages["working_inputs"])
+        storage_client = self.tantalus_api.get_storage_client(storages["working_inputs"])
         metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
 
@@ -120,7 +124,7 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
             filepath = os.path.join(
                 storage_client.prefix, self.bams_dir, filename)
             file_resource, file_instance = self.tantalus_api.add_file(
-                self.storages["working_inputs"], filepath, update=update)
+                storages["working_inputs"], filepath, update=update)
             file_resources.append(file_resource["id"])
 
         output_dataset = self.tantalus_api.get_or_create(
@@ -142,3 +146,4 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
         return [output_dataset]
 
 
+workflows.analysis.base.Analysis.register_analysis(SplitWGSBamAnalysis)

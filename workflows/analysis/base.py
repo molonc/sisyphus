@@ -8,26 +8,31 @@ class Analysis:
     """
     A class representing an Analysis model in Tantalus.
     """
-    def __init__(self, tantalus_api, analysis, storages, run_options, update=False):
+    def __init__(self, tantalus_api, analysis):
         """
         Create an Analysis object in Tantalus.
         """
         self.tantalus_api = tantalus_api
         self.analysis = analysis
-        if storages is None:
-            raise Exception("no storages specified for Analysis")
-        self.storages = storages
-        self.run_options = run_options
+
+    analysis_classes = {}
 
     @classmethod
-    def get_from_id(cls, tantalus_api, id, storages, run_options, update=False):
-        analysis = tantalus_api.get('analysis', id=id)
-        cls(tantalus_api, analysis, storages, run_options, update=update)
+    def register_analysis(cls, analysis)
+        analysis_classes[analysis.analysis_type_] = analysis
 
     @classmethod
-    def create_from_args(cls, tantalus_api, analysis_type, jira, version, args, storages, run_options, update=False):
-        analysis = cls.get_or_create_analysis(analysis_type, jira, version, args)
-        cls(tantalus_api, analysis, storages, run_options, update=update)
+    def get_by_id(cls, tantalus_api, id):
+        tantalus_analysis = tantalus_api.get('analysis', id=id)
+        analysis_class = analysis_classes[tantalus_analysis['analysis_type']]
+        analysis_class(tantalus_api, analysis)
+
+    @classmethod
+    def create_from_args(cls, tantalus_api, jira, version, args, update=False):
+        analysis_type = cls.analysis_type_
+        analysis = cls.get_or_create_analysis(analysis_type, jira, version, args, update=update)
+        analysis_class = analysis_classes[tantalus_analysis['analysis_type']]
+        analysis_class(tantalus_api, analysis)
 
     @property
     def analysis_type(self):
@@ -54,7 +59,7 @@ class Analysis:
         return self.analysis['status']
 
     @classmethod
-    def search_input_datasets(cls, tantalus_api, analysis_type, jira, version, args):
+    def search_input_datasets(cls, tantalus_api, jira, version, args):
         """
         Get the list of input datasets required to run this analysis.
         """
@@ -62,22 +67,24 @@ class Analysis:
         return []
 
     @classmethod
-    def search_input_results(cls, tantalus_api, analysis_type, jira, version, args):
+    def search_input_results(cls, tantalus_api, jira, version, args):
         """
         Get the list of input results required to run this analysis.
         """
         return []
 
     @classmethod
-    def generate_unique_name(cls, tantalus_api, analysis_type, jira, version, args, input_datasets, input_results):
+    def generate_unique_name(cls, tantalus_api, jira, version, args, input_datasets, input_results):
         raise NotImplementedError()
 
     @classmethod
-    def get_or_create_analysis(cls, tantalus_api, analysis_type, jira, version, args, update=False):
+    def get_or_create_analysis(cls, tantalus_api, jira, version, args, update=False):
         """
         Get the analysis by querying Tantalus. Create the analysis
         if it doesn't exist. Set the input dataset ids.
         """
+
+        analysis_type = cls.analysis_type_
 
         input_datasets = cls.search_input_datasets(tantalus_api, analysis_type, jira, version, args)
         input_results = cls.search_input_results(tantalus_api, analysis_type, jira, version, args)
@@ -109,7 +116,10 @@ class Analysis:
 
         return analysis
 
-    def add_inputs_yaml(self, inputs_yaml, update=False):
+    def generate_inputs_yaml(self, storages, inputs_yaml_filename):
+        raise NotImplementedError()
+
+    def add_inputs_yaml(self, storages, inputs_yaml, update=False):
         """
         Add the inputs yaml to the logs field of the analysis.
         """
@@ -117,7 +127,7 @@ class Analysis:
         logging.info('Adding inputs yaml file {} to {}'.format(inputs_yaml, self.name))
 
         file_resource, file_instance = self.tantalus_api.add_file(
-            storage_name=self.storages['local_results'],
+            storage_name=storages['local_results'],
             filepath=inputs_yaml,
             update=update,
         )
@@ -176,13 +186,13 @@ class Analysis:
     def get_id(self):
         return self.analysis['id']
 
-    def create_output_datasets(self, update=False):
+    def create_output_datasets(self, storages, update=False):
         """
         Create the set of output sequence datasets produced by this analysis.
         """
         return []
 
-    def create_output_results(self, update=False, skip_missing=False):
+    def create_output_results(self, storages, update=False, skip_missing=False):
         """
         Create the set of output results produced by this analysis.
         """

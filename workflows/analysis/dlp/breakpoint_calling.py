@@ -11,12 +11,14 @@ import workflows.analysis.dlp.results_import as results_import
 
 
 class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
-    def __init__(self, jira, version, args, storages, run_options, **kwargs):
-        super(BreakpointCallingAnalysis, self).__init__('breakpoint_calling', jira, version, args, storages, run_options, **kwargs)
-        self.out_dir = os.path.join(jira, "results", self.analysis_type, 'sample_{}'.format(args['sample_id']))
+    analysis_type_ = 'breakpoint_calling'
+
+    def __init__(self, *args, **kwargs):
+        super(BreakpointCallingAnalysis, self).__init__(*args, **kwargs)
+        self.out_dir = os.path.join(self.jira, "results", self.analysis_type, 'sample_{}'.format(self.args['sample_id']))
 
     @classmethod
-    def search_input_datasets(cls, tantalus_api, analysis_type, jira, version, args):
+    def search_input_datasets(cls, tantalus_api, jira, version, args):
         tumour_dataset = tantalus_api.get(
             'sequencedataset',
             dataset_type='BAM',
@@ -49,7 +51,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
         return [tumour_dataset['id'], normal_dataset['id']]
 
     @classmethod
-    def search_input_results(cls, tantalus_api, analysis_type, jira, version, args):
+    def search_input_results(cls, tantalus_api, jira, version, args):
         results = tantalus_api.get(
             'resultsdataset',
             analysis__jira_ticket=jira,
@@ -60,7 +62,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
         return [results["id"]]
 
     @classmethod
-    def generate_unique_name(cls, tantalus_api, analysis_type, jira, version, args, input_datasets, input_results):
+    def generate_unique_name(cls, tantalus_api, jira, version, args, input_datasets, input_results):
         assert len(input_datasets) == 2
         for dataset_id in input_datasets:
             dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
@@ -68,7 +70,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                 tumour_dataset = dataset
 
         name = templates.SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE.format(
-            analysis_type=analysis_type,
+            analysis_type=cls.analysis_type_,
             aligner=tumour_dataset['aligner'],
             ref_genome=tumour_dataset['reference_genome'],
             library_id=tumour_dataset['library']['library_id'],
@@ -78,7 +80,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
         return name
 
-    def generate_inputs_yaml(self, inputs_yaml_filename):
+    def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         assert len(self.analysis['input_datasets']) == 2
 
         colossus_api = dbclients.colossus.ColossusApi()
@@ -93,7 +95,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                 input_info['normal'] = {}
 
                 file_instances = self.tantalus_api.get_dataset_file_instances(
-                    dataset_id, 'sequencedataset', self.storages['working_inputs'],
+                    dataset_id, 'sequencedataset', storages['working_inputs'],
                     filters={'filename__endswith': '.bam'})
 
                 assert len(file_instances) == 1
@@ -108,10 +110,10 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                 assert len(self.analysis['input_results']) == 1
                 cell_ids = preprocessing.get_passed_cell_ids(
                     self.analysis['input_results'][0],
-                    self.storages['working_results'])
+                    storages['working_results'])
 
                 file_instances = self.tantalus_api.get_dataset_file_instances(
-                    dataset_id, 'sequencedataset', self.storages['working_inputs'],
+                    dataset_id, 'sequencedataset', storages['working_inputs'],
                     filters={'filename__endswith': '.bam'})
 
                 for file_instance in file_instances:
@@ -138,18 +140,20 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             docker_env_file,
             docker_server,
             dirs,
+            run_options,
+            storages,
         ):
-        storage_client = self.tantalus_api.get_storage_client(self.storages["working_results"])
+        storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         out_path = os.path.join(storage_client.prefix, self.out_dir)
 
-        if self.run_options["skip_pipeline"]:
+        if run_options["skip_pipeline"]:
             return workflows.analysis.dlp.launchsc.run_pipeline2()
 
         else:
             return workflows.analysis.dlp.launchsc.run_pipeline(
                 analysis_type='breakpoint_calling',
                 version=self.version,
-                run_options=self.run_options,
+                run_options=run_options,
                 scpipeline_dir=scpipeline_dir,
                 tmp_dir=tmp_dir,
                 inputs_yaml=inputs_yaml,
@@ -163,7 +167,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                 dirs=dirs,
             )
 
-    def create_output_results(self, update=False, skip_missing=False):
+    def create_output_results(self, storages, update=False, skip_missing=False):
         """
         Create the set of output results produced by this analysis.
         """
@@ -174,11 +178,14 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             '{}_{}'.format(self.jira, self.analysis_type),
             self.get_input_samples(),
             self.get_input_libraries(),
-            self.storages['working_results'],
+            storages['working_results'],
             update=False,
             skip_missing=False,
             analysis_type=None,
         )
 
         return [results['id']]
+
+
+workflows.analysis.base.Analysis.register_analysis(BreakpointCallingAnalysis)
 

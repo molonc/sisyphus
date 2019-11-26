@@ -1,6 +1,7 @@
 import os
 import yaml
 import logging
+import click
 import pandas as pd
 
 import dbclients.colossus
@@ -12,9 +13,11 @@ import workflows.analysis.dlp.preprocessing as preprocessing
 
 
 class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
-    def __init__(self, jira, version, args, storages, run_options, **kwargs):
-        super(MergeCellBamsAnalysis, self).__init__('merge_cell_bams', jira, version, args, storages, run_options, **kwargs)
-        self.bams_dir = os.path.join(jira, "results", self.analysis_type)
+    analysis_type_ = 'merge_cell_bams'
+
+    def __init__(self, *args, **kwargs):
+        super(MergeCellBamsAnalysis, self).__init__(*args, **kwargs)
+        self.bams_dir = os.path.join(self.jira, "results", self.analysis_type)
 
         # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
         self.split_size = 10000000
@@ -58,21 +61,21 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
         return name
 
-    def generate_inputs_yaml(self, inputs_yaml_filename):
+    def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         assert len(self.analysis['input_datasets']) == 1
 
         colossus_api = dbclients.colossus.ColossusApi()
 
         dataset_id = self.analysis['input_datasets'][0]
         file_instances = self.tantalus_api.get_dataset_file_instances(
-            dataset_id, 'sequencedataset', self.storages['working_inputs'],
+            dataset_id, 'sequencedataset', storages['working_inputs'],
             filters={'filename__endswith': '.bam'})
 
         assert len(self.analysis['input_results']) == 1
         cell_ids = preprocessing.get_passed_cell_ids(
             self.tantalus_api,
             self.analysis['input_results'][0],
-            self.storages['working_results'])
+            storages['working_results'])
 
         index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
 
@@ -101,18 +104,20 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
             docker_env_file,
             docker_server,
             dirs,
+            run_options,
+            storages,
         ):
-        storage_client = self.tantalus_api.get_storage_client(self.storages["working_inputs"])
+        storage_client = self.tantalus_api.get_storage_client(storages["working_inputs"])
         bams_path = os.path.join(storage_client.prefix, self.bams_dir)
 
-        if self.run_options["skip_pipeline"]:
+        if run_options["skip_pipeline"]:
             return workflows.analysis.dlp.launchsc.run_pipeline2()
 
         else:
             return workflows.analysis.dlp.launchsc.run_pipeline(
                 analysis_type='merge_cell_bams',
                 version=self.version,
-                run_options=self.run_options,
+                run_options=run_options,
                 scpipeline_dir=scpipeline_dir,
                 tmp_dir=tmp_dir,
                 inputs_yaml=inputs_yaml,
@@ -126,14 +131,14 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
                 dirs=dirs,
             )
 
-    def create_output_datasets(self, update=False):
+    def create_output_datasets(self, storages, update=False):
         """
         Create the set of output sequence datasets produced by this analysis.
         """
         assert len(self.analysis['input_datasets']) == 1
         input_dataset = self.tantalus_api.get('sequence_dataset', id=self.analysis['input_datasets'][0])
 
-        storage_client = self.tantalus_api.get_storage_client(self.storages["working_inputs"])
+        storage_client = self.tantalus_api.get_storage_client(storages["working_inputs"])
         metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
 
@@ -153,7 +158,7 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
             filepath = os.path.join(
                 storage_client.prefix, self.bams_dir, filename)
             file_resource, file_instance = self.tantalus_api.add_file(
-                self.storages["working_inputs"], filepath, update=update)
+                storages["working_inputs"], filepath, update=update)
             file_resources.append(file_resource["id"])
 
         output_dataset = self.tantalus_api.get_or_create(
@@ -175,3 +180,52 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
         return [output_dataset]
 
 
+workflows.analysis.base.Analysis.register_analysis(MergeCellBamsAnalysis)
+
+
+def create_analysis(jira_id, version, args):
+    analysis = MergeCellBamsAnalysis.create_from_args(jira_id, version, args)
+    logging.info(f'created analysis {analysis["id"]}')
+
+    if analysis.status.lower() in ('error', 'unknown'):
+        analysis.set_ready_status()
+
+    else:
+        logging.warning(f'analysis {analysis["id"]} has status {analysis.status}')
+
+
+@click.group()
+def analysis():
+    pass
+
+
+@analysis.command()
+@click.argument('jira_id')
+@click.argument('version')
+@click.argument('sample_id')
+@click.argument('library_id')
+def create_single_analysis(jira_id, version, sample_id, library_id):
+    args = {}
+    args['sample_id'] = sample_id
+    args['library_id'] = library_id
+
+    create_analysis(jira_id, version, args)
+
+
+@analysis.command()
+@click.argument('jira_id')
+@click.argument('version')
+@click.argument('info_table')
+def create_multiple_analyses(jira_id, version, info_table):
+    info = pd.read_csv(info_table)
+
+    for idx, row in info:
+        args = {}
+        args['sample_id'] = row['sample_id']
+        args['library_id'] = row['library_id']
+
+        create_analysis(jira_id, version, args)
+
+
+if __name__ == '__main__':
+    analysis()

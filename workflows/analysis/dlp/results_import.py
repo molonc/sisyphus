@@ -13,7 +13,6 @@ def create_dlp_results(
         storage_name,
         update=False,
         skip_missing=False,
-        analysis_type=None,
     ):
     logging.info('Searching for existing results {}'.format(name))
     storage_client = tantalus_api.get_storage_client(storage_name)

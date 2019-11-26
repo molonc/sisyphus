@@ -78,8 +78,6 @@ def start_automation(
         jira_id,
         version,
         args,
-        storages,
-        run_options,
         update=run_options['update'],
     )
 
@@ -100,6 +98,7 @@ def start_automation(
         log_utils.sentinel(
             'Generating inputs yaml',
             analysis.generate_inputs_yaml,
+            storages,
             inputs_yaml,
         )
     else:
@@ -136,6 +135,8 @@ def start_automation(
             docker_env_file=config['docker_env_file'],
             docker_server=config['docker_server'],
             dirs=dirs,
+            storages=storages,
+            run_options=run_options,
         )
 
     except Exception:
@@ -145,15 +146,16 @@ def start_automation(
     output_dataset_ids = log_utils.sentinel(
         'Creating {} output datasets'.format(analysis_name),
         analysis.create_output_datasets,
+        storages,
         update=run_options['update'],
     )
 
     output_results_ids = log_utils.sentinel(
         'Creating {} output results'.format(analysis_name),
         analysis.create_output_results,
+        storages,
         update=run_options['update'],
         skip_missing=run_options['skip_missing'],
-        analysis_type=analysis_name,
     )
 
     if storages["working_inputs"] != storages["remote_inputs"] and output_dataset_ids != []:
