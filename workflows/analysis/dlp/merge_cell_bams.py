@@ -214,13 +214,14 @@ def create_single_analysis(jira_id, version, sample_id, library_id, aligner, ref
 
 
 @analysis.command()
-@click.argument('jira_id')
 @click.argument('version')
 @click.argument('info_table')
-def create_multiple_analyses(jira_id, version, info_table):
+def create_multiple_analyses(version, info_table):
     info = pd.read_csv(info_table)
 
     for idx, row in info:
+        jira_id = row['jira_id']
+
         args = {}
         args['sample_id'] = row['sample_id']
         args['library_id'] = row['library_id']
