@@ -30,6 +30,7 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
             library__library_id=args['library_id'],
             sample__sample_id=args['sample_id'],
             dataset_type='BAM',
+            region_split_length=None,
         )
 
         return [dataset["id"]]

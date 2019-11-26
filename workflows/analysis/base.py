@@ -44,7 +44,7 @@ class Analysis:
 
     @property
     def jira(self):
-        return self.analysis['jira']
+        return self.analysis['jira_ticket']
 
     @property
     def version(self):
