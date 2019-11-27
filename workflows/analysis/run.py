@@ -74,7 +74,7 @@ def main(
     if config_filename is None:
         config_filename = default_config
 
-    analysis = workflows.analysis.base.Analysis.get_by_id(tantalus_api, id)
+    analysis = workflows.analysis.base.Analysis.get_by_id(tantalus_api, analysis_id)
 
     jira_id = analysis.jira
     analysis_name = analysis.name
