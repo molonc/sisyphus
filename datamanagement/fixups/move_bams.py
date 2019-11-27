@@ -4,6 +4,17 @@ from workflows.utils.tantalus_utils import get_flowcell_lane
 
 tantalus_api = TantalusApi()
 
+
+def get_lane_number(analysis):
+    lanes = dict()
+    for dataset_id in analysis['input_datasets']:
+        dataset = tantalus_api.get("sequencedataset", id=dataset_id)
+        for lane in dataset['sequence_lanes']:
+            lane_id = get_flowcell_lane(lane)
+            lanes[lane_id] = lane
+    return len(lanes)
+
+
 SC_WGS_BAM_DIR_TEMPLATE = os.path.join(
     'single_cell_indexing',
     'bam',
@@ -24,17 +35,6 @@ from_storage_name = "singlecellresults"
 to_storage_name = "singlecellblob"
 from_storage_client = tantalus_api.get_storage_client(from_storage_name)
 to_storage_client = tantalus_api.get_storage_client(to_storage_name)
-
-
-def get_lane_number(analysis):
-    lanes = dict()
-    for dataset_id in analysis['input_datasets']:
-        dataset = tantalus_api.get("sequencedataset", id=dataset_id)
-        for lane in dataset['sequence_lanes']:
-            lane_id = get_flowcell_lane(lane)
-            lanes[lane_id] = lane
-    return len(lanes)
-
 
 # Get all completed align analyses ran with specific version
 # the bams associated to these analyses are in the wrong storage account
@@ -62,6 +62,8 @@ for analysis in analyses_list:
             "sequencedataset",
             from_storage_name,
         )
+
+        update_file_resources_ids = []
         # for each bam dataset, get the filenames in the dataset and create the new blob name
         for file_instance in file_instances:
             blobname = file_instance["file_resource"]["filename"]
@@ -82,13 +84,24 @@ for analysis in analyses_list:
             )
 
             # copy blob to desired storage account with new blobname
-            print(f"copying {from_storage_client.prefix}/{blobname} to {to_storage_client.prefix}/{new_blobname}")
+            blob_filepath = f"{to_storage_client.prefix}/{new_blobname}"
+            print(f"copying {from_storage_client.prefix}/{blobname} to {blob_filepath}")
             to_storage_client.blob_service.copy_blob(
                 container_name="data",
                 blob_name=new_blobname,
                 copy_source=blob_url,
             )
 
-        # TODO: collect file resource ids,
-        # update bam dataset with new file resources
-        # and delete bams from results storage account
+            # TODO: collect file resource ids,
+            # update bam dataset with new file resources
+            # and delete bams from results storage account
+
+            file_resource, _ = tantalus_api.add_file(to_storage_name, blob_filepath)
+            update_file_resources_ids += file_resource["id"]
+
+            # delete blob from storage and file instance from tantalus
+            from_storage_client.delete(file_instance["filepath"])
+            tantalus_api.delete("file_instance", id=file_instance["id"])
+
+        # update bam dataset with newly tracked file resources
+        tantalus_api.update("sequencedataset", id=dataset["id"], file_resources=update_file_resources_ids)
