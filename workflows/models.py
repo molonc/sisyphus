@@ -629,18 +629,22 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
         return lanes
 
     def get_bams_dir(self, jira, args):
+        storage = tantalus_api.get_storage(self.storages["working_datasets"])
+        storage_prefix = storage["prefix"]
         reference_genome_map = {
             'HG19': 'grch37',
             'MM10': 'mm10',
         }
         lanes = self.get_lanes()
-        return templates.SC_WGS_BAM_DIR_TEMPLATE.format(
+        bams_dir = templates.SC_WGS_BAM_DIR_TEMPLATE.format(
             library_id=args["library_id"],
-            ref_genome=reference_genome_map[args["ref_genome"]], # this should be grch37 or mm10
+            ref_genome=reference_genome_map[args["ref_genome"]],
             aligner_name=args["aligner"],
             number_lanes=len(lanes),
             jira_ticket=jira,
         )
+
+        return os.path.join(storage_prefix, bams_dir)
 
 
     def create_output_datasets(self, tag_name=None, update=False):
