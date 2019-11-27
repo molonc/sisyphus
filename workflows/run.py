@@ -128,7 +128,6 @@ def start_automation(
         run_options,
         config,
         pipeline_dir,
-        results_dir,
         scpipeline_dir,
         tmp_dir,
         storages,
@@ -220,7 +219,6 @@ def start_automation(
         log_utils.sentinel(
             'Running single_cell qc',
             run_pipeline,
-            results_dir=results_dir,
             analysis_type=analysis_type,
             scpipeline_dir=scpipeline_dir,
             tmp_dir=tmp_dir,
@@ -373,18 +371,13 @@ def main(jira,
         tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], job_subdir)
 
     # get storage account for pipeline output results
-    working_results_storage = config["storages"]["working_results"]
-    storage_result_prefix = tantalus_api.get_storage_client(working_results_storage).prefix
-
-    # get storage account for pipeline output datasets
-    working_datasets_storage = config["storages"]["working_datasets"]
-    results_storage_prefix = tantalus_api.get_storage_client(working_datasets_storage).prefix
-
-    results_dir = os.path.join(results_storage_prefix, job_subdir)
-    scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', job_subdir)
-    tmp_dir = os.path.join('singlecelltemp', 'temp', job_subdir)
+    results_storage = config["storages"]["working_results"]
+    results_storage_prefix = tantalus_api.get_storage_client(results_storage).prefix
 
     output_dir = os.path.join(results_storage_prefix, jira, "results", analysis_type)
+
+    scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', job_subdir)
+    tmp_dir = os.path.join('singlecelltemp', 'temp', job_subdir)
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
 
     log_file = log_utils.init_log_files(pipeline_dir)
@@ -414,7 +407,6 @@ def main(jira,
         run_options,
         config,
         pipeline_dir,
-        results_dir,
         scpipeline_dir,
         tmp_dir,
         config['storages'],

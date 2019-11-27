@@ -81,7 +81,6 @@ def run_pipeline2(*args, **kwargs):
 
 
 def run_pipeline(
-        results_dir,
         analysis_type,
         scpipeline_dir,
         tmp_dir,
