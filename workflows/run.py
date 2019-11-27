@@ -136,7 +136,6 @@ def start_automation(
         analysis_info,
         analysis_type,
         output_dir,
-        bams_dir=None,
 ):
     start = time.time()
 
@@ -170,14 +169,17 @@ def start_automation(
     else:
         raise Exception(f"{analysis_type} is not a valid analysis type")
 
-    if storages["working_inputs"] != storages["remote_inputs"]:
+    if storages["working_datasets"] != storages["remote_datasets"]:
         log_utils.sentinel(
-            'Transferring input datasets from {} to {}'.format(storages["remote_inputs"], storages["working_inputs"]),
+            'Transferring input datasets from {} to {}'.format(
+                storages["remote_datasets"],
+                storages["working_datasets"],
+            ),
             transfer_inputs,
             tantalus_analysis.get_input_datasets(),
             tantalus_analysis.get_input_results(),
-            storages["remote_inputs"],
-            storages["working_inputs"],
+            storages["remote_datasets"],
+            storages["working_datasets"],
         )
 
     if run_options['inputs_yaml'] is None:
@@ -231,7 +233,6 @@ def start_automation(
             docker_server=config['docker_server'],
             output_dir=output_dir,
             dirs=dirs,
-            bams_dir=bams_dir,
         )
 
     except Exception:
@@ -267,14 +268,17 @@ def start_automation(
         analysis_type=analysis_type,
     )
 
-    if storages["working_inputs"] != storages["remote_inputs"] and output_dataset_ids != []:
+    if storages["working_datasets"] != storages["remote_datasets"] and output_dataset_ids != []:
         log_utils.sentinel(
-            'Transferring input datasets from {} to {}'.format(storages["working_inputs"], storages["remote_inputs"]),
+            'Transferring input datasets from {} to {}'.format(
+                storages["working_datasets"],
+                storages["remote_datasets"],
+            ),
             transfer_inputs,
             output_dataset_ids,
             output_results_ids,
-            storages["remote_inputs"],
-            storages["working_inputs"],
+            storages["remote_datasets"],
+            storages["working_datasets"],
         )
 
     # Update Jira ticket
@@ -342,7 +346,10 @@ def main(jira,
     if not templates.JIRA_ID_RE.match(jira):
         raise Exception(f'Invalid SC ID: {jira}')
 
-    aligner_map = {'A': 'BWA_ALN_0_5_7', 'M': 'BWA_MEM_0_7_6A'}
+    aligner_map = {
+        'A': 'BWA_ALN_0_5_7',
+        'M': 'BWA_MEM_0_7_6A',
+    }
 
     aligner = aligner_map[aligner]
 
@@ -365,17 +372,20 @@ def main(jira,
     pipeline_dir = os.path.join(
         tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], job_subdir)
 
-    results_dir = os.path.join('singlecellresults', 'results', job_subdir)
+    # get storage account for pipeline output results
+    working_results_storage = config["storages"]["working_results"]
+    storage_result_prefix = tantalus_api.get_storage_client(working_results_storage).prefix
+
+    # get storage account for pipeline output datasets
+    working_datasets_storage = config["storages"]["working_datasets"]
+    results_storage_prefix = tantalus_api.get_storage_client(working_datasets_storage).prefix
+
+    results_dir = os.path.join(results_storage_prefix, job_subdir)
     scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', job_subdir)
     tmp_dir = os.path.join('singlecelltemp', 'temp', job_subdir)
 
-    storage_result_prefix = tantalus_api.get_storage_client("singlecellresults").prefix
-    output_dir = os.path.join(storage_result_prefix, jira, "results", analysis_type)
+    output_dir = os.path.join(results_storage_prefix, jira, "results", analysis_type)
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
-
-    bams_dir = None
-    if analysis_type == "align":
-        bams_dir = os.path.join(storage_result_prefix, jira, "results", "bams")
 
     log_file = log_utils.init_log_files(pipeline_dir)
     log_utils.setup_sentinel(run_options['sisyphus_interactive'], os.path.join(pipeline_dir, analysis_type))
@@ -412,7 +422,6 @@ def main(jira,
         analysis_info,
         analysis_type,
         output_dir,
-        bams_dir=bams_dir,
     )
 
 

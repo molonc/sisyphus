@@ -424,6 +424,13 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
     def __init__(self, jira, version, args, run_options, **kwargs):
         super(AlignAnalysis, self).__init__('align', jira, version, args, **kwargs)
         self.run_options = run_options
+        self.bams_dir = templates.SC_WGS_BAM_DIR_TEMPLATE.format(
+            library_id=args["library_id"],
+            ref_genome=args["ref_genome"],
+            aligner_name=args["aligner"],
+            numlanes=1, # temp hardcode: need to get from input datasets
+            jira_ticket=jira,
+        )
 
     @staticmethod
     def search_input_datasets(args):
@@ -608,7 +615,7 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
             storage_name: Which tantalus storage to look at
         """
 
-        input_info = self._generate_cell_metadata(self.storages['working_inputs'])
+        input_info = self._generate_cell_metadata(self.storages['working_datasets'])
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
@@ -628,12 +635,12 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
         return lanes
 
     def create_output_datasets(self, tag_name=None, update=False):
-        storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
-        metadata_yaml_path = os.path.join(self.jira, "results", "bams", "metadata.yaml")
+        storage_client = tantalus_api.get_storage_client(self.storages["working_datasets"])
+        metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
 
         sample_info = generate_sample_info(self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
-        cell_metadata = self._generate_cell_metadata(self.storages['working_inputs'])
+        cell_metadata = self._generate_cell_metadata(self.storages['working_datasets'])
         sequence_lanes = []
 
         for lane_id, lane in self.get_lanes().items():
@@ -893,7 +900,7 @@ class PseudoBulkAnalysis(Analysis):
         normal_library_type = None
 
         for dataset_id in self.analysis['input_datasets']:
-            storage_name = self.storages['working_inputs']
+            storage_name = self.storages['working_datasets']
             dataset = self.get_dataset(dataset_id)
 
             library_id = dataset['library']['library_id']

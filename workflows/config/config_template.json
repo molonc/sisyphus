@@ -3,10 +3,10 @@
     "email": "jpham@bccrc.ca",
     "storages": {
         "local_results": "jphamvm",
-        "working_inputs": "singlecellblob",
+        "working_datasets": "singlecellblob",
         "working_results": "singlecellresults",
         "remote_results": "singlecellresults",
-        "remote_inputs": "singlecellblob"
+        "remote_datasets": "singlecellblob"
     },
     "context_config_file": {
         "saltant": "/path/to/content_config.yaml/on/saltant/repo/",
@@ -16,5 +16,5 @@
     "user": "jpham",
     "docker_sock_path": "/var/run/docker.sock",
     "docker_path": "/usr/bin/docker",
-    "docker_server": "scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline",
+    "docker_server": "scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline"
 }
