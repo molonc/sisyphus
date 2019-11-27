@@ -424,13 +424,7 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
     def __init__(self, jira, version, args, run_options, **kwargs):
         super(AlignAnalysis, self).__init__('align', jira, version, args, **kwargs)
         self.run_options = run_options
-        self.bams_dir = templates.SC_WGS_BAM_DIR_TEMPLATE.format(
-            library_id=args["library_id"],
-            ref_genome=args["ref_genome"],
-            aligner_name=args["aligner"],
-            numlanes=1, # temp hardcode: need to get from input datasets
-            jira_ticket=jira,
-        )
+        self.bams_dir = self.get_bams_dir(jira, args)
 
     @staticmethod
     def search_input_datasets(args):
@@ -633,6 +627,21 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
                 lane_id = tantalus_utils.get_flowcell_lane(lane)
                 lanes[lane_id] = lane
         return lanes
+
+    def get_bams_dir(self, jira, args):
+        reference_genome_map = {
+            'HG19': 'grch37',
+            'MM10': 'mm10',
+        }
+        lanes = self.get_lanes()
+        return templates.SC_WGS_BAM_DIR_TEMPLATE.format(
+            library_id=args["library_id"],
+            ref_genome=reference_genome_map[args["ref_genome"]], # this should be grch37 or mm10
+            aligner_name=args["aligner"],
+            number_lanes=len(lanes),
+            jira_ticket=jira,
+        )
+
 
     def create_output_datasets(self, tag_name=None, update=False):
         storage_client = tantalus_api.get_storage_client(self.storages["working_datasets"])
