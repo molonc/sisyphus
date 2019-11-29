@@ -5,16 +5,6 @@ from workflows.utils.tantalus_utils import get_flowcell_lane
 tantalus_api = TantalusApi()
 
 
-def get_lane_number(analysis):
-    lanes = dict()
-    for dataset_id in analysis['input_datasets']:
-        dataset = tantalus_api.get("sequencedataset", id=dataset_id)
-        for lane in dataset['sequence_lanes']:
-            lane_id = get_flowcell_lane(lane)
-            lanes[lane_id] = lane
-    return len(lanes)
-
-
 SC_WGS_BAM_DIR_TEMPLATE = os.path.join(
     'single_cell_indexing',
     'bam',
@@ -35,6 +25,7 @@ from_storage_name = "singlecellresults"
 to_storage_name = "singlecellblob"
 from_storage_client = tantalus_api.get_storage_client(from_storage_name)
 to_storage_client = tantalus_api.get_storage_client(to_storage_name)
+to_storage_id = tantalus_api.get('storages', name=to_storage_name)['id']
 
 # Get all completed align analyses ran with specific version
 # the bams associated to these analyses are in the wrong storage account
@@ -53,18 +44,20 @@ for analysis in analyses_list:
         analysis__jira_ticket=jira_ticket,
     )
 
-    # Get number of lanes that was analyzed for filepath
-    lane_number = get_lane_number(analysis)
-
     for dataset in bam_datasets:
+        # Get number of lanes from dataset for use with filepath
+        lanes = set()
+        for sequence_lane in dataset['sequence_lanes']:
+            lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
+            lanes.add(lane)
+        number_lanes = len(lanes)
+
         file_instances = tantalus_api.get_dataset_file_instances(
             dataset["id"],
             "sequencedataset",
             from_storage_name,
         )
 
-        update_file_resources_ids = []
-        # for each bam dataset, get the filenames in the dataset and create the new blob name
         for file_instance in file_instances:
             blobname = file_instance["file_resource"]["filename"]
 
@@ -77,7 +70,7 @@ for analysis in analyses_list:
                     library_id=dataset["library"]["library_id"],
                     ref_genome=reference_genome_map[dataset["reference_genome"]],
                     aligner_name=dataset["aligner"],
-                    number_lanes=lane_number,
+                    number_lanes=number_lanes,
                     jira_ticket=jira_ticket,
                 ),
                 bam_filename,
@@ -92,16 +85,12 @@ for analysis in analyses_list:
                 copy_source=blob_url,
             )
 
-            # TODO: collect file resource ids,
-            # update bam dataset with new file resources
-            # and delete bams from results storage account
+            tantalus_api.update(
+                'file_resource',
+                id=file_instance['file_resource']['id'],
+                filename=new_blobname)
 
-            file_resource, _ = tantalus_api.add_file(to_storage_name, blob_filepath)
-            update_file_resources_ids += file_resource["id"]
-
-            # delete blob from storage and file instance from tantalus
-            from_storage_client.delete(file_instance["filepath"])
-            tantalus_api.delete("file_instance", id=file_instance["id"])
-
-        # update bam dataset with newly tracked file resources
-        tantalus_api.update("sequencedataset", id=dataset["id"], file_resources=update_file_resources_ids)
+            tantalus_api.update(
+                'file_resource',
+                id=file_instance['id'],
+                storage=to_storage_id)
