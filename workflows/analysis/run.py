@@ -13,6 +13,10 @@ from jira import JIRA
 import workflows.launch_pipeline
 import workflows.generate_inputs
 import workflows.analysis.base
+import workflows.analysis.dlp.breakpoint_calling
+import workflows.analysis.dlp.merge_cell_bams
+import workflows.analysis.dlp.split_wgs_bam
+import workflows.analysis.dlp.variant_calling
 
 import datamanagement.templates as templates
 from datamanagement.transfer_files import transfer_dataset
@@ -47,24 +51,25 @@ def transfer_inputs(dataset_ids, results_ids, from_storage, to_storage):
         transfer_dataset(tantalus_api, results_id, 'resultsdataset', from_storage, to_storage)
 
 
-default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
+default_config = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, 'config', 'normal_config.json'))
 
 
-click.argument('analysis_id'),
-click.option('--config_filename'),
-click.option('--skip_pipeline', is_flag=True),
-click.option('--skip_missing', is_flag=True),
-click.option('--local_run', is_flag=True),
-click.option('--update', is_flag=True),
-click.option('--is_test_run', is_flag=True),
-click.option('--sc_config'),
-click.option('--inputs_yaml'),
-click.option('--clean', is_flag=True),
-click.option('--tag', type=str, default=''),
-click.option('--interactive', is_flag=True),
-click.option('--sisyphus_interactive', is_flag=True),
-click.option('--jobs', type=int, default=1000),
-click.option('--saltant', is_flag=True),
+@click.command()
+@click.argument('analysis_id', type=int)
+@click.option('--config_filename')
+@click.option('--skip_pipeline', is_flag=True)
+@click.option('--skip_missing', is_flag=True)
+@click.option('--local_run', is_flag=True)
+@click.option('--update', is_flag=True)
+@click.option('--is_test_run', is_flag=True)
+@click.option('--sc_config')
+@click.option('--inputs_yaml')
+@click.option('--clean', is_flag=True)
+@click.option('--tag', type=str, default='')
+@click.option('--interactive', is_flag=True)
+@click.option('--sisyphus_interactive', is_flag=True)
+@click.option('--jobs', type=int, default=1000)
+@click.option('--saltant', is_flag=True)
 def main(
         analysis_id,
         config_filename=None,
@@ -99,7 +104,7 @@ def main(
     log_file = log_utils.init_log_files(pipeline_dir)
     log_utils.setup_sentinel(run_options['sisyphus_interactive'], os.path.join(pipeline_dir, analysis_name))
 
-    storages = config['storages'],
+    storages = config['storages']
 
     start = time.time()
 
@@ -126,7 +131,7 @@ def main(
     else:
         inputs_yaml = run_options['inputs_yaml']
 
-    analysis.add_inputs_yaml(inputs_yaml, update=run_options['update'])
+    analysis.add_inputs_yaml(storages, inputs_yaml, update=run_options['update'])
 
     try:
         analysis.set_run_status()

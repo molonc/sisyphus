@@ -25,14 +25,13 @@ class Analysis:
     def get_by_id(cls, tantalus_api, id):
         tantalus_analysis = tantalus_api.get('analysis', id=id)
         analysis_class = cls.analysis_classes[tantalus_analysis['analysis_type']]
-        analysis_class(tantalus_api, tantalus_analysis)
+        return analysis_class(tantalus_api, tantalus_analysis)
 
     @classmethod
     def create_from_args(cls, tantalus_api, jira, version, args, update=False):
-        analysis_type = cls.analysis_type_
-        analysis = cls.get_or_create_analysis(analysis_type, jira, version, args, update=update)
-        analysis_class = cls.analysis_classes[analysis['analysis_type']]
-        analysis_class(tantalus_api, analysis)
+        tantalus_analysis = cls.get_or_create_analysis(tantalus_api, jira, version, args, update=update)
+        analysis_class = cls.analysis_classes[tantalus_analysis['analysis_type']]
+        return analysis_class(tantalus_api, tantalus_analysis)
 
     @property
     def analysis_type(self):

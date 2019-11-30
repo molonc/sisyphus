@@ -112,6 +112,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
                 assert len(self.analysis['input_results']) == 1
                 cell_ids = preprocessing.get_passed_cell_ids(
+                    self.tantalus_api,
                     self.analysis['input_results'][0],
                     storages['working_results'])
 
