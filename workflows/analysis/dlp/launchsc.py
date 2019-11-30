@@ -32,10 +32,11 @@ def run_pipeline(
         docker_env_file,
         docker_server,
         output_dirs,
-        config_override=None,
         max_jobs='400',
         dirs=(),
 ):
+    config_override = run_options.get('config_override')
+
     run_cmd = [
         f'single_cell {analysis_type}',
         '--input_yaml',
@@ -113,4 +114,9 @@ def run_pipeline(
 
     run_cmd_string = r' '.join(run_cmd)
     log.debug(run_cmd_string)
-    subprocess.check_call(run_cmd_string, shell=True)
+
+    if run_options.get("skip_pipeline"):
+        log.info('skipping pipeline on request')
+    else:
+        subprocess.check_call(run_cmd_string, shell=True)
+

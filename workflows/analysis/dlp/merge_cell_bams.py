@@ -111,26 +111,22 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
         storage_client = self.tantalus_api.get_storage_client(storages["working_inputs"])
         bams_path = os.path.join(storage_client.prefix, self.bams_dir)
 
-        if run_options["skip_pipeline"]:
-            return workflows.analysis.dlp.launchsc.run_pipeline2()
-
-        else:
-            return workflows.analysis.dlp.launchsc.run_pipeline(
-                analysis_type='merge_cell_bams',
-                version=self.version,
-                run_options=run_options,
-                scpipeline_dir=scpipeline_dir,
-                tmp_dir=tmp_dir,
-                inputs_yaml=inputs_yaml,
-                context_config_file=context_config_file,
-                docker_env_file=docker_env_file,
-                docker_server=docker_server,
-                output_dirs={
-                    'out_dir': bams_path,
-                },
-                max_jobs='400',
-                dirs=dirs,
-            )
+        return workflows.analysis.dlp.launchsc.run_pipeline(
+            analysis_type='merge_cell_bams',
+            version=self.version,
+            run_options=run_options,
+            scpipeline_dir=scpipeline_dir,
+            tmp_dir=tmp_dir,
+            inputs_yaml=inputs_yaml,
+            context_config_file=context_config_file,
+            docker_env_file=docker_env_file,
+            docker_server=docker_server,
+            output_dirs={
+                'out_dir': bams_path,
+            },
+            max_jobs='400',
+            dirs=dirs,
+        )
 
     def create_output_datasets(self, storages, update=False):
         """
