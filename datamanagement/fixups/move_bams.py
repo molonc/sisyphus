@@ -11,6 +11,8 @@ from datamanagement.utils.constants import LOGGING_FORMAT
 @click.option('--dry_run', is_flag=True, default=False)
 def fix_bams(jira_ticket=None, dry_run=False):
 
+    logging.info(f'dry run: {dry_run}')
+
     tantalus_api = TantalusApi()
 
     SC_WGS_BAM_DIR_TEMPLATE = os.path.join(
@@ -33,10 +35,10 @@ def fix_bams(jira_ticket=None, dry_run=False):
     to_storage_name = "singlecellblob"
     from_storage_client = tantalus_api.get_storage_client(from_storage_name)
     to_storage_client = tantalus_api.get_storage_client(to_storage_name)
-    to_storage_id = tantalus_api.get('storages', name=to_storage_name)['id']
+    to_storage_id = tantalus_api.get('storage', name=to_storage_name)['id']
 
     if jira_ticket is not None:
-        analyses_list.append(tantalus_api.list('analysis', jira_ticket=jira_ticket))
+        analyses_list.append(tantalus_api.get('analysis', jira_ticket=jira_ticket, analysis_type__name="align", status="complete"))
     
     else:
         # Get all completed align analyses ran with specific version
@@ -90,9 +92,7 @@ def fix_bams(jira_ticket=None, dry_run=False):
 
                 # copy blob to desired storage account with new blobname
                 blob_filepath = f"{to_storage_client.prefix}/{new_blobname}"
-                print(f"copying {from_storage_client.prefix}/{blobname} to {blob_filepath}")
-
-                logging.info(f'copying {new_blobname} to storage {to_storage_name} from {blob_url}')
+                logging.info(f'copying {new_blobname} to storage {to_storage_name} from {blob_url} to {blob_filepath}')
                 if not dry_run:
                     to_storage_client.blob_service.copy_blob(
                         container_name="data",
