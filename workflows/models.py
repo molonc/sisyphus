@@ -1507,58 +1507,11 @@ class Results:
 
         return results
 
-    def update_results(self, field):
-        field_value = vars(self)[field]
-        if self.results[field] != field_value:
-            tantalus_api.update('results', id=self.get_id(), **{field: field_value})
-
-    def get_file_resources(self, metadata_yaml=None, update=False, skip_missing=False, analysis_type=None):
-        """
-        Create file resources for each results file and return their ids.
-        """
-        file_resource_ids = set()
-        storage_client = tantalus_api.get_storage_client(self.storage_name)
-
-        if analysis_type is None:
-            results_filenames = self.tantalus_analysis.get_results_filenames()
-        elif metadata_yaml is None:
-            raise Exception("metadata yaml file was not given")
-        else:
-            metadata = yaml.safe_load(storage_client.open_file(metadata_yaml))
-            results_filenames = metadata["filenames"]
-            results_filenames = [
-                os.path.join(
-                    self.tantalus_analysis.jira,
-                    "results",
-                    self.analysis_type,
-                    filename,
-                ) for filename in results_filenames
-            ]
-
-            results_filenames += [metadata_yaml]
-
-        for result_filename in results_filenames:
-            result_filepath = os.path.join(storage_client.prefix, result_filename)
-
-            if not storage_client.exists(result_filename) and skip_missing:
-                logging.warning('skipping missing file: {}'.format(result_filename))
-                continue
-
-            file_resource, _ = tantalus_api.add_file(
-                storage_name=self.storage_name,
-                filepath=result_filepath,
-                update=update,
-            )
-
-            file_resource_ids.add(file_resource["id"])
-
-        return list(file_resource_ids)
-
     def get_id(self):
         return self.results['id']
 
 
-class TenXResults(Results):
+class TenXResults:
     """
     A class representing a Results model in Tantalus.
     """
@@ -1578,6 +1531,56 @@ class TenXResults(Results):
         self.last_updated = datetime.datetime.now().isoformat()
 
         self.results = self.get_or_create_results(update=update)
+
+    def get_or_create_results(self, update=False, skip_missing=False, analysis_type=None):
+        log.info('Searching for existing results {}'.format(self.name))
+        storage_client = tantalus_api.get_storage_client(self.storage_name)
+
+        try:
+            results = tantalus_api.get(
+                'results',
+                name=self.name,
+                results_type=self.analysis_type,
+                analysis=self.analysis,
+            )
+        except NotFoundError:
+            results = None
+
+        metadata_yaml = os.path.join(self.tantalus_analysis.jira, "results", self.analysis_type, "metadata.yaml")
+
+        self.file_resources = self.get_file_resources(
+            metadata_yaml=metadata_yaml,
+            update=update,
+            skip_missing=skip_missing,
+            analysis_type=analysis_type,
+        )
+
+        metadata = yaml.safe_load(storage_client.open_file(metadata_yaml))
+        data = {
+            'name': self.name,
+            'results_type': self.analysis_type,
+            'results_version': f"v{metadata['meta']['version']}",
+            'analysis': self.analysis,
+            'file_resources': self.file_resources,
+            'samples': self.samples,
+            'libraries': self.libraries,
+        }
+
+        if results is not None:
+            log.info('Found existing results {}'.format(self.name))
+            if update:
+                log.info("Updating {} ".format(self.name))
+                tantalus_api.update('results', results["id"], **data)
+
+            results = tantalus_api.get("results", name=self.name)
+
+        else:
+            log.info('Creating results {}'.format(self.name))
+
+            # TODO: created timestamp for results
+            results = tantalus_api.create('results', **data)
+
+        return results
 
     def get_file_resources(self, update=False, skip_missing=False, analysis_type=None):
         """
@@ -1606,3 +1609,6 @@ class TenXResults(Results):
                     file_resource_ids.add(file_resource["id"])
 
         return list(file_resource_ids)
+
+    def get_id(self):
+        return self.results['id']
