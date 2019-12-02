@@ -223,7 +223,7 @@ def check_library_for_analysis(library_id, aligner, version, analysis_type):
 
     # Previously we were only running QC analyses and so we need to check
     # whether the library has already been ran under QC and ignore if so
-    qc_analysis_name = templates.SC_ANALYSIS_NAME_TEMPLATE.format(
+    qc_analysis_name = templates.SC_QC_ANALYSIS_NAME_TEMPLATE.format(
         analysis_type='qc',
         aligner=aligner,
         ref_genome=reference_genome,
@@ -245,7 +245,7 @@ def check_library_for_analysis(library_id, aligner, version, analysis_type):
     # Idea: Given a set of lanes, a single jira ticket will be used to run each analysis on those lanes.
     # Since the pipeline begins with align, we need to check if the align analysis has already
     # been created and use that ticket if so. Otherwise, throw an error saying to run align first.
-    align_analysis_name = templates.SC_ANALYSIS_NAME_TEMPLATE.format(
+    align_analysis_name = templates.SC_QC_ANALYSIS_NAME_TEMPLATE.format(
         analysis_type='align',
         aligner=aligner,
         ref_genome=reference_genome,
@@ -253,7 +253,7 @@ def check_library_for_analysis(library_id, aligner, version, analysis_type):
         lanes_hashed=lanes_hashed,
     )
 
-    analysis_name = templates.SC_ANALYSIS_NAME_TEMPLATE.format(
+    analysis_name = templates.SC_QC_ANALYSIS_NAME_TEMPLATE.format(
         analysis_type=analysis_type,
         aligner=aligner,
         ref_genome=reference_genome,

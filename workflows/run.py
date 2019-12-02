@@ -12,6 +12,7 @@ from jira import JIRA
 
 import workflows.launch_pipeline
 import workflows.generate_inputs
+import workflows.models
 
 import datamanagement.templates as templates
 from datamanagement.transfer_files import transfer_dataset
@@ -23,7 +24,6 @@ from dbclients.basicclient import NotFoundError
 from workflows.utils import file_utils, log_utils, colossus_utils
 from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
 
-from workflows.models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, AnnotationAnalysis, Results
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
@@ -128,43 +128,49 @@ def start_automation(
         run_options,
         config,
         pipeline_dir,
-        results_dir,
         scpipeline_dir,
         tmp_dir,
         storages,
         job_subdir,
         analysis_info,
         analysis_type,
-        output_dir,
-        bams_dir=None,
 ):
     start = time.time()
 
     if analysis_type == "align":
-        tantalus_analysis = AlignAnalysis(
+        tantalus_analysis = workflow.models.AlignAnalysis(
             jira,
             version,
             args,
+            storages,
             run_options,
-            storages=storages,
             update=run_options['update'],
         )
     elif analysis_type == "hmmcopy":
-        tantalus_analysis = HmmcopyAnalysis(
+        tantalus_analysis = workflow.models.HmmcopyAnalysis(
             jira,
             version,
             args,
+            storages,
             run_options,
-            storages=storages,
             update=run_options['update'],
         )
     elif analysis_type == "annotation":
-        tantalus_analysis = AnnotationAnalysis(
+        tantalus_analysis = workflows.models.AnnotationAnalysis(
             jira,
             version,
             args,
+            storages,
             run_options,
-            storages=storages,
+            update=run_options['update'],
+        )
+    elif analysis_type == "split_wgs_bam":
+        tantalus_analysis = workflows.models.SplitWGSBamAnalysis(
+            jira,
+            version,
+            args,
+            storages,
+            run_options,
             update=run_options['update'],
         )
     else:
@@ -197,7 +203,6 @@ def start_automation(
     try:
         tantalus_analysis.set_run_status()
         analysis_info.set_run_status()
-        run_pipeline = tantalus_analysis.run_pipeline()
 
         dirs = [
             pipeline_dir,
@@ -216,22 +221,15 @@ def start_automation(
             context_config_file = config['context_config_file']['sisyphus']
 
         log_utils.sentinel(
-            'Running single_cell qc',
-            run_pipeline,
-            results_dir=results_dir,
-            analysis_type=analysis_type,
+            f'Running single_cell {analysis_type}',
+            tantalus_analysis.run_pipeline,
             scpipeline_dir=scpipeline_dir,
             tmp_dir=tmp_dir,
-            tantalus_analysis=tantalus_analysis,
-            args=args,
-            run_options=run_options,
             inputs_yaml=inputs_yaml,
             context_config_file=context_config_file,
             docker_env_file=config['docker_env_file'],
             docker_server=config['docker_server'],
-            output_dir=output_dir,
             dirs=dirs,
-            bams_dir=bams_dir,
         )
 
     except Exception:
@@ -250,8 +248,6 @@ def start_automation(
                     get_contamination_comment(jira)
 
         raise Exception("pipeline failed")
-
-    tantalus_analysis.set_complete_status()
 
     output_dataset_ids = log_utils.sentinel(
         'Creating output datasets',
@@ -289,6 +285,9 @@ def start_automation(
 
     if analysis_type == "annotation":
         load_ticket(jira)
+
+    # TODO: confirm with andrew whether to move this down here
+    tantalus_analysis.set_complete_status()
 
 
 default_config = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'config', 'normal_config.json')
@@ -365,23 +364,16 @@ def main(jira,
     pipeline_dir = os.path.join(
         tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], job_subdir)
 
-    results_dir = os.path.join('singlecellresults', 'results', job_subdir)
     scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', job_subdir)
     tmp_dir = os.path.join('singlecelltemp', 'temp', job_subdir)
 
-    storage_result_prefix = tantalus_api.get_storage_client("singlecellresults").prefix
-    output_dir = os.path.join(storage_result_prefix, jira, "results", analysis_type)
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
-
-    bams_dir = None
-    if analysis_type == "align":
-        bams_dir = os.path.join(storage_result_prefix, jira, "results", "bams")
 
     log_file = log_utils.init_log_files(pipeline_dir)
     log_utils.setup_sentinel(run_options['sisyphus_interactive'], os.path.join(pipeline_dir, analysis_type))
 
     # Create analysis information object on Colossus
-    analysis_info = AnalysisInfo(jira)
+    analysis_info = workflow.models.AnalysisInfo(jira)
 
     log.info('Library ID: {}'.format(library_id))
 
@@ -404,15 +396,12 @@ def main(jira,
         run_options,
         config,
         pipeline_dir,
-        results_dir,
         scpipeline_dir,
         tmp_dir,
         config['storages'],
         job_subdir,
         analysis_info,
         analysis_type,
-        output_dir,
-        bams_dir=bams_dir,
     )
 
 

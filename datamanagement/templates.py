@@ -67,6 +67,17 @@ SC_WGS_BAM_NAME_TEMPLATE = "-".join([
     "{reference_genome}",
 ])
 
+WGS_SPLIT_BAM_NAME_TEMPLATE = "-".join([
+    "{dataset_type}",
+    "{sample_id}",
+    "{library_type}",
+    "{library_id}",
+    "lanes_{lanes_hash}",
+    "{aligner}",
+    "{reference_genome}",
+    "split_{split_length}",
+])
+
 SC_WGS_FQ_NAME_TEMPLATE = "-".join([
     "{dataset_type}",
     "{sample_id}",
@@ -75,12 +86,22 @@ SC_WGS_FQ_NAME_TEMPLATE = "-".join([
     "{lane}",
 ])
 
-SC_ANALYSIS_NAME_TEMPLATE = "_".join([
+SC_QC_ANALYSIS_NAME_TEMPLATE = "_".join([
     "sc",
     "{analysis_type}",
     "{aligner}",
     "{ref_genome}",
     "{library_id}",
+    "{lanes_hashed}"   
+])
+
+SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE = "_".join([
+    "sc",
+    "{analysis_type}",
+    "{aligner}",
+    "{ref_genome}",
+    "{library_id}",
+    "{sample_id}",
     "{lanes_hashed}"   
 ])
 

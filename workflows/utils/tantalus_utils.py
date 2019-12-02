@@ -34,5 +34,32 @@ def get_storage_type(storage_name):
     return storage['storage_type']
 
 
+def get_upstream_datasets(results_ids):
+    """
+    Get all datasets upstream of a set of results.
+    Args:
+        results_ids (list): list of results primary keys
+    Returns:
+        dataset_ids (list): list of dataset ids
+    """
+    results_ids = set(results_ids)
+
+    upstream_datasets = set()
+    visited_results_ids = set()
+
+    while len(results_ids) > 0:
+        results_id = results_ids.pop()
+
+        if results_id in visited_results_ids:
+            raise Exception('cycle in search for upstream datasets')
+
+        results = tantalus_api.get('resultsdataset', id=results_id)
+
+        if results['analysis']:
+            analysis = tantalus_api.get('analysis', id=results['analysis'])
+            upstream_datasets.update(analysis['input_datasets'])
+            results_ids.update(analysis['input_results'])
+
+    return list(upstream_datasets)
 
 

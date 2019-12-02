@@ -11,67 +11,8 @@ import datamanagement.templates as templates
 log = logging.getLogger('sisyphus')
 
 
-def update_config(config, key, value):
-    """
-    Update a field in the configuration.
-
-    Args:
-        config (dict)
-        key (str)
-        value (str)
-    """
-    aligner_map = {
-        'BWA_ALN_0_5_7': 'bwa-aln',
-        'BWA_MEM_0_7_6A': 'bwa-mem',
-    }
-
-    reference_genome_map = {
-        'HG19': 'grch37',
-        'MM10': 'mm10',
-    }
-
-    if key == 'aligner' and value in aligner_map:
-        value = aligner_map[value]
-
-    elif key == 'reference' and value in reference_genome_map:
-        value = reference_genome_map[value]
-
-    if (value is not None) and (config[key] != value):
-        config[key] = value
-        return True
-    return False
-
-
-def get_config_override(args, run_options):
-    """
-    Get a dictionary of default configuration options that
-    override existing single cell pipeline configuration options.
-
-    Args:
-        args (dict)
-    """
-
-    config = {
-        'cluster': 'azure',
-        'aligner': 'bwa-mem',
-        'reference': 'grch37',
-        'smoothing_function': 'modal',
-    }
-
-    if run_options["override_contamination"]:
-        config["alignment"] = {'fastq_screen_params': {'strict_validation': False}}
-
-    cluster = 'azure'
-    update_config(config, 'cluster', cluster)
-    update_config(config, 'aligner', args["aligner"])
-    update_config(config, 'reference', args["ref_genome"])
-    update_config(config, 'smoothing_function', args["smoothing"])
-
-    return config
-
-
-def get_config_string(args, run_options):
-    config_string = json.dumps(get_config_override(args, run_options))
+def get_config_string(config_override):
+    config_string = json.dumps(config_override)
     config_string = ''.join(config_string.split()) # Remove all whitespace
     return r"'{}'".format(config_string)
 
@@ -82,7 +23,6 @@ def run_pipeline2(*args, **kwargs):
 
 def run_pipeline(
         analysis_type,
-        args,
         version,
         run_options,
         scpipeline_dir,
@@ -95,8 +35,7 @@ def run_pipeline(
         max_jobs='400',
         dirs=(),
 ):
-
-    config_override_string = get_config_string(args, run_options)
+    config_override = run_options.get('config_override')
 
     run_cmd = [
         f'single_cell {analysis_type}',
@@ -106,10 +45,6 @@ def run_pipeline(
         tmp_dir,
         '--pipelinedir',
         scpipeline_dir,
-        '--library_id',
-        args['library_id'],
-        '--config_override',
-        config_override_string,
         '--maxjobs',
         str(max_jobs),
         '--nocleanup',
@@ -117,6 +52,15 @@ def run_pipeline(
         '--context_config',
         context_config_file,
     ]
+
+    if config_override is not None:
+        config_string = json.dumps(config_override)
+        config_string = ''.join(config_string.split()) # Remove all whitespace
+        config_override_string = r"'{}'".format(config_string)
+        run_cmd += [
+            '--config_override',
+            config_override_string,
+        ]
 
     for option_name, output_dir in output_dirs.items():
         run_cmd += [
@@ -170,4 +114,9 @@ def run_pipeline(
 
     run_cmd_string = r' '.join(run_cmd)
     log.debug(run_cmd_string)
-    subprocess.check_call(run_cmd_string, shell=True)
+
+    if run_options.get("skip_pipeline"):
+        log.info('skipping pipeline on request')
+    else:
+        subprocess.check_call(run_cmd_string, shell=True)
+

@@ -20,36 +20,37 @@ def get_lane_str(lane):
     return "{}_{}".format(lane["flowcell_id"], lane["lane_number"])
 
 
-def get_analysis_lanes_hash(tantalus_api, analysis):
-    """
+def get_datasets_lanes_hash(tantalus_api, dataset_ids):
+    """ Get lanes hash for a list of datasets.
+
     Args:
-        tantalus_api
-        analysis (dict)
+        tantalus_api: tantalus api object
+        datasets (list of int): list of dataset ids
 
     Return:
-        lanes_hashed (str)
+        str: hash of lanes
     """
-    lanes = set()
+    lanes = []
+    for dataset_id in dataset_ids:
+        dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
+        lanes.extend(dataset['sequence_lanes'])
 
-    for input_dataset in analysis["input_datasets"]:
-        dataset = tantalus_api.get('sequence_dataset', id=input_dataset)
-        for sequence_lane in dataset['sequence_lanes']:
-            lane = "{}_{}".format(sequence_lane['flowcell_id'], sequence_lane['lane_number'])
-            lanes.add(lane)
-
-    lanes = ", ".join(sorted(lanes))
-    lanes = hashlib.md5(lanes.encode('utf-8'))
-    lanes_hashed = "{}".format(lanes.hexdigest()[:8])
-
-
-    return lanes_hashed
+    return get_lanes_hash(lanes)
 
 
 def get_lanes_hash(lanes):
+    """ Get lanes hash for a list of lanes.
+
+    Args:
+        lanes (list of dict): list of lane info dictionaries
+    
+    Returns:
+        str: hash of lanes
+    """
     if not lanes:
         raise ValueError("bam with no lanes")
 
-    lanes = ", ".join(sorted([get_lane_str(a) for a in lanes]))
+    lanes = ", ".join(sorted(set([get_lane_str(a) for a in lanes])))
     lanes = hashlib.md5(lanes.encode('utf-8'))
     return "{}".format(lanes.hexdigest()[:8])
 
