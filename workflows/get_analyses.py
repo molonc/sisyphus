@@ -70,7 +70,7 @@ def get_analyses_to_run(version, aligner, check=False):
     bam_lanes = get_lanes_from_bams_datasets(library_type)
     unanalyzed_data_libraries = search_for_unaligned_data(library_type, bam_lanes)
     no_hmmcopy_libraries = search_for_no_hmmcopy_data(bam_lanes)
-    no_annotation_libraries = search_for_no_annotation_data()
+    no_annotation_libraries = search_for_no_annotation_data(aligner)
 
     analyses_tickets = dict(
         align=dict(),
@@ -263,7 +263,7 @@ def check_library_for_analysis(library_id, aligner, version, analysis_type):
 
     if analysis_type != "align":
         try:
-            align_analysis = tantalus_api.get("analysis", name=align_analysis_name)
+            align_analysis = tantalus_api.get("analysis", name=align_analysis_name, status="complete")
             jira_ticket = align_analysis["jira_ticket"]
             log.info("Analysis ticket {} already exists for {};".format(
                 jira_ticket,
@@ -271,7 +271,8 @@ def check_library_for_analysis(library_id, aligner, version, analysis_type):
             ))
 
         except NotFoundError:
-            raise Exception(f"an align analysis is required to run before {analysis_type} runs")
+            log.error(f"a completed align analysis is required to run before {analysis_type} runs")
+            return None
 
         try:
             analysis = tantalus_api.get("analysis", name=analysis_name)

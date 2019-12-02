@@ -315,6 +315,12 @@ class Analysis(object):
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
             input_samples.add(dataset['sample']['id'])
+
+        for dataset_id in self.analysis['input_results']:
+            dataset = self.get_results(dataset_id)
+            for sample in dataset["samples"]:
+                input_samples.add(sample['id'])
+
         return list(input_samples)
 
     def get_input_libraries(self):
@@ -326,6 +332,12 @@ class Analysis(object):
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.get_dataset(dataset_id)
             input_libraries.add(dataset['library']['id'])
+
+        for dataset_id in self.analysis['input_results']:
+            dataset = self.get_results(dataset_id)
+            for library in dataset["libraries"]:
+                input_libraries.add(library['id'])
+
         return list(input_libraries)
 
     def get_results_filenames(self):
@@ -970,7 +982,10 @@ class PseudoBulkAnalysis(Analysis):
                     ))
                 single_file_resource_id = file_resources[0]["id"]
 
-                file_instances = list(tantalus_api.list("file_instance", file_resource=single_file_resource_id))
+                file_instances = list(tantalus_api.list(
+                    "file_instance",
+                    file_resource=single_file_resource_id,
+                ))
                 storage_name = file_instances[0]["storage"]["name"]
 
             dataset_class = ('tumour', 'normal')[is_normal]
@@ -1476,7 +1491,7 @@ class Results:
         data = {
             'name': self.name,
             'results_type': self.analysis_type,
-            'results_version': metadata["meta"]["version"],
+            'results_version': f"v{metadata['meta']['version']}",
             'analysis': self.analysis,
             'file_resources': list(file_resource_ids),
             'samples': self.samples,
@@ -1496,6 +1511,48 @@ class Results:
         field_value = vars(self)[field]
         if self.results[field] != field_value:
             tantalus_api.update('results', id=self.get_id(), **{field: field_value})
+
+    def get_file_resources(self, metadata_yaml=None, update=False, skip_missing=False, analysis_type=None):
+        """
+        Create file resources for each results file and return their ids.
+        """
+        file_resource_ids = set()
+        storage_client = tantalus_api.get_storage_client(self.storage_name)
+
+        if analysis_type is None:
+            results_filenames = self.tantalus_analysis.get_results_filenames()
+        elif metadata_yaml is None:
+            raise Exception("metadata yaml file was not given")
+        else:
+            metadata = yaml.safe_load(storage_client.open_file(metadata_yaml))
+            results_filenames = metadata["filenames"]
+            results_filenames = [
+                os.path.join(
+                    self.tantalus_analysis.jira,
+                    "results",
+                    self.analysis_type,
+                    filename,
+                ) for filename in results_filenames
+            ]
+
+            results_filenames += [metadata_yaml]
+
+        for result_filename in results_filenames:
+            result_filepath = os.path.join(storage_client.prefix, result_filename)
+
+            if not storage_client.exists(result_filename) and skip_missing:
+                logging.warning('skipping missing file: {}'.format(result_filename))
+                continue
+
+            file_resource, _ = tantalus_api.add_file(
+                storage_name=self.storage_name,
+                filepath=result_filepath,
+                update=update,
+            )
+
+            file_resource_ids.add(file_resource["id"])
+
+        return list(file_resource_ids)
 
     def get_id(self):
         return self.results['id']

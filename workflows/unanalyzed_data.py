@@ -143,13 +143,14 @@ def search_for_no_hmmcopy_data(bam_lanes):
     return list(libraries_to_analyze)
 
 
-def search_for_no_annotation_data():
+def search_for_no_annotation_data(aligner):
     """ 
     Search tantalus for all hmmcopy analyses with a specific version without annotations
 
     Returns:
         libraries_to_analyze (list): list of library ids
     """
+    aligner_map = {'A': 'BWA_ALN_0_5_7', 'M': 'BWA_MEM_0_7_6A'}
     libraries_to_analyze = set()
     hmmcopy_analyses = list(tantalus_api.list(
         'analysis',
@@ -165,6 +166,8 @@ def search_for_no_annotation_data():
     annotation_tickets = [analysis["jira_ticket"] for analysis in annotation_analyses]
 
     for analysis in hmmcopy_analyses:
+        if analysis["args"]["aligner"] != aligner_map[aligner]:
+            continue
         if StrictVersion(analysis["version"].strip('v')) >= StrictVersion('0.5.0'):
             if analysis["jira_ticket"] not in annotation_tickets:
                 log.info(f"need to run annotations on library {analysis['args']['library_id']}")
