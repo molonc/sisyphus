@@ -42,7 +42,7 @@ def create_dlp_results(
     data = {
         'name': name,
         'results_type': metadata["meta"]["type"],
-        'results_version': metadata["meta"]["version"],
+        'results_version': f"v{metadata['meta']['version']}",
         'analysis': analysis_id,
         'file_resources': list(file_resource_ids),
         'samples': samples,

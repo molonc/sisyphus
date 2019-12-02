@@ -201,9 +201,16 @@ class Analysis:
         the input datasets.
         """
         input_samples = set()
+
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.tantalus_api.get('sequencedataset', id=dataset_id)
             input_samples.add(dataset['sample']['id'])
+
+        for dataset_id in self.analysis['input_results']:
+            dataset = self.tantalus_api.get('resultsdataset', id=dataset_id)
+            for sample in dataset["samples"]:
+                input_samples.add(sample['id'])
+
         return list(input_samples)
 
     def get_input_libraries(self):
@@ -212,9 +219,16 @@ class Analysis:
         the input datasets.
         """
         input_libraries = set()
+
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.tantalus_api.get('sequencedataset', id=dataset_id)
             input_libraries.add(dataset['library']['id'])
+
+        for dataset_id in self.analysis['input_results']:
+            dataset = self.tantalus_api.get('resultsdataset', id=dataset_id)
+            for library in dataset["libraries"]:
+                input_libraries.add(library['id'])
+
         return list(input_libraries)
 
     def get_results_filenames(self):
