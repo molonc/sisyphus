@@ -11,16 +11,6 @@ import datamanagement.templates as templates
 log = logging.getLogger('sisyphus')
 
 
-def get_config_string(config_override):
-    config_string = json.dumps(config_override)
-    config_string = ''.join(config_string.split()) # Remove all whitespace
-    return r"'{}'".format(config_string)
-
-
-def run_pipeline2(*args, **kwargs):
-    print(args, kwargs)
-
-
 def run_pipeline(
         analysis_type,
         version,
@@ -54,12 +44,9 @@ def run_pipeline(
     ]
 
     if config_override is not None:
-        config_string = json.dumps(config_override)
-        config_string = ''.join(config_string.split()) # Remove all whitespace
-        config_override_string = r"'{}'".format(config_string)
         run_cmd += [
             '--config_override',
-            config_override_string,
+            f'\'{config_override}\'',
         ]
 
     for option_name, output_dir in output_dirs.items():

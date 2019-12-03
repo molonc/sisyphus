@@ -4,6 +4,7 @@ import logging
 import click
 import pandas as pd
 
+import dbclients.tantalus
 import dbclients.colossus
 import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
@@ -181,7 +182,6 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             storages['working_results'],
             update=False,
             skip_missing=False,
-            analysis_type=None,
         )
 
         return [results['id']]

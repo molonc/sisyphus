@@ -4,6 +4,7 @@ import logging
 import click
 import pandas as pd
 
+import dbclients.tantalus
 import dbclients.colossus
 import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
