@@ -66,7 +66,6 @@ default_config = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(
 @click.option('--sc_config')
 @click.option('--inputs_yaml')
 @click.option('--clean', is_flag=True)
-@click.option('--tag', type=str, default='')
 @click.option('--interactive', is_flag=True)
 @click.option('--sisyphus_interactive', is_flag=True)
 @click.option('--jobs', type=int, default=1000)
@@ -90,15 +89,10 @@ def main(
 
     config = file_utils.load_json(config_filename)
 
-    job_subdir = jira_id + run_options['tag']
+    pipeline_dir = os.path.join(config['analysis_directory'], jira_id, analysis_name)
 
-    run_options['job_subdir'] = job_subdir
-
-    pipeline_dir = os.path.join(
-        tantalus_api.get("storage", name=config["storages"]["local_results"])["storage_directory"], job_subdir)
-
-    scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', job_subdir)
-    tmp_dir = os.path.join('singlecelltemp', 'temp', job_subdir)
+    scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', jira_id)
+    tmp_dir = os.path.join('singlecelltemp', 'temp', jira_id)
 
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
 
@@ -120,19 +114,15 @@ def main(
         )
 
     if run_options['inputs_yaml'] is None:
-        local_results_storage = tantalus_api.get('storage', name=storages['local_results'])['storage_directory']
-
-        inputs_yaml = os.path.join(local_results_storage, job_subdir, analysis_name, 'inputs.yaml')
+        inputs_yaml_filename = os.path.join(pipeline_dir, 'inputs.yaml')
         log_utils.sentinel(
             'Generating inputs yaml',
             analysis.generate_inputs_yaml,
             storages,
-            inputs_yaml,
+            inputs_yaml_filename,
         )
     else:
         inputs_yaml = run_options['inputs_yaml']
-
-    analysis.add_inputs_yaml(storages, inputs_yaml, update=run_options['update'])
 
     try:
         analysis.set_run_status()

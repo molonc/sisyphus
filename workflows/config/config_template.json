@@ -1,8 +1,8 @@
 {
     "_comment": "Use this config as an example. Create your own and save it as normal_config.json",
     "email": "jpham@bccrc.ca",
+    "analysis_directory": "/path/to/sc_runs",
     "storages": {
-        "local_results": "jphamvm",
         "working_inputs": "singlecellblob",
         "working_results": "singlecellresults",
         "remote_results": "singlecellresults",

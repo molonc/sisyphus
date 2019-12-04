@@ -77,7 +77,6 @@ def init_log_files(pl_dir):
     fh.setFormatter(formatter)
     log.addHandler(fh)
 
-    # TODO: WTH
     latest_file = os.path.join(log_dir, 'latest')
     if os.path.exists(latest_file):
         os.remove(latest_file)

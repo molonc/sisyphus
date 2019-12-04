@@ -116,21 +116,6 @@ class Analysis:
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         raise NotImplementedError()
 
-    def add_inputs_yaml(self, storages, inputs_yaml, update=False):
-        """
-        Add the inputs yaml to the logs field of the analysis.
-        """
-
-        logging.info('Adding inputs yaml file {} to {}'.format(inputs_yaml, self.name))
-
-        file_resource, file_instance = self.tantalus_api.add_file(
-            storage_name=storages['local_results'],
-            filepath=inputs_yaml,
-            update=update,
-        )
-
-        self.tantalus_api.update('analysis', id=self.get_id(), logs=[file_resource['id']])
-
     def set_ready_status(self):
         """
         Set run status of analysis to running.
