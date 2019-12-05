@@ -24,7 +24,7 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
         self.split_size = 10000000
 
     @classmethod
-    def search_input_datasets(cls, tantalus_api, analysis_type, jira, version, args):
+    def search_input_datasets(cls, tantalus_api, jira, version, args):
         dataset = tantalus_api.get(
             'sequence_dataset',
             analysis__jira_ticket=jira,
@@ -37,7 +37,7 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
         return [dataset["id"]]
 
     @classmethod
-    def search_input_results(cls, tantalus_api, analysis_type, jira, version, args):
+    def search_input_results(cls, tantalus_api, jira, version, args):
         results = tantalus_api.get(
             'resultsdataset',
             analysis__jira_ticket=jira,
@@ -48,12 +48,12 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
         return [results["id"]]
 
     @classmethod
-    def generate_unique_name(cls, tantalus_api, analysis_type, jira, version, args, input_datasets, input_results):
+    def generate_unique_name(cls, tantalus_api, jira, version, args, input_datasets, input_results):
         assert len(input_datasets) == 1
         dataset = tantalus_api.get('sequence_dataset', id=input_datasets[0])
 
         name = templates.SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE.format(
-            analysis_type=analysis_type,
+            analysis_type=cls.analysis_type_,
             aligner=dataset['aligner'],
             ref_genome=dataset['reference_genome'],
             library_id=dataset['library']['library_id'],
