@@ -23,7 +23,7 @@ def add_h5(jira_ticket, dry_run=False):
     storage_client = tantalus_api.get_storage_client('singlecellresults')
 
     for blob_name in storage_client.list(jira_ticket):
-        if blob_name.endswith('_snv_annotations') or blob_name.endswith('_snv_counts.h5'):
+        if blob_name.endswith('_snv_annotations.h5') or blob_name.endswith('_snv_counts.h5'):
             blob_filepath = os.path.join(storage_client.prefix, blob_name)
 
             logging.info(f'adding file {blob_filepath}')
