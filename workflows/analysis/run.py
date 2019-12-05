@@ -114,12 +114,12 @@ def main(
         )
 
     if run_options['inputs_yaml'] is None:
-        inputs_yaml_filename = os.path.join(pipeline_dir, 'inputs.yaml')
+        inputs_yaml = os.path.join(pipeline_dir, 'inputs.yaml')
         log_utils.sentinel(
             'Generating inputs yaml',
             analysis.generate_inputs_yaml,
             storages,
-            inputs_yaml_filename,
+            inputs_yaml,
         )
     else:
         inputs_yaml = run_options['inputs_yaml']
