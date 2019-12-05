@@ -81,6 +81,12 @@ def main(
 
     analysis = workflows.analysis.base.Analysis.get_by_id(tantalus_api, analysis_id)
 
+    if analysis.status == 'complete':
+        raise Exception(f'analysis {analysis_id} already complete')
+
+    if analysis.status == 'running':
+        raise Exception(f'analysis {analysis_id} already running')
+
     jira_id = analysis.jira
     analysis_name = analysis.name
 
