@@ -2,6 +2,7 @@ import os
 import yaml
 import logging
 import click
+import sys
 import pandas as pd
 
 import dbclients.tantalus
@@ -9,6 +10,7 @@ import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
 import datamanagement.templates as templates
 from datamanagement.utils.utils import get_lanes_hash, get_datasets_lanes_hash
+from datamanagement.utils.constants import LOGGING_FORMAT
 import workflows.analysis.dlp.results_import as results_import
 
 
@@ -206,4 +208,5 @@ def create_multiple_analyses(version, info_table):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
     analysis()
