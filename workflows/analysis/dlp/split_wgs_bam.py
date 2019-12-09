@@ -25,7 +25,7 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
         self.split_size = 10000000
 
     @classmethod
-    def search_input_datasets(cls, tantalus_api, analysis_type, jira, version, args):
+    def search_input_datasets(cls, tantalus_api, jira, version, args):
         dataset = tantalus_api.get(
             "sequencedataset",
             sample__sample_id=args["sample_id"],
@@ -39,11 +39,11 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
         return [dataset["id"]]
 
     @classmethod
-    def generate_unique_name(cls, tantalus_api, analysis_type, jira, version, args, input_datasets, input_results):
+    def generate_unique_name(cls, tantalus_api, jira, version, args, input_datasets, input_results):
         lanes_hashed = get_datasets_lanes_hash(tantalus_api, input_datasets)
 
         name = templates.SC_QC_ANALYSIS_NAME_TEMPLATE.format(
-            analysis_type=analysis_type,
+            analysis_type=cls.analysis_type_,
             aligner=args['aligner'],
             ref_genome=args['ref_genome'],
             library_id=args['library_id'],
