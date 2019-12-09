@@ -166,11 +166,12 @@ def search_for_no_annotation_data(aligner):
     annotation_tickets = [analysis["jira_ticket"] for analysis in annotation_analyses]
 
     for analysis in hmmcopy_analyses:
+        if StrictVersion(analysis["version"].strip('v')) < StrictVersion('0.5.0'):
+            continue
         if analysis["args"]["aligner"] != aligner_map[aligner]:
             continue
-        if StrictVersion(analysis["version"].strip('v')) >= StrictVersion('0.5.0'):
-            if analysis["jira_ticket"] not in annotation_tickets:
-                log.info(f"need to run annotations on library {analysis['args']['library_id']}")
-                libraries_to_analyze.add(analysis["args"]["library_id"])
+        if analysis["jira_ticket"] not in annotation_tickets:
+            log.info(f"need to run annotations on library {analysis['args']['library_id']}")
+            libraries_to_analyze.add(analysis["args"]["library_id"])
 
     return list(libraries_to_analyze)
