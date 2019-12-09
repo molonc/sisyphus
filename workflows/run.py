@@ -22,6 +22,7 @@ from dbclients.basicclient import NotFoundError
 
 from workflows.utils import file_utils, log_utils, colossus_utils
 from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
+from workflows.utils.slack_utils import send_failed_run_log
 
 from workflows.models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, AnnotationAnalysis, Results
 
@@ -237,9 +238,12 @@ def start_automation(
     except Exception:
         tantalus_analysis.set_error_status()
         analysis_info.set_error_status()
+
         if analysis_type == "align":
             analysis_type = "alignment"
+
         pipeline_log = os.path.join(scpipeline_dir, analysis_type, "log", "latest", "pipeline.log")
+        send_failed_run_log(os.path.join(os.getcwd(), os.path.realpath(pipeline_log)))
 
         if not run_options["skip_pipeline"] or not run_options["override_contamination"]:
             with open(pipeline_log) as f:
@@ -250,8 +254,6 @@ def start_automation(
                     get_contamination_comment(jira)
 
         raise Exception("pipeline failed")
-
-    tantalus_analysis.set_complete_status()
 
     output_dataset_ids = log_utils.sentinel(
         'Creating output datasets',
@@ -277,6 +279,8 @@ def start_automation(
             storages["working_inputs"],
         )
 
+    tantalus_analysis.set_complete_status()
+    
     # Update Jira ticket
     analysis_info.set_finish_status(analysis_type)
     if analysis_type == "annotation" and not run_options["is_test_run"]:
