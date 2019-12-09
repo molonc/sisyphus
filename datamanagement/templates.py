@@ -5,10 +5,10 @@ LANE_ID_RE = re.compile("^.*_\\d$")
 JIRA_ID_RE = re.compile('^SC-[0-9]+$')
 
 ALIGNMENT_METRICS = os.path.join(
-	'{results_dir}',
-	'results',
-	'alignment',
-	'{library_id}_alignment_metrics.csv.gz'
+    '{results_dir}',
+    'results',
+    'alignment',
+    '{library_id}_alignment_metrics.csv.gz',
 )
 
 SC_WGS_FQ_TEMPLATE = os.path.join(
@@ -21,13 +21,23 @@ SC_WGS_FQ_TEMPLATE = os.path.join(
 )
 
 SC_WGS_BAM_TEMPLATE = os.path.join(
-	'single_cell_indexing',
-	'bam',
-	'{library_id}',
-	'{ref_genome}',
-	'{aligner_name}',
-	'numlanes_{number_lanes}',
-	'{cell_id}.bam'
+    'single_cell_indexing',
+    'bam',
+    '{library_id}',
+    '{ref_genome}',
+    '{aligner_name}',
+    'numlanes_{number_lanes}',
+    '{cell_id}.bam',
+)
+
+SC_WGS_BAM_DIR_TEMPLATE = os.path.join(
+    'single_cell_indexing',
+    'bam',
+    '{library_id}',
+    '{ref_genome}',
+    '{aligner_name}',
+    'numlanes_{number_lanes}',
+    '{jira_ticket}',
 )
 
 WGS_BAM_NAME_TEMPLATE = os.path.join(
@@ -43,7 +53,6 @@ MERGE_BAM_PATH_TEMPLATE = {
     "WGS": "{data_path}/{library_name}_{num_lanes}_lane{lane_pluralize}_dupsFlagged.bam",
     "EXOME": "{data_path}/{library_name}_{num_lanes}_lane{lane_pluralize}_dupsFlagged.bam",
     "FFPE_WGS": "{data_path}/{library_name}_{num_lanes}_lane{lane_pluralize}_dupsFlagged.bam",
-
 }
 
 LANE_BAM_PATH_TEMPLATE = {
@@ -81,7 +90,7 @@ SC_ANALYSIS_NAME_TEMPLATE = "_".join([
     "{aligner}",
     "{ref_genome}",
     "{library_id}",
-    "{lanes_hashed}"   
+    "{lanes_hashed}",
 ])
 
 GSC_SCRNA_FASTQ_PATH_TEMPLATE = os.path.join(
@@ -92,7 +101,7 @@ GSC_SCRNA_FASTQ_PATH_TEMPLATE = os.path.join(
     "Solexa",
     "Data",
     "current",
-    "BaseCalls"
+    "BaseCalls",
 )
 
 TENX_FASTQ_NAME_TEMPLATE = "_".join([
@@ -101,10 +110,7 @@ TENX_FASTQ_NAME_TEMPLATE = "_".join([
     "{fastq}",
 ])
 
-TENX_FASTQ_BLOB_TEMPLATE = os.path.join(
-    "{library_id}",
-    "{fastq_name}"
-)
+TENX_FASTQ_BLOB_TEMPLATE = os.path.join("{library_id}", "{fastq_name}")
 
 TENX_SCRNA_DATASET_TEMPLATE = "-".join([
     "{dataset_type}",

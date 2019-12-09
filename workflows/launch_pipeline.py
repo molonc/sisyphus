@@ -81,7 +81,6 @@ def run_pipeline2(*args, **kwargs):
 
 
 def run_pipeline(
-        results_dir,
         analysis_type,
         scpipeline_dir,
         tmp_dir,
@@ -130,7 +129,7 @@ def run_pipeline(
     if analysis_type == "alignment":
         run_cmd += [
             '--bams_dir',
-            bams_dir,
+            tantalus_analysis.bams_dir,
         ]
 
     if not run_options['saltant']:
