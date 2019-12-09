@@ -82,8 +82,9 @@ def get_pseudobulk_info(tantalus_api, results, analysis):
 
 @click.command()
 @click.option('--jira_ticket')
+@click.option('--results_type')
 @click.option('--update', is_flag=True)
-def add_manifest(jira_ticket=None, update=False):
+def add_manifest(jira_ticket=None, results_type=None, update=False):
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
     logger = logging.getLogger("azure.storage")
@@ -100,6 +101,9 @@ def add_manifest(jira_ticket=None, update=False):
         results_iter = tantalus_api.list('results')
 
     for results in results_iter:
+        if results_type is not None and results['results_type'] != results_type:
+            logging.warning(f'skipping results of type {results["results_type"]}')
+
         try:
             if (results['results_type'], results['results_version']) not in analysis_dir_templates:
                 logging.warning(f'unsupported {results["results_type"]}, {results["results_version"]}')

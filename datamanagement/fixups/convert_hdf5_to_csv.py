@@ -125,7 +125,8 @@ def convert_h5(h5_filepath, key, csv_filepath):
 @click.option('--results_type')
 @click.option('--redo', is_flag=True)
 @click.option('--dry_run', is_flag=True)
-def run_h5_convert(cache_dir, dataset_id=None, results_type=None, redo=False, dry_run=False):
+@click.option('--check_done', is_flag=True)
+def run_h5_convert(cache_dir, dataset_id=None, results_type=None, redo=False, dry_run=False, check_done=False):
     tantalus_api = TantalusApi()
 
     local_cache_client = tantalus_api.get_cache_client(cache_dir)
@@ -164,7 +165,7 @@ def run_h5_convert(cache_dir, dataset_id=None, results_type=None, redo=False, dr
                     found_csv_yaml = True
                     break
 
-            if found_csv_yaml and not redo:
+            if found_csv_yaml and check_done:
                 logging.info('found filename {}, skipping conversion'.format(existing_filename))
                 continue
 
@@ -223,7 +224,7 @@ def run_h5_convert(cache_dir, dataset_id=None, results_type=None, redo=False, dr
                             filename, remote_filepath))
 
                         (file_resource, file_instance) = tantalus_api.add_file(
-                            remote_storage_name, remote_filepath, update=redo)
+                            remote_storage_name, remote_filepath, update=True)#redo)
 
                         file_resource_ids.append(file_resource["id"])
                         filepaths_to_clean.append(filepath)
