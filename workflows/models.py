@@ -712,14 +712,53 @@ class HmmcopyAnalysis(DLPAnalysisMixin, Analysis):
         self.run_options = run_options
 
     def search_input_datasets(self, args):
-        datasets = tantalus_api.list(
+        datasets = list(tantalus_api.list(
             'sequence_dataset',
             analysis__jira_ticket=self.jira,
             library__library_id=args['library_id'],
             dataset_type='BAM',
-        )
-
+            reference_genome__name=args['ref_genome'],
+        ))
+        print([dataset["id"] for dataset in datasets])
+        HmmcopyAnalysis.check_input_datsets(args, datasets)
         return [dataset["id"] for dataset in datasets]
+
+    @staticmethod
+    def check_input_datsets(args, input_datasets):
+        '''
+        Check if all samples for the library have exactly one input dataset
+        '''
+        library_samples = set()
+        sublibraries = colossus_api.list("sublibraries", library__pool_id=args['library_id'])
+
+        for sublibrary in sublibraries:
+            sample_id = sublibrary["sample_id"]["sample_id"]
+            library_samples.add(sample_id)
+
+        for sample_id in library_samples:
+            input_dataset_samples = [dataset["sample"]["sample_id"] for dataset in input_datasets]
+
+            if sample_id not in input_dataset_samples:
+                raise Exception("No input dataset for library sample {}".format(sample_id))
+
+            log.info("Sample {} has a dataset in the input datasets".format(sample_id))
+
+        log.info("Every sample in the library {} has an input dataset".format(args['library_id']))
+
+        # Check if one dataset per sample
+        dataset_samples = collections.defaultdict(list)
+        for dataset in input_datasets:
+            sample_id = dataset["sample"]["sample_id"]
+            dataset_samples[sample_id].append(dataset["id"])
+
+        for sample in dataset_samples:
+            if len(dataset_samples[sample]) != 1:
+                raise Exception("Sample {} has more than one input dataset".format(sample))
+
+            log.info("Sample {} has exactly one input dataset".format(sample))
+
+        log.info("Each sample has only one input dataset")
+
 
     def generate_inputs_yaml(self, inputs_yaml_filename):
         storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
@@ -901,7 +940,7 @@ class PseudoBulkAnalysis(Analysis):
             library_type = dataset['library']['library_type']
 
             is_normal = (sample_id == self.args['matched_normal_sample']
-                         and library_id == self.args['matched_normal_library'])
+                         and library_id == self.args['matched_normal_library'],)
 
             if is_normal:
                 file_resources = list(
@@ -938,13 +977,20 @@ class PseudoBulkAnalysis(Analysis):
                 input_info[dataset_class][sample_id] = {}
 
             input_info[dataset_class][sample_id][library_id] = {}
-
-            file_instances = tantalus_api.get_dataset_file_instances(
-                dataset_id,
-                'sequencedataset',
-                storage_name,
-                filters={'filename__endswith': '.bam'},
-            )
+            try:
+                file_instances = tantalus_api.get_dataset_file_instances(
+                    dataset_id,
+                    'sequencedataset',
+                    storage_name,
+                    filters={'filename__endswith': '.bam'},
+                )
+            except:
+                file_instances = tantalus_api.get_dataset_file_instances(
+                    dataset_id,
+                    'sequencedataset',
+                    "singlecellresults",
+                    filters={'filename__endswith': '.bam'},
+                )
 
             if library_type == 'WGS':
                 if not is_normal:
@@ -1191,7 +1237,7 @@ class PseudoBulkAnalysis(Analysis):
                 '{d}:{d}'.format(d=d),
             ])
 
-        docker_cmd.append('{}/scp/single_cell_pipeline:{}'.format(config["docker_server"], self.version))
+        docker_cmd.append('scdnaprod.azurecr.io/scp/single_cell_pipeline:{}'.format(self.version))
 
         run_cmd = docker_cmd + run_cmd
 
@@ -1387,20 +1433,29 @@ class Results:
         except NotFoundError:
             results = None
 
-        metadata_yaml = os.path.join(self.tantalus_analysis.jira, "results", self.analysis_type, "metadata.yaml")
+        if analysis_type != "pseudobulk":
+            metadata_yaml = os.path.join(self.tantalus_analysis.jira, "results", self.analysis_type, "metadata.yaml")
+            metadata = yaml.safe_load(storage_client.open_file(metadata_yaml))
 
-        self.file_resources = self.get_file_resources(
-            metadata_yaml=metadata_yaml,
-            update=update,
-            skip_missing=skip_missing,
-            analysis_type=analysis_type,
-        )
+            self.file_resources = self.get_file_resources(
+                metadata_yaml=metadata_yaml,
+                update=update,
+                skip_missing=skip_missing,
+                analysis_type=analysis_type,
+            )
+        else:
+            metadata = None
+            self.file_resources = self.get_file_resources(
+                metadata_yaml=None,
+                update=update,
+                skip_missing=skip_missing,
+                analysis_type=analysis_type,
+            )
 
-        metadata = yaml.safe_load(storage_client.open_file(metadata_yaml))
         data = {
             'name': self.name,
             'results_type': self.analysis_type,
-            'results_version': f"v{metadata['meta']['version']}",
+            'results_version': f"v{metadata['meta']['version']}" if metadata else self.pipeline_version,
             'analysis': self.analysis,
             'file_resources': self.file_resources,
             'samples': self.samples,
@@ -1435,7 +1490,7 @@ class Results:
         file_resource_ids = set()
         storage_client = tantalus_api.get_storage_client(self.storage_name)
 
-        if analysis_type is None:
+        if analysis_type in ["pseudobulk", "tenx"]:
             results_filenames = self.tantalus_analysis.get_results_filenames()
         elif metadata_yaml is None:
             raise Exception("metadata yaml file was not given")
@@ -1454,6 +1509,7 @@ class Results:
             results_filenames += [metadata_yaml]
 
         for result_filename in results_filenames:
+            print(result_filename)
             result_filepath = os.path.join(storage_client.prefix, result_filename)
 
             if not storage_client.exists(result_filename) and skip_missing:
