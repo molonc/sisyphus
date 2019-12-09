@@ -100,7 +100,7 @@ def main(
 
         # If this is the only file instance for this file resource, delete the file resource
         if len(all_file_instances) == 1:
-            assert file_resource['file_instances'][0]['id'] == file_instance['id']
+            assert all_file_instances[0]['id'] == file_instance['id']
             logging.info('deleting file resource {}'.format(file_resource['id']))
             if not dry_run:
                 tantalus_api.delete('file_resource', id=file_resource['id'])
