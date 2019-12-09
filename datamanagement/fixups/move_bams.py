@@ -2,6 +2,7 @@ import os
 import click
 import sys
 import logging
+import dbclients.tantalus
 from dbclients.tantalus import TantalusApi
 from datamanagement.utils.constants import LOGGING_FORMAT
 
@@ -43,7 +44,7 @@ def fix_bams(jira_ticket=None, dry_run=False):
     else:
         # Get all completed align analyses ran with specific version
         # the bams associated to these analyses are in the wrong storage account
-        for version in ('v0.5.2', 'v0.5.3'):
+        for version in ('v0.5.2', 'v0.5.3', 'v0.5.4'):
             analyses = tantalus_api.list('analysis', analysis_type__name="align", status="complete", version=version)
             analyses_list += [a for a in analyses]
 
@@ -66,11 +67,15 @@ def fix_bams(jira_ticket=None, dry_run=False):
                 lanes.add(lane)
             number_lanes = len(lanes)
 
-            file_instances = tantalus_api.get_dataset_file_instances(
-                dataset["id"],
-                "sequencedataset",
-                from_storage_name,
-            )
+            try:
+                file_instances = tantalus_api.get_dataset_file_instances(
+                    dataset["id"],
+                    "sequencedataset",
+                    from_storage_name,
+                )
+            except dbclients.tantalus.DataNotOnStorageError:
+                logging.info(f'dataset {dataset["id"]} not on {from_storage_name}, skipping')
+                continue
 
             for file_instance in file_instances:
                 blobname = file_instance["file_resource"]["filename"]
