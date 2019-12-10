@@ -11,18 +11,22 @@ from datamanagement.transfer_files import transfer_dataset
 @click.argument('from_storage_name')
 @click.argument('to_storage_name')
 @click.option('--dataset_id', type=int)
-def download_datasets(results_type, from_storage_name, to_storage_name, dataset_id=None):
+def download_datasets(results_type, from_storage_name, to_storage_name, dataset_id=None, jira_ticket=None):
     ''' Download a set of datasets by type.
     '''
 
     tantalus_api = TantalusApi()
-    
-    if dataset_id is None:
-        dataset_ids = list()
-        for dataset in tantalus_api.list('results', results_type=results_type):
-            dataset_ids.append(dataset['id'])
+
+    if dataset_id is not None:
+        datasets = tantalus_api.list('results', id=dataset_id)
+    elif jira_ticket is not None:
+        datasets = tantalus_api.list('results', results_type=results_type, analysis__jira_ticket=jira_ticket)
     else:
-        dataset_ids = [dataset_id]    
+        datasets = tantalus_api.list('results', results_type=results_type)
+
+    dataset_ids = list()
+    for dataset in datasets:
+        dataset_ids.append(dataset['id'])
 
     # Download most recent first
     dataset_ids = reversed(sorted(dataset_ids))
