@@ -629,8 +629,6 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
         return lanes
 
     def get_bams_dir(self, jira, args):
-        storage = tantalus_api.get_storage(self.storages["working_datasets"])
-        storage_prefix = storage["prefix"]
         reference_genome_map = {
             'HG19': 'grch37',
             'MM10': 'mm10',
@@ -644,12 +642,12 @@ class AlignAnalysis(DLPAnalysisMixin, Analysis):
             jira_ticket=jira,
         )
 
-        return os.path.join(storage_prefix, bams_dir)
-
+        return bams_dir
 
     def create_output_datasets(self, tag_name=None, update=False):
         storage_client = tantalus_api.get_storage_client(self.storages["working_datasets"])
         metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
+        print(metadata_yaml_path)
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
 
         sample_info = generate_sample_info(self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
