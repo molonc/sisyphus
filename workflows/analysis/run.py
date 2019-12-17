@@ -57,6 +57,7 @@ default_config = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(
 @click.command()
 @click.argument('analysis_id', type=int)
 @click.option('--config_filename')
+@click.option('--reset_status', is_flag=True)
 @click.option('--config_override')
 @click.option('--skip_pipeline', is_flag=True)
 @click.option('--skip_missing', is_flag=True)
@@ -73,6 +74,7 @@ default_config = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(
 def main(
         analysis_id,
         config_filename=None,
+        reset_status=False,
         **run_options
     ):
 
@@ -80,6 +82,9 @@ def main(
         config_filename = default_config
 
     analysis = workflows.analysis.base.Analysis.get_by_id(tantalus_api, analysis_id)
+
+    if reset_status:
+        analysis.set_error_status()
 
     if analysis.status == 'complete':
         raise Exception(f'analysis {analysis_id} already complete')
