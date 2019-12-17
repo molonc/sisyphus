@@ -81,6 +81,9 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
             self.analysis['input_results'][0],
             storages['working_results'])
 
+        if len(cell_ids) == 0:
+            raise Exception('0 cells passed preprocessing')
+
         index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
 
         input_info = {'cell_bams': {}}
@@ -91,6 +94,7 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
             cell_id = index_sequence_sublibraries[index_sequence]['cell_id']
 
             if not cell_id in cell_ids:
+
                 continue
 
             input_info['cell_bams'][cell_id] = {}
