@@ -116,6 +116,7 @@ def query_gsc_rnqseq_fastq(**kwargs):
         #creating the dataset name
         if kwargs["sample_id"]:
             sample_id = sample_id
+
         dataset_name = TENX_SCRNA_DATASET_TEMPLATE.format(
             dataset_type="FQ",
             sample_id=sample_id,
@@ -123,7 +124,6 @@ def query_gsc_rnqseq_fastq(**kwargs):
             library_id=library_id,
             lanes_hash=get_lanes_hash(lane_info_list),
             )
-        print(dataset_name)
         
         logging.info("Creating dataset {}".format(dataset_name))
         import_fastq(
@@ -133,20 +133,6 @@ def query_gsc_rnqseq_fastq(**kwargs):
             dataset_name=dataset_name,
             file_resource_pks=file_resource_ids,
             )
-        '''
-        sequence_dataset = tantalus_api.get_or_create(
-                "sequencedataset",
-                filepaths=file_paths,
-                sample_id=sample_id,
-                library_id=library_id,
-                storage_name=to_storage,
-                dataset_name=dataset_name,
-                dataset_type="FQ",
-                sequence_lane_pks=lane_pks,
-                #reference_genome="HG38",
-                update=True,
-            )
-        '''
 
 
 def import_fastq(**kwargs):

@@ -242,6 +242,10 @@ def get_bam_aligner_name(bam_header):
                 version = version[:version.index("-r")]
             version = version.replace(".", "_")
             return bwa_variant + "_" + version
+        if ("PN" in pg and pg["PN"] == "JAGuaR") or ("CL" in pg and "JAGuaR" in pg["CL"]):
+            version = pg["VN"]
+            version = version.replace(".", "_")
+            return "JAGuaR".upper() + "_" + version
         if pg["CL"] == "Sambamba":
             pass
         else:

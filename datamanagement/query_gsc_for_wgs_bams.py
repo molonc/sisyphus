@@ -36,7 +36,7 @@ from datamanagement.utils.constants import (
         SOLEXA_RUN_TYPE_MAP,
         PROTOCOL_ID_MAP
 )
-from transfer_files import *
+from datamanagement.transfer_files import *
 
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 gsc_api = GSCAPI()
@@ -783,6 +783,7 @@ def size_match(local_file_path, remote_file_path, ip_address, username):
     '''
     remote_size = subprocess.check_output('ssh {}@{} stat -c%s "{}"'.format(username, ip_address, remote_file_path), shell=True)
     local_size = subprocess.check_output('stat -c%s "{}"'.format(local_file_path), shell=True)
+    logging.info("local size is {}, remote size is {}".format(local_size, remote_size))
     return remote_size==local_size
 
 def size_match_cloud_txshah(blob_client, txshah_ip, username, cloud_container, file_path_remote, file_name_cloud):
