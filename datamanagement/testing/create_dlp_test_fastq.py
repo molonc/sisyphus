@@ -152,14 +152,14 @@ def run_bam_fastq(end_1_fastq, end_2_fastq, source_bam):
     subprocess.check_call(cmd)
 
     cmd = [
-        'bedtools',
-        'bamtofastq',
-        '-i',
-        source_bam + '.sorted.bam',
-        '-fq',
+        'samtools',
+        'fastq',
+        '-t',
+        '-1',
         end_1_fastq,
-        '-fq2',
+        '-2',
         end_2_fastq,
+        source_bam + '.sorted.bam',
     ]
 
     logging.info('command -> ' + ' '.join(cmd))
@@ -175,7 +175,10 @@ def get_tumour_bams():
     colossus_api = dbclients.colossus.ColossusApi()
     sublibs = colossus_api.get_sublibraries_by_index_sequence(LIBRARY_ID)
 
-    tumour_bam_info = {}
+    tumour_bam_info = {
+        'dataset': tumour_dataset,
+        'cells': {},
+    }
 
     for file_resource in file_resources:
         assert file_resource['filename'].endswith('.bam')
@@ -189,7 +192,7 @@ def get_tumour_bams():
 
         filepath = os.path.join(LOCAL_CACHE_DIRECTORY, file_resource['filename'])
 
-        tumour_bam_info[cell_id] = {
+        tumour_bam_info['cells'][cell_id] = {
             'bam': filepath,
             'sublib': sublib,
         }
@@ -220,7 +223,12 @@ def create_tumour_fastqs(fastq_dir, temp_dir):
     """
     tumour_bam_info = get_tumour_bams()
 
-    FASTQ_TEMPLATE = '{cell_id}_{read_end}.fastq'
+    dataset = tumour_bam_info['dataset']
+    lane_ids = [get_lane_str(l) for l in dataset['sequence_lanes']]
+    sample_id = dataset['sample']['sample_id']
+    library_id = dataset['library']['library_id']
+
+    FASTQ_TEMPLATE = '{cell_id}_{read_end}.fastq.gz'
 
     tumour_fastq_metadata = {
         'filenames': [],
@@ -228,7 +236,9 @@ def create_tumour_fastqs(fastq_dir, temp_dir):
             'type': 'cellfastqs',
             'version': 'v0.0.1',
             'cell_ids': [],
-            'lane_ids': [],
+            'lane_ids': lane_ids,
+            'sample_id': sample_id,
+            'library_id': library_id,
             'fastqs': {
                 'template': FASTQ_TEMPLATE,
                 'instances': []
@@ -236,9 +246,9 @@ def create_tumour_fastqs(fastq_dir, temp_dir):
         }
     }
 
-    for cell_id in tumour_bam_info:
-        bam_path = tumour_bam_info[cell_id]['bam']
-        sublib = tumour_bam_info[cell_id]['sublib']
+    for cell_id in tumour_bam_info['cells']:
+        bam_path = tumour_bam_info['cells'][cell_id]['bam']
+        sublib = tumour_bam_info['cells'][cell_id]['sublib']
 
         logging.info('creating paired end fastqs for bam {}'.format(bam_path))
 
@@ -363,8 +373,8 @@ def create_align_input_yaml(fastqs_dir, input_yaml_filepath):
             'primer_i7': cell_info.loc['1']['primer_i7'],
             'row': int(cell_info.loc['1']['row']),
         }
-        fastq_1_filepath = os.path.realpath(os.path.join(fastqs_dir, fastq_template.format(**cell_info.loc['1'].to_dict())))
-        fastq_2_filepath = os.path.realpath(os.path.join(fastqs_dir, fastq_template.format(**cell_info.loc['2'].to_dict())))
+        fastq_1_filepath = os.path.join(fastqs_dir, fastq_template.format(**cell_info.loc['1'].to_dict()))
+        fastq_2_filepath = os.path.join(fastqs_dir, fastq_template.format(**cell_info.loc['2'].to_dict()))
         input_info[cell_id]['fastqs'] = {
             lane_id: {
                 'fastq_1': fastq_1_filepath,
@@ -380,15 +390,16 @@ def create_align_input_yaml(fastqs_dir, input_yaml_filepath):
 
 @click.command()
 @click.argument('data_dir')
-@click.option('--update', is_flag=True)
-def create_dlp_test_data(data_dir, update=False):
-    pull_source_datasets()
+@click.option('--skip_download', is_flag=True)
+def create_dlp_test_data(data_dir, skip_download):
+    if not skip_download:
+        pull_source_datasets()
 
     tumour_fastq_dir = os.path.join(data_dir, 'tumour_fastqs')
     normal_bam_dir = os.path.join(data_dir, 'normal_bam')
     temp_dir = os.path.join(data_dir, 'temp')
 
-    for d in (tumour_fastq_dir, normal_bam_dir, temp_dir)
+    for d in (tumour_fastq_dir, normal_bam_dir, temp_dir):
         try: os.makedirs(d)
         except: pass
 
