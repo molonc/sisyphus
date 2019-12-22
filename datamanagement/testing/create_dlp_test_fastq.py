@@ -96,7 +96,7 @@ def gzip_file(uncompressed, compressed):
 
     logging.info('command -> ' + ' '.join(cmd))
 
-    with open(commpressed, 'wb') as f:
+    with open(compressed, 'wb') as f:
         subprocess.check_call(cmd, stdout=f)
 
 
@@ -166,15 +166,13 @@ def run_bam_fastq(end_1_fastq, end_2_fastq, source_bam):
 
 
 def get_tumour_bams():
-    storage = tantalus_api.get('storage', name=LOCAL_STORAGE_NAME)
     tumour_dataset = tantalus_api.get('sequence_dataset', name=TUMOUR_DATASET_NAME)
-
-    sample_id = str(tumour_dataset['sample']['sample_id'])
 
     file_resources = tantalus_api.get_dataset_file_resources(
         tumour_dataset['id'], 'sequencedataset', filters={'filename__endswith': '.bam'})
 
-    sublibs = colossus.get_sublibraries_by_index_sequence(LIBRARY_ID)
+    colossus_api = dbclients.colossus.ColossusApi()
+    sublibs = colossus_api.get_sublibraries_by_index_sequence(LIBRARY_ID)
 
     tumour_bam_info = {}
 
@@ -190,7 +188,7 @@ def get_tumour_bams():
 
         filepath = os.path.join(LOCAL_CACHE_DIRECTORY, file_resource['filename'])
 
-        tumour_bam_info[cell_ids] = {
+        tumour_bam_info[cell_id] = {
             'bam': filepath,
             'sublib': sublib,
         }
@@ -228,8 +226,8 @@ def create_tumour_fastqs(fastq_dir, temp_dir):
     tumour_fastq_metadata = {
         'filenames': [],
         'meta': {
-            'type': 'cellfastqs'
-            'version': 'v0.0.1'
+            'type': 'cellfastqs',
+            'version': 'v0.0.1',
             'cell_ids': [],
             'lane_ids': [],
             'fastqs': {
@@ -270,17 +268,17 @@ def create_tumour_fastqs(fastq_dir, temp_dir):
         tumour_fastq_metadata['meta']['cell_ids'].append(cell_id)
 
         for read_end in ('1', '2'):
-            tumour_fastq_metadata['meta']['fastqs'].append({
+            tumour_fastq_metadata['meta']['fastqs']['instances'].append({
                 'cell_id': cell_id,
                 'read_end': read_end,
-                'img_col': sublib['img_col']
-                'index_i5': sublib['index_i5']
-                'index_i7': sublib['index_i7']
-                'pick_met': sublib['pick_met']
-                'primer_i5': sublib['primer_i5']
-                'primer_i7': sublib['primer_i7']
-                'row': sublib['row']
-                'column': sublib['column']
+                'img_col': sublib['img_col'],
+                'index_i5': sublib['index_i5'],
+                'index_i7': sublib['index_i7'],
+                'pick_met': sublib['pick_met'],
+                'primer_i5': sublib['primer_i5'],
+                'primer_i7': sublib['primer_i7'],
+                'row': sublib['row'],
+                'column': sublib['column'],
             })
 
     with open(metadata_yaml_filename, 'w') as meta_yaml:
@@ -486,12 +484,19 @@ def pull_source_datasets():
 
 
 @click.command()
-@click.argument('data_dir')
+@click.argument('tumour_fastq_dir')
+@click.argument('normal_bam_dir')
+@click.argument('temp_dir')
 @click.option('--update', is_flag=True)
-def create_dlp_test_fastq(data_dir, update=False):
-    pull_source_datasets()
+def create_dlp_test_fastq(tumour_fastq_dir, normal_bam_dir, temp_dir, update=False):
+    #pull_source_datasets()
 
-    tumour_fastq_paths = create_tumour_fastqs(data_dir)
+    tumour_metadata = os.path.join(tumour_fastq_dir, 'metadata.yaml')
+    if os.path.exists(tumour_metadata):
+        logging.info(f'skipping create_tumour_fastqs, found {tumour_metadata}')
+    else:
+        create_tumour_fastqs(tumour_fastq_dir, temp_dir)
+
     tumour_dataset = create_sequence_dataset(tumour_fastq_paths, update=update)
 
     normal_dataset = create_normal_dataset(data_dir, update=update)
