@@ -200,8 +200,8 @@ def get_tumour_bams():
 def get_normal_bam():
     normal_dataset = tantalus_api.get('sequence_dataset', name=NORMAL_DATASET_NAME)
 
-    file_resources = tantalus_api.get_dataset_file_resources(
-        tumour_dataset['id'], 'sequencedataset', filters={'filename__endswith': '.bam'})
+    file_resources = list(tantalus_api.get_dataset_file_resources(
+        normal_dataset['id'], 'sequencedataset', filters={'filename__endswith': '.bam'}))
     assert len(file_resources) == 1
     file_resource = file_resources[0]
 
@@ -293,6 +293,9 @@ def create_normal_bam(bam_dir):
     """
     Create a normal bam dataset.
     """
+    try: os.makedirs(bam_dir)
+    except: pass
+
     normal_bam_info = get_normal_bam()
     normal_filepath = normal_bam_info['bam']
 
