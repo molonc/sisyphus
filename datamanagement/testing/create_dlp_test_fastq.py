@@ -13,6 +13,7 @@ import dbclients.tantalus
 import datamanagement.transfer_files
 import datamanagement.templates as templates
 from datamanagement.utils.filecopy import rsync_file
+from datamanagement.utils.constants import LOGGING_FORMAT
 import argparse
 import pickle
 
@@ -79,12 +80,11 @@ cell_ids = [
 LIBRARY_ID = 'A96213A'
 TEST_LANE_FLOWCELL = "HHCJ7CCXY"
 TEST_LANE_NUMBER = "5"
-TUMOUR_DATASET_NAME = 'BAM-SA1090-SC_WGS-A96213A-lanes_341dd558-BWA_ALN_0_5_7-HG19'
-NORMAL_DATASET_NAME = 'BAM-DAH370N-WGS-A41086-lanes_52f27595-BWA_ALN_0_5_7-HG19'
+TUMOUR_DATASET_NAME = 'BAM-SA1090-SC_WGS-A96213A-lanes_6300f0e4-BWA_MEM_0_7_6A-HG19'
+NORMAL_DATASET_NAME = 'BAM-DAH370N-WGS-A41086-lanes_52f27595-BWA_MEM_0_7_10-HG19'
 NORMAL_LANES_STR = 'lanes_52f27595'
-LOCAL_STORAGE_NAME = 'andrewvm'
 REMOTE_STORAGE_NAME = 'singlecellblob'
-TAG_NAME = 'OV_PseudoBulk_Test'
+LOCAL_CACHE_DIRECTORY = os.environ['TANTALUS_CACHE_DIR']
 
 # TODO: add to templates.py
 WGS_BAM_TEMPLATE = os.path.join(
@@ -100,12 +100,7 @@ WGS_BAM_TEMPLATE = os.path.join(
 
 selected_indices = {}
 for sublib in dbclients.colossus.get_colossus_sublibraries_from_library_id(LIBRARY_ID):
-    cell_id = '{}-{}-R{}-C{}'.format(
-        sublib['sample_id']['sample_id'],
-        sublib['library']['pool_id'],
-        sublib['row'],
-        sublib['column'],
-    )
+    cell_id = sublib['cell_id']
     if cell_id not in cell_ids:
         continue
     index_sequence = sublib['primer_i7'] + '-' + sublib['primer_i5']
@@ -118,13 +113,13 @@ def gzip_file(uncompressed):
         uncompressed,
     ]
 
-    print ' '.join(cmd)
+    logging.info(' '.join(cmd))
     subprocess.check_call(cmd)
 
 
 def run_filter_cmd(filtered_bam, source_bam):
     if os.path.exists(filtered_bam):
-        print('filtered bam {} already exists, skipping'.format(filtered_bam))
+        logging.info('filtered bam {} already exists, skipping'.format(filtered_bam))
         return
 
     cmd = [
@@ -138,7 +133,7 @@ def run_filter_cmd(filtered_bam, source_bam):
 
     cmd.extend(regions)
 
-    print ' '.join(cmd)
+    logging.info(' '.join(cmd))
     subprocess.check_call(cmd)
 
     try:
@@ -152,13 +147,13 @@ def run_filter_cmd(filtered_bam, source_bam):
         filtered_bam,
     ]
 
-    print ' '.join(cmd)
+    logging.info(' '.join(cmd))
     subprocess.check_call(cmd)
 
 
 def run_bam_fastq(end_1_fastq, end_2_fastq, source_bam):
     if os.path.exists(end_1_fastq) and os.path.exists(end_2_fastq):
-        print('fastqs for {} exist, skipping'.format(source_bam))
+        logging.info('fastqs for {} exist, skipping'.format(source_bam))
         return
 
     cmd = [
@@ -170,7 +165,7 @@ def run_bam_fastq(end_1_fastq, end_2_fastq, source_bam):
         source_bam + '.sorted.bam',
     ]
 
-    print ' '.join(cmd)
+    logging.info(' '.join(cmd))
     subprocess.check_call(cmd)
 
     cmd = [
@@ -184,7 +179,7 @@ def run_bam_fastq(end_1_fastq, end_2_fastq, source_bam):
         end_2_fastq,
     ]
 
-    print ' '.join(cmd)
+    logging.info(' '.join(cmd))
     subprocess.check_call(cmd)
     subprocess.check_call(cmd)
 
@@ -195,18 +190,17 @@ def get_tumour_bams():
 
     sample_id = str(tumour_dataset['sample']['sample_id'])
 
-    file_instances = tantalus_api.get_dataset_file_instances(
-        tumour_dataset['id'], 'sequencedataset', LOCAL_STORAGE_NAME, filters={'filename__endswith': '.bam'})
+    file_resources = tantalus_api.get_dataset_file_resources(
+        tumour_dataset['id'], 'sequencedataset', filters={'filename__endswith': '.bam'})
 
     tumour_bam_paths = {}
     tumour_file_resources = {}
 
-    for file_instance in file_instances:
-        file_resource = file_instance['file_resource']
-
+    for file_resource in file_resources:
         assert file_resource['filename'].endswith('.bam')
 
         index_sequence = str(file_resource['sequencefileinfo']['index_sequence'])
+        cell_id = 
 
         if index_sequence not in selected_indices:
             continue
@@ -219,7 +213,7 @@ def get_tumour_bams():
 
 def get_normal_bam():
     normal_dataset = tantalus_api.get('sequence_dataset', name=NORMAL_DATASET_NAME)
-    file_instances = tantalus_api.get_dataset_file_instances(
+    file_instances = tantalus_api.get_dataset_file_resources(
         normal_dataset['id'], 'sequencedataset', LOCAL_STORAGE_NAME, filters={'filename__endswith': '.bam'})
 
     for file_instance in file_instances:
@@ -255,7 +249,7 @@ def create_tumour_fastqs(data_dir):
     tumour_fastq_paths = {}
     for index_sequence in tumour_bam_paths:
         bam_path = tumour_bam_paths[index_sequence]['bam']
-        print('creating paired end fastqs for bam {}'.format(bam_path))
+        logging.info('creating paired end fastqs for bam {}'.format(bam_path))
         cell_id = selected_indices[index_sequence]
 
         cell_filtered_bam = os.path.join(bam_dir, '{cell_id}.bam'.format(cell_id=cell_id))
@@ -269,7 +263,7 @@ def create_tumour_fastqs(data_dir):
         run_bam_fastq(cell_end_1_fastq, cell_end_2_fastq, cell_filtered_bam)
 
         if os.path.exists(cell_end_1_fastq_gz) and os.path.exists(cell_end_2_fastq_gz):
-            print('gzipped fastqs exist for {}, skipping'.format(cell_id))
+            logging.info('gzipped fastqs exist for {}, skipping'.format(cell_id))
         else:
             gzip_file(cell_end_1_fastq)
             gzip_file(cell_end_2_fastq)
@@ -302,7 +296,7 @@ def create_normal_dataset(data_dir, update=False):
         sample_id=test_sample_id,
     )
     sample_pk = test_sample["id"]
-    print("test normal sample has id {}".format(sample_pk))
+    logging.info("test normal sample has id {}".format(sample_pk))
 
     test_library_id = normal_dataset["library"]["library_id"] + 'TEST'
     test_library = tantalus_api.get_or_create(
@@ -312,7 +306,7 @@ def create_normal_dataset(data_dir, update=False):
         index_format=normal_dataset["library"]["index_format"],
     )
     library_pk = test_library["id"]
-    print("test normal library has id {}".format(library_pk))
+    logging.info("test normal library has id {}".format(library_pk))
 
     normal_bam_name = templates.WGS_BAM_NAME_TEMPLATE.format(
         sample_id=test_sample_id,
@@ -320,7 +314,7 @@ def create_normal_dataset(data_dir, update=False):
         library_type='WGS',
         lanes_str=NORMAL_LANES_STR,
     )
-    print("test normal dataset has name {}".format(normal_bam_name))
+    logging.info("test normal dataset has name {}".format(normal_bam_name))
 
     tantalus_bam_filename = WGS_BAM_TEMPLATE.format(
         sample_id=test_sample_id,
@@ -391,7 +385,7 @@ def create_sequence_dataset(tumour_fastq_paths, update=None):
         lane=test_lanes_str,
     )
 
-    print(test_dataset_name)
+    logging.info(test_dataset_name)
 
     test_sample = tantalus_api.get_or_create(
         "sample",
@@ -399,7 +393,7 @@ def create_sequence_dataset(tumour_fastq_paths, update=None):
     )
 
     sample_pk = test_sample["id"]
-    print("test sample has id {}".format(sample_pk))
+    logging.info("test sample has id {}".format(sample_pk))
 
     test_library = tantalus_api.get_or_create(
         "dna_library",
@@ -408,7 +402,7 @@ def create_sequence_dataset(tumour_fastq_paths, update=None):
         index_format=tumour_dataset["library"]["index_format"],
     )
     library_pk = test_library["id"]
-    print("test library has id {}".format(library_pk))
+    logging.info("test library has id {}".format(library_pk))
 
     # Create a sequence dataset
     sequence_dataset = dict(
@@ -444,7 +438,7 @@ def create_sequence_dataset(tumour_fastq_paths, update=None):
 
             rsync_file(fastq_path, tantalus_path)  
 
-            print("adding {} to Tantalus".format(tantalus_path))
+            logging.info("adding {} to Tantalus".format(tantalus_path))
             file_resource, file_instance = tantalus_api.add_file(
                 LOCAL_STORAGE_NAME,
                 tantalus_path,
@@ -476,9 +470,10 @@ def pull_source_datasets():
     tantalus_api = dbclients.tantalus.TantalusApi()
 
     for dataset_name in (TUMOUR_DATASET_NAME, NORMAL_DATASET_NAME):
-        dataset = tantalus_api.get('sequence_dataset', name=dataset_name)
-        datamanagement.transfer_files.transfer_dataset(
-            tantalus_api, dataset['id'], 'sequencedataset', REMOTE_STORAGE_NAME, LOCAL_STORAGE_NAME)
+        dataset_id = tantalus_api.get('sequence_dataset', name=dataset_name)['id']
+        logging.info(f'caching dataset {dataset_id}')
+        datamanagement.transfer_files.cache_dataset(
+            tantalus_api, dataset_id, 'sequencedataset', REMOTE_STORAGE_NAME, LOCAL_CACHE_DIRECTORY)
 
 
 @click.command()
@@ -487,6 +482,7 @@ def pull_source_datasets():
 def create_dlp_test_fastq(data_dir, update=False):
     pull_source_datasets()
 
+    import IPython; IPython.embed(); raise
     tumour_fastq_paths = create_tumour_fastqs(data_dir)
     tumour_dataset = create_sequence_dataset(tumour_fastq_paths, update=update)
 
@@ -507,5 +503,7 @@ def create_dlp_test_fastq(data_dir, update=False):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
+    logging.info('test')
     create_dlp_test_fastq()
 
