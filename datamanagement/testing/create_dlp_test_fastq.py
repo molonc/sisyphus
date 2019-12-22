@@ -86,46 +86,28 @@ NORMAL_LANES_STR = 'lanes_52f27595'
 REMOTE_STORAGE_NAME = 'singlecellblob'
 LOCAL_CACHE_DIRECTORY = os.environ['TANTALUS_CACHE_DIR']
 
-# TODO: add to templates.py
-WGS_BAM_TEMPLATE = os.path.join(
-	'wgs',
-	'{sample_id}',
-	'{library_id}',
-	'{ref_genome}',
-	'{aligner_name}',
-	'numlanes_{number_lanes}',
-	'{sample_id}_{library_id}_{ref_genome}_{aligner_name}_numlanes_{number_lanes}.bam'
-)
 
-
-selected_indices = {}
-for sublib in dbclients.colossus.get_colossus_sublibraries_from_library_id(LIBRARY_ID):
-    cell_id = sublib['cell_id']
-    if cell_id not in cell_ids:
-        continue
-    index_sequence = sublib['primer_i7'] + '-' + sublib['primer_i5']
-    selected_indices[index_sequence] = cell_id
-
-
-def gzip_file(uncompressed):
+def gzip_file(uncompressed, compressed):
     cmd = [
         'gzip',
         uncompressed,
+        '-c',
     ]
 
-    logging.info(' '.join(cmd))
-    subprocess.check_call(cmd)
+    logging.info('command -> ' + ' '.join(cmd))
+
+    with open(commpressed, 'wb') as f:
+        subprocess.check_call(cmd, stdout=f)
 
 
 def run_filter_cmd(filtered_bam, source_bam):
     if os.path.exists(filtered_bam):
-        logging.info('filtered bam {} already exists, skipping'.format(filtered_bam))
+        logging.info(f'filtered bam {filtered_bam} already exists, skipping')
         return
 
     cmd = [
         'samtools',
         'view',
-        '-f',
         '-b',
         '-o', filtered_bam,
         source_bam,
@@ -133,7 +115,7 @@ def run_filter_cmd(filtered_bam, source_bam):
 
     cmd.extend(regions)
 
-    logging.info(' '.join(cmd))
+    logging.info('command -> ' + ' '.join(cmd))
     subprocess.check_call(cmd)
 
     try:
@@ -147,13 +129,13 @@ def run_filter_cmd(filtered_bam, source_bam):
         filtered_bam,
     ]
 
-    logging.info(' '.join(cmd))
+    logging.info('command -> ' + ' '.join(cmd))
     subprocess.check_call(cmd)
 
 
 def run_bam_fastq(end_1_fastq, end_2_fastq, source_bam):
     if os.path.exists(end_1_fastq) and os.path.exists(end_2_fastq):
-        logging.info('fastqs for {} exist, skipping'.format(source_bam))
+        logging.info(f'fastqs for {source_bam} exist, skipping')
         return
 
     cmd = [
@@ -165,7 +147,7 @@ def run_bam_fastq(end_1_fastq, end_2_fastq, source_bam):
         source_bam + '.sorted.bam',
     ]
 
-    logging.info(' '.join(cmd))
+    logging.info('command -> ' + ' '.join(cmd))
     subprocess.check_call(cmd)
 
     cmd = [
@@ -179,8 +161,7 @@ def run_bam_fastq(end_1_fastq, end_2_fastq, source_bam):
         end_2_fastq,
     ]
 
-    logging.info(' '.join(cmd))
-    subprocess.check_call(cmd)
+    logging.info('command -> ' + ' '.join(cmd))
     subprocess.check_call(cmd)
 
 
@@ -193,22 +174,28 @@ def get_tumour_bams():
     file_resources = tantalus_api.get_dataset_file_resources(
         tumour_dataset['id'], 'sequencedataset', filters={'filename__endswith': '.bam'})
 
-    tumour_bam_paths = {}
-    tumour_file_resources = {}
+    sublibs = colossus.get_sublibraries_by_index_sequence(LIBRARY_ID)
+
+    tumour_bam_info = {}
 
     for file_resource in file_resources:
         assert file_resource['filename'].endswith('.bam')
 
         index_sequence = str(file_resource['sequencefileinfo']['index_sequence'])
-        cell_id = 
+        sublib = sublibs[index_sequence]
+        cell_id = sublib['cell_id']
 
-        if index_sequence not in selected_indices:
+        if cell_id not in cell_ids:
             continue
 
-        tumour_bam_paths[index_sequence] = {'bam': str(file_instance['filepath'])}
-        tumour_file_resources[index_sequence] = file_instance['file_resource']
+        filepath = os.path.join(LOCAL_CACHE_DIRECTORY, file_resource['filename'])
 
-    return tumour_bam_paths, tumour_file_resources
+        tumour_bam_info[cell_ids] = {
+            'bam': filepath,
+            'sublib': sublib,
+        }
+
+    return tumour_bam_info
 
 
 def get_normal_bam():
@@ -226,55 +213,78 @@ def get_normal_bam():
         return normal_filepath
 
 
-def create_tumour_fastqs(data_dir):
+def create_tumour_fastqs(fastq_dir, temp_dir):
+    """ Create a filterd fastq dataset
+    """
+    tumour_bam_info = get_tumour_bams()
 
-    tumour_fastq_paths_pk = os.path.join(data_dir, "tumour_fastq_paths.pk")
-    if os.path.exists(tumour_fastq_paths_pk):
-        with open(tumour_fastq_paths_pk, "rb") as handle:
-            return pickle.load(handle)
-
-    try: os.makedirs(data_dir)
-    except: pass
-
-    tumour_bam_paths = get_tumour_bams()[0]
-
-    bam_dir = os.path.join(data_dir, "bam")
-    fastq_dir = os.path.join(data_dir, "fastq")
-
-    try: os.makedirs(bam_dir)
-    except: pass
     try: os.makedirs(fastq_dir)
     except: pass
+    try: os.makedirs(temp_dir)
+    except: pass
 
-    tumour_fastq_paths = {}
-    for index_sequence in tumour_bam_paths:
-        bam_path = tumour_bam_paths[index_sequence]['bam']
+    FASTQ_TEMPLATE = '{cell_id}_{read_end}.fastq'
+
+    tumour_fastq_metadata = {
+        'filenames': [],
+        'meta': {
+            'type': 'cellfastqs'
+            'version': 'v0.0.1'
+            'cell_ids': [],
+            'lane_ids': [],
+            'fastqs': {
+                'template': FASTQ_TEMPLATE,
+                'instances': []
+            },
+        }
+    }
+
+    metadata_yaml_filename = os.path.join(fastq_dir, 'metadata.yaml')
+
+    for cell_id in tumour_bam_info:
+        bam_path = tumour_bam_info[cell_id]['bam']
+        sublib = tumour_bam_info[cell_id]['sublib']
+
         logging.info('creating paired end fastqs for bam {}'.format(bam_path))
-        cell_id = selected_indices[index_sequence]
 
-        cell_filtered_bam = os.path.join(bam_dir, '{cell_id}.bam'.format(cell_id=cell_id))
-
-        cell_end_1_fastq = os.path.join(fastq_dir, '{cell_id}_1.fastq'.format(cell_id=cell_id))
-        cell_end_2_fastq = os.path.join(fastq_dir, '{cell_id}_2.fastq'.format(cell_id=cell_id))
-        cell_end_1_fastq_gz = os.path.join(fastq_dir, '{cell_id}_1.fastq.gz'.format(cell_id=cell_id))
-        cell_end_2_fastq_gz = os.path.join(fastq_dir, '{cell_id}_2.fastq.gz'.format(cell_id=cell_id))
-        
+        # Filter bams
+        cell_filtered_bam = os.path.join(fastq_dir, f'{cell_id}.bam')
         run_filter_cmd(cell_filtered_bam, bam_path)
+
+        # Convert bams to fastq, uncompressed
+        cell_end_1_fastq = os.path.join(fastq_dir, f'{cell_id}_1.fastq')
+        cell_end_2_fastq = os.path.join(fastq_dir, f'{cell_id}_2.fastq')
         run_bam_fastq(cell_end_1_fastq, cell_end_2_fastq, cell_filtered_bam)
 
-        if os.path.exists(cell_end_1_fastq_gz) and os.path.exists(cell_end_2_fastq_gz):
-            logging.info('gzipped fastqs exist for {}, skipping'.format(cell_id))
-        else:
-            gzip_file(cell_end_1_fastq)
-            gzip_file(cell_end_2_fastq)
+        # Gzip final fastq
+        cell_end_1_fastq_filename = FASTQ_TEMPLATE.format(cell_id=cell_id, read_end='1')
+        cell_end_2_fastq_filename = FASTQ_TEMPLATE.format(cell_id=cell_id, read_end='2')
+        cell_end_1_fastq_gz = os.path.join(fastq_dir, cell_end_1_fastq_filename)
+        cell_end_2_fastq_gz = os.path.join(fastq_dir, cell_end_2_fastq_filename)
+        gzip_file(cell_end_1_fastq, cell_end_1_fastq_gz)
+        gzip_file(cell_end_2_fastq, cell_end_2_fastq_gz)
 
-        tumour_fastq_paths[cell_id] = {
-            'fastq_1': str(cell_end_1_fastq_gz),
-            'fastq_2': str(cell_end_2_fastq_gz),
-            'index_sequence': index_sequence,
-        }
+        tumour_fastq_metadata['filenames'].append(cell_end_1_fastq_filename)
+        tumour_fastq_metadata['filenames'].append(cell_end_2_fastq_filename)
 
-    return tumour_fastq_paths
+        tumour_fastq_metadata['meta']['cell_ids'].append(cell_id)
+
+        for read_end in ('1', '2'):
+            tumour_fastq_metadata['meta']['fastqs'].append({
+                'cell_id': cell_id,
+                'read_end': read_end,
+                'img_col': sublib['img_col']
+                'index_i5': sublib['index_i5']
+                'index_i7': sublib['index_i7']
+                'pick_met': sublib['pick_met']
+                'primer_i5': sublib['primer_i5']
+                'primer_i7': sublib['primer_i7']
+                'row': sublib['row']
+                'column': sublib['column']
+            })
+
+    with open(metadata_yaml_filename, 'w') as meta_yaml:
+        yaml.safe_dump(tumour_fastq_metadata, meta_yaml, default_flow_style=False)
 
 
 def create_normal_dataset(data_dir, update=False):
@@ -470,10 +480,9 @@ def pull_source_datasets():
     tantalus_api = dbclients.tantalus.TantalusApi()
 
     for dataset_name in (TUMOUR_DATASET_NAME, NORMAL_DATASET_NAME):
-        dataset_id = tantalus_api.get('sequence_dataset', name=dataset_name)['id']
-        logging.info(f'caching dataset {dataset_id}')
+        dataset = tantalus_api.get('sequence_dataset', name=dataset_name)
         datamanagement.transfer_files.cache_dataset(
-            tantalus_api, dataset_id, 'sequencedataset', REMOTE_STORAGE_NAME, LOCAL_CACHE_DIRECTORY)
+            tantalus_api, dataset['id'], 'sequencedataset', REMOTE_STORAGE_NAME, LOCAL_CACHE_DIRECTORY)
 
 
 @click.command()
@@ -482,7 +491,6 @@ def pull_source_datasets():
 def create_dlp_test_fastq(data_dir, update=False):
     pull_source_datasets()
 
-    import IPython; IPython.embed(); raise
     tumour_fastq_paths = create_tumour_fastqs(data_dir)
     tumour_dataset = create_sequence_dataset(tumour_fastq_paths, update=update)
 
