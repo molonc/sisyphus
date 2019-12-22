@@ -220,11 +220,6 @@ def create_tumour_fastqs(fastq_dir, temp_dir):
     """
     tumour_bam_info = get_tumour_bams()
 
-    try: os.makedirs(fastq_dir)
-    except: pass
-    try: os.makedirs(temp_dir)
-    except: pass
-
     FASTQ_TEMPLATE = '{cell_id}_{read_end}.fastq'
 
     tumour_fastq_metadata = {
@@ -273,6 +268,7 @@ def create_tumour_fastqs(fastq_dir, temp_dir):
             tumour_fastq_metadata['meta']['fastqs']['instances'].append({
                 'cell_id': cell_id,
                 'read_end': read_end,
+                'condition': sublib['condition'],
                 'img_col': sublib['img_col'],
                 'index_i5': sublib['index_i5'],
                 'index_i7': sublib['index_i7'],
@@ -337,13 +333,64 @@ def pull_source_datasets():
             tantalus_api, dataset['id'], 'sequencedataset', REMOTE_STORAGE_NAME, LOCAL_CACHE_DIRECTORY)
 
 
+def create_align_input_yaml(fastqs_dir, input_yaml_filepath):
+    """ Prepare input yaml for align pipeline
+    """
+
+    fastqs_metadata_filepath = os.path.join(fastqs_dir, 'metadata.yaml')
+    fastqs_metadata = yaml.load(open(fastqs_metadata_filepath))
+
+    input_info = {}
+
+    lane_id = '.'.join(fastqs_metadata['meta']['lane_ids'])
+    cell_ids = fastqs_metadata['meta']['cell_ids']
+
+    fastq_template = fastqs_metadata['meta']['fastqs']['template']
+    fastqs_df = pd.DataFrame(fastqs_metadata['meta']['fastqs']['instances'])
+    assert not fastqs_df.drop('read_end', axis=1).drop_duplicates()[['cell_id']].duplicated().any()
+    fastqs_df = fastqs_df.set_index('cell_id', drop=False)
+
+    for cell_id in cell_ids:
+        cell_info = fastqs_df.loc[cell_id].set_index('read_end', drop=False)
+        input_info[cell_id] = {
+            'condition': cell_info.loc['1']['condition'],
+            'column': int(cell_info.loc['1']['column']),
+            'img_col': int(cell_info.loc['1']['img_col']),
+            'index_i5': cell_info.loc['1']['index_i5'],
+            'index_i7': cell_info.loc['1']['index_i7'],
+            'pick_met': cell_info.loc['1']['pick_met'],
+            'primer_i5': cell_info.loc['1']['primer_i5'],
+            'primer_i7': cell_info.loc['1']['primer_i7'],
+            'row': int(cell_info.loc['1']['row']),
+        }
+        fastq_1_filepath = os.path.realpath(os.path.join(fastqs_dir, fastq_template.format(**cell_info.loc['1'].to_dict())))
+        fastq_2_filepath = os.path.realpath(os.path.join(fastqs_dir, fastq_template.format(**cell_info.loc['2'].to_dict())))
+        input_info[cell_id]['fastqs'] = {
+            lane_id: {
+                'fastq_1': fastq_1_filepath,
+                'fastq_2': fastq_2_filepath,
+                'sequencing_center': 'TEST',
+                'sequencing_instrument': 'TEST',
+            }
+        }
+
+    with open(input_yaml_filepath, 'w') as meta_yaml:
+        yaml.safe_dump(input_info, meta_yaml, default_flow_style=False)
+
+
 @click.command()
-@click.argument('tumour_fastq_dir')
-@click.argument('normal_bam_dir')
-@click.argument('temp_dir')
+@click.argument('data_dir')
 @click.option('--update', is_flag=True)
-def create_dlp_test_data(tumour_fastq_dir, normal_bam_dir, temp_dir, update=False):
-    #pull_source_datasets()
+def create_dlp_test_data(data_dir, update=False):
+    pull_source_datasets()
+
+    tumour_fastq_dir = os.path.join(data_dir, 'tumour_fastqs')
+    normal_bam_dir = os.path.join(data_dir, 'normal_bam')
+    temp_dir = os.path.join(data_dir, 'temp')
+
+    for d in (tumour_fastq_dir, normal_bam_dir, temp_dir)
+        try: os.makedirs(d)
+        except: pass
 
     tumour_metadata = os.path.join(tumour_fastq_dir, 'metadata.yaml')
     if os.path.exists(tumour_metadata):
@@ -356,6 +403,9 @@ def create_dlp_test_data(tumour_fastq_dir, normal_bam_dir, temp_dir, update=Fals
         logging.info(f'skipping create_normal_bam, found {normal_metadata}')
     else:
         create_normal_bam(normal_bam_dir)
+
+    align_input_yaml_filepath = os.path.join(data_dir, 'align', 'inputs.yaml')
+    create_align_input_yaml(tumour_fastq_dir, align_input_yaml_filepath)
 
 
 if __name__ == '__main__':
