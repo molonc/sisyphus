@@ -27,56 +27,62 @@ regions = [
     '17:45000000-47000000',
 ]
 
+
 cell_ids = [
-    'SA922-A90554B-R34-C14', 'SA922-A90554B-R32-C12',
-    'SA922-A90554B-R34-C42', 'SA922-A90554B-R33-C38',
-    'SA922-A90554B-R26-C40', 'SA922-A90554B-R28-C42',
-    'SA922-A90554B-R26-C16', 'SA922-A90554B-R30-C14',
-    'SA922-A90554B-R31-C29', 'SA922-A90554B-R34-C67',
-    'SA922-A90554B-R31-C34', 'SA922-A90554B-R34-C61',
-    'SA922-A90554B-R24-C17', 'SA922-A90554B-R24-C27',
-    'SA922-A90554B-R27-C21', 'SA922-A90554B-R26-C22',
-    'SA922-A90554B-R35-C29', 'SA922-A90554B-R29-C37',
-    'SA922-A90554B-R25-C25', 'SA922-A90554B-R28-C38',
-    'SA922-A90554B-R24-C14', 'SA922-A90554B-R26-C26',
-    'SA922-A90554B-R27-C48', 'SA922-A90554B-R25-C19',
-    'SA922-A90554B-R26-C25', 'SA922-A90554B-R33-C34',
-    'SA921-A90554A-R08-C17', 'SA921-A90554A-R14-C34',
-    'SA921-A90554A-R05-C58', 'SA921-A90554A-R04-C40',
-    'SA921-A90554A-R11-C09', 'SA921-A90554A-R04-C35',
-    'SA921-A90554A-R04-C64', 'SA921-A90554A-R05-C28',
-    'SA921-A90554A-R13-C20', 'SA921-A90554A-R14-C25',
-    'SA921-A90554A-R04-C10', 'SA921-A90554A-R06-C57',
-    'SA921-A90554A-R09-C30', 'SA921-A90554A-R11-C52',
-    'SA921-A90554A-R07-C59', 'SA921-A90554A-R10-C14',
-    'SA921-A90554A-R08-C48', 'SA921-A90554A-R06-C22',
-    'SA921-A90554A-R04-C44', 'SA921-A90554A-R03-C36',
-    'SA921-A90554A-R04-C66', 'SA921-A90554A-R14-C65',
-    'SA921-A90554A-R05-C14', 'SA921-A90554A-R06-C13',
-    'SA921-A90554A-R06-C14', 'SA921-A90554A-R05-C35',
-    'SA921-A90554A-R10-C11', 'SA921-A90554A-R14-C40',
-    'SA1090-A96213A-R24-C58', 'SA1090-A96213A-R25-C22',
-    'SA1090-A96213A-R30-C35', 'SA1090-A96213A-R33-C66',
-    'SA1090-A96213A-R26-C49', 'SA1090-A96213A-R31-C37',
-    'SA1090-A96213A-R27-C14', 'SA1090-A96213A-R35-C18',
-    'SA1090-A96213A-R26-C61', 'SA1090-A96213A-R30-C55',
-    'SA1090-A96213A-R24-C20', 'SA1090-A96213A-R26-C50',
-    'SA1090-A96213A-R35-C24', 'SA1090-A96213A-R20-C28',
-    'SA1090-A96213A-R33-C31', 'SA1090-A96213A-R27-C21',
-    'SA1090-A96213A-R24-C12', 'SA1090-A96213A-R32-C66',
-    'SA1090-A96213A-R26-C64', 'SA1090-A96213A-R29-C59',
-    'SA1090-A96213A-R28-C64', 'SA1090-A96213A-R32-C41',
-    'SA1090-A96213A-R32-C39', 'SA1090-A96213A-R25-C64',
-    'SA1090-A96213A-R33-C38', 'SA1090-A96213A-R28-C23',
-    'SA1090-A96213A-R35-C38', 'SA1090-A96213A-R22-C44',
-    'SA1090-A96213A-R29-C47', 'SA1090-A96213A-R31-C09',
-    'SA1090-A96213A-R27-C45', 'SA1090-A96213A-R29-C18',
-    'SA1090-A96213A-R20-C62', 'SA1090-A96213A-R29-C62',
-    'SA1090-A96213A-R25-C14', 'SA1090-A96213A-R25-C40',
-    'SA1090-A96213A-R30-C15', 'SA1090-A96213A-R32-C65',
-    'SA1090-A96213A-R35-C47', 'SA1090-A96213A-R22-C43',
-    'SA1090-A96213A-R28-C39'
+    'SA1090-A96213A-R20-C28',
+    'SA1090-A96213A-R20-C62',
+    'SA1090-A96213A-R22-C43',
+    'SA1090-A96213A-R22-C44',
+    'SA1090-A96213A-R24-C12',
+    'SA1090-A96213A-R24-C19',
+    'SA1090-A96213A-R24-C20',
+    'SA1090-A96213A-R24-C58',
+    'SA1090-A96213A-R25-C13',
+    'SA1090-A96213A-R25-C14',
+    'SA1090-A96213A-R25-C22',
+    'SA1090-A96213A-R25-C40',
+    'SA1090-A96213A-R25-C64',
+    'SA1090-A96213A-R26-C49',
+    'SA1090-A96213A-R26-C50',
+    'SA1090-A96213A-R26-C61',
+    'SA1090-A96213A-R26-C64',
+    'SA1090-A96213A-R27-C10',
+    'SA1090-A96213A-R27-C14',
+    'SA1090-A96213A-R27-C21',
+    'SA1090-A96213A-R27-C45',
+    'SA1090-A96213A-R28-C12',
+    'SA1090-A96213A-R28-C20',
+    'SA1090-A96213A-R28-C23',
+    'SA1090-A96213A-R28-C39',
+    'SA1090-A96213A-R28-C55',
+    'SA1090-A96213A-R28-C64',
+    'SA1090-A96213A-R29-C18',
+    'SA1090-A96213A-R29-C47',
+    'SA1090-A96213A-R29-C59',
+    'SA1090-A96213A-R29-C62',
+    'SA1090-A96213A-R29-C68',
+    'SA1090-A96213A-R30-C14',
+    'SA1090-A96213A-R30-C15',
+    'SA1090-A96213A-R30-C35',
+    'SA1090-A96213A-R30-C44',
+    'SA1090-A96213A-R30-C55',
+    'SA1090-A96213A-R31-C09',
+    'SA1090-A96213A-R31-C37',
+    'SA1090-A96213A-R32-C39',
+    'SA1090-A96213A-R32-C41',
+    'SA1090-A96213A-R32-C65',
+    'SA1090-A96213A-R32-C66',
+    'SA1090-A96213A-R33-C31',
+    'SA1090-A96213A-R33-C38',
+    'SA1090-A96213A-R33-C66',
+    'SA1090-A96213A-R35-C18',
+    'SA1090-A96213A-R35-C24',
+    'SA1090-A96213A-R35-C25',
+    'SA1090-A96213A-R35-C28',
+    'SA1090-A96213A-R35-C38',
+    'SA1090-A96213A-R35-C47',
 ]
+
 
 LIBRARY_ID = 'A96213A'
 TEST_LANE_FLOWCELL = "HHCJ7CCXY"
@@ -383,6 +389,80 @@ def create_align_input_yaml(fastqs_dir, input_yaml_filepath):
                 'sequencing_instrument': 'TEST',
             }
         }
+
+    with open(input_yaml_filepath, 'w') as meta_yaml:
+        yaml.safe_dump(input_info, meta_yaml, default_flow_style=False)
+
+
+def create_hmmcopy_input_yaml(fastqs_dir, bams_dir, input_yaml_filepath):
+    """ Prepare input yaml for hmmcopy pipeline
+    """
+
+    fastqs_metadata_filepath = os.path.join(fastqs_dir, 'metadata.yaml')
+    fastqs_metadata = yaml.load(open(fastqs_metadata_filepath))
+
+    fastq_template = fastqs_metadata['meta']['fastqs']['template']
+    fastqs_df = pd.DataFrame(fastqs_metadata['meta']['fastqs']['instances'])
+    assert not fastqs_df.drop('read_end', axis=1).drop_duplicates()[['cell_id']].duplicated().any()
+    fastqs_df = fastqs_df.set_index('cell_id', drop=False)
+
+    bams_metadata_filepath = os.path.join(bams_dir, 'metadata.yaml')
+    bams_metadata = yaml.load(open(bams_metadata_filepath))
+
+    input_info = {}
+
+    bam_template = bams_metadata['meta']['bams']['template']
+
+    for instance in bams_metadata['meta']['bams']['instances']:
+        cell_id = instance['cell_id']
+
+        cell_info = fastqs_df.loc[cell_id].set_index('read_end', drop=False)
+        input_info[cell_id] = {
+            'condition': cell_info.loc['1']['condition'],
+            'column': int(cell_info.loc['1']['column']),
+            'img_col': int(cell_info.loc['1']['img_col']),
+            'index_i5': cell_info.loc['1']['index_i5'],
+            'index_i7': cell_info.loc['1']['index_i7'],
+            'pick_met': cell_info.loc['1']['pick_met'],
+            'primer_i5': cell_info.loc['1']['primer_i5'],
+            'primer_i7': cell_info.loc['1']['primer_i7'],
+            'row': int(cell_info.loc['1']['row']),
+        }
+
+        bam_filename = bam_template.format(**instance)
+        bam_filepath = os.path.join(bams_dir, bam_filename)
+        input_info[cell_id]['bam'] = bam_filepath
+
+    with open(input_yaml_filepath, 'w') as meta_yaml:
+        yaml.safe_dump(input_info, meta_yaml, default_flow_style=False)
+
+
+def _read_region_bams(bams_dir):
+    bam_paths = {}
+
+    metadata_filepath = os.path.join(bams_dir, 'metadata.yaml')
+    metadata = yaml.load(open(metadata_filepath))
+
+    bam_template = metadata['meta']['bams']['template']
+
+    for instance in metadata['meta']['bams']['instances']:
+        region_id = instance['region']
+
+        bam_filename = bam_template.format(**instance)
+        bam_filepath = os.path.join(bams_dir, bam_filename)
+        bam_paths[region_id] = {'bam': bam_filepath}
+    
+    return bam_paths
+
+
+def create_variant_calling_input_yaml(normal_bams_dir, tumour_bams_dir, input_yaml_filepath):
+    """ Prepare input yaml for variant calling pipeline
+    """
+
+    input_info = {
+        'normal': _read_region_bams(normal_bams_dir),
+        'tumour': _read_region_bams(tumour_bams_dir),
+    }
 
     with open(input_yaml_filepath, 'w') as meta_yaml:
         yaml.safe_dump(input_info, meta_yaml, default_flow_style=False)
