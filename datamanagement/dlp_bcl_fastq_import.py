@@ -28,7 +28,6 @@ from datamanagement.utils.qsub_jobs import Bcl2FastqJob
 from datamanagement.utils.constants import DEFAULT_NATIVESPEC
 import datetime
 
-
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
@@ -38,6 +37,9 @@ BRC_INDEX_FORMAT = "D"
 BRC_LIBRARY_TYPE = "SC_WGS"
 BRC_READ_TYPE = "P"
 BRC_SEQ_CENTRE = "BRC"
+
+colossus_api = ColossusApi()
+tantalus_api = TantalusApi()
 
 
 def query_colossus_dlp_cell_info(library_id):
@@ -56,15 +58,15 @@ def query_colossus_dlp_cell_info(library_id):
 
 
 def load_brc_fastqs(
-    flowcell_id,
-    output_dir,
-    storage_name,
-    storage,
-    tantalus_api,
-    storage_client,
-    tag_name=None,
-    update=False,
-    threshold=20,
+        flowcell_id,
+        output_dir,
+        storage_name,
+        storage,
+        tantalus_api,
+        storage_client,
+        tag_name=None,
+        update=False,
+        threshold=20,
 ):
     if not os.path.isdir(output_dir):
         raise Exception("output directory {} not a directory".format(output_dir))
@@ -76,7 +78,11 @@ def load_brc_fastqs(
     fastq_dlp_index_check(fastq_file_info)
 
     create_sequence_dataset_models(
-        fastq_file_info, storage_name, tag_name, tantalus_api, update=update,
+        fastq_file_info,
+        storage_name,
+        tag_name,
+        tantalus_api,
+        update=update,
     )
 
     update_ticket(flowcell_id)
@@ -92,7 +98,6 @@ def update_ticket(flowcell_id):
     Args: 
         flowcell_id (str): Lane/Flowcell id
     """
-    colossus_api = ColossusApi()
 
     lane_info = colossus_api.get("lane", flow_cell_id=flowcell_id)
     sequencing_id = lane_info["sequencing"]
@@ -138,8 +143,8 @@ def check_fastqs(library_id, fastq_file_info, threshold):
     fastqs_to_be_generated = dict()
 
     for index in index_sequences:
-        fastqs_containing_index = [fastq for fastq in fastq_file_info if fastq["index_sequence"]==index]
-        fastq_lane_numbers_to_be_generated = set(range(1,5))
+        fastqs_containing_index = [fastq for fastq in fastq_file_info if fastq["index_sequence"] == index]
+        fastq_lane_numbers_to_be_generated = set(range(1, 5))
         for fastq in fastqs_containing_index:
             sequence_lane = fastq["sequence_lanes"][0]
             lane_number = sequence_lane["lane_number"]
@@ -149,38 +154,38 @@ def check_fastqs(library_id, fastq_file_info, threshold):
 
     number_of_fastqs_to_generate = sum(len(fastqs_to_be_generated[index]) for index in fastqs_to_be_generated)
     if number_of_fastqs_to_generate > threshold:
-        raise Exception("Number of empty fastqs to be generated ({}) exceeded threshold ({})".format(number_of_fastqs_to_generate, threshold))
+        raise Exception("Number of empty fastqs to be generated ({}) exceeded threshold ({})".format(
+            number_of_fastqs_to_generate, threshold))
 
     return fastqs_to_be_generated
 
 
 def generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated):
-    # Ex: SA992-A90632-R54-C54_S317_L004_R1_001.fastq.gz
-
     sublibraries = get_colossus_sublibraries_from_library_id(library_id)
 
     index_sequence_map = {}
     file_names = []
-    reads = [1,2]
+    reads = [1, 2]
 
     for sublibrary in sublibraries:
         index_sequence = sublibrary["primer_i7"] + "-" + sublibrary["primer_i5"]
         sample_id = sublibrary["sample_id"]["sample_id"]
         index_sequence_map[index_sequence] = {
-            "sample_id":    sample_id,
-            "row":          sublibrary["row"], 
-            "column" :      sublibrary["column"]
-        }    
+            "sample_id": sample_id,
+            "row": sublibrary["row"],
+            "column": sublibrary["column"]
+        }
 
     for fastq_index in fastqs_to_be_generated.keys():
         row = index_sequence_map[fastq_index]["row"]
         column = index_sequence_map[fastq_index]["column"]
         sample_id = index_sequence_map[fastq_index]["sample_id"]
-        
-        samplename = "-".join([sample_id,library_id,"R{}".format(row), "C{}".format(column)])
+
+        samplename = "-".join([sample_id, library_id, "R{}".format(row), "C{}".format(column)])
         for lane_num in fastqs_to_be_generated[fastq_index]:
             for read in reads:
-                filename =  "_".join([samplename, "S0", "L00{}".format(lane_num), "R{}".format(read), "001.fastq.gz"])
+                # Fastq name example: SA992-A90632-R54-C54_S317_L004_R1_001.fastq.gz
+                filename = "_".join([samplename, "S0", "L00{}".format(lane_num), "R{}".format(read), "001.fastq.gz"])
                 file_names.append(filename)
 
     for filename in file_names:
@@ -215,10 +220,18 @@ def get_fastq_info(output_dir, flowcell_id, storage, storage_client, threshold):
     # Fastq filenames and info keyed by fastq id, read end
     fastq_file_info = []
 
-    fastq_file_info = transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, output_dir, storage, storage_client)
+    fastq_file_info = transfer_fastq_files(
+        cell_info,
+        flowcell_id,
+        fastq_file_info,
+        filenames,
+        output_dir,
+        storage,
+        storage_client,
+    )
     library_id = fastq_file_info[0]["library_id"] # TODO: Maybe make library_id an argument
 
-    # Run through list of fastqs and check if bcl2fastqs skipped over indices or skipped lanes/reads 
+    # Run through list of fastqs and check if bcl2fastqs skipped over indices or skipped lanes/reads
     fastqs_to_be_generated = check_fastqs(library_id, fastq_file_info, threshold)
     number_of_fastqs_to_generate = sum(len(fastqs_to_be_generated[index]) for index in fastqs_to_be_generated)
 
@@ -226,7 +239,15 @@ def get_fastq_info(output_dir, flowcell_id, storage, storage_client, threshold):
         logging.info("BCL2FASTQ failed to generate complete set of fastqs. Generating missing fastqs.")
         new_filenames = generate_empty_fastqs(output_dir, library_id, fastqs_to_be_generated)
 
-        new_fastq_file_info = transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, new_filenames, output_dir, storage, storage_client)
+        new_fastq_file_info = transfer_fastq_files(
+            cell_info,
+            flowcell_id,
+            fastq_file_info,
+            new_filenames,
+            output_dir,
+            storage,
+            storage_client,
+        )
         return new_fastq_file_info
 
     return fastq_file_info
@@ -242,9 +263,7 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
         )
 
         if match is None:
-            raise Exception( 
-                "unrecognized fastq filename structure for {}".format(filename)
-            )
+            raise Exception("unrecognized fastq filename structure for {}".format(filename))
 
         filename_fields = match.groups()
 
@@ -278,12 +297,11 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
 
         tantalus_path = os.path.join(storage["prefix"], tantalus_filename)
 
-        if storage['storage_type'] == 'server': 
+        if storage['storage_type'] == 'server':
             rsync_file(fastq_path, tantalus_path)
 
         elif storage['storage_type'] == 'blob':
             storage_client.create(tantalus_filename, fastq_path)
-
 
         fastq_file_info.append(
             dict(
@@ -306,20 +324,23 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
                 index_sequence=index_sequence,
                 compression="GZIP",
                 filepath=tantalus_path,
-            )
-        )
+            ))
 
     return fastq_file_info
 
 
 def get_samplesheet(destination, lane_id):
 
-    r = requests.get('https://colossus.canadacentral.cloudapp.azure.com/api/samplesheet_query/{}'.format(lane_id), 
-        auth=(os.environ["COLOSSUS_API_USERNAME"], os.environ["COLOSSUS_API_PASSWORD"])
+    r = requests.get(
+        'https://colossus.canadacentral.cloudapp.azure.com/api/samplesheet_query/{}'.format(lane_id),
+        auth=(
+            os.environ["COLOSSUS_API_USERNAME"],
+            os.environ["COLOSSUS_API_PASSWORD"],
+        ),
     )
 
     with open(destination, 'w+') as f:
-        f.write(r.content)
+        f.write(r.content.decode("utf-8"))
 
 
 def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
@@ -333,24 +354,49 @@ def run_bcl2fastq(flowcell_id, bcl_dir, output_dir):
 
     get_samplesheet(samplesheet_filename, flowcell_id)
 
-    job = Bcl2FastqJob('12', bcl_dir, samplesheet_filename, output_dir)
+    job = Bcl2FastqJob('16', bcl_dir, samplesheet_filename, output_dir)
 
     submit_qsub_job(job, DEFAULT_NATIVESPEC, title=flowcell_id)
 
     logging.info("Job finished successfully.")
 
 
+def add_lanes(flowcell_id):
+    # get lane information
+    lane = colossus_api.get("lane", flow_cell_id=flowcell_id)
+    sequencing_id = lane["sequencing"]
+    sequencing_date = lane["sequencing_date"]
+    # add 4 lanes generated by bcl2fastq on colossus in order to be picked up for analysis
+    for lane_number in range(1, 5):
+        lane = "{}_{}".format(flowcell_id, lane_number)
+        logging.info("creating {}".format(lane))
+        colossus_api.create(
+            "lane",
+            sequencing=sequencing_id,
+            sequencing_date=sequencing_date,
+            flow_cell_id=lane,
+        )
+
+
 @click.command()
-@click.argument('storage_name',  nargs=1)
-@click.argument('temp_output_dir',  nargs=1)
-@click.argument('flowcell_id',  nargs=1)
-@click.argument('bcl_dir',  nargs=1)
+@click.argument('storage_name', nargs=1)
+@click.argument('temp_output_dir', nargs=1)
+@click.argument('flowcell_id', nargs=1)
+@click.argument('bcl_dir', nargs=1)
 @click.option('--tag_name')
 @click.option('--update', is_flag=True)
 @click.option('--no_bcl2fastq', is_flag=True)
 @click.option('--threshold', type=int, default=20)
-def main(storage_name, temp_output_dir, flowcell_id, bcl_dir, tag_name=None, update=False, no_bcl2fastq=False, threshold=20):
-    tantalus_api = TantalusApi()
+def main(
+        storage_name,
+        temp_output_dir,
+        flowcell_id,
+        bcl_dir,
+        tag_name=None,
+        update=False,
+        no_bcl2fastq=False,
+        threshold=20,
+):
 
     storage = tantalus_api.get("storage", name=storage_name)
     storage_client = tantalus_api.get_storage_client(storage_name)
@@ -360,7 +406,8 @@ def main(storage_name, temp_output_dir, flowcell_id, bcl_dir, tag_name=None, upd
     datasets = list(tantalus_api.list(
         "sequence_dataset",
         sequence_lanes__flowcell_id=flowcell_id,
-        dataset_type="FQ"))
+        dataset_type="FQ",
+    ))
 
     if len(datasets) > 0:
         logging.warning("found dataset {}".format(','.join([str(d["id"]) for d in datasets])))
@@ -385,7 +432,9 @@ def main(storage_name, temp_output_dir, flowcell_id, bcl_dir, tag_name=None, upd
         threshold=threshold,
     )
 
+    # add 4 lanes generated by bcl2fastq on colossus in order to be picked up for analysis
+    add_lanes(flowcell_id)
+
 
 if __name__ == "__main__":
     main()
-
