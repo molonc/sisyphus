@@ -468,6 +468,48 @@ def create_variant_calling_input_yaml(normal_bams_dir, tumour_bams_dir, input_ya
         yaml.safe_dump(input_info, meta_yaml, default_flow_style=False)
 
 
+def _get_wgs_bam_filepath(bam_dir):
+    metadata_filepath = os.path.join(bam_dir, 'metadata.yaml')
+    metadata = yaml.load(open(metadata_filepath))
+    bam_filenames = list(filter(lambda a: a.endswith('.bam'), metadata['filenames']))
+    assert len(bam_filenames) == 1
+    bam_filename = bam_filenames[0]
+    bam_filepath = os.path.join(bam_dir, bam_filename)
+
+    return bam_filepath
+
+
+def _read_cell_bams(bams_dir):
+    bam_paths = {}
+
+    metadata_filepath = os.path.join(bams_dir, 'metadata.yaml')
+    metadata = yaml.load(open(metadata_filepath))
+
+    bam_template = metadata['meta']['bams']['template']
+
+    for instance in metadata['meta']['bams']['instances']:
+        cell_id = instance['cell_id']
+
+        bam_filename = bam_template.format(**instance)
+        bam_filepath = os.path.join(bams_dir, bam_filename)
+        bam_paths[cell_id] = {'bam': bam_filepath}
+    
+    return bam_paths
+
+
+def create_breakpoint_calling_input_yaml(normal_bam_dir, tumour_bams_dir, input_yaml_filepath):
+    """ Prepare input yaml for breakpoint calling pipeline
+    """
+
+    input_info = {
+        'normal': {'bam': _get_wgs_bam_filepath(normal_bam_dir)},
+        'tumour': _read_cell_bams(tumour_bams_dir),
+    }
+
+    with open(input_yaml_filepath, 'w') as meta_yaml:
+        yaml.safe_dump(input_info, meta_yaml, default_flow_style=False)
+
+
 @click.command()
 @click.argument('data_dir')
 @click.option('--skip_download', is_flag=True)
