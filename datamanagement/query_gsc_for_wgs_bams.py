@@ -36,7 +36,7 @@ from datamanagement.utils.constants import (
         SOLEXA_RUN_TYPE_MAP,
         PROTOCOL_ID_MAP
 )
-from transfer_files import *
+from datamanagement.transfer_files import *
 
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 gsc_api = GSCAPI()
@@ -222,6 +222,7 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
 
     # If the input is a spec, run spec2bam
     if bam_paths["source_bam_path"].endswith(".spec"):
+        '''
         create_bam(
             spec_path=bam_paths["source_bam_path"],
             raw_reference_genome=bam_detail["reference_genome"],
@@ -230,6 +231,7 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
             library_id=bam_detail["library"]["library_id"],
             sftp_client=sftp
         )
+        '''
     elif bam_paths["source_bam_path"].endswith(".cram"):
         HelperCram.create_bam(
             cram_path=bam_paths["source_bam_path"],
@@ -474,6 +476,13 @@ def get_merge_info(details_list, gsc_api, library, sample, skip_older_than):
                 assert len(libcores) == 1
                 libcore = libcores[0]
                 primer = gsc_api.query("primer/{}".format(libcore["primer_id"]))
+            elif merge_xref["object_type"] == "repo.analysis":
+                aligned_libcore_id = gsc_api.query("repo_analysis/{}".format(merge_xref["object_id"]))["aligned_libcore_id"]
+                aligned_libcore = gsc_api.query("aligned_libcore/{}/info".format(aligned_libcore_id))
+                libcore = aligned_libcore["libcore"]
+                run = libcore["run"]
+                primer = libcore["primer"]
+
             else:
                 raise Exception('unknown object type {}'.format(merge_xref["object_type"]))
             flowcell_info = gsc_api.query("flowcell/{}".format(run["flowcell_id"]))
@@ -774,6 +783,7 @@ def size_match(local_file_path, remote_file_path, ip_address, username):
     '''
     remote_size = subprocess.check_output('ssh {}@{} stat -c%s "{}"'.format(username, ip_address, remote_file_path), shell=True)
     local_size = subprocess.check_output('stat -c%s "{}"'.format(local_file_path), shell=True)
+    logging.info("local size is {}, remote size is {}".format(local_size, remote_size))
     return remote_size==local_size
 
 def size_match_cloud_txshah(blob_client, txshah_ip, username, file_path_remote, file_name_cloud):
@@ -882,6 +892,9 @@ def main(**kwargs):
         for detail in details:
             # Rename the bams according to internal templates
             dest_bam_paths = rename_bam_paths(detail, to_storage, sftp)
+            if (not kwargs["file_list"]) and (not dest_bam_paths['source_bam_path'].endswith(".bam")) and (not dest_bam_paths['source_bam_path'].endswith(".bai")):
+                logging.info("File list is not provided and the file {} is not a bam/bai file, skip.".format(dest_bam_paths['source_bam_path']))
+                continue
             if kwargs["file_list"] and (dest_bam_paths['source_bam_path'] not in files):
                 logging.info("The file {} is not in the file list, skip.".format(dest_bam_paths['source_bam_path']))
                 continue

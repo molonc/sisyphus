@@ -46,8 +46,11 @@ PROTOCOL_ID_MAP = {
     179: "WGS",
     96: "EXOME",
     80: "RNASEQ",
+    124: "RNASEQ",
     137: "RNASEQ",
-    222: "FFPE_WGS"
+    222: "FFPE_WGS",
+    227: "RNASEQ",
+
 }
 
 SOLEXA_RUN_TYPE_MAP = {

@@ -176,8 +176,14 @@ class ServerStorageClient(object):
         return filepath
 
     def delete(self, filename):
+        filepath = self.get_url(filename)
         if self.on_server:
-            os.remove(self.get_url(filename))
+            #os.remove(self.get_url(filename))
+            command = 'rm -f {}'.format(self.username, self.server_ip, filepath)
+            subprocess.check_output(command, shell=True)
+        else:
+            command = 'ssh {}@{} rm -f {}'.format(self.username, self.server_ip, filepath)
+            subprocess.check_output(command, shell=True)
 
     def open_file(self, filename):
         filepath = self.get_url(filename)
