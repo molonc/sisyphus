@@ -40,6 +40,16 @@ def get_sftp():
 @click.option("--sample_id")
 @click.option("--update_file_resource", is_flag=True)
 def query_gsc_rnqseq_fastq(**kwargs):
+    '''
+    Main function to perform GSC query for the fastq files of RNASEQ datasets.
+
+    Args:
+        library_id:           (string) library id
+        to_storage:           (string) destination storage
+        sample_id:            (string) sample id, optional
+        update_file_resource: (boolean) whether to update the existing file resource(s)
+
+    '''
     library_id = kwargs["library_id"]
     to_storage = kwargs["to_storage"]
     sftp = get_sftp()
@@ -58,9 +68,10 @@ def query_gsc_rnqseq_fastq(**kwargs):
         if "chastity_passed" in data_path:
             #transfer the file only with chastity=passed
             lane_info = {}
+
             #get the sample id from the file information
             sample_id = concat_fastq["libcore"]["library"]["external_identifier"]
-            
+
             #rename the file according to the file name template for the fastq file
             file_name = TENX_FASTQ_NAME_TEMPLATE.format(
             library_id=library_id,
@@ -85,6 +96,7 @@ def query_gsc_rnqseq_fastq(**kwargs):
                     sftp=sftp,
                     remote_host=remote_host
                 )
+
             #if the local file size does not match the remote file size
             size_match_local = size_match(file_path, data_path, "10.9.208.161", username)
             if not size_match_local:
@@ -105,12 +117,11 @@ def query_gsc_rnqseq_fastq(**kwargs):
                 logging.info("The file has been added into tantalus, with file_resource_id = {}".format(file_resource["id"]))
                 file_resource_ids.append(file_resource["id"])
             lane_info_list.append(lane_info)
-            
-       
+
         else:
             continue
     logging.info("The file resources added are {}".format(file_resource_ids))
-    
+
     #if there are file resources added into tantalus, start creating a new dataset
     if file_resource_ids:
         #creating the dataset name
@@ -124,7 +135,7 @@ def query_gsc_rnqseq_fastq(**kwargs):
             library_id=library_id,
             lanes_hash=get_lanes_hash(lane_info_list),
             )
-        
+
         logging.info("Creating dataset {}".format(dataset_name))
         import_fastq(
             sample_id=sample_id,
@@ -137,11 +148,11 @@ def query_gsc_rnqseq_fastq(**kwargs):
 
 def import_fastq(**kwargs):
     '''
-    Import a fastq file into a dataset.
+    Helper function to import a fastq file into a dataset.
     '''
     #create the sample
     sample = tantalus_api.get_or_create(
-        "sample", 
+        "sample",
         sample_id=kwargs["sample_id"]
         )
     logging.info("sample created with id:{}".format(sample["id"]))
@@ -165,12 +176,12 @@ def import_fastq(**kwargs):
             read_type=SOLEXA_RUN_TYPE_MAP[info["libcore"]["run"]["solexarun_type"]],
             sequencing_instrument=get_sequencing_instrument(info["libcore"]["run"]["machine"]),
             sequencing_centre="GSC",
-        )   
+        )
         lane = tantalus_api.get_or_create(
             "sequencing_lane",
             **lane_fields
             )
-    
+
         if lane["id"] not in sequence_lane_pks:
             sequence_lane_pks.append(lane["id"])
     logging.info("The sequence lanes {} are being added.".format(sequence_lane_pks))
@@ -190,4 +201,3 @@ def import_fastq(**kwargs):
 
 if __name__=="__main__":
     main()
-

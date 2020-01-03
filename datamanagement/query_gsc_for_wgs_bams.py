@@ -918,7 +918,6 @@ def main(**kwargs):
                     block_blob_service = blob_client.blob_service
                     cloud_blobname_bam = cache_bam_paths["tantalus_bam_name"]
                     cloud_blobname_bai = cache_bam_paths["tantalus_bai_name"]
-                    #cloud_container = to_storage["storage_container"]
                     bam_exists = blob_client.exists(cloud_blobname_bam)
                     bai_exists = blob_client.exists(cloud_blobname_bai)
                     cloud_size_match_bam = size_match_cloud_txshah(blob_client, '10.9.208.161', username, cache_bam_paths["source_bam_path"], cloud_blobname_bam)
