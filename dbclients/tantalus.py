@@ -373,14 +373,22 @@ class TantalusApi(BasicAPIClient):
         storage = self.get_storage(storage_name)
         storage_client = self.get_storage_client(storage_name)
 
+        created = storage_client.get_created_time(filename)
+        size = storage_client.get_size(filename)
+
         # Try getting or creating the file resource, will
         # fail if exists with different properties.
         try:
-            file_resource = self.get_or_create(
+            file_resource = self.create(
                 'file_resource',
-                filename=filename,
-                created=storage_client.get_created_time(filename),
-                size=storage_client.get_size(filename),
+                dict(
+                    filename=filename,
+                    created=created,
+                    size=size,
+                ),
+                ['filename'],
+                get_existing=True,
+                do_update=False,
             )
             log.info('file resource has id {}'.format(file_resource['id']))
         except FieldMismatchError:
@@ -418,8 +426,8 @@ class TantalusApi(BasicAPIClient):
                 'file_resource',
                 id=file_resource['id'],
                 filename=filename,
-                created=storage_client.get_created_time(filename),
-                size=storage_client.get_size(filename),
+                created=created,
+                size=size,
             )
 
         file_instance = self.add_instance(file_resource, storage)
