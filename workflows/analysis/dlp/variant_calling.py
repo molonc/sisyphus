@@ -96,10 +96,6 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
             # All filenames relative to metadata.yaml
             base_dir = file_instance['file_resource']['filename'].replace('metadata.yaml', '')
 
-            file_instances = self.tantalus_api.get_dataset_file_instances(
-                dataset_id, 'sequencedataset', storages['working_inputs'],
-                filters={'filename__endswith': '.bam'})
-
             bam_info = {}
             template = metadata['meta']['bams']['template']
             for instance in metadata['meta']['bams']['instances']:
