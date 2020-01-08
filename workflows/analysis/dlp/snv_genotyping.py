@@ -10,6 +10,7 @@ import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
 from datamanagement.utils.constants import LOGGING_FORMAT
 import workflows.analysis.dlp.results_import as results_import
+import workflows.analysis.dlp.preprocessing as preprocessing
 
 
 class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
@@ -59,9 +60,10 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
             dataset = tantalus_api.get(
                 'sequencedataset',
                 analysis__jira_ticket=library_jira_id,
-                libraries__library_id=library_id,
-                samples__sample_id=sample_id,
-                results_type=results_type,
+                library__library_id=library_id,
+                sample__sample_id=sample_id,
+                dataset_type='BAM',
+                region_split_length=None,
             )
 
             dataset_ids.append(dataset['id'])
@@ -82,7 +84,7 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
         # Genotype only the cells that pass the contamination filter
         cell_ids = set()
         for results_id in self.analysis['input_results']:
-            results = tantalus_api.get('results', id=results_id)
+            results = self.tantalus_api.get('results', id=results_id)
 
             if results['results_type'] != 'annotation':
                 continue
@@ -99,7 +101,7 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
 
         # Retrieve vcf files for museq and strelka snvs
         for results_id in self.analysis['input_results']:
-            results = tantalus_api.get('results', id=results_id)
+            results = self.tantalus_api.get('results', id=results_id)
 
             if results['results_type'] != 'annotation':
                 continue
@@ -107,14 +109,14 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
             # Tumour and normal samples are linked to each results,
             # remove normal sample to get tumour sample id
             sample_ids = [a['sample_id'] for a in results['samples']]
-            sample_ids = sample_ids.remove(args['normal_sample_id'])
+            sample_ids = sample_ids.remove(self.args['normal_sample_id'])
             assert len(sample_ids) == 1
             sample_id = sample_ids[0]
 
             # Tumour and normal libraries are linked to each results,
             # remove normal library to get tumour library id
             library_ids = [a['library_id'] for a in results['libraries']]
-            library_ids = library_ids.remove(args['normal_library_id'])
+            library_ids = library_ids.remove(self.args['normal_library_id'])
             assert len(library_ids) == 1
             library_id = library_ids[0]
 
@@ -127,12 +129,15 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
             ]
             for suffix, filetype in snv_inputs:
                 file_instances = self.tantalus_api.get_dataset_file_instances(
-                    dataset_id, 'sequencedataset', storages['working_inputs'],
+                    results_id, 'resultsdataset', storages['working_inputs'],
                     filters={'filename__endswith': suffix})
                 assert len(file_instances) == 1
                 file_instance = file_instances[0]
 
                 input_info['vcf_files'][sample_id][library_id][filetype] = file_instance['filepath']
+
+        colossus_api = dbclients.colossus.ColossusApi()
+        index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
 
         # Retrieve bam files for input datasets
         for dataset_id in self.analysis['input_datasets']:
@@ -232,9 +237,9 @@ def analysis():
 @click.argument('jira_id')
 @click.argument('version')
 @click.argument('group_id')
-@click.option('library_jira_id', multiple=True)
-@click.option('library_id', multiple=True)
-@click.option('sample_id', multiple=True)
+@click.option('--library_jira_id', multiple=True)
+@click.option('--library_id', multiple=True)
+@click.option('--sample_id', multiple=True)
 @click.option('--update', is_flag=True)
 def create_single_analysis(jira_id, version, group_id, library_jira_id, library_id, sample_id, update=False):
     if not (len(library_jira_id) == len(library_id) == len(sample_id)):
