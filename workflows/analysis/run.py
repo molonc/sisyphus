@@ -14,9 +14,11 @@ import workflows.launch_pipeline
 import workflows.generate_inputs
 import workflows.analysis.base
 import workflows.analysis.dlp.breakpoint_calling
+import workflows.analysis.dlp.haplotype_calling
 import workflows.analysis.dlp.merge_cell_bams
 import workflows.analysis.dlp.split_wgs_bam
 import workflows.analysis.dlp.variant_calling
+import workflows.analysis.dlp.snv_genotyping
 
 import datamanagement.templates as templates
 from datamanagement.transfer_files import transfer_dataset
