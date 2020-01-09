@@ -167,8 +167,8 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
             self.get_input_samples(),
             self.get_input_libraries(),
             storages['working_results'],
-            update=False,
-            skip_missing=False,
+            update=update,
+            skip_missing=skip_missing,
         )
 
         return [results['id']]
@@ -177,10 +177,10 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
 workflows.analysis.base.Analysis.register_analysis(VariantCallingAnalysis)
 
 
-def create_analysis(jira_id, version, args):
+def create_analysis(jira_id, version, args, update=False):
     tantalus_api = dbclients.tantalus.TantalusApi()
 
-    analysis = VariantCallingAnalysis.create_from_args(tantalus_api, jira_id, version, args)
+    analysis = VariantCallingAnalysis.create_from_args(tantalus_api, jira_id, version, args, update=update)
 
     logging.info(f'created analysis {analysis.get_id()}')
 
@@ -203,20 +203,22 @@ def analysis():
 @click.argument('library_id')
 @click.argument('normal_sample_id')
 @click.argument('normal_library_id')
-def create_single_analysis(jira_id, version, sample_id, library_id, normal_sample_id, normal_library_id):
+@click.option('--update', is_flag=True)
+def create_single_analysis(jira_id, version, sample_id, library_id, normal_sample_id, normal_library_id, update=False):
     args = {}
     args['sample_id'] = sample_id
     args['library_id'] = library_id
     args['normal_sample_id'] = normal_sample_id
     args['normal_library_id'] = normal_library_id
 
-    create_analysis(jira_id, version, args)
+    create_analysis(jira_id, version, args, update=update)
 
 
 @analysis.command()
 @click.argument('version')
 @click.argument('info_table')
-def create_multiple_analyses(version, info_table):
+@click.option('--update', is_flag=True)
+def create_multiple_analyses(version, info_table, update=False):
     info = pd.read_csv(info_table)
 
     for idx, row in info.iterrows():
@@ -229,7 +231,9 @@ def create_multiple_analyses(version, info_table):
         args['normal_library_id'] = row['normal_library_id']
 
         try:
-            create_analysis(jira_id, version, args)
+            create_analysis(jira_id, version, args, update=update)
+        except KeyboardInterrupt:
+            raise
         except:
             logging.exception(f'create analysis failed for {jira_id}')
 

@@ -187,10 +187,10 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 workflows.analysis.base.Analysis.register_analysis(MergeCellBamsAnalysis)
 
 
-def create_analysis(jira_id, version, args):
+def create_analysis(jira_id, version, args, update=False):
     tantalus_api = dbclients.tantalus.TantalusApi()
 
-    analysis = MergeCellBamsAnalysis.create_from_args(tantalus_api, jira_id, version, args)
+    analysis = MergeCellBamsAnalysis.create_from_args(tantalus_api, jira_id, version, args, update=update)
 
     logging.info(f'created analysis {analysis.get_id()}')
 
@@ -211,18 +211,20 @@ def analysis():
 @click.argument('version')
 @click.argument('sample_id')
 @click.argument('library_id')
-def create_single_analysis(jira_id, version, sample_id, library_id):
+@click.option('--update', is_flag=True)
+def create_single_analysis(jira_id, version, sample_id, library_id, update=False):
     args = {}
     args['sample_id'] = sample_id
     args['library_id'] = library_id
 
-    create_analysis(jira_id, version, args)
+    create_analysis(jira_id, version, args, update=update)
 
 
 @analysis.command()
 @click.argument('version')
 @click.argument('info_table')
-def create_multiple_analyses(version, info_table):
+@click.option('--update', is_flag=True)
+def create_multiple_analyses(version, info_table, update=False):
     info = pd.read_csv(info_table)
 
     for idx, row in info.iterrows():
@@ -233,7 +235,9 @@ def create_multiple_analyses(version, info_table):
         args['library_id'] = row['library_id']
 
         try:
-            create_analysis(jira_id, version, args)
+            create_analysis(jira_id, version, args, update=update)
+        except KeyboardInterrupt:
+            raise
         except:
             logging.exception(f'create analysis failed for {jira_id}')
 

@@ -150,10 +150,10 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
 workflows.analysis.base.Analysis.register_analysis(SplitWGSBamAnalysis)
 
 
-def create_analysis(jira_id, version, args):
+def create_analysis(jira_id, version, args, update=False):
     tantalus_api = dbclients.tantalus.TantalusApi()
 
-    analysis = SplitWGSBamAnalysis.create_from_args(tantalus_api, jira_id, version, args)
+    analysis = SplitWGSBamAnalysis.create_from_args(tantalus_api, jira_id, version, args, update=update)
 
     logging.info(f'created analysis {analysis.get_id()}')
 
@@ -176,20 +176,22 @@ def analysis():
 @click.argument('library_id')
 @click.argument('aligner')
 @click.argument('ref_genome')
-def create_single_analysis(jira_id, version, sample_id, library_id, aligner, ref_genome):
+@click.option('--update', is_flag=True)
+def create_single_analysis(jira_id, version, sample_id, library_id, aligner, ref_genome, update=False):
     args = {}
     args['sample_id'] = sample_id
     args['library_id'] = library_id
     args['aligner'] = aligner
     args['ref_genome'] = ref_genome
 
-    create_analysis(jira_id, version, args)
+    create_analysis(jira_id, version, args, update=update)
 
 
 @analysis.command()
 @click.argument('version')
 @click.argument('info_table')
-def create_multiple_analyses(version, info_table):
+@click.option('--update', is_flag=True)
+def create_multiple_analyses(version, info_table, update=False):
     info = pd.read_csv(info_table)
 
     for idx, row in info.iterrows():
@@ -202,7 +204,9 @@ def create_multiple_analyses(version, info_table):
         args['ref_genome'] = row['ref_genome']
 
         try:
-            create_analysis(jira_id, version, args)
+            create_analysis(jira_id, version, args, update=update)
+        except KeyboardInterrupt:
+            raise
         except:
             logging.exception(f'create analysis failed for {jira_id}')
 
