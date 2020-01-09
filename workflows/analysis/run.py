@@ -15,6 +15,7 @@ import workflows.generate_inputs
 import workflows.analysis.base
 import workflows.analysis.dlp.breakpoint_calling
 import workflows.analysis.dlp.haplotype_calling
+import workflows.analysis.dlp.haplotype_counting
 import workflows.analysis.dlp.merge_cell_bams
 import workflows.analysis.dlp.split_wgs_bam
 import workflows.analysis.dlp.variant_calling
