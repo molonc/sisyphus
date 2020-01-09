@@ -78,6 +78,9 @@ def add_sequence_dataset(
                 dna_library=lane_library_pk,
                 flowcell_id=lane["flowcell_id"],
                 lane_number=str(lane["lane_number"]),
+                read_type=str(lane["read_type"]),
+                sequencing_centre=str(lane["sequencing_centre"]),
+                sequencing_instrument="HiSeqX",
             )
 
             # Optional fields for create
@@ -165,18 +168,21 @@ def add_sequence_dataset(
                 version_number = max(d['version_number'] for d in similar_datasets) + 1
                 logging.info(f"creating new version of dataset {dataset_name} with version number {version_number}")
 
-            sequence_dataset = tantalus_api.create(
+            sequence_dataset, _ = tantalus_api.create(
                 "sequence_dataset",
-                name=dataset_name,
-                version_number=version_number,
-                dataset_type=dataset_type,
-                sample=sample["id"],
-                library=library["id"],
-                sequence_lanes=sequence_lane_pks,
-                file_resources=file_resource_pks,
-                reference_genome=reference_genome,
-                aligner=aligner,
-                tags=tags,
+                dict(
+                    name=dataset_name,
+                    version_number=version_number,
+                    dataset_type=dataset_type,
+                    sample=sample["id"],
+                    library=library["id"],
+                    sequence_lanes=sequence_lane_pks,
+                    file_resources=file_resource_pks,
+                    reference_genome=reference_genome,
+                    aligner=aligner,
+                    tags=tags,
+                ),
+                ['name'],
             )
 
         return sequence_dataset
@@ -261,16 +267,22 @@ def get_bam_header_info(header):
     library_ids = set()
     index_sequences = set()
     sequence_lanes = list()
+    return {
+        "sample_ids": None,
+        "library_ids": None,
+        "index_sequences": None,
+        "sequence_lanes": [],
+    }
 
     for read_group in header["RG"]:
         sample_id = read_group["SM"]
-        library_id = read_group["LB"]
+        library_id = 'TEST'#read_group["LB"]
         flowcell_lane = read_group["PU"]
         index_sequence = read_group.get("KS")
         try:
             sequencing_centre = SEQUENCING_CENTRE_MAP[read_group["CN"]]
         except KeyError:
-            raise Exception("Unknown sequencing centre {}".format(read_group["CN"]))
+            sequencing_centre = read_group["CN"]
 
         flowcell_id = flowcell_lane
         lane_number = ""
@@ -325,6 +337,7 @@ def import_bam(
     Returns:
         sequence_dataset:   (dict) sequence dataset created on tantalus
     """ 
+
     tantalus_api = TantalusApi()
 
     # Get a url allowing access regardless of whether the file
@@ -336,8 +349,8 @@ def import_bam(
     bam_header = pysam.AlignmentFile(bam_url).header
     bam_header_info = get_bam_header_info(bam_header)
 
-    ref_genome = get_bam_ref_genome(bam_header)
-    aligner_name = get_bam_aligner_name(bam_header)
+    ref_genome = 'HG19'#get_bam_ref_genome(bam_header)
+    aligner_name = 'BWA_MEM_0_7_17'#get_bam_aligner_name(bam_header)
 
     logging.info(f"bam header shows reference genome {ref_genome} and aligner {aligner_name}")
 
@@ -380,6 +393,15 @@ def import_bam(
             }
             lane_infos.append(lane_info)
 
+    lane_infos = [{
+        "flowcell_id": '09443_AD_6_S10',
+        "lane_number": 2,
+        "library_id": '09443_AD',
+        "sequencing_centre": 'IGO',
+        "read_type": 'P',
+        "sequencing_instrument": "HiSeqX",
+    }]
+
     # Add the sequence dataset to Tantalus
     sequence_dataset = add_sequence_dataset(
         tantalus_api,
@@ -407,6 +429,7 @@ def import_bam(
 @click.option("--library_type")
 @click.option("--index_format")
 @click.option("--read_type")
+@click.option("--lane_info", multiple=True)
 @click.option("--update",is_flag=True)
 @click.option("--tag_name",default=None)
 def main(storage_name, bam_file_path, **kwargs):
@@ -414,6 +437,7 @@ def main(storage_name, bam_file_path, **kwargs):
     Imports the bam into tantalus by creating a sequence dataset and 
     file resources 
     """
+
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
     tantalus_api = TantalusApi()
@@ -433,6 +457,18 @@ def main(storage_name, bam_file_path, **kwargs):
             library_type=kwargs['library_type'],
             index_format=kwargs['index_format'],
         )
+
+    # lane_infos = None
+    # if kwargs.get('lane_info') is not None:
+    #     for info in kwargs.get('lane_info'):
+    #         flowcell_id, lane_number, library_id, sequencing_centre, read_typed
+
+    #             "flowcell_id": lane["flowcell_id"],
+    #             "lane_number": lane["lane_number"],
+    #             "library_id": lane["library_id"],
+    #             "sequencing_centre": lane["sequencing_centre"],
+    #             "read_type": read_type,
+
 
     dataset = import_bam(
         storage_name,
