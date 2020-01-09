@@ -99,6 +99,13 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
             'tumour_cells': {},
         }
 
+        tumour_sample_ids = set([a['sample_id'] for a in self.args['inputs']])
+        tumour_library_ids = set([a['library_id'] for a in self.args['inputs']])
+        normal_sample_ids = set([a['normal_sample_id'] for a in self.args['inputs']])
+        normal_library_ids = set([a['normal_library_id'] for a in self.args['inputs']])
+        assert len(tumour_sample_ids.intersection(normal_sample_ids)) == 0
+        assert len(tumour_library_ids.intersection(normal_library_ids)) == 0
+
         # Retrieve vcf files for museq and strelka snvs
         for results_id in self.analysis['input_results']:
             results = self.tantalus_api.get('results', id=results_id)
@@ -109,14 +116,14 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
             # Tumour and normal samples are linked to each results,
             # remove normal sample to get tumour sample id
             sample_ids = [a['sample_id'] for a in results['samples']]
-            sample_ids = sample_ids.remove(self.args['normal_sample_id'])
+            sample_ids = list(filter(lambda a: a not in normal_sample_ids, sample_ids))
             assert len(sample_ids) == 1
             sample_id = sample_ids[0]
 
             # Tumour and normal libraries are linked to each results,
             # remove normal library to get tumour library id
             library_ids = [a['library_id'] for a in results['libraries']]
-            library_ids = library_ids.remove(self.args['normal_library_id'])
+            library_ids = list(filter(lambda a: a not in normal_library_ids, library_ids))
             assert len(library_ids) == 1
             library_id = library_ids[0]
 
@@ -240,21 +247,25 @@ def analysis():
 @click.option('--library_jira_id', multiple=True)
 @click.option('--library_id', multiple=True)
 @click.option('--sample_id', multiple=True)
+@click.option('--normal_library_id', multiple=True)
+@click.option('--normal_sample_id', multiple=True)
 @click.option('--update', is_flag=True)
-def create_single_analysis(jira_id, version, group_id, library_jira_id, library_id, sample_id, update=False):
-    if not (len(library_jira_id) == len(library_id) == len(sample_id)):
-        raise ValueError('library_jira_id, library_id, sample_id must be of the same length')
+def create_single_analysis(jira_id, version, group_id, library_jira_id, library_id, sample_id, normal_library_id, normal_sample_id, update=False):
+    if not (len(library_jira_id) == len(library_id) == len(sample_id) == len(normal_library_id) == len(normal_sample_id)):
+        raise ValueError('library_jira_id, library_id, sample_id normal_library_id, normal_sample_id, must be of the same length')
 
     args = {
         'group_id': group_id,
         'inputs': [],
     }
 
-    for j, l, s in zip(library_jira_id, library_id, sample_id):
+    for j, l, s, nl, ns in zip(library_jira_id, library_id, sample_id, normal_library_id, normal_sample_id):
         args['inputs'].append({
             'library_jira_id': j,
             'library_id': l,
             'sample_id': s,
+            'normal_library_id': nl,
+            'normal_sample_id': ns,
         })
 
     create_analysis(jira_id, version, args, update=update)
@@ -278,6 +289,8 @@ def create_multiple_analyses(version, info_table, update=False):
                 'library_jira_id': row['library_jira_id'],
                 'library_id': row['library_id'],
                 'sample_id': row['sample_id'],
+                'normal_library_id': row['normal_library_id'],
+                'normal_sample_id': row['normal_sample_id'],
             })
 
         try:
