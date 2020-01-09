@@ -416,7 +416,7 @@ def create_tantalus_analysis(name, jira_ticket, library_id, analysis_type, versi
             status='idle',
             args=args,
         )
-        analysis = tantalus_api.create('analysis', **data)
+        analysis, _ = tantalus_api.create('analysis', data, ['name'])
 
         log.info('Created analysis {} on tantalus'.format(analysis['id']))
 

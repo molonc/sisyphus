@@ -379,7 +379,7 @@ class TantalusApi(BasicAPIClient):
         # Try getting or creating the file resource, will
         # fail if exists with different properties.
         try:
-            file_resource = self.create(
+            file_resource, _ = self.create(
                 'file_resource',
                 dict(
                     filename=filename,

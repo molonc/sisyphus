@@ -54,7 +54,7 @@ def create_dlp_results(
         'results_type',
     ]
 
-    results = tantalus_api.create('results', data, keys, get_existing=True, do_update=update)
+    results, _ = tantalus_api.create('results', data, keys, get_existing=True, do_update=update)
 
     return results
 

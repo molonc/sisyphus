@@ -75,9 +75,11 @@ def fix():
 
             logging.info(new_dataset_params)
 
-            new_dataset = tantalus_api.create(
+            new_dataset, _ = tantalus_api.create(
                 'sequencedataset',
-                **new_dataset_params)
+                new_dataset_params,
+                ['name'],
+            )
 
             logging.info(new_dataset)
 

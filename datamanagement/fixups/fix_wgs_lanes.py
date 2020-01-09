@@ -100,15 +100,22 @@ if __name__ == '__main__':
             correct_lane = None
 
         if correct_lane is None:
-            correct_lane = tantalus_api.create(
+            correct_lane, _ = tantalus_api.create(
                 'sequencing_lane',
-                flowcell_id=row['correct_flowcell_id'],
-                lane_number=str(row['correct_lane_number']),
-                dna_library=incorrect_lane['dna_library'],
-                sequencing_centre="GSC",
-                sequencing_instrument=incorrect_lane['sequencing_instrument'],
-                sequencing_library_id=incorrect_lane['sequencing_library_id'],
-                read_type=incorrect_lane['read_type'],
+                dict(
+                    flowcell_id=row['correct_flowcell_id'],
+                    lane_number=str(row['correct_lane_number']),
+                    dna_library=incorrect_lane['dna_library'],
+                    sequencing_centre="GSC",
+                    sequencing_instrument=incorrect_lane['sequencing_instrument'],
+                    sequencing_library_id=incorrect_lane['sequencing_library_id'],
+                    read_type=incorrect_lane['read_type'],
+                ),
+                [
+                    'flowcell_id',
+                    'lane_number',
+                    'dna_library',
+                ],
             )
             pass
 

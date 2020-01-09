@@ -109,7 +109,10 @@ class Analysis:
 
         keys = ['name']
 
-        analysis = tantalus_api.create('analysis', fields, keys, get_existing=True, do_update=update)
+        analysis, updated = tantalus_api.create('analysis', fields, keys, get_existing=True, do_update=update)
+
+        if updated:
+            analysis = tantalus_api.update('analysis', id=analysis['id'], status='error')
 
         return analysis
 

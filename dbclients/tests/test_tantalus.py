@@ -33,15 +33,15 @@ class TestSum(unittest.TestCase):
         with self.assertRaises(dbclients.basicclient.ExistsError):
             self.tantalus_api.create('sample', {'sample_id':'TEST1'}, keys=['sample_id'])
 
-        result = self.tantalus_api.create('sample', {'sample_id':'TEST1'}, keys=['sample_id'], get_existing=True)
+        result, _ = self.tantalus_api.create('sample', {'sample_id':'TEST1'}, keys=['sample_id'], get_existing=True)
         self.assertEqual(result['sample_id'], 'TEST1')
 
         with self.assertRaises(dbclients.basicclient.FieldMismatchError):
-            result = self.tantalus_api.create(
+            result, _ = self.tantalus_api.create(
                 'sample', {'sample_id':'TEST1', 'external_sample_id': 'TESTA'},
                 keys=['sample_id'], get_existing=True)
 
-        result = self.tantalus_api.create(
+        result, _ = self.tantalus_api.create(
             'sample', {'sample_id':'TEST1', 'external_sample_id': 'TESTA'},
             keys=['sample_id'], get_existing=True, do_update=True)
         self.assertEqual(result['sample_id'], 'TEST1')

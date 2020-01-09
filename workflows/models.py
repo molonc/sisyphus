@@ -192,7 +192,7 @@ class Analysis(object):
 
         keys = ['name', 'analysis_type', 'jira_ticket']
 
-        analysis = tantalus_api.create(
+        analysis, _ = tantalus_api.create(
             'analysis', fields, keys, get_existing=True, do_update=update)
 
         return analysis
@@ -1503,7 +1503,7 @@ class Results:
             'results_type',
         ]
 
-        results = tantalus_api.create('results', data, keys, get_existing=True, do_update=update)
+        results, _ = tantalus_api.create('results', data, keys, get_existing=True, do_update=update)
 
         return results
 
@@ -1578,7 +1578,7 @@ class TenXResults:
             log.info('Creating results {}'.format(self.name))
 
             # TODO: created timestamp for results
-            results = tantalus_api.create('results', **data)
+            results, _ = tantalus_api.create('results', data, ['name'])
 
         return results
 

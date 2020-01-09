@@ -282,6 +282,9 @@ class BasicAPIClient(object):
             get_existing (bool): get existing if possible
             update (bool): update existing if necessary
 
+        Returns:
+            obj (dict), is_updated (bool): created object and updated boolean
+
         First try to create the new record.  On failure if requested,
         subset the fields to those with filters and attempt to get the
         single existing record.  If the existing record is diffrent update
@@ -302,7 +305,7 @@ class BasicAPIClient(object):
         # No existing record found, attempt create
         if result is None:
             return self.coreapi_client.action(
-                self.coreapi_schema, [table_name, "create"], params=fields)
+                self.coreapi_schema, [table_name, "create"], params=fields), False
 
         # Record exists, check equality
         is_equal = True
@@ -362,7 +365,7 @@ class BasicAPIClient(object):
             assert do_update
             result = self.update(table_name, id=result['id'], **fields)
 
-        return result
+        return result, not is_equal
 
     def get_or_create(self, table_name, **fields):
         """ Check if a resource exists in and if so return it.
