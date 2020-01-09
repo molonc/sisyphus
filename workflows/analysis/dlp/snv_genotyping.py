@@ -110,7 +110,7 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
         for results_id in self.analysis['input_results']:
             results = self.tantalus_api.get('results', id=results_id)
 
-            if results['results_type'] != 'annotation':
+            if results['results_type'] != 'variant_calling':
                 continue
 
             # Tumour and normal samples are linked to each results,
@@ -136,7 +136,7 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
             ]
             for suffix, filetype in snv_inputs:
                 file_instances = self.tantalus_api.get_dataset_file_instances(
-                    results_id, 'resultsdataset', storages['working_inputs'],
+                    results_id, 'resultsdataset', storages['working_results'],
                     filters={'filename__endswith': suffix})
                 assert len(file_instances) == 1
                 file_instance = file_instances[0]
@@ -144,10 +144,15 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
                 input_info['vcf_files'][sample_id][library_id][filetype] = file_instance['filepath']
 
         colossus_api = dbclients.colossus.ColossusApi()
-        index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
 
         # Retrieve bam files for input datasets
         for dataset_id in self.analysis['input_datasets']:
+            dataset = self.tantalus_api.get('sequencedataset', id=dataset_id)
+
+            sample_id = dataset['sample']['sample_id']
+            library_id = dataset['library']['library_id']
+            index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(library_id)
+
             file_instances = self.tantalus_api.get_dataset_file_instances(
                 dataset_id, 'sequencedataset', storages['working_inputs'],
                 filters={'filename__endswith': '.bam'})
@@ -161,8 +166,10 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
                 if cell_id not in cell_ids:
                     continue
 
-                input_info['tumour'][cell_id] = {}
-                input_info['tumour'][cell_id]['bam'] = str(file_instance['filepath'])
+                input_info['tumour_cells'][sample_id] = input_info['tumour_cells'].get(sample_id, {})
+                input_info['tumour_cells'][sample_id][library_id] = input_info['tumour_cells'][sample_id].get(library_id, {})
+                assert cell_id not in input_info['tumour_cells'][sample_id][library_id]
+                input_info['tumour_cells'][sample_id][library_id][cell_id] = {'bam': str(file_instance['filepath'])}
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
