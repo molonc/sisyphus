@@ -49,8 +49,9 @@ def transfer_files(jira, config, from_storage, to_storage, dataset_ids, results=
         else:
             data["resultsdataset_set"] = []
 
-        tantalus_api.create("tag", name=tag_name, **data)
-
+        create_data = dict(data)
+        create_data['name'] = tag_name
+        tantalus_api.create("tag", create_data, ['name'])
 
     # TODO: check if files already exist in the target storage before starting transfer
     saltant_utils.transfer_files(jira, config, tag_name, from_storage, to_storage)
