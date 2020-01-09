@@ -94,11 +94,12 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
             cell_id = index_sequence_sublibraries[index_sequence]['cell_id']
 
             if not cell_id in cell_ids:
-
                 continue
 
             input_info['cell_bams'][cell_id] = {}
             input_info['cell_bams'][cell_id]['bam'] = str(file_instance['filepath'])
+
+        assert len(input_info['cell_bams']) > 0
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
