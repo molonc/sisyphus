@@ -22,6 +22,7 @@ def run_pipeline(
         docker_env_file,
         docker_server,
         output_dirs,
+        cli_args=(),
         max_jobs='400',
         dirs=(),
 ):
@@ -42,6 +43,8 @@ def run_pipeline(
         '--context_config',
         context_config_file,
     ]
+
+    run_cmd.extend(cli_args)
 
     if config_override is not None:
         run_cmd += [

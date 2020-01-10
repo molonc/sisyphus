@@ -277,6 +277,10 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                 'out_dir': out_path,
                 'bams_dir': bams_path,
             },
+            cli_args=[
+                '--library_id',
+                self.args['library_id'],
+            ],
             max_jobs='400',
             dirs=dirs,
         )
