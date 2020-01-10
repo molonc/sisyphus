@@ -342,7 +342,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
 
         output_datasets = create_sequence_dataset_models(
             file_info=output_file_info,
-            storage_name=storages["working_results"],
+            storage_name=storages["working_inputs"],
             tantalus_api=self.tantalus_api,
             analysis_id=self.get_id(),
             update=update,
