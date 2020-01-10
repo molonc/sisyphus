@@ -30,6 +30,16 @@ SC_WGS_BAM_TEMPLATE = os.path.join(
 	'{cell_id}.bam'
 )
 
+SC_WGS_BAM_DIR_TEMPLATE = os.path.join(
+	'single_cell_indexing',
+	'bam',
+	'{library_id}',
+	'{ref_genome}',
+	'{aligner_name}',
+	'numlanes_{number_lanes}',
+    '{jira_ticket}',
+)
+
 WGS_BAM_NAME_TEMPLATE = os.path.join(
     "{sample_id}",
     "bam",
@@ -43,7 +53,6 @@ MERGE_BAM_PATH_TEMPLATE = {
     "WGS": "{data_path}/{library_name}_{num_lanes}_lane{lane_pluralize}_dupsFlagged.bam",
     "EXOME": "{data_path}/{library_name}_{num_lanes}_lane{lane_pluralize}_dupsFlagged.bam",
     "FFPE_WGS": "{data_path}/{library_name}_{num_lanes}_lane{lane_pluralize}_dupsFlagged.bam",
-
 }
 
 LANE_BAM_PATH_TEMPLATE = {

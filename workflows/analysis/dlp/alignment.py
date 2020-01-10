@@ -3,6 +3,7 @@ import yaml
 import logging
 import click
 import sys
+import collections
 import pandas as pd
 
 import dbclients.tantalus
@@ -11,7 +12,9 @@ import workflows.analysis.dlp.launchsc
 import datamanagement.templates as templates
 from datamanagement.utils.utils import get_lane_str, get_datasets_lanes_hash
 from datamanagement.utils.constants import LOGGING_FORMAT
+from datamanagement.utils.dlp import create_sequence_dataset_models
 import workflows.analysis.dlp.results_import as results_import
+from workflows.generate_inputs import generate_sample_info
 
 
 reference_genome_map = {
@@ -20,20 +23,27 @@ reference_genome_map = {
 }
 
 
+def get_flowcell_lane(lane):
+    if lane['lane_number'] == '':
+        return lane['flowcell_id']
+    else:
+        return '{}_{}'.format(lane['flowcell_id'], lane['lane_number'])
+
+
 class AlignmentAnalysis(workflows.analysis.base.Analysis):
-    analysis_type_ = 'alignment'
+    analysis_type_ = 'align'
 
     def __init__(self, *args, **kwargs):
         super(AlignmentAnalysis, self).__init__(*args, **kwargs)
         self.out_dir = os.path.join(self.jira, "results", self.analysis_type)
-        self.bams_dir = self._get_bams_dir(jira, args)
+        self.bams_dir = self._get_bams_dir(self.jira, self.args)
 
     def _get_lanes(self):
-        lanes = set()
-        for dataset_id in dataset_ids:
-            dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
+        lanes = dict()
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
             for lane in dataset['sequence_lanes']:
-                lanes.add(get_lane_str(lane))
+                lanes[get_lane_str(lane)] = lane
         return lanes
 
     def _get_bams_dir(self, jira, args):
@@ -47,7 +57,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             jira_ticket=jira,
         )
 
-        return os.path.join(storage_prefix, bams_dir)
+        return bams_dir
 
     @classmethod
     def search_input_datasets(cls, tantalus_api, jira, version, args):
@@ -100,12 +110,12 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             lanes_hashed=lanes_hashed,
         )
 
-       return name
+        return name
 
     def check_inputs_yaml(self, inputs_yaml_filename):
-        inputs_dict = file_utils.load_yaml(inputs_yaml_filename)
+        inputs_dict = yaml.load(open(inputs_yaml_filename))
 
-        lanes = list(self.get_lanes().keys())
+        lanes = list(self._get_lanes().keys())
         input_lanes = list(inputs_dict.values())[0]['fastqs'].keys()
 
         num_cells = len(inputs_dict)
@@ -136,9 +146,9 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
         Args:
             storage_name: Which tantalus storage to look at
         """
-        log.info('Generating cell metadata')
+        logging.info('Generating cell metadata')
 
-        sample_info = generate_sample_info(self.args["library_id"], test_run=self.run_options.get("is_test_run", False))
+        sample_info = generate_sample_info(self.args["library_id"])
 
         if sample_info['index_sequence'].duplicated().any():
             raise Exception('Duplicate index sequences in sample info.')
@@ -146,7 +156,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
         if sample_info['cell_id'].duplicated().any():
             raise Exception('Duplicate cell ids in sample info.')
 
-        lanes = self.get_lanes()
+        lanes = self._get_lanes()
 
         # Sort by index_sequence, lane id, read end
         fastq_filepaths = dict()
@@ -166,7 +176,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                     dataset_id,
                 ))
 
-            lane_id = tantalus_utils.get_flowcell_lane(dataset['sequence_lanes'][0])
+            lane_id = get_flowcell_lane(dataset['sequence_lanes'][0])
 
             lane_info[lane_id] = {
                 'sequencing_centre': dataset['sequence_lanes'][0]['sequencing_centre'],
@@ -174,7 +184,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                 'read_type': dataset['sequence_lanes'][0]['read_type'],
             }
 
-            file_instances = tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', storage_name)
+            file_instances = self.tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', storage_name)
 
             for file_instance in file_instances:
                 file_resource = file_instance['file_resource']
@@ -187,12 +197,6 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
 
         for idx, row in sample_info.iterrows():
             index_sequence = row['index_sequence']
-
-            if self.run_options.get("is_test_run", False) and (index_sequence not in tantalus_index_sequences):
-                # Skip index sequences that are not found in the Tantalus dataset, since
-                # we need to refer to the original library in Colossus for metadata, but
-                # we don't want to iterate through all the cells present in that library
-                continue
 
             colossus_index_sequences.add(index_sequence)
 
@@ -208,8 +212,6 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                     row['cell_id'], row['index_sequence']))
 
             sample_id = row['sample_id']
-            if self.run_options.get("is_test_run", False):
-                assert 'TEST' in sample_id
 
             input_info[str(row['cell_id'])] = {
                 'bam': None,
@@ -231,7 +233,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
 
         return input_info
 
-    def generate_inputs_yaml(self, inputs_yaml_filename):
+    def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         """ Generates a YAML file of input information
 
         Args:
@@ -239,7 +241,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             storage_name: Which tantalus storage to look at
         """
 
-        input_info = self._generate_cell_metadata(self.storages['working_inputs'])
+        input_info = self._generate_cell_metadata(storages['working_inputs'])
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
@@ -280,18 +282,19 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             dirs=dirs,
         )
 
-    def create_output_datasets(self, tag_name=None, update=False):
+    def create_output_datasets(self, storages, update=False):
         """ Create BAM datasets in tantalus.
         """
-        storage_client = tantalus_api.get_storage_client(self.storages["working_results"])
+        storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
 
+        colossus_api = dbclients.colossus.ColossusApi()
         cell_sublibraries = colossus_api.get_sublibraries_by_cell_id(self.args['library_id'])
 
         sequence_lanes = []
 
-        for lane_id, lane in self.get_lanes().items():
+        for lane_id, lane in self._get_lanes().items():
             sequence_lanes.append(
                 dict(
                     flowcell_id=lane["flowcell_id"],
@@ -332,17 +335,17 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                 )
                 output_file_info.append(file_info)
 
-        log.info('creating sequence dataset models for output bams')
+        logging.info('creating sequence dataset models for output bams')
 
-        output_datasets = dlp.create_sequence_dataset_models(
+        output_datasets = create_sequence_dataset_models(
             file_info=output_file_info,
-            storage_name=self.storages["working_results"],
-            tantalus_api=tantalus_api,
+            storage_name=storages["working_results"],
+            tantalus_api=self.tantalus_api,
             analysis_id=self.get_id(),
             update=update,
         )
 
-        log.info("created sequence datasets {}".format(output_datasets))
+        logging.info("created sequence datasets {}".format(output_datasets))
 
     def create_output_results(self, storages, update=False, skip_missing=False):
         """
