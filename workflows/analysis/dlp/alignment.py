@@ -259,9 +259,10 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             run_options,
             storages,
         ):
-        storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
-        out_path = os.path.join(storage_client.prefix, self.out_dir)
-        bams_path = os.path.join(storage_client.prefix, self.bams_dir)
+        out_storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
+        out_path = os.path.join(out_storage_client.prefix, self.out_dir)
+        bams_storage_client = self.tantalus_api.get_storage_client(storages["working_inputs"])
+        bams_path = os.path.join(bams_storage_client.prefix, self.bams_dir)
 
         return workflows.analysis.dlp.launchsc.run_pipeline(
             analysis_type='alignment',
@@ -288,7 +289,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
     def create_output_datasets(self, storages, update=False):
         """ Create BAM datasets in tantalus.
         """
-        storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
+        storage_client = self.tantalus_api.get_storage_client(storages["working_inputs"])
         metadata_yaml_path = os.path.join(self.bams_dir, "metadata.yaml")
         metadata_yaml = yaml.safe_load(storage_client.open_file(metadata_yaml_path))
 
@@ -343,6 +344,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
         output_datasets = create_sequence_dataset_models(
             file_info=output_file_info,
             storage_name=storages["working_inputs"],
+            tag_name=None,
             tantalus_api=self.tantalus_api,
             analysis_id=self.get_id(),
             update=update,
