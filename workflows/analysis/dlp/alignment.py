@@ -214,7 +214,6 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             sample_id = row['sample_id']
 
             input_info[str(row['cell_id'])] = {
-                'bam': None,
                 'fastqs': dict(lane_fastqs),
                 'pick_met': str(row['pick_met']),
                 'condition': str(row['condition']),

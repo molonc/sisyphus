@@ -48,7 +48,7 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
         # Get hash of lane data based on bams from the same ticket
         bam_datasets = tantalus_api.list(
             'sequence_dataset',
-            analysis__jira_ticket=self.jira,
+            analysis__jira_ticket=jira,
             library__library_id=args['library_id'],
             dataset_type='BAM',
         )
@@ -65,15 +65,9 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
             lanes_hashed=lanes_hashed,
         )
 
-       return name
+        return name
 
-'hmmcopy_metrics: hmmcopy', 'A_hmmcopy_metrics.csv.gz'
-'hmmcopy_reads: hmmcopy', '_reads.csv.gz'
-'alignment_metrics: alignment', '_alignment_metrics.csv.gz'
-'gc_metrics: alignment', '_gc_metrics.csv.gz'
-'segs_pdf_tar: hmmcopy', '_segs.tar.gz```'
-
-    def generate_inputs_yaml(self, inputs_yaml_filename):
+    def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
 
         assert len(self.analysis['input_results']) == 2

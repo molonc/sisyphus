@@ -25,7 +25,7 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
     def search_input_datasets(cls, tantalus_api, jira, version, args):
         datasets = tantalus_api.list(
             'sequence_dataset',
-            analysis__jira_ticket=self.jira,
+            analysis__jira_ticket=jira,
             library__library_id=args['library_id'],
             dataset_type='BAM',
         )
@@ -44,9 +44,9 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
             lanes_hashed=lanes_hashed,
         )
 
-       return name
+        return name
 
-    def generate_inputs_yaml(self, inputs_yaml_filename):
+    def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
 
         input_info = {}
