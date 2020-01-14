@@ -3,6 +3,7 @@ import yaml
 import logging
 import click
 import sys
+import collections
 import pandas as pd
 
 import dbclients.tantalus
@@ -12,6 +13,7 @@ import datamanagement.templates as templates
 from datamanagement.utils.utils import get_datasets_lanes_hash
 from datamanagement.utils.constants import LOGGING_FORMAT
 import workflows.analysis.dlp.results_import as results_import
+from workflows.generate_inputs import generate_sample_info
 
 
 class HMMCopyAnalysis(workflows.analysis.base.Analysis):
@@ -46,39 +48,78 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
 
         return name
 
-    def generate_inputs_yaml(self, storages, inputs_yaml_filename):
-        storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
+    def _generate_cell_metadata(self, storage_name):
+        """ Generates per cell metadata
+
+        Args:
+            storage_name: Which tantalus storage to look at
+        """
+        logging.info('Generating cell metadata')
+
+        sample_info = generate_sample_info(self.args["library_id"])
+
+        if sample_info['index_sequence'].duplicated().any():
+            raise Exception('Duplicate index sequences in sample info.')
+
+        if sample_info['cell_id'].duplicated().any():
+            raise Exception('Duplicate cell ids in sample info.')
+
+        # Sort by index_sequence
+        bam_filepaths = dict()
+
+        tantalus_index_sequences = set()
+        colossus_index_sequences = set()
+
+        for dataset_id in self.analysis['input_datasets']:
+            dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
+
+            file_instances = self.tantalus_api.get_dataset_file_instances(
+                dataset['id'], 'sequencedataset', storage_name,
+                filename__endswith='.bam')
+
+            for file_instance in file_instances:
+                file_resource = file_instance['file_resource']
+                index_sequence = file_resource['sequencefileinfo']['index_sequence']
+                tantalus_index_sequences.add(index_sequence)
+                bam_filepaths[index_sequence] = str(file_instance['filepath'])
 
         input_info = {}
 
-        for dataset_id in self.analysis['input_datasets']:
-            dataset = self.tantalus_api.get('sequencedataset', id=dataset_id)
+        for idx, row in sample_info.iterrows():
+            index_sequence = row['index_sequence']
 
-            # Read the metadata yaml file
-            file_instances = self.tantalus_api.get_dataset_file_instances(
-                dataset_id, 'sequencedataset', storages['working_inputs'],
-                filters={'filename__endswith': 'metadata.yaml'})
-            assert len(file_instances) == 1
-            file_instance = file_instances[0]
-            metadata = yaml.safe_load(storage_client.open_file(file_instance['file_resource']['filename']))
+            colossus_index_sequences.add(index_sequence)
 
-            # All filenames relative to metadata.yaml
-            base_dir = file_instance['file_resource']['filename'].replace('metadata.yaml', '')
+            sample_id = row['sample_id']
 
-            bam_info = {}
-            template = metadata['meta']['bams']['template']
-            for instance in metadata['meta']['bams']['instances']:
-                cell_id = instance['cell_id']
+            input_info[str(row['cell_id'])] = {
+                'bam': bam_filepaths[index_sequence],
+                'pick_met': str(row['pick_met']),
+                'condition': str(row['condition']),
+                'primer_i5': str(row['primer_i5']),
+                'index_i5': str(row['index_i5']),
+                'primer_i7': str(row['primer_i7']),
+                'index_i7': str(row['index_i7']),
+                'img_col': int(row['img_col']),
+                'column': int(row['column']),
+                'row': int(row['row']),
+                'sample_type': 'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
+            }
 
-                bams_filename = template.format(**instance)
-                assert bams_filename in metadata['filenames']
-                assert cell_id not in bam_info
+        if colossus_index_sequences != tantalus_index_sequences:
+            raise Exception("index sequences in Colossus and Tantalus do not match")
 
-                bam_info[cell_id] = {}
-                bam_info[cell_id]['bam'] = os.path.join(
-                    storage_client.prefix,
-                    base_dir,
-                    bams_filename)
+        return input_info
+
+    def generate_inputs_yaml(self, storages, inputs_yaml_filename):
+        """ Generates a YAML file of input information
+
+        Args:
+            inputs_yaml_filename: the directory to which the YAML file should be saved
+            storage_name: Which tantalus storage to look at
+        """
+
+        input_info = self._generate_cell_metadata(storages['working_inputs'])
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
