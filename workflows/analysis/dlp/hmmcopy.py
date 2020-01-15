@@ -75,7 +75,7 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
 
             file_instances = self.tantalus_api.get_dataset_file_instances(
                 dataset['id'], 'sequencedataset', storage_name,
-                filename__endswith='.bam')
+                filters={'filename__endswith': '.bam'})
 
             for file_instance in file_instances:
                 file_resource = file_instance['file_resource']
@@ -152,6 +152,10 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
             output_dirs={
                 'out_dir': out_path,
             },
+            cli_args=[
+                '--library_id',
+                self.args['library_id'],
+            ],
             max_jobs='400',
             dirs=dirs,
         )
