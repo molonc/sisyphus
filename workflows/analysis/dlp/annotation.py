@@ -80,7 +80,7 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
                 ('hmmcopy_reads', '_reads.csv.gz'),
                 ('segs_pdf_tar', '_segs.tar.gz'),
             ],
-            'alignment': [
+            'align': [
                 ('alignment_metrics', '_alignment_metrics.csv.gz'),
                 ('gc_metrics', '_gc_metrics.csv.gz'),
             ],
@@ -91,12 +91,12 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
 
             for file_type, file_suffix in results_suffixes[dataset['results_type']]:
                 file_instances = self.tantalus_api.get_dataset_file_instances(
-                    dataset_id, 'sequencedataset', storages['working_inputs'],
+                    dataset_id, 'resultsdataset', storages['working_results'],
                     filters={'filename__endswith': file_suffix})
                 assert len(file_instances) == 1
                 file_instance = file_instances[0]
 
-            input_info[file_type] = file_instance['filepath']
+                input_info[file_type] = file_instance['filepath']
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
@@ -129,6 +129,10 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
             output_dirs={
                 'out_dir': out_path,
             },
+            cli_args=[
+                '--library_id',
+                self.args['library_id'],
+            ],
             max_jobs='400',
             dirs=dirs,
         )
