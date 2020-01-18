@@ -13,6 +13,9 @@ from jira import JIRA
 import workflows.launch_pipeline
 import workflows.generate_inputs
 import workflows.analysis.base
+import workflows.analysis.dlp.alignment
+import workflows.analysis.dlp.hmmcopy
+import workflows.analysis.dlp.annotation
 import workflows.analysis.dlp.breakpoint_calling
 import workflows.analysis.dlp.haplotype_calling
 import workflows.analysis.dlp.haplotype_counting
