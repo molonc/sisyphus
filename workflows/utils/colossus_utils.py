@@ -25,18 +25,17 @@ def get_lanes_from_sequencings(sequencing_id_list):
     return list(lanes)
 
 
-
 def get_ref_genome(library_info, is_tenx=False):
     """
-	Get reference genome from taxonomy id
+    Get reference genome from taxonomy id
 
-	Args:
-		library_info (dict): Library from colossus
-		is_tenx (bool): boolean whether library is a tenx library
+    Args:
+        library_info (dict): Library from colossus
+        is_tenx (bool): boolean whether library is a tenx library
 
-	Return:
-		reference_genome (str)
-	"""
+    Return:
+        reference_genome (str)
+    """
 
     if is_tenx:
         taxonomy_id_map = {
@@ -75,11 +74,12 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner="M"):
     except NotFoundError:
         library_info = colossus_api.get('library', pool_id=library_id)
 
-		ref_genome_key = get_ref_genome(library_info)
+        ref_genome_key = get_ref_genome(library_info)
         sequencing_ids = get_sequencing_ids(library_info)
         lanes = get_lanes_from_sequencings(sequencing_ids)
 
-        log.info(f"Creating analysis information object for {library_info['sample']['sample_id']}_{library_id} on Colossus")
+        log.info(
+            f"Creating analysis information object for {library_info['sample']['sample_id']}_{library_id} on Colossus")
 
         analysis = colossus_api.create(
             'analysis_information',
@@ -100,10 +100,10 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner="M"):
         )
 
         colossus_api.update(
-			'analysis_information',
-			analysis['id'],
-			analysis_run=analysis_run['id'],
-		)
+            'analysis_information',
+            analysis['id'],
+            analysis_run=analysis_run['id'],
+        )
 
         log.info('Created analysis {} on colossus'.format(analysis['id']))
 
