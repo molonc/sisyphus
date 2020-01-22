@@ -1,6 +1,7 @@
 import os
 import datamanagement.templates as templates
 import dbclients.tantalus
+from workflows.analysis.dlp import alignment, hmmcopy, annotation
 
 tantalus_api = dbclients.tantalus.TantalusApi()
 
@@ -30,7 +31,7 @@ def get_storage_type(storage_name):
     """
 
     storage = tantalus_api.get_storage(storage_name)
-    
+
     return storage['storage_type']
 
 
@@ -63,3 +64,43 @@ def get_upstream_datasets(results_ids):
     return list(upstream_datasets)
 
 
+def create_qc_analyses_from_library(library_id):
+    """ 
+    Create align, hmmcopy, and annotation analysis objects
+
+    Args:
+        library_id (str): library name
+    """
+    config = file_utils.load_json(config_filename)
+
+    # taxonomy id map
+    taxonomy_id_map = {
+        '9606': 'HG19',
+        '10090': 'MM10',
+    }
+
+    # create ticket
+    jira_ticket = get_analyses.create_analysis_jira_ticket(library_id)
+
+    # get library info from colossus
+    library = colossus_api.get('library', pool_id=library_id)
+    taxonomy_id = library['sample']['taxonomy_id']
+
+    args = {}
+    args['library_id'] = library_id
+    args['aligner'] = "BWA_MEM_0_7_6A"
+    args['ref_genome'] = taxonomy_id_map[taxonomy_id]
+    args['gsc_lanes'] = None
+    args['brc_flowcell_ids'] = None
+
+    # creates align analysis object on tantalus
+    alignment.create_analysis(jira_ticket, version, args)
+
+    # delete arguments not needed for hmmcopy and annotation
+    del args['gsc_lanes']
+    del args['brc_flowcell_ids']
+
+    # creates hmmcopy analysis object on tantalus
+    hmmcopy.create_analysis(jira_ticket, version, args)
+    # creates annotation analysis object on tantalus
+    annotation.create_analysis(jira_ticket, version, args)
