@@ -726,14 +726,16 @@ def main(storage_name,
             # add library to list of succesfully imported libraries
             successful_libs.append(import_info)
 
-            # create analysis jira ticket
-            jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
+            # only create tickets and analyses when import is new
+            if any([lane["new"] for lane in import_info[lanes]]):
+                # create analysis jira ticket
+                jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
 
-            # create analysis objects on tantalus
-            create_qc_analyses_from_library(import_info["dlp_library_id"], config["scp_version"])
+                # create analysis objects on tantalus
+                create_qc_analyses_from_library(import_info["dlp_library_id"], config["scp_version"])
 
-            # create analysis object on colossus
-            create_colossus_analysis(import_info["dlp_library_id"], jira_ticket, config["scp_version"])
+                # create analysis object on colossus
+                create_colossus_analysis(import_info["dlp_library_id"], jira_ticket, config["scp_version"])
 
         except Exception as e:
             # add lane_requested_date to import info for import status report
