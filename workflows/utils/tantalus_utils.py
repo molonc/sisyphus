@@ -71,7 +71,6 @@ def create_qc_analyses_from_library(library_id, version):
     Args:
         library_id (str): library name
     """
-    config = file_utils.load_json(config_filename)
 
     # taxonomy id map
     taxonomy_id_map = {

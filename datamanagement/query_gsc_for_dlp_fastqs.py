@@ -726,7 +726,7 @@ def main(storage_name,
             # add library to list of succesfully imported libraries
             successful_libs.append(import_info)
 
-            # only create tickets and analyses when import is new
+            # only create tickets and analyses when new lane is imported
             if any([lane["new"] for lane in import_info[lanes]]):
                 # create analysis jira ticket
                 jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
