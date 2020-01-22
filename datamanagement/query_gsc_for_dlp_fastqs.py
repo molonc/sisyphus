@@ -12,6 +12,7 @@ import click
 import pandas as pd
 import datetime
 from collections import defaultdict
+
 from datamanagement.utils.constants import LOGGING_FORMAT
 from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 from datamanagement.utils.comment_jira import comment_jira
@@ -19,8 +20,12 @@ import datamanagement.templates as templates
 from datamanagement.utils.filecopy import rsync_file, try_gzip
 from datamanagement.utils.gsc import get_sequencing_instrument, GSCAPI
 from datamanagement.utils.runtime_args import parse_runtime_args
+
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
+
+from workflows.analysis.dlp import alignment, hmmcopy, annotation
+from scripts.trigger_qc_runs import create_analysis_from_library
 
 solexa_run_type_map = {"Paired": "P"}
 
@@ -710,6 +715,9 @@ def main(storage_name,
 
             # add library to list of succesfully imported libraries
             successful_libs.append(import_info)
+
+            # create analyses
+            create_analysis_from_library(import_info["dlp_library_id"])
 
         except Exception as e:
             # add lane_requested_date to import info for import status report
