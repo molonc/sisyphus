@@ -12,6 +12,7 @@ from dbclients.tantalus import TantalusApi
 
 from workflows import get_analyses
 from workflows.utils import saltant_utils, file_utils
+from workflows.analysis.dlp import alignment, hmmcopy, annotation
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
@@ -23,42 +24,6 @@ log.propagate = False
 
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
-
-def create_analysis_from_library(library_id):
-    config = file_utils.load_json(config_filename)
-
-    # taxonomy id map
-    taxonomy_id_map = {
-        '9606': 'HG19',
-        '10090': 'MM10',
-    }
-
-    # create ticket
-    jira_ticket = get_analyses.create_analysis_jira_ticket(library_id)
-
-    # get library info from colossus
-    library = colossus_api.get('library', pool_id=library_id)
-    taxonomy_id = library['sample']['taxonomy_id']
-
-    args = {}
-    args['library_id'] = library_id
-    args['aligner'] = "BWA_MEM_0_7_6A"
-    args['ref_genome'] = taxonomy_id_map[taxonomy_id]
-    args['gsc_lanes'] = None
-    args['brc_flowcell_ids'] = None
-
-    alignment.create_analysis(jira_ticket, version, args)
-
-    # delete arguments not needed for hmmcopy and annotation
-    del args['gsc_lanes']
-    del args['brc_flowcell_ids']
-
-    hmmcopy.create_analysis(jira_ticket, version, args)
-    annotation.create_analysis(jira_ticket, version, args)
-
-# TODO: find new method to get unanalyzed data
-# or maybe no necessary if after every new import, the analyses are already created and set to ready
-
 
 @click.command()
 @click.argument('version')
@@ -113,18 +78,16 @@ def main(version, aligner, override_contamination=True):
                 )
                 continue
 
-        
-
-        # run analysis on saltant
-        saltant_utils.run_analysis(
-            analysis['id'],
-            analysis_type,
-            jira_ticket,
-            version,
-            library_id,
-            aligner,
-            config,
-            override_contamination=override_contamination,
-        )
+        # # run analysis on saltant
+        # saltant_utils.run_analysis(
+        #     analysis['id'],
+        #     analysis_type,
+        #     jira_ticket,
+        #     version,
+        #     library_id,
+        #     aligner,
+        #     config,
+        #     override_contamination=override_contamination,
+        # )
 
     
