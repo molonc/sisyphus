@@ -64,7 +64,7 @@ def get_upstream_datasets(results_ids):
     return list(upstream_datasets)
 
 
-def create_qc_analyses_from_library(library_id):
+def create_qc_analyses_from_library(library_id, version):
     """ 
     Create align, hmmcopy, and annotation analysis objects
 

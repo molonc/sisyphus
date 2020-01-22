@@ -25,6 +25,7 @@ from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 
 from workflows.utils.colossus_utils import create_colossus_analysis
+from workflows.utils.file_utils import load_json
 from workflows.utils.tantalus_utils import create_qc_analyses_from_library
 
 solexa_run_type_map = {"Paired": "P"}
@@ -649,6 +650,15 @@ def main(storage_name,
     colossus_api = ColossusApi()
     tantalus_api = TantalusApi()
 
+    # load config file
+    config = load_json(
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+            'workflows',
+            'config',
+            'normal_config.json',
+        ))
+
     # initiate arrays to store successful and failed libraries
     successful_libs = []
     failed_libs = []
@@ -720,10 +730,10 @@ def main(storage_name,
             jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
 
             # create analysis objects on tantalus
-            create_qc_analyses_from_library(import_info["dlp_library_id"])
+            create_qc_analyses_from_library(import_info["dlp_library_id"], config["scp_version"])
 
             # create analysis object on colossus
-            create_colossus_analysis(import_info["dlp_library_id"], jira_ticket, version)
+            create_colossus_analysis(import_info["dlp_library_id"], jira_ticket, config["scp_version"])
 
         except Exception as e:
             # add lane_requested_date to import info for import status report
