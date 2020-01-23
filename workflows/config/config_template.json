@@ -17,5 +17,6 @@
     "docker_sock_path": "/var/run/docker.sock",
     "docker_path": "/usr/bin/docker",
     "docker_server": "scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline",
-    "scp_version": "v0.5.14"
+    "scp_version": "v0.5.14",
+    "default_aligner": "M"
 }
