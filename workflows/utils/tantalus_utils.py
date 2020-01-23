@@ -3,6 +3,7 @@ import datamanagement.templates as templates
 import dbclients.tantalus
 import dbclients.colossus
 from workflows.analysis.dlp import alignment, hmmcopy, annotation
+from workflows.utils.colossus_utils import get_ref_genome
 
 tantalus_api = dbclients.tantalus.TantalusApi()
 colossus_api = dbclients.colossus.ColossusApi()
@@ -66,29 +67,62 @@ def get_upstream_datasets(results_ids):
     return list(upstream_datasets)
 
 
+def create_analysis(analysis_type, jira_ticket, version, args):
+    """
+    Creates analysis object on tantalus with minimal fields
+
+    Args:
+        analysis_type (str): type of analysis
+        jira_ticket (str): jira ticket key ex. SC-####
+        version (str): version of singlecellpipeline ex. v#.#.#
+        args (dict): analysis info 
+    """
+    # get align analysis in order to get template for analysis name
+    align_analysis = tantalus_api.get(
+        "analysis",
+        jira_ticket=jira_ticket,
+        analysis_type__name="align",
+    )
+
+    # replace align in name with analysis type
+    name = align_analysis["name"].replace("align", analysis_type)
+
+    # set fields and keys
+    fields = dict(
+        name=name,
+        analysis_type=analysis_type,
+        version=version,
+        jira_ticket=jira_ticket,
+        args=args,
+        status="ready",
+    )
+
+    keys = ['name']
+
+    # create analysis
+    analysis, _ = tantalus_api.create('analysis', fields, keys, get_existing=True)
+
+
 def create_qc_analyses_from_library(library_id, jira_ticket, version):
     """ 
     Create align, hmmcopy, and annotation analysis objects
 
     Args:
         library_id (str): library name
+        jira_ticket (str): jira ticket key ex. SC-####
+        version (str): version of singlecellpipeline ex. v#.#.#
     """
-
-    # taxonomy id map
-    taxonomy_id_map = {
-        '9606': 'HG19',
-        '10090': 'MM10',
-    }
 
     # get library info from colossus
     library = colossus_api.get('library', pool_id=library_id)
-    taxonomy_id = library['sample']['taxonomy_id']
+    reference_genome = get_ref_genome(library)
 
+    # add arguments
     args = {}
     args['library_id'] = library_id
     # default aligner is BWA_MEM_0_7_6A
     args['aligner'] = "BWA_MEM_0_7_6A"
-    args['ref_genome'] = taxonomy_id_map[taxonomy_id]
+    args['ref_genome'] = reference_genome
     args['gsc_lanes'] = None
     args['brc_flowcell_ids'] = None
 
@@ -99,7 +133,12 @@ def create_qc_analyses_from_library(library_id, jira_ticket, version):
     del args['gsc_lanes']
     del args['brc_flowcell_ids']
 
-    # creates hmmcopy analysis object on tantalus
-    hmmcopy.create_analysis(jira_ticket, version, args)
-    # creates annotation analysis object on tantalus
-    annotation.create_analysis(jira_ticket, version, args)
+    # cannot create hmmcopy analysis using create_analysis method from HMMCopyAnalysis
+    # because this would require the bam datasets and files to already be created
+    # instead, create "empty" analysis with minimal fields
+    create_analysis("hmmcopy", jira_ticket, version, args)
+
+    # cannot create annotation analysis using create_analysis method from AnnotationAnalysis
+    # because this would require the align and hmmcopy results and files to already be created
+    # instead, create "empty" analysis with minimal fields
+    create_analysis("annotation", jira_ticket, version, args)
