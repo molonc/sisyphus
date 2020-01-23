@@ -16,20 +16,35 @@ from workflows.analysis.dlp import alignment, hmmcopy, annotation
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
-stream_handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-stream_handler.setFormatter(formatter)
-log.addHandler(stream_handler)
-log.propagate = False
 
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
 
+
 @click.command()
-@click.argument('version')
-@click.argument('aligner')
-@click.argument('--override_contamination', is_flag=True))
-def main(version, aligner, override_contamination=True):
+@click.option(
+    '--aligner',
+    is_flag=True,
+    type=click.Choice(["BWA_MEM_0_7_6A", "BWA_ALN_0_5_7"]),
+)
+def main(aligner="BWA_MEM_0_7_6A":
+    """
+    Gets all qc (align, hmmcopy, annotation) analyses set to ready 
+    and checks if requirements have been satisfied before triggering
+    run on saltant.
+
+    Kwargs:
+        aligner (str): name of aligner 
+    """
+
+    # load config file
+    config = load_json(
+        os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            'workflows',
+            'config',
+            'normal_config.json',
+        ))
     # analysis types for qc
     analysis_types = ['align', 'hmmcopy', 'annotation']
 
@@ -57,9 +72,14 @@ def main(version, aligner, override_contamination=True):
         ready_analyses += analyses
 
     for analysis in ready_analyses:
+        # set boolean determining trigger of run
+        is_ready = True
+
+        # get analysis info
         analysis_type = analysis['analysis_type']
         jira_ticket = analysis['jira_ticket']
-        library_id = analysis_type['args']['library_id']
+        library_id = analysis['args']['library_id']
+
         # check if the required analysis exist and is complete
         for required_analysis in required_analyses_map[analysis_type]:
             # get analysis name
@@ -73,21 +93,25 @@ def main(version, aligner, override_contamination=True):
                 analysis = tantalus_api.get('analysis', name=required_analysis_name, status='complete')
             # skip analysis if required analysis doesn't exist
             except:
-                logging.error(
-                    f"a completed {required_analysis} analysis is required to run before {analysis_type} for {jira_ticket}"
+                log.error(
+                    f"a completed {required_analysis} analysis is required to run before {analysis_type} runs for {jira_ticket}"
                 )
+                is_ready = False
                 continue
 
-        # # run analysis on saltant
-        # saltant_utils.run_analysis(
-        #     analysis['id'],
-        #     analysis_type,
-        #     jira_ticket,
-        #     version,
-        #     library_id,
-        #     aligner,
-        #     config,
-        #     override_contamination=override_contamination,
-        # )
+        if is_ready:
+            log.info(f"running {analysis_type} on {library_id} using ticket {jira_ticket}")
+            # run analysis on saltant
+            saltant_utils.run_analysis(
+                analysis['id'],
+                analysis_type,
+                jira_ticket,
+                config["scp_version"],
+                library_id,
+                aligner,
+                config,
+            )
 
-    
+
+if __name__ == "__main__":
+    main()
