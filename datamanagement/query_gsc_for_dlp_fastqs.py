@@ -519,6 +519,17 @@ def import_gsc_dlp_paired_fastqs(
 
     logging.info("Library {} imported successfully".format(dlp_library_id))
 
+    # only create tickets and analyses when new lane is imported
+    if any([lane["new"] for lane in import_info['lanes']]):
+        # create analysis jira ticket
+        jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
+
+        # create analysis objects on tantalus
+        create_qc_analyses_from_library(import_info["dlp_library_id"], jira_ticket, config["scp_version"])
+
+        # create analysis object on colossus
+        create_colossus_analysis(import_info["dlp_library_id"], jira_ticket, config["scp_version"])
+
     return import_info
 
 
@@ -725,17 +736,6 @@ def main(storage_name,
 
             # add library to list of succesfully imported libraries
             successful_libs.append(import_info)
-
-            # only create tickets and analyses when new lane is imported
-            if any([lane["new"] for lane in import_info[lanes]]):
-                # create analysis jira ticket
-                jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
-
-                # create analysis objects on tantalus
-                create_qc_analyses_from_library(import_info["dlp_library_id"], jira_ticket, config["scp_version"])
-
-                # create analysis object on colossus
-                create_colossus_analysis(import_info["dlp_library_id"], jira_ticket, config["scp_version"])
 
         except Exception as e:
             # add lane_requested_date to import info for import status report
