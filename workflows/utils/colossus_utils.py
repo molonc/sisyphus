@@ -55,7 +55,7 @@ def get_ref_genome(library_info, is_tenx=False):
     return reference_genome
 
 
-def create_colossus_analysis(library_id, jira_ticket, version, aligner="M"):
+def create_colossus_analysis(library_id, jira_ticket, version, aligner):
     """
     Create analysis objects on Colossus
 
@@ -63,6 +63,7 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner="M"):
         library_id (str): Library/Pool id
         jira_ticket (str): Jira ticket id (ex. SC-1234)
         version (str): Version of pipeline
+        aligner (str): Shortened name of aligner (A or M)
 
     Returns:
         analysis_id (int): pk of analysis information object on Colossus

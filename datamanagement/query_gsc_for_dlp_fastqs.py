@@ -525,10 +525,19 @@ def import_gsc_dlp_paired_fastqs(
         jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
 
         # create analysis objects on tantalus
-        create_qc_analyses_from_library(import_info["dlp_library_id"], jira_ticket, config["scp_version"])
+        create_qc_analyses_from_library(
+            import_info["dlp_library_id"],
+            jira_ticket,
+            config["scp_version"],
+        )
 
         # create analysis object on colossus
-        create_colossus_analysis(import_info["dlp_library_id"], jira_ticket, config["scp_version"])
+        create_colossus_analysis(
+            import_info["dlp_library_id"],
+            jira_ticket,
+            config["scp_version"],
+            config["default_aligner"],
+        )
 
     return import_info
 
