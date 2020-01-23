@@ -2,7 +2,7 @@ import os
 import datamanagement.templates as templates
 import dbclients.tantalus
 import dbclients.colossus
-from workflows.analysis.dlp import alignment, hmmcopy, annotation
+from workflows.analysis.dlp import alignment
 from workflows.utils.colossus_utils import get_ref_genome
 
 tantalus_api = dbclients.tantalus.TantalusApi()
