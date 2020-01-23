@@ -23,14 +23,59 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
         super(HMMCopyAnalysis, self).__init__(*args, **kwargs)
         self.out_dir = os.path.join(self.jira, "results", self.analysis_type)
 
+    def _check_input_datasets_completeness(tantalus_api, args, input_datasets):
+        # get all fastqs datasets of library
+        fastq_datasets = tantalus_api.list(
+            "sequence_dataset",
+            library__library_id=args["library_id"],
+            dataset_type="FQ",
+        )
+
+        # get list of unique samples from fastq datasets
+        library_samples = set([dataset["sample"]["sample_id"] for dataset in fastq_datasets])
+
+        # get list of unique samples from bam input datasets
+        input_dataset_samples = collections.defaultdict(list)
+        for dataset in input_datasets:
+            # get sample id of dataset
+            sample_id = dataset["sample"]["sample_id"]
+
+            # check if bam was not produced by merge cell pipeline
+            # bams produced by this pipeline will have a non null value in region_split_length field
+            if not dataset["region_split_length"]:
+                input_dataset_samples[sample_id].append(dataset["id"])
+
+        # check if every sample of the library has a bam input dataset associated with it
+        for sample in library_samples:
+            if sample not in input_dataset_samples:
+                raise Exception(f"no input dataset for sample {sample}")
+            log.info(f"sample {sample} has a dataset in the input datasets")
+
+        log.info(f"every sample in the library {args['library_id']} has an input dataset")
+
+        # check if every sample from the input datasets is a sample of the library
+        for sample in input_dataset_samples:
+            if sample not in library_samples:
+                raise Exception(
+                    f"input dataset(s) {input_dataset_samples['sample']} has sample {sample} not belonging to library {args['library_id']}"
+                )
+
+        # check if there exists only one dataset for each sample
+        if not all([len(datsets) == 1 for datsets in input_dataset_samples.values()]):
+            raise Exception("at least one sample has more than one bam input dataset")
+
     @classmethod
     def search_input_datasets(cls, tantalus_api, jira, version, args):
-        datasets = tantalus_api.list(
-            'sequence_dataset',
-            analysis__jira_ticket=jira,
-            library__library_id=args['library_id'],
-            dataset_type='BAM',
-        )
+        datasets = list(
+            tantalus_api.list(
+                'sequence_dataset',
+                dataset_type='BAM',
+                analysis__jira_ticket=jira,
+                library__library_id=args['library_id'],
+            ))
+
+        # check if complete set of datasets were fetched
+        _check_input_datasets_completeness(tantalus_api, args, datasets)
 
         return [dataset["id"] for dataset in datasets]
 
@@ -74,8 +119,11 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
             dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
 
             file_instances = self.tantalus_api.get_dataset_file_instances(
-                dataset['id'], 'sequencedataset', storage_name,
-                filters={'filename__endswith': '.bam'})
+                dataset['id'],
+                'sequencedataset',
+                storage_name,
+                filters={'filename__endswith': '.bam'},
+            )
 
             for file_instance in file_instances:
                 file_resource = file_instance['file_resource']
@@ -135,7 +183,7 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
             dirs,
             run_options,
             storages,
-        ):
+    ):
         storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         out_path = os.path.join(storage_client.prefix, self.out_dir)
 
