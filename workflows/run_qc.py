@@ -1,18 +1,11 @@
 #!/usr/bin/env python
 import os
-import re
-import sys
-import time
-import yaml
-import click
 import logging
 
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 
-from workflows import get_analyses
 from workflows.utils import saltant_utils, file_utils
-from workflows.analysis.dlp import alignment, hmmcopy, annotation
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
@@ -21,13 +14,7 @@ tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
 
 
-@click.command()
-@click.option(
-    '--aligner',
-    is_flag=True,
-    type=click.Choice(["BWA_MEM_0_7_6A", "BWA_ALN_0_5_7"]),
-)
-def main(aligner="BWA_MEM_0_7_6A":
+def main():
     """
     Gets all qc (align, hmmcopy, annotation) analyses set to ready 
     and checks if requirements have been satisfied before triggering
@@ -38,10 +25,9 @@ def main(aligner="BWA_MEM_0_7_6A":
     """
 
     # load config file
-    config = load_json(
+    config = file_utils.load_json(
         os.path.join(
             os.path.dirname(os.path.realpath(__file__)),
-            'workflows',
             'config',
             'normal_config.json',
         ))
@@ -108,7 +94,7 @@ def main(aligner="BWA_MEM_0_7_6A":
                 jira_ticket,
                 config["scp_version"],
                 library_id,
-                aligner,
+                config["default_aligner"],
                 config,
             )
 
