@@ -1,9 +1,11 @@
 import os
 import datamanagement.templates as templates
 import dbclients.tantalus
+import dbclients.colossus
 from workflows.analysis.dlp import alignment, hmmcopy, annotation
 
 tantalus_api = dbclients.tantalus.TantalusApi()
+colossus_api = dbclients.colossus.ColossusApi()
 
 
 def sequence_dataset_match_lanes(dataset, lane_ids):
@@ -64,7 +66,7 @@ def get_upstream_datasets(results_ids):
     return list(upstream_datasets)
 
 
-def create_qc_analyses_from_library(library_id, version):
+def create_qc_analyses_from_library(library_id, jira_ticket, version):
     """ 
     Create align, hmmcopy, and annotation analysis objects
 
@@ -78,15 +80,13 @@ def create_qc_analyses_from_library(library_id, version):
         '10090': 'MM10',
     }
 
-    # create ticket
-    jira_ticket = get_analyses.create_analysis_jira_ticket(library_id)
-
     # get library info from colossus
     library = colossus_api.get('library', pool_id=library_id)
     taxonomy_id = library['sample']['taxonomy_id']
 
     args = {}
     args['library_id'] = library_id
+    # default aligner is BWA_MEM_0_7_6A
     args['aligner'] = "BWA_MEM_0_7_6A"
     args['ref_genome'] = taxonomy_id_map[taxonomy_id]
     args['gsc_lanes'] = None
