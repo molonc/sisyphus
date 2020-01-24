@@ -49,9 +49,9 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
         for sample in library_samples:
             if sample not in input_dataset_samples:
                 raise Exception(f"no input dataset for sample {sample}")
-            log.info(f"sample {sample} has a dataset in the input datasets")
+            logging.info(f"sample {sample} has a dataset in the input datasets")
 
-        log.info(f"every sample in the library {args['library_id']} has an input dataset")
+        logging.info(f"every sample in the library {args['library_id']} has an input dataset")
 
         # check if every sample from the input datasets is a sample of the library
         for sample in input_dataset_samples:
@@ -75,7 +75,7 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
             ))
 
         # check if complete set of datasets were fetched
-        _check_input_datasets_completeness(tantalus_api, args, datasets)
+        cls._check_input_datasets_completeness(tantalus_api, args, datasets)
 
         return [dataset["id"] for dataset in datasets]
 
