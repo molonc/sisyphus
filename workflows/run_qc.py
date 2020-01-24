@@ -5,6 +5,9 @@ import logging
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 
+from workflows.analysis.dlp.alignment import AlignmentAnalysis
+from workflows.analysis.dlp.annotation import AnnotationAnalysis
+from workflows.analysis.dlp.hmmcopy import HMMCopyAnalysis
 from workflows.utils import saltant_utils, file_utils
 
 log = logging.getLogger('sisyphus')
@@ -31,8 +34,13 @@ def main():
             'config',
             'normal_config.json',
         ))
-    # analysis types for qc
-    analysis_types = ['align', 'hmmcopy', 'annotation']
+
+    # analysis classes for qc
+    analysis_type_classes = {
+        "align": AlignmentAnalysis,
+        "hmmcopy": HMMCopyAnalysis,
+        "annotation": AnnotationAnalysis,
+    }
 
     # map of type of analyses required before particular analysis can run
     required_analyses_map = {
@@ -46,7 +54,7 @@ def main():
 
     # collect qc analysis objects with ready status
     ready_analyses = []
-    for analysis_type in analysis_types:
+    for analysis_type in analysis_type_classes:
         # get list of analyses with status set to ready given the analysis type
         analyses = list(tantalus_api.list(
             'analysis',
@@ -86,8 +94,17 @@ def main():
                 continue
 
         if is_ready:
-            log.info(f"running {analysis_type} on {library_id} using ticket {jira_ticket}")
+            # use create_from_args method from Analysis class to update input datasets and results
+            analysis_type_classes[analysis_type].create_from_args(
+                tantalus_api,
+                jira_ticket,
+                config["scp_version"],
+                analysis["args"],
+                update=True,
+            )
+
             # run analysis on saltant
+            log.info(f"running {analysis_type} on {library_id} using ticket {jira_ticket}")
             saltant_utils.run_analysis(
                 analysis['id'],
                 analysis_type,
