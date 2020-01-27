@@ -99,7 +99,7 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
             dirs=dirs,
         )
 
-    def create_output_datasets(self, update=False):
+    def create_output_datasets(self, storages, update=False):
         """
         Create the set of output sequence datasets produced by this analysis.
         """
