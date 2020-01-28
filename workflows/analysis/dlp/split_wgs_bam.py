@@ -128,19 +128,27 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
                 storages["working_inputs"], filepath, update=update)
             file_resources.append(file_resource["id"])
 
-        output_dataset = self.tantalus_api.get_or_create(
-            "sequencedataset",
-            name=name,
-            dataset_type="BAM",
-            sample=input_dataset["sample"]["id"],
-            library=input_dataset["library"]["id"],
-            sequence_lanes=[a["id"] for a in input_dataset["sequence_lanes"]],
-            file_resources=file_resources,
-            aligner=input_dataset["aligner"],
-            reference_genome=input_dataset["reference_genome"],
-            region_split_length=self.split_size,
-            analysis=self.analysis['id'],
-        )
+        data = {
+            'name': name,
+            'version_number': 1,
+            'dataset_type': "BAM",
+            'sample': input_dataset["sample"]["id"],
+            'library': input_dataset["library"]["id"],
+            'sequence_lanes': [a["id"] for a in input_dataset["sequence_lanes"]],
+            'file_resources': file_resources,
+            'aligner': input_dataset["aligner"],
+            'reference_genome': input_dataset["reference_genome"],
+            'region_split_length': self.split_size,
+            'analysis': self.analysis['id'],
+        }
+
+        keys = [
+            'name',
+            'version_number',
+        ]
+
+        output_dataset, _ = self.tantalus_api.create(
+            'sequencedataset', data, keys, get_existing=True, do_update=update)
 
         logging.info("Created sequence dataset {}".format(name))
 
