@@ -10,7 +10,7 @@ logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO
 logging.getLogger('azure.storage').setLevel(logging.ERROR)
 
 
-def get_dataset_file_instances(tantalus_api, storage_name, dataset_type, dataset_id=None, tag_name=None):
+def get_dataset_file_instances(tantalus_api, dataset_type, dataset_id=None, tag_name=None):
     if dataset_type is None:
         raise ValueError('require dataset type')
 
@@ -33,8 +33,8 @@ def get_dataset_file_instances(tantalus_api, storage_name, dataset_type, dataset
         logging.info('checking dataset with id {}, name {}'.format(
             dataset['id'], dataset['name']))
 
-        for file_instance in tantalus_api.get_dataset_file_instances(dataset['id'], dataset_type, storage_name):
-            yield file_instance
+        for file_resource in tantalus_api.get_dataset_file_resources(dataset['id'], dataset_type):
+            yield file_resource
 
 
 @click.command()
@@ -61,13 +61,19 @@ def main(
     tantalus_api = TantalusApi()
 
     if all_file_instances:
-        file_instances = tantalus_api.list('file_instance', storage__name=storage_name)
+        file_resources = tantalus_api.list('file_resource', fileinstance__storage__name=storage_name)
 
     else:
-        file_instances = get_dataset_file_instances(
-            tantalus_api, storage_name, dataset_type, dataset_id=dataset_id, tag_name=tag_name)
+        file_resources = get_dataset_file_instances(
+            tantalus_api, dataset_type, dataset_id=dataset_id, tag_name=tag_name)
 
-    for file_instance in file_instances:
+    for file_resource in file_resources:
+        try:
+            file_instance = tantalus_api.get('file_instance', file_resource=file_resource['id'], storage__name=storage_name)
+        except NotFoundError:
+            logging.exception(f'file {file_resource["filename"]} not on storage')
+            continue
+
         logging.info('checking file instance {} with path {}'.format(
             file_instance['id'], file_instance['filepath']))
 
