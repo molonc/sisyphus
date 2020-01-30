@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import logging
+from datetime import date, timedelta
 
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
@@ -8,7 +9,8 @@ from dbclients.tantalus import TantalusApi
 from workflows.analysis.dlp.alignment import AlignmentAnalysis
 from workflows.analysis.dlp.annotation import AnnotationAnalysis
 from workflows.analysis.dlp.hmmcopy import HMMCopyAnalysis
-from workflows.utils import saltant_utils, file_utils
+from workflows.utils import saltant_utils, file_utils, tantalus_utils
+from workflows.tantalus_utils import create_qc_analyses_from_library
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
@@ -35,85 +37,103 @@ def main():
             'normal_config.json',
         ))
 
-    # analysis classes for qc
-    analysis_type_classes = {
-        "align": AlignmentAnalysis,
-        "hmmcopy": HMMCopyAnalysis,
-        "annotation": AnnotationAnalysis,
-    }
-
     # map of type of analyses required before particular analysis can run
     required_analyses_map = {
-        'align': [],
-        'hmmcopy': ['align'],
         'annotation': [
             'align',
             'hmmcopy',
         ],
+        'hmmcopy': ['align'],
+        'align': [],
     }
 
-    # collect qc analysis objects with ready status
-    ready_analyses = []
-    for analysis_type in analysis_type_classes:
-        # get list of analyses with status set to ready given the analysis type
-        analyses = list(tantalus_api.list(
-            'analysis',
-            status="ready",
-            analysis_type__name=analysis_type,
-        ))
+    # get colossus analysis information objects with status last updated this year
+    analyses = colossus_api.list(
+        "analysis_information",
+        analysis_run__last_updated_0="2020-01-01",
+        analysis_run__last_updated_1=datetime.date.today() + timedelta(days=1),
+        aligner=config["default_aligner"],
+    )
 
-        # add to list of ready analyses
-        ready_analyses += analyses
+    analyses_to_create = []
+    for analysis in analyses:
+        # skip analysis if marked as complete
+        status = analysis["analysis_run"]["run_status"]
+        if status == "complete":
+            continue
 
-    for analysis in ready_analyses:
-        # set boolean determining trigger of run
-        is_ready = True
+        jira_ticket = analysis["analysis_jira_ticket"]
 
-        # get analysis info
-        analysis_type = analysis['analysis_type']
-        jira_ticket = analysis['jira_ticket']
-        library_id = analysis['args']['library_id']
-
-        # check if the required analysis exist and is complete
-        for required_analysis in required_analyses_map[analysis_type]:
-            # get analysis name
-            required_analysis_name = analysis['name'].replace(
-                analysis_type,
-                required_analysis,
-            )
-
-            # check if complete analysis exists
+        for analysis_type in required_analyses_map:
+            # check if analysis exists on tantalus
             try:
-                analysis = tantalus_api.get('analysis', name=required_analysis_name, status='complete')
-            # skip analysis if required analysis doesn't exist
-            except:
-                log.error(
-                    f"a completed {required_analysis} analysis is required to run before {analysis_type} runs for {jira_ticket}"
+                tantalus_analysis = tantalus_api.get(
+                    'analysis',
+                    jira_ticket=jira_ticket,
+                    analysis_type__name=analysis_type,
                 )
-                is_ready = False
-                continue
+            except:
+                tantalus_analysis = None
 
-        if is_ready:
-            # use create_from_args method from Analysis class to update input datasets and results
-            analysis_type_classes[analysis_type].create_from_args(
-                tantalus_api,
-                jira_ticket,
-                config["scp_version"],
-                analysis["args"],
-                update=True,
-            )
+            if tantalus_analysis is not None:
+                # check if running or complete
+                status = tantalus_analysis["status"]
+                if status in ('running', 'complete'):
+                    continue
 
-            # run analysis on saltant
-            log.info(f"running {analysis_type} on {library_id} using ticket {jira_ticket}")
-            saltant_utils.run_analysis(
-                analysis['id'],
-                analysis_type,
-                jira_ticket,
-                config["scp_version"],
-                library_id,
-                config["default_aligner"],
-                config,
-            )
+                # otherwise run analysis
+                saltant_utils.run_analysis(
+                    tantalus_analysis['id'],
+                    analysis_type,
+                    jira_ticket,
+                    config["scp_version"],
+                    library_id,
+                    config["default_aligner"],
+                    config,
+                )
+            else:
+                # set boolean determining trigger of run
+                is_ready_to_create = True
+                # check if required completed analyses exist
+                for required_analysis_type in required_analyses_map[analysis_type]:
+                    try:
+                        required_analysis = tantalus_api.get(
+                            'analysis',
+                            jira_ticket=jira_ticket,
+                            analysis_type__name=required_analysis_type,
+                            status="complete",
+                        )
+                    except:
+                        log.error(
+                            f"a completed {required_analysis_type} analysis is required to run before {analysis_type} runs for {jira_ticket}"
+                        )
+                        # set boolean as false since analysis cannot be created yet
+                        is_ready_to_create = False
+                        break
+
+                # create analysis and trigger on saltant if analysis creation has met requirements
+                if is_ready_to_create:
+                    create_qc_analyses_from_library(
+                        analysis["library"]["pool_id"],
+                        jira_ticket,
+                        version,
+                        analysis_type,
+                    )
+                    tantalus_analysis = tantalus_api.get(
+                        'analysis',
+                        jira_ticket=jira_ticket,
+                        analysis_type__name=analysis_type,
+                    )
+
+                    saltant_utils.run_analysis(
+                        tantalus_analysis['id'],
+                        analysis_type,
+                        jira_ticket,
+                        config["scp_version"],
+                        library_id,
+                        config["default_aligner"],
+                        config,
+                    )
 
 
 if __name__ == "__main__":

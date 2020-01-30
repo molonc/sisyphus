@@ -24,6 +24,7 @@ from datamanagement.utils.runtime_args import parse_runtime_args
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 
+from workflows.utils.jira_utils import create_jira_ticket_from_library
 from workflows.utils.colossus_utils import create_colossus_analysis
 from workflows.utils.file_utils import load_json
 from workflows.utils.tantalus_utils import create_qc_analyses_from_library
@@ -529,6 +530,7 @@ def import_gsc_dlp_paired_fastqs(
             import_info["dlp_library_id"],
             jira_ticket,
             config["scp_version"],
+            "align"
         )
 
         # create analysis object on colossus

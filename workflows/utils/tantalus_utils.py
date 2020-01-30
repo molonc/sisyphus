@@ -2,7 +2,7 @@ import os
 import datamanagement.templates as templates
 import dbclients.tantalus
 import dbclients.colossus
-from workflows.analysis.dlp import alignment
+from workflows.analysis.dlp import alignment, hmmcopy, annotation
 from workflows.utils.colossus_utils import get_ref_genome
 
 tantalus_api = dbclients.tantalus.TantalusApi()
@@ -103,7 +103,7 @@ def create_analysis(analysis_type, jira_ticket, version, args):
     analysis, _ = tantalus_api.create('analysis', fields, keys, get_existing=True)
 
 
-def create_qc_analyses_from_library(library_id, jira_ticket, version):
+def create_qc_analyses_from_library(library_id, jira_ticket, version, analysis_type):
     """ 
     Create align, hmmcopy, and annotation analysis objects
 
@@ -127,18 +127,16 @@ def create_qc_analyses_from_library(library_id, jira_ticket, version):
     args['brc_flowcell_ids'] = None
 
     # creates align analysis object on tantalus
-    alignment.create_analysis(jira_ticket, version, args)
+    if analysis_type == "align":
+        alignment.create_analysis(jira_ticket, version, args)
 
-    # delete arguments not needed for hmmcopy and annotation
-    del args['gsc_lanes']
-    del args['brc_flowcell_ids']
+    else:
+        # delete arguments not needed for hmmcopy and annotation
+        del args['gsc_lanes']
+        del args['brc_flowcell_ids']
 
-    # cannot create hmmcopy analysis using create_analysis method from HMMCopyAnalysis
-    # because this would require the bam datasets and files to already be created
-    # instead, create "empty" analysis with minimal fields
-    create_analysis("hmmcopy", jira_ticket, version, args)
+        if analysis_type == "hmmcopy":
+            hmmcopy.create_analysis(jira_ticket, version, args)
 
-    # cannot create annotation analysis using create_analysis method from AnnotationAnalysis
-    # because this would require the align and hmmcopy results and files to already be created
-    # instead, create "empty" analysis with minimal fields
-    create_analysis("annotation", jira_ticket, version, args)
+        else:
+            annotation.create_analysis(jira_ticket, version, args)
