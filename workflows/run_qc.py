@@ -1,25 +1,30 @@
 #!/usr/bin/env python
 import os
+import click
 import logging
-from datetime import date, timedelta
+from datetime import datetime, timedelta
+from dateutil import parser
 
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 
-from workflows.analysis.dlp.alignment import AlignmentAnalysis
-from workflows.analysis.dlp.annotation import AnnotationAnalysis
-from workflows.analysis.dlp.hmmcopy import HMMCopyAnalysis
 from workflows.utils import saltant_utils, file_utils, tantalus_utils
-from workflows.tantalus_utils import create_qc_analyses_from_library
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
+stream_handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+stream_handler.setFormatter(formatter)
+log.addHandler(stream_handler)
+log.propagate = False
 
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
 
 
-def main():
+@click.command()
+@click.option("--aligner", type=click.Choice(['A', 'M']))
+def main(aligner):
     """
     Gets all qc (align, hmmcopy, annotation) analyses set to ready 
     and checks if requirements have been satisfied before triggering
@@ -47,23 +52,29 @@ def main():
         'align': [],
     }
 
-    # get colossus analysis information objects with status last updated this year
+    # get colossus analysis information objects with status not complete
     analyses = colossus_api.list(
         "analysis_information",
-        analysis_run__last_updated_0="2020-01-01",
-        analysis_run__last_updated_1=datetime.date.today() + timedelta(days=1),
-        aligner=config["default_aligner"],
+        analysis_run__run_status_ne="complete",
+        aligner=aligner if aligner else config["default_aligner"],
     )
 
     analyses_to_create = []
     for analysis in analyses:
+        # get library id
+        library_id = analysis["library"]["pool_id"]
+
         # skip analysis if marked as complete
         status = analysis["analysis_run"]["run_status"]
-        if status == "complete":
+
+        # skip analyses older than this year
+        # parse off ending time range
+        last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
+        if last_updated_date < datetime(2020, 1, 1):
             continue
 
         jira_ticket = analysis["analysis_jira_ticket"]
-
+        log.info(f"checking ticket {jira_ticket} library {library_id}")
         for analysis_type in required_analyses_map:
             # check if analysis exists on tantalus
             try:
@@ -81,6 +92,7 @@ def main():
                 if status in ('running', 'complete'):
                     continue
 
+                log.info(f"running {analysis_type} in library {library_id} with ticket {jira_ticket}")
                 # otherwise run analysis
                 saltant_utils.run_analysis(
                     tantalus_analysis['id'],
@@ -88,7 +100,7 @@ def main():
                     jira_ticket,
                     config["scp_version"],
                     library_id,
-                    config["default_aligner"],
+                    aligner if aligner else config["default_aligner"],
                     config,
                 )
             else:
@@ -113,10 +125,11 @@ def main():
 
                 # create analysis and trigger on saltant if analysis creation has met requirements
                 if is_ready_to_create:
-                    create_qc_analyses_from_library(
-                        analysis["library"]["pool_id"],
+                    log.info(f"creating {analysis_type} analysis for ticket {jira_ticket}")
+                    tantalus_utils.create_qc_analyses_from_library(
+                        library_id,
                         jira_ticket,
-                        version,
+                        config["scp_version"],
                         analysis_type,
                     )
                     tantalus_analysis = tantalus_api.get(
@@ -125,13 +138,14 @@ def main():
                         analysis_type__name=analysis_type,
                     )
 
+                    log.info(f"running {analysis_type} in library {library_id} with ticket {jira_ticket}")
                     saltant_utils.run_analysis(
                         tantalus_analysis['id'],
                         analysis_type,
                         jira_ticket,
                         config["scp_version"],
                         library_id,
-                        config["default_aligner"],
+                        aligner if aligner else config["default_aligner"],
                         config,
                     )
 
