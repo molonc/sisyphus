@@ -43,10 +43,11 @@ def main(aligner):
         ))
 
     # map of type of analyses required before particular analysis can run
+    # note: keep this order to avoid checking requirements more than once
     required_analyses_map = {
         'annotation': [
-            'align',
             'hmmcopy',
+            'align',
         ],
         'hmmcopy': ['align'],
         'align': [],
@@ -76,6 +77,7 @@ def main(aligner):
         jira_ticket = analysis["analysis_jira_ticket"]
         log.info(f"checking ticket {jira_ticket} library {library_id}")
         for analysis_type in required_analyses_map:
+            log.info(f"checking requirements for {analysis_type}")
             # check if analysis exists on tantalus
             try:
                 tantalus_analysis = tantalus_api.get(
@@ -90,6 +92,7 @@ def main(aligner):
                 # check if running or complete
                 status = tantalus_analysis["status"]
                 if status in ('running', 'complete'):
+                    log.info(f"skipping {analysis_type} for {jira_ticket} since status is {status}")
                     continue
 
                 log.info(f"running {analysis_type} in library {library_id} with ticket {jira_ticket}")
