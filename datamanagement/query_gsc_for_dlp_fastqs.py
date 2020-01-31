@@ -525,12 +525,12 @@ def import_gsc_dlp_paired_fastqs(
         # create analysis jira ticket
         jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
 
-        # create analysis objects on tantalus
+        # create align analysis objects
         create_qc_analyses_from_library(
             import_info["dlp_library_id"],
             jira_ticket,
             config["scp_version"],
-            "align"
+            "align",
         )
 
         # create analysis object on colossus

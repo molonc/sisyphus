@@ -138,5 +138,7 @@ def create_qc_analyses_from_library(library_id, jira_ticket, version, analysis_t
         if analysis_type == "hmmcopy":
             hmmcopy.create_analysis(jira_ticket, version, args)
 
-        else:
+        elif analysis_type == "annotation":
             annotation.create_analysis(jira_ticket, version, args)
+        else:
+            raise Exception(f"{analysis_type} is an invalid analysis type")
