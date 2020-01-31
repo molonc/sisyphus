@@ -60,7 +60,6 @@ def main(aligner):
         aligner=aligner if aligner else config["default_aligner"],
     )
 
-    analyses_to_create = []
     for analysis in analyses:
         # get library id
         library_id = analysis["library"]["pool_id"]
