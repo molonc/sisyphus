@@ -522,6 +522,15 @@ def import_gsc_dlp_paired_fastqs(
 
     # only create tickets and analyses when new lane is imported
     if any([lane["new"] for lane in import_info['lanes']]):
+        # load config file
+        config = load_json(
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+                'workflows',
+                'config',
+                'normal_config.json',
+            ))
+
         # create analysis jira ticket
         jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
 
@@ -671,15 +680,6 @@ def main(storage_name,
     # Connect to the Tantalus API (this requires appropriate environment)
     colossus_api = ColossusApi()
     tantalus_api = TantalusApi()
-
-    # load config file
-    config = load_json(
-        os.path.join(
-            os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-            'workflows',
-            'config',
-            'normal_config.json',
-        ))
 
     # initiate arrays to store successful and failed libraries
     successful_libs = []
