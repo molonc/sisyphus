@@ -67,42 +67,6 @@ def get_upstream_datasets(results_ids):
     return list(upstream_datasets)
 
 
-def create_analysis(analysis_type, jira_ticket, version, args):
-    """
-    Creates analysis object on tantalus with minimal fields
-
-    Args:
-        analysis_type (str): type of analysis
-        jira_ticket (str): jira ticket key ex. SC-####
-        version (str): version of singlecellpipeline ex. v#.#.#
-        args (dict): analysis info 
-    """
-    # get align analysis in order to get template for analysis name
-    align_analysis = tantalus_api.get(
-        "analysis",
-        jira_ticket=jira_ticket,
-        analysis_type__name="align",
-    )
-
-    # replace align in name with analysis type
-    name = align_analysis["name"].replace("align", analysis_type)
-
-    # set fields and keys
-    fields = dict(
-        name=name,
-        analysis_type=analysis_type,
-        version=version,
-        jira_ticket=jira_ticket,
-        args=args,
-        status="ready",
-    )
-
-    keys = ['name']
-
-    # create analysis
-    analysis, _ = tantalus_api.create('analysis', fields, keys, get_existing=True)
-
-
 def create_qc_analyses_from_library(library_id, jira_ticket, version, analysis_type):
     """ 
     Create align, hmmcopy, and annotation analysis objects
