@@ -520,36 +520,6 @@ def import_gsc_dlp_paired_fastqs(
 
     logging.info("Library {} imported successfully".format(dlp_library_id))
 
-    # only create tickets and analyses when new lane is imported
-    if any([lane["new"] for lane in import_info['lanes']]):
-        # load config file
-        config = load_json(
-            os.path.join(
-                os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-                'workflows',
-                'config',
-                'normal_config.json',
-            ))
-
-        # create analysis jira ticket
-        jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
-
-        # create align analysis objects
-        create_qc_analyses_from_library(
-            import_info["dlp_library_id"],
-            jira_ticket,
-            config["scp_version"],
-            "align",
-        )
-
-        # create analysis object on colossus
-        create_colossus_analysis(
-            import_info["dlp_library_id"],
-            jira_ticket,
-            config["scp_version"],
-            config["default_aligner"],
-        )
-
     return import_info
 
 
@@ -656,6 +626,45 @@ def write_import_statuses(successful_libs, failed_libs):
     file.close()
 
 
+def create_tickets_and_analyses(import_info):
+    """
+    Creates jira ticket and an align analysis on tantalus if new lanes were imported
+
+    Args:
+        import_info (dict): Contains keys dlp_library_id, gsc_library_id, lanes
+    """
+    # only create tickets and analyses when new lane is imported
+    if any([lane["new"] for lane in import_info['lanes']]):
+        # load config file
+        config = load_json(
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+                'workflows',
+                'config',
+                'normal_config.json',
+            ))
+
+        # create analysis jira ticket
+        jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
+
+        # create align analysis objects
+        create_qc_analyses_from_library(
+            import_info["dlp_library_id"],
+            jira_ticket,
+            config["scp_version"],
+            "align",
+            aligner=config["default_aligner"],
+        )
+
+        # create analysis object on colossus
+        create_colossus_analysis(
+            import_info["dlp_library_id"],
+            jira_ticket,
+            config["scp_version"],
+            config["default_aligner"],
+        )
+
+
 @click.command()
 @click.argument('storage_name', nargs=1)
 @click.option('--dlp_library_id', nargs=1)
@@ -747,6 +756,9 @@ def main(storage_name,
 
             # add library to list of succesfully imported libraries
             successful_libs.append(import_info)
+
+            # create jira ticket and analyses with new lanes and datasets
+            create_tickets_and_analyses(import_info)
 
         except Exception as e:
             # add lane_requested_date to import info for import status report

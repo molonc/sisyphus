@@ -67,7 +67,7 @@ def get_upstream_datasets(results_ids):
     return list(upstream_datasets)
 
 
-def create_qc_analyses_from_library(library_id, jira_ticket, version, analysis_type):
+def create_qc_analyses_from_library(library_id, jira_ticket, version, analysis_type, aligner="M"):
     """ 
     Create align, hmmcopy, and annotation analysis objects
 
@@ -81,11 +81,13 @@ def create_qc_analyses_from_library(library_id, jira_ticket, version, analysis_t
     library = colossus_api.get('library', pool_id=library_id)
     reference_genome = get_ref_genome(library)
 
+    aligner_map = {"A": "BWA_ALN", "M": "BWA_MEM"}
+
     # add arguments
     args = {}
     args['library_id'] = library_id
-    # default aligner is BWA_MEM_0_7_6A
-    args['aligner'] = "BWA_MEM_0_7_6A"
+    # default aligner is BWA_MEM
+    args['aligner'] = aligner_map[aligner]
     args['ref_genome'] = reference_genome
     args['gsc_lanes'] = None
     args['brc_flowcell_ids'] = None
