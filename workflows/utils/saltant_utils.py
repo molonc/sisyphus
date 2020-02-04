@@ -95,7 +95,7 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name,
     for task_instance in task_instance_list:
         if get_task_instance_status(task_instance.uuid) == 'running':
             task_instance.terminate()
-            
+
     new_task_instance = executable_task_instances.create(
         name=name,
         arguments=args,
@@ -170,7 +170,7 @@ def transfer_files(jira, config, tag_name, from_storage, to_storage):
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 
 
-def run_analysis(analysis_type, jira, version, library_id, aligner, config, override_contamination=False):
+def run_analysis(analysis_id, analysis_type, jira, version, library_id, aligner, config):
     name = f"{jira}_{library_id}_{aligner}_{analysis_type}"
     queue_name = config['headnode_task_queue']
 
@@ -180,15 +180,19 @@ def run_analysis(analysis_type, jira, version, library_id, aligner, config, over
         'analysis_type': analysis_type,
         'library_id': library_id,
         'aligner': aligner,
-        'override_contamination': override_contamination,
+        'analysis_id': analysis_id,
     }
 
-    if analysis_type == "align":
-        task_type_id = get_task_type_id("Run Align")
-    elif analysis_type == "hmmcopy":
-        task_type_id = get_task_type_id("Run Hmmcopy")
-    elif analysis_type == "annotation":
-        task_type_id = get_task_type_id("Run Annotation")
+    analysis_type_task_map = {
+        "align": "Run Align",
+        "hmmcopy": "Run Hmmcopy",
+        "annotation": "Run Annotation",
+    }
+
+    try:
+        task_type_id = get_task_type_id(analysis_type_task_map[analysis_type])
+    except:
+        raise Exception(f"no task found for analysis type {analysis_type}")
 
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 

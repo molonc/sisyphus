@@ -1,8 +1,12 @@
 import os
 import datamanagement.templates as templates
 import dbclients.tantalus
+import dbclients.colossus
+from workflows.analysis.dlp import alignment, hmmcopy, annotation
+from workflows.utils.colossus_utils import get_ref_genome
 
 tantalus_api = dbclients.tantalus.TantalusApi()
+colossus_api = dbclients.colossus.ColossusApi()
 
 
 def sequence_dataset_match_lanes(dataset, lane_ids):
@@ -30,7 +34,7 @@ def get_storage_type(storage_name):
     """
 
     storage = tantalus_api.get_storage(storage_name)
-    
+
     return storage['storage_type']
 
 
@@ -63,3 +67,44 @@ def get_upstream_datasets(results_ids):
     return list(upstream_datasets)
 
 
+def create_qc_analyses_from_library(library_id, jira_ticket, version, analysis_type, aligner="M"):
+    """ 
+    Create align, hmmcopy, and annotation analysis objects
+
+    Args:
+        library_id (str): library name
+        jira_ticket (str): jira ticket key ex. SC-####
+        version (str): version of singlecellpipeline ex. v#.#.#
+    """
+
+    # get library info from colossus
+    library = colossus_api.get('library', pool_id=library_id)
+    reference_genome = get_ref_genome(library)
+
+    aligner_map = {"A": "BWA_ALN", "M": "BWA_MEM"}
+
+    # add arguments
+    args = {}
+    args['library_id'] = library_id
+    # default aligner is BWA_MEM
+    args['aligner'] = aligner_map[aligner]
+    args['ref_genome'] = reference_genome
+    args['gsc_lanes'] = None
+    args['brc_flowcell_ids'] = None
+
+    # creates align analysis object on tantalus
+    if analysis_type == "align":
+        alignment.create_analysis(jira_ticket, version, args)
+
+    else:
+        # delete arguments not needed for hmmcopy and annotation
+        del args['gsc_lanes']
+        del args['brc_flowcell_ids']
+
+        if analysis_type == "hmmcopy":
+            hmmcopy.create_analysis(jira_ticket, version, args)
+
+        elif analysis_type == "annotation":
+            annotation.create_analysis(jira_ticket, version, args)
+        else:
+            raise Exception(f"{analysis_type} is an invalid analysis type")

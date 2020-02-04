@@ -12,6 +12,7 @@ import click
 import pandas as pd
 import datetime
 from collections import defaultdict
+
 from datamanagement.utils.constants import LOGGING_FORMAT
 from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 from datamanagement.utils.comment_jira import comment_jira
@@ -19,8 +20,14 @@ import datamanagement.templates as templates
 from datamanagement.utils.filecopy import rsync_file, try_gzip
 from datamanagement.utils.gsc import get_sequencing_instrument, GSCAPI
 from datamanagement.utils.runtime_args import parse_runtime_args
+
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
+
+from workflows.utils.jira_utils import create_jira_ticket_from_library
+from workflows.utils.colossus_utils import create_colossus_analysis
+from workflows.utils.file_utils import load_json
+from workflows.utils.tantalus_utils import create_qc_analyses_from_library
 
 solexa_run_type_map = {"Paired": "P"}
 
@@ -619,6 +626,45 @@ def write_import_statuses(successful_libs, failed_libs):
     file.close()
 
 
+def create_tickets_and_analyses(import_info):
+    """
+    Creates jira ticket and an align analysis on tantalus if new lanes were imported
+
+    Args:
+        import_info (dict): Contains keys dlp_library_id, gsc_library_id, lanes
+    """
+    # only create tickets and analyses when new lane is imported
+    if any([lane["new"] for lane in import_info['lanes']]):
+        # load config file
+        config = load_json(
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+                'workflows',
+                'config',
+                'normal_config.json',
+            ))
+
+        # create analysis jira ticket
+        jira_ticket = create_jira_ticket_from_library(import_info["dlp_library_id"])
+
+        # create align analysis objects
+        create_qc_analyses_from_library(
+            import_info["dlp_library_id"],
+            jira_ticket,
+            config["scp_version"],
+            "align",
+            aligner=config["default_aligner"],
+        )
+
+        # create analysis object on colossus
+        create_colossus_analysis(
+            import_info["dlp_library_id"],
+            jira_ticket,
+            config["scp_version"],
+            config["default_aligner"],
+        )
+
+
 @click.command()
 @click.argument('storage_name', nargs=1)
 @click.option('--dlp_library_id', nargs=1)
@@ -710,6 +756,9 @@ def main(storage_name,
 
             # add library to list of succesfully imported libraries
             successful_libs.append(import_info)
+
+            # create jira ticket and analyses with new lanes and datasets
+            create_tickets_and_analyses(import_info)
 
         except Exception as e:
             # add lane_requested_date to import info for import status report

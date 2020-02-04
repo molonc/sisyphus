@@ -10,6 +10,7 @@ tantalus_api = TantalusApi()
 
 log = logging.getLogger('sisyphus')
 
+
 def get_jira_api():
     jira_user = os.environ['JIRA_USERNAME']
     jira_password = os.environ['JIRA_PASSWORD']
@@ -35,7 +36,7 @@ def get_parent_issue(jira_id):
 
     try:
         parent_ticket = issue.fields.parent.key
-    
+
     except:
         log.info(f"{jira_id} is not a sub-task")
         return None
@@ -49,11 +50,8 @@ def comment_jira(jira_id, comment):
     """
 
     jira_api = get_jira_api()
-    log.info("Commenting \n{} on ticket {}".format(
-		comment,
-		jira_id)
-	)
-    
+    log.info("Commenting \n{} on ticket {}".format(comment, jira_id))
+
     jira_api.add_comment(jira_id, comment)
 
 
@@ -71,13 +69,13 @@ def update_jira_dlp(jira_id, aligner):
     parent_ticket = get_parent_issue(jira_id)
 
     library = colossus_api.get("library", jira_ticket=parent_ticket)
-    sample = library["sample"]["sample_id"]    
+    sample = library["sample"]["sample_id"]
 
     if sample.startswith("TFRI"):
         update_description(jira_id, description, "shwu", remove_watcher=True)
 
     else:
-       update_description(jira_id, description, "jbiele", remove_watcher=True)
+        update_description(jira_id, description, "jbiele", remove_watcher=True)
 
 
 def update_jira_tenx(jira_id, args):
@@ -98,12 +96,8 @@ def update_jira_tenx(jira_id, args):
 
     description = [
         "{noformat}Storage Account: scrnadata\n {noformat}",
-        "Tantalus Results: https://tantalus.canadacentral.cloudapp.azure.com/results/{}".format(
-            results_dataset_id
-        ),
-        "Colossus Library: https://colossus.canadacentral.cloudapp.azure.com/tenx/library/{}".format(
-            library_id
-        ),
+        "Tantalus Results: https://tantalus.canadacentral.cloudapp.azure.com/results/{}".format(results_dataset_id),
+        "Colossus Library: https://colossus.canadacentral.cloudapp.azure.com/tenx/library/{}".format(library_id),
     ]
 
     update_description(jira_id, description, "coflanagan", remove_watcher=True)
@@ -135,3 +129,57 @@ def add_attachment(jira_id, attachment_file_path, attachment_filename):
         log.info("Adding {} to {}".format(attachment_filename, jira_id))
         jira_api.add_attachment(issue=jira_id, attachment=attachment_file_path)
 
+
+def create_jira_ticket_from_library(library_id):
+    """
+    Create analysis jira ticket as subtask of library jira ticket
+
+    Args:
+        library_id (str): Keys: library name
+
+    Returns:
+        analysis_jira_ticket: jira ticket id (ex. SC-1234)
+    """
+    jira_user = os.environ['JIRA_USERNAME']
+    jira_api = get_jira_api()
+
+    library = colossus_api.get('library', pool_id=library_id)
+    sample_id = library['sample']['sample_id']
+
+    library_jira_ticket = library['jira_ticket']
+    issue = jira_api.issue(library_jira_ticket)
+
+    log.info('Creating analysis JIRA ticket as sub task for {}'.format(library_jira_ticket))
+
+    # In order to search for library on Jira,
+    # Jira ticket must include spaces
+    sub_task = {
+        'project': {
+            'key': 'SC'
+        },
+        'summary': 'Analysis of {} - {}'.format(sample_id, library_id),
+        'issuetype': {
+            'name': 'Sub-task'
+        },
+        'parent': {
+            'id': issue.key
+        }
+    }
+
+    sub_task_issue = jira_api.create_issue(fields=sub_task)
+    analysis_jira_ticket = sub_task_issue.key
+
+    # Add watchers
+    jira_api.add_watcher(analysis_jira_ticket, jira_user)
+    jira_api.add_watcher(analysis_jira_ticket, 'jedwards')
+    jira_api.add_watcher(analysis_jira_ticket, 'jbiele')
+    jira_api.add_watcher(analysis_jira_ticket, 'jbwang')
+    jira_api.add_watcher(analysis_jira_ticket, 'elaks')
+
+    # Assign task to myself
+    analysis_issue = jira_api.issue(analysis_jira_ticket)
+    analysis_issue.update(assignee={'name': jira_user})
+
+    log.info('Created analysis ticket {} for library {}'.format(analysis_jira_ticket, library_id))
+
+    return analysis_jira_ticket
