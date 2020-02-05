@@ -1,7 +1,18 @@
 import os
+import logging
+
 from dbclients.colossus import ColossusApi
+from dbclients.basicclient import NotFoundError
 
 colossus_api = ColossusApi()
+
+log = logging.getLogger('sisyphus')
+log.setLevel(logging.DEBUG)
+stream_handler = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+stream_handler.setFormatter(formatter)
+log.addHandler(stream_handler)
+log.propagate = False
 
 
 def get_sequencing_ids(library_info):
@@ -73,37 +84,45 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner):
         analysis = colossus_api.get("analysis_information", analysis_jira_ticket=jira_ticket)
 
     except NotFoundError:
-        library_info = colossus_api.get('library', pool_id=library_id)
+        taxonomy_id_map = {
+            # grch37
+            '9606': 1,
+            # mm10
+            '10090': 2,
+        }
 
-        ref_genome_key = get_ref_genome(library_info)
+        library_info = colossus_api.get('library', pool_id=library_id)
+        taxonomy_id = library_info['sample']['taxonomy_id']
+        ref_genome_pk = taxonomy_id_map[taxonomy_id]
+
         sequencing_ids = get_sequencing_ids(library_info)
         lanes = get_lanes_from_sequencings(sequencing_ids)
 
         log.info(
             f"Creating analysis information object for {library_info['sample']['sample_id']}_{library_id} on Colossus")
 
-        analysis = colossus_api.create(
+        analysis_id = colossus_api.create(
             'analysis_information',
-            library=library_info['id'],
-            version=version,
-            sequencings=sequencings,
-            reference_genome=ref_genome_key,
-            aligner=aligner,
-            analysis_jira_ticket=jira_ticket,
-            lanes=lanes,
+            fields=dict(
+                library=library_info['id'],
+                version=version,
+                sequencings=sequencing_ids,
+                reference_genome=ref_genome_pk,
+                aligner=aligner,
+                analysis_jira_ticket=jira_ticket,
+                lanes=lanes,
+            ),
+            keys=["analysis_jira_ticket"],
         )
 
         analysis_run = colossus_api.create(
             'analysis_run',
-            run_status='idle',
-            dlpanalysisinformation=analysis['id'],
-            blob_path=jira_ticket,
-        )
-
-        colossus_api.update(
-            'analysis_information',
-            analysis['id'],
-            analysis_run=analysis_run['id'],
+            fields=dict(
+                run_status='idle',
+                dlpanalysisinformation=analysis_id,
+                blob_path=jira_ticket,
+            ),
+            keys=["dlpanalysisinformation"],
         )
 
         log.info('Created analysis {} on colossus'.format(analysis['id']))
