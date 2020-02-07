@@ -104,7 +104,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             index_sequence = file_resource['sequencefileinfo']['index_sequence']
             cell_id = index_sequence_sublibraries[index_sequence]['cell_id']
 
-            if cell_id not in passed_cell_ids:
+            if passed_cell_ids is not None and cell_id not in passed_cell_ids:
                 continue
 
             cell_bams[cell_id] = {}
@@ -121,10 +121,12 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
 
             if dataset['sample']['sample_id'] == self.args['normal_sample_id']:
-                assert 'normal' not in input_info and 'normal_cells' not in input_info
+                assert 'normal' not in input_info
+
+                input_info['normal'] = {}
 
                 if dataset['library']['library_type'] == 'SC_WGS':
-                    input_info['normal_cells'] = self._get_cell_bams(dataset, storages)
+                    input_info['normal'] = self._get_cell_bams(dataset, storages)
 
                 elif dataset['library']['library_type'] == 'SC_WGS':
                     file_instances = self.tantalus_api.get_dataset_file_instances(
@@ -132,7 +134,6 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                         filters={'filename__endswith': '.bam'})
 
                     assert len(file_instances) == 1
-                    input_info['normal'] = {}
                     input_info['normal']['bam'] = str(file_instances[0]['filepath'])
 
                 else:
