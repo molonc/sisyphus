@@ -86,10 +86,34 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
         return name
 
+    def _get_cell_bams(self, dataset, storages, passed_cell_ids=None):
+        colossus_api = dbclients.colossus.ColossusApi()
+
+        index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(
+            dataset['library']['library_id'])
+
+        file_instances = self.tantalus_api.get_dataset_file_instances(
+            dataset['id'], 'sequencedataset', storages['working_inputs'],
+            filters={'filename__endswith': '.bam'})
+
+        cell_bams = {}
+
+        for file_instance in file_instances:
+            file_resource = file_instance['file_resource']
+
+            index_sequence = file_resource['sequencefileinfo']['index_sequence']
+            cell_id = index_sequence_sublibraries[index_sequence]['cell_id']
+
+            if cell_id not in passed_cell_ids:
+                continue
+
+            cell_bams[cell_id] = {}
+            cell_bams[cell_id]['bam'] = str(file_instance['filepath'])
+
+        return cell_bams
+
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         assert len(self.analysis['input_datasets']) == 2
-
-        colossus_api = dbclients.colossus.ColossusApi()
 
         input_info = {}
 
@@ -97,21 +121,25 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
 
             if dataset['sample']['sample_id'] == self.args['normal_sample_id']:
-                assert 'normal' not in input_info
-                input_info['normal'] = {}
+                assert 'normal' not in input_info and 'normal_cells' not in input_info
 
-                file_instances = self.tantalus_api.get_dataset_file_instances(
-                    dataset_id, 'sequencedataset', storages['working_inputs'],
-                    filters={'filename__endswith': '.bam'})
+                if dataset['library']['library_type'] == 'SC_WGS':
+                    input_info['normal_cells'] = self._get_cell_bams(dataset, storages)
 
-                assert len(file_instances) == 1
-                input_info['normal']['bam'] = str(file_instances[0]['filepath'])
+                elif dataset['library']['library_type'] == 'SC_WGS':
+                    file_instances = self.tantalus_api.get_dataset_file_instances(
+                        dataset_id, 'sequencedataset', storages['working_inputs'],
+                        filters={'filename__endswith': '.bam'})
+
+                    assert len(file_instances) == 1
+                    input_info['normal'] = {}
+                    input_info['normal']['bam'] = str(file_instances[0]['filepath'])
+
+                else:
+                    raise ValueError(f'unsupported library type for dataset {dataset}')
 
             elif dataset['sample']['sample_id'] == self.args['sample_id']:
                 assert 'tumour' not in input_info
-                input_info['tumour'] = {}
-
-                index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
 
                 assert len(self.analysis['input_results']) == 1
                 cell_ids = preprocessing.get_passed_cell_ids(
@@ -119,21 +147,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                     self.analysis['input_results'][0],
                     storages['working_results'])
 
-                file_instances = self.tantalus_api.get_dataset_file_instances(
-                    dataset_id, 'sequencedataset', storages['working_inputs'],
-                    filters={'filename__endswith': '.bam'})
-
-                for file_instance in file_instances:
-                    file_resource = file_instance['file_resource']
-
-                    index_sequence = file_resource['sequencefileinfo']['index_sequence']
-                    cell_id = index_sequence_sublibraries[index_sequence]['cell_id']
-
-                    if cell_id not in cell_ids:
-                        continue
-
-                    input_info['tumour'][cell_id] = {}
-                    input_info['tumour'][cell_id]['bam'] = str(file_instance['filepath'])
+                input_info['tumour'] = self._get_cell_bams(dataset, storages, passed_cell_ids=cell_ids)
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
