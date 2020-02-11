@@ -174,41 +174,42 @@ def main(
             run_options=run_options,
         )
 
-    except Exception:
-        analysis.set_error_status()
-        raise Exception("pipeline failed")
-
-    output_dataset_ids = log_utils.sentinel(
-        'Creating {} output datasets'.format(analysis_name),
-        analysis.create_output_datasets,
-        storages,
-        update=run_options['update'],
-    )
-
-    output_results_ids = log_utils.sentinel(
-        'Creating {} output results'.format(analysis_name),
-        analysis.create_output_results,
-        storages,
-        update=run_options['update'],
-        skip_missing=run_options['skip_missing'],
-    )
-
-    if storages["working_inputs"] != storages["remote_inputs"] and output_dataset_ids != []:
-        log_utils.sentinel(
-            'Transferring input datasets from {} to {}'.format(storages["working_inputs"], storages["remote_inputs"]),
-            transfer_inputs,
-            output_dataset_ids,
-            output_results_ids,
-            storages["remote_inputs"],
-            storages["working_inputs"],
+        output_dataset_ids = log_utils.sentinel(
+            'Creating {} output datasets'.format(analysis_name),
+            analysis.create_output_datasets,
+            storages,
+            update=run_options['update'],
         )
 
-    log.info("Done!")
-    log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
+        output_results_ids = log_utils.sentinel(
+            'Creating {} output results'.format(analysis_name),
+            analysis.create_output_results,
+            storages,
+            update=run_options['update'],
+            skip_missing=run_options['skip_missing'],
+        )
 
-    analysis.set_complete_status()
+        if storages["working_inputs"] != storages["remote_inputs"] and output_dataset_ids != []:
+            log_utils.sentinel(
+                'Transferring input datasets from {} to {}'.format(storages["working_inputs"], storages["remote_inputs"]),
+                transfer_inputs,
+                output_dataset_ids,
+                output_results_ids,
+                storages["remote_inputs"],
+                storages["working_inputs"],
+            )
 
-    comment_jira(jira_id, f'finished {analysis_name} analysis')
+        comment_jira(jira_id, f'finished {analysis_name} analysis')
+
+        analysis.set_complete_status()
+
+        log.info("Done!")
+        log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
+
+    except Exception:
+        analysis.set_error_status()
+        log.exception('pipeline failed')
+        raise
 
 
 if __name__ == '__main__':
