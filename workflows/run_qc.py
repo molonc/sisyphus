@@ -2,6 +2,7 @@
 import os
 import click
 import logging
+import subprocess
 from datetime import datetime, timedelta
 from dateutil import parser
 
@@ -9,6 +10,7 @@ from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 
 from workflows.utils import saltant_utils, file_utils, tantalus_utils
+from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
@@ -20,6 +22,58 @@ log.propagate = False
 
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
+
+
+def attach_qc_report(jira, library_id, storages):
+
+    storage_client = tantalus_api.get_storage_client(storages["remote_results"])
+    results_dataset = tantalus_api.get("resultsdataset", name="{}_annotation".format(jira))
+
+    qc_filename = "{}_QC_report.html".format(library_id)
+    jira_qc_filename = "{}_{}_QC_report.html".format(library_id, jira)
+
+    qc_report = list(
+        tantalus_api.get_dataset_file_resources(
+            results_dataset["id"],
+            "resultsdataset",
+            {"filename__endswith": qc_filename},
+        ))
+
+    blobname = qc_report[0]["filename"]
+    local_dir = os.path.join("qc_reports", jira)
+    local_path = os.path.join(local_dir, jira_qc_filename)
+    if not os.path.exists(local_dir):
+        os.makedirs(local_dir)
+
+    # Download blob
+    blob = storage_client.blob_service.get_blob_to_path(
+        container_name="results",
+        blob_name=blobname,
+        file_path=local_path,
+    )
+
+    # Get library ticket
+    analysis = colossus_api.get("analysis_information", analysis_jira_ticket=jira)
+    library_ticket = analysis["library"]["jira_ticket"]
+
+    log.info("Adding report to parent ticket of {}".format(jira))
+    add_attachment(library_ticket, local_path, jira_qc_filename)
+
+
+def load_ticket(jira):
+    log.info(f"Loading {jira} into Montage")
+    try:
+        # TODO: add directory in config
+        subprocess.call([
+            'ssh',
+            '-t',
+            'loader',
+            f"bash /home/uu/montageloader2_flora/load_ticket.sh {jira}",
+        ])
+    except Exception as e:
+        raise Exception(f"failed to load ticket: {e}")
+
+    log.info(f"Successfully loaded {jira} into Montage")
 
 
 @click.command()
@@ -63,6 +117,7 @@ def main(aligner):
     for analysis in analyses:
         # get library id
         library_id = analysis["library"]["pool_id"]
+        log.info(f"{library_id}")
 
         # skip analysis if marked as complete
         status = analysis["analysis_run"]["run_status"]
@@ -92,6 +147,13 @@ def main(aligner):
                 status = tantalus_analysis["status"]
                 if status in ('running', 'complete'):
                     log.info(f"skipping {analysis_type} for {jira_ticket} since status is {status}")
+
+                    # update run status on colossus
+                    if analysis_type == "annotation" and status == "complete":
+                        analysis_run_id = analysis["analysis_run"]["id"]
+                        analysis_run = colossus_api.get("analysis_run", id=analysis_run_id)
+                        colossus_api.update("analysis_run", id=analysis_run_id, run_status="complete")
+
                     continue
 
                 log.info(f"running {analysis_type} in library {library_id} with ticket {jira_ticket}")
@@ -128,12 +190,17 @@ def main(aligner):
                 # create analysis and trigger on saltant if analysis creation has met requirements
                 if is_ready_to_create:
                     log.info(f"creating {analysis_type} analysis for ticket {jira_ticket}")
-                    tantalus_utils.create_qc_analyses_from_library(
-                        library_id,
-                        jira_ticket,
-                        config["scp_version"],
-                        analysis_type,
-                    )
+
+                    try:
+                        tantalus_utils.create_qc_analyses_from_library(
+                            library_id,
+                            jira_ticket,
+                            config["scp_version"],
+                            analysis_type,
+                        )
+                    except Exception as e:
+                        log.error(f"failed to create {analysis_type} analysis for ticket {jira_ticket}")
+                        continue
                     tantalus_analysis = tantalus_api.get(
                         'analysis',
                         jira_ticket=jira_ticket,
@@ -150,6 +217,31 @@ def main(aligner):
                         aligner if aligner else config["default_aligner"],
                         config,
                     )
+
+    # get completed analyses that need montage loading
+    analyses = colossus_api.list(
+        "analysis_information",
+        montage_status="Pending",
+        analysis_run__run_status="complete",
+    )
+
+    for analysis in analyses:
+        # get library id
+        library_id = analysis["library"]["pool_id"]
+
+        # skip analyses older than this year
+        # parse off ending time range
+        last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
+        if last_updated_date < datetime(2020, 1, 1):
+            continue
+
+        jira_ticket = analysis["analysis_jira_ticket"]
+        update_jira_dlp(jira_ticket, "M")
+        # upload qc report to jira ticket
+        attach_qc_report(jira_ticket, library_id, config["storages"])
+
+        # load analysis into montage
+        load_ticket(jira_ticket)
 
 
 if __name__ == "__main__":

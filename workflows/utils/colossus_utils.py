@@ -101,7 +101,7 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner):
         log.info(
             f"Creating analysis information object for {library_info['sample']['sample_id']}_{library_id} on Colossus")
 
-        analysis = colossus_api.create(
+        analysis, _ = colossus_api.create(
             'analysis_information',
             fields=dict(
                 library=library_info['id'],
@@ -115,7 +115,7 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner):
             keys=["analysis_jira_ticket"],
         )
 
-        analysis_run = colossus_api.create(
+        analysis_run, _ = colossus_api.create(
             'analysis_run',
             fields=dict(
                 run_status='idle',
