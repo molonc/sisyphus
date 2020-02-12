@@ -27,7 +27,7 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
             align_results_dataset = tantalus_api.get(
                 'resultsdataset',
                 analysis__jira_ticket=jira,
-                results_type='align',
+                results_type='alignment',
             )
         except:
             raise Exception("an align results dataset is expected before annotations run")
@@ -80,7 +80,7 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
                 ('hmmcopy_reads', '_reads.csv.gz'),
                 ('segs_pdf_tar', '_segs.tar.gz'),
             ],
-            'align': [
+            'alignment': [
                 ('alignment_metrics', '_alignment_metrics.csv.gz'),
                 ('gc_metrics', '_gc_metrics.csv.gz'),
             ],
@@ -91,7 +91,9 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
 
             for file_type, file_suffix in results_suffixes[dataset['results_type']]:
                 file_instances = self.tantalus_api.get_dataset_file_instances(
-                    dataset_id, 'resultsdataset', storages['working_results'],
+                    dataset_id,
+                    'resultsdataset',
+                    storages['working_results'],
                     filters={'filename__endswith': file_suffix})
                 assert len(file_instances) == 1
                 file_instance = file_instances[0]
@@ -112,7 +114,7 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
             dirs,
             run_options,
             storages,
-        ):
+    ):
         storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         out_path = os.path.join(storage_client.prefix, self.out_dir)
 
@@ -216,4 +218,3 @@ def create_multiple_analyses(version, info_table):
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
     analysis()
-
