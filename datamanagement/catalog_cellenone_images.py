@@ -6,6 +6,7 @@ import shutil
 import click
 import collections
 import re
+import yaml
 import pandas as pd
 
 from dbclients.basicclient import NotFoundError
@@ -33,12 +34,16 @@ def clean_filename(filename):
     return filename
 
 
+cell_filename_template = '{library_id}_R{row:02d}_C{column:02d}.png'
+background_filename_template = 'background_{idx}.tiff'
+
 def generate_new_filename(row):
     library_id = row['library_id']
     chip_row = row['chip_row']
     chip_column = row['chip_column']
 
-    new_filename = f'{library_id}_R{chip_row:02d}_C{chip_column:02d}.png'
+    new_filename = cell_filename_template.format(
+        library_id=library_id, row=chip_row, column=chip_column)
 
     return new_filename
 
@@ -51,7 +56,7 @@ def read_cellenone_isolated_files(source_dir):
     """
     logging.info(f'processing directory {source_dir}')
 
-    isolated_filenames = glob.glob(os.path.join(source_dir, '*', '*isolated.xls'))
+    isolated_filenames = glob.glob(os.path.join(source_dir, '*', '*__isolated.xls'))
 
     catalog = []
 
@@ -81,6 +86,15 @@ def read_cellenone_isolated_files(source_dir):
         # Chip row and column as YPos and XPos
         data['chip_row'] = data['YPos']
         data['chip_column'] = data['XPos']
+
+        # Assume a _Background.tiff exists along side __isolated.xls
+        background_filename = isolated_filename[:-len('__isolated.xls')] + '_Background.tiff'
+
+        if not os.path.exists(background_filename):
+            logging.error(f'expected {background_filename} along side {isolated_filename}')
+
+        # Original background filename relative to root cellenone directory
+        data['original_background_filename'] = os.path.join(images_dir, os.path.basename(background_filename))
 
         catalog.append(data)
 
@@ -144,11 +158,65 @@ def catalog_images(library_id, source_dir, destination_dir):
 
         filepaths.append(new_filepath)
 
+    # Move the background images into the source directory
+    catalog['background_filename'] = None
+    catalog['background_idx'] = None
+    orig_bg_filenames = catalog['original_background_filename'].unique()
+    for idx, original_filename in enumerate(orig_bg_filenames):
+        if original_filename is None:
+            continue
+
+        new_filename = background_filename_template.format(idx=idx)
+        new_filepath = os.path.join(destination_dir, new_filename)
+
+        catalog.loc[catalog['original_background_filename'] == original_filename, 'background_idx'] = idx
+        catalog.loc[catalog['original_background_filename'] == original_filename, 'background_filename'] = new_filename
+
+        original_filepath = os.path.join(source_dir, original_filename)
+
+        shutil.copyfile(original_filepath, new_filepath)
+
+        filepaths.append(new_filepath)
+
     # Save the catalog
     catalog_filepath = os.path.join(destination_dir, 'catalog.csv')
     catalog.to_csv(catalog_filepath, index=False)
 
     filepaths.append(catalog_filepath)
+
+    # Create a metadata.yaml
+    metadata = {}
+
+    metadata['filenames'] = (
+        list(catalog['filename'].unique()) +
+        list(catalog['background_filename'].unique()) + 
+        ['catalog.csv'])
+
+    metadata['meta'] = {}
+    metadata['meta']['library_id'] = library_id
+
+    metadata['meta']['cell_images'] = {}
+    metadata['meta']['cell_images']['template'] = cell_filename_template
+    metadata['meta']['cell_images']['instances'] = []
+    for idx, row in catalog.iterrows():
+        metadata['meta']['cell_images']['instances'].append({
+            'row': row['chip_row'],
+            'column': row['chip_column'],
+            'library_id': row['library_id'],
+        })
+
+    metadata['meta']['background'] = {}
+    metadata['meta']['background']['template'] = background_filename_template
+    metadata['meta']['background']['instances'] = []
+    for idx, row in catalog[['background_idx']].dropna().drop_duplicates().iterrows():
+        background_idx = int(row['background_idx'])
+        metadata['meta']['background']['instances'].append({
+            'idx': background_idx,
+        })
+
+    metadata_filepath = os.path.join(destination_dir, 'metadata.yaml')
+    with open(metadata_filepath, 'w') as meta_yaml:
+        yaml.safe_dump(metadata, meta_yaml, default_flow_style=False)    
 
     return filepaths
 
@@ -279,6 +347,18 @@ def add_cellenone_data(
         update=update,
         remote_storage_name=remote_storage_name,
     )
+
+
+@cli.command()
+@click.argument('library_id')
+@click.argument('source_dir')
+@click.argument('destination_dir')
+def catalog_cellenone_data(
+        library_id,
+        source_dir,
+        destination_dir):
+
+    catalog_images(library_id, source_dir, destination_dir)
 
 
 if __name__=='__main__':
