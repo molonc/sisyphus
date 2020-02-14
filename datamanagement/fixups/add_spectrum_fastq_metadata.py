@@ -98,7 +98,7 @@ def construct_lane_info(lanes):
     return lane_info
 
 
-def create_and_save_fastq_metadata_yaml(library_id, storage_name, dry_run=False):
+def create_fastq_metadata_yaml(library_id, storage_name, dry_run=False):
     """
     Create a metadata.yaml file for a all FQ datasets for a library id
     on blob storage.
@@ -114,47 +114,65 @@ def create_and_save_fastq_metadata_yaml(library_id, storage_name, dry_run=False)
 
     datasets = tantalus_api.list("sequencedataset", dataset_type='FQ', library__library_id=library_id)
     for dataset in datasets:
-        sample_info = generate_inputs.generate_sample_info(library_id)
+        metadata = create_fastq_dataset_metadata_yaml(dataset)
+
+        # TODO: 
         metadata_save_path = ''
-        metadata_yaml = None
-        file_resources = tantalus_api.list('file_resource', sequencedataset__id=dataset['id'])
-        for file_resource in file_resources:
-
-            index_sequence = file_resource['sequencefileinfo']['index_sequence']
-            filename       = os.path.basename(file_resource['filename'])
-            lane_info      = construct_lane_info(dataset['sequence_lanes'])
-
-            if metadata_yaml is None:
-                metadata_yaml                                  = define_metadata_yaml()
-                metadata_yaml['meta']['type']                  = dataset['library']['library_type']
-                metadata_yaml['meta']['version']               = 'v.0.0.1'  # hardcoded for now
-                metadata_yaml['meta']['sequencing_centre']     = lane_info['sequencing_centre']
-                metadata_yaml['meta']['sequencing_instrument'] = lane_info['sequencing_instrument']
-                metadata_yaml['meta']['fastqs']['template']    = determine_fastq_template(filename, index_sequence)
-                metadata_save_path = os.path.dirname(file_resource['filename'])
-
-            metadata_yaml['meta']['lane_ids'] = metadata_yaml['meta']['lane_ids'].union(lane_info['lane_ids'])
-            instance_info = construct_instance_info(index_sequence, sample_info, filename)
-            metadata_yaml['meta']['fastqs']['instances'].append(instance_info)
-            metadata_yaml['meta']['cell_ids'].add(instance_info['cell_id'])
-            metadata_yaml['filenames'].append(filename)
-
-            print(f"{library_id} - {dataset['id']} - {index_sequence} - {file_resource['filename']}")
-
-        metadata_yaml['meta']['lane_ids'] = list(metadata_yaml['meta']['lane_ids'])
-        metadata_yaml['meta']['cell_ids'] = list(metadata_yaml['meta']['cell_ids'])
 
         if dry_run:
             print(f"For dataset id '{dataset['id']}', the following metadata.yaml would have been prodcued:")
-            print(metadata_yaml)
+            print(metadata)
             continue
 
-        metadata_as_bytes = yaml.dump(metadata_yaml, default_flow_style=False, sort_keys=False).encode()
+        metadata_as_bytes = yaml.dump(metadata, default_flow_style=False, sort_keys=False).encode()
         metadata_save_path = os.path.join(metadata_save_path, 'metadata.yaml')
         client.blob_service.create_blob_from_bytes(storage['storage_container'], metadata_save_path, metadata_as_bytes)
 
 
+def create_fastq_dataset_metadata_yaml(dataset):
+    """
+    Create metadata from a dataset
+    """
+    library_id = dataset['library']['library_id']
+
+    sample_info = generate_inputs.generate_sample_info(library_id)
+    metadata = define_metadata_yaml()
+    file_resources = tantalus_api.list('file_resource', sequencedataset__id=dataset['id'])
+
+    for file_resource in file_resources:
+        index_sequence = file_resource['sequencefileinfo']['index_sequence']
+        filename = os.path.basename(file_resource['filename'])
+        lane_info = construct_lane_info(dataset['sequence_lanes'])
+
+        metadata['meta']['type'] = dataset['library']['library_type']
+        metadata['meta']['version'] = 'v.0.0.1'  # hardcoded for now
+        metadata['meta']['sequencing_centre'] = lane_info['sequencing_centre']
+        metadata['meta']['sequencing_instrument'] = lane_info['sequencing_instrument']
+        metadata['meta']['fastqs']['template'] = determine_fastq_template(filename, index_sequence)
+        metadata['meta']['lane_ids'] = metadata['meta']['lane_ids'].union(lane_info['lane_ids'])
+        instance_info = construct_instance_info(index_sequence, sample_info, filename)
+        metadata['meta']['fastqs']['instances'].append(instance_info)
+
+        #TODO: here you should check whether the template and instance info creates the relevant filename
+
+        metadata['meta']['cell_ids'].add(instance_info['cell_id'])
+        metadata['filenames'].append(filename)
+
+        print(f"{library_id} - {dataset['id']} - {index_sequence} - {file_resource['filename']}")
+
+    metadata['meta']['lane_ids'] = list(metadata['meta']['lane_ids'])
+    metadata['meta']['cell_ids'] = list(metadata['meta']['cell_ids'])
+
+    return metadata
+
+
 if __name__ == "__main__":
+
+    dataset = list(tantalus_api.list("sequencedataset", dataset_type='FQ', library__library_id='A96213A', sample__sample_id='SA1090'))[0]
+    metadata = create_fastq_dataset_metadata_yaml(dataset)
+
+    with open('test.yaml', 'w') as meta_yaml:
+        yaml.safe_dump(metadata, meta_yaml, default_flow_style=False)
 
     spectrum_libs = ['A108851A',
                      'A108833A',
@@ -174,6 +192,6 @@ if __name__ == "__main__":
     storage_name = 'singlecellblob'
 
     for library in spectrum_libs:
-        create_and_save_fastq_metadata_yaml(library, storage_name)
-        # create_and_save_fastq_metadata_yaml(library, storage_name, dry_run=True)
+        create_fastq_metadata_yaml(library, storage_name)
+        # create_fastq_metadata_yaml(library, storage_name, dry_run=True)
 
