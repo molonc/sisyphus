@@ -14,11 +14,25 @@ def get_passed_cell_ids(tantalus_api, results_id, storage_name):
 
     storage_client = tantalus_api.get_storage_client(file_instance['storage']['name'])
     f = storage_client.open_file(file_instance['file_resource']['filename'])
-    alignment_metrics = pd.read_csv(f, compression='gzip')
+    data = pd.read_csv(f, compression='gzip')
+
+    # Recalculate the is_contaminated flag
+    data['fastqscreen_grch37_exclusive'] = data['fastqscreen_grch37'] - data['fastqscreen_grch37_multihit']
+    data['fastqscreen_mm10_exclusive'] = data['fastqscreen_mm10'] - data['fastqscreen_mm10_multihit']
+    data['fastqscreen_salmon_exclusive'] = data['fastqscreen_salmon'] - data['fastqscreen_salmon_multihit']
+
+    data['proportion_grch37'] = data['fastqscreen_grch37_exclusive'] / data['total_reads']
+    data['proportion_mm10'] = data['fastqscreen_mm10_exclusive'] / data['total_reads']
+    data['proportion_salmon'] = data['fastqscreen_salmon_exclusive'] / data['total_reads']
+
+    data['is_contaminated'] = (
+        (data['proportion_mm10'] > 0.05) |
+        (data['proportion_salmon'] > 0.05)
+    )
 
     # Filter cells marked as contaminated
-    alignment_metrics = alignment_metrics[~alignment_metrics["is_contaminated"]]
+    data = data[~data['is_contaminated']]
 
-    return set(alignment_metrics['cell_id'].values)
+    return set(data['cell_id'].values)
 
 
