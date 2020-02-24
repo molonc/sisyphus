@@ -9,6 +9,7 @@ import dbclients.tantalus
 import dbclients.colossus
 import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
+import workflows.analysis.dlp.utils
 import datamanagement.templates as templates
 from datamanagement.utils.utils import get_lanes_hash
 from datamanagement.utils.constants import LOGGING_FORMAT
@@ -25,7 +26,8 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
     @classmethod
     def search_input_datasets(cls, tantalus_api, jira, version, args):
-        tumour_dataset = tantalus_api.get(
+        tumour_dataset = workflows.analysis.dlp.utils.get_most_recent(
+            tantalus_api,
             'sequencedataset',
             dataset_type='BAM',
             analysis__jira_ticket=jira,
@@ -44,7 +46,8 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             raise Exception('unknown aligner')
 
         # TODO: this could also work for normals that are cells
-        normal_dataset = tantalus_api.get(
+        normal_dataset = workflows.analysis.dlp.utils.get_most_recent(
+            tantalus_api,
             'sequencedataset',
             dataset_type='BAM',
             sample__sample_id=args['normal_sample_id'],
