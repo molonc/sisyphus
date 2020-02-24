@@ -128,7 +128,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                 if dataset['library']['library_type'] == 'SC_WGS':
                     input_info['normal'] = self._get_cell_bams(dataset, storages)
 
-                elif dataset['library']['library_type'] == 'SC_WGS':
+                elif dataset['library']['library_type'] == 'WGS':
                     file_instances = self.tantalus_api.get_dataset_file_instances(
                         dataset_id, 'sequencedataset', storages['working_inputs'],
                         filters={'filename__endswith': '.bam'})
