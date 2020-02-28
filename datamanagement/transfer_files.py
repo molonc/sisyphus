@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import traceback
+import shutil
 from azure.storage.blob import BlockBlobService, ContainerPermissions
 from datamanagement.utils.constants import LOGGING_FORMAT
 from dbclients.tantalus import TantalusApi, NotFoundError
@@ -27,6 +28,12 @@ formatter = logging.Formatter("%(asctime)s %(name)-20s %(levelname)-5s %(message
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.ERROR)
+
+# Use azcopy if we have it
+if shutil.which('azcopy') is not None:
+    azcopy = True
+else:
+    azcopy = False
 
 
 class FileAlreadyExists(Exception):
@@ -98,7 +105,7 @@ class AzureBlobServerDownload(object):
 
     def __init__(self, tantalus_api, from_storage, to_storage_name, to_storage_prefix):
         self.tantalus_api = tantalus_api
-        self.block_blob_service = tantalus_api.get_storage_client(from_storage["name"]).blob_service
+        self.storage_client = self.tantalus_api.get_storage_client(from_storage['name'])
         self.from_storage = from_storage
         self.to_storage_name = to_storage_name
         self.to_storage_prefix = to_storage_prefix
@@ -141,13 +148,23 @@ class AzureBlobServerDownload(object):
                 )
                 raise FileAlreadyExists(error_message)
 
-        self.block_blob_service.get_blob_to_path(
-            cloud_container,
-            cloud_blobname,
-            local_filepath,
-            progress_callback=TransferProgress().print_progress,
-            max_connections=16,
-        )
+        if azcopy:
+            blob_url = self.storage_client.get_url(cloud_blobname)
+            os.environ['AZCOPY_LOG_LOCATION'] = '/tmp/'
+            os.environ['AZCOPY_JOB_PLAN_LOCATION'] = '' # TODO: find somewhere to put plan files
+            with open(os.devnull, 'w') as devnull:
+                subprocess.check_call(
+                    ['azcopy', 'copy', '--log-level', 'NONE', blob_url, local_filepath],
+                    stdout=devnull)
+
+        else:
+            self.block_blob_service.get_blob_to_path(
+                cloud_container,
+                cloud_blobname,
+                local_filepath,
+                progress_callback=TransferProgress().print_progress,
+                max_connections=16,
+            )
 
         os.chmod(local_filepath, 0o444)
 
