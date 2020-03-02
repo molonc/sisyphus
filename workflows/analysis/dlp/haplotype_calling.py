@@ -8,6 +8,7 @@ import pandas as pd
 import dbclients.tantalus
 import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
+import workflows.analysis.dlp.utils
 import datamanagement.templates as templates
 from datamanagement.utils.utils import get_lanes_hash, get_datasets_lanes_hash
 from datamanagement.utils.constants import LOGGING_FORMAT
@@ -23,7 +24,8 @@ class HaplotypeCallingAnalysis(workflows.analysis.base.Analysis):
 
     @classmethod
     def search_input_datasets(cls, tantalus_api, jira, version, args):
-        dataset = tantalus_api.get(
+        dataset = workflows.analysis.dlp.utils.get_most_recent(
+            tantalus_api,
             "sequencedataset",
             sample__sample_id=args["sample_id"],
             library__library_id=args["library_id"],
