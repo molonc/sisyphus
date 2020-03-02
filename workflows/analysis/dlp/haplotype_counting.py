@@ -94,16 +94,7 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
             'tumour': {},
         }
 
-        # Get a list of passed cell ids
         colossus_api = dbclients.colossus.ColossusApi()
-
-        cell_ids = preprocessing.get_passed_cell_ids(
-            self.tantalus_api,
-            annotation_results['id'],
-            storages['working_results'])
-
-        if len(cell_ids) == 0:
-            raise Exception('0 cells passed preprocessing')
 
         # Get a list of bam filepaths for passed cells
         assert len(self.analysis['input_datasets']) == 1
@@ -119,9 +110,6 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
 
             index_sequence = file_resource['sequencefileinfo']['index_sequence']
             cell_id = index_sequence_sublibraries[index_sequence]['cell_id']
-
-            if not cell_id in cell_ids:
-                continue
 
             input_info['tumour'][cell_id] = {}
             input_info['tumour'][cell_id]['bam'] = str(file_instance['filepath'])
