@@ -356,11 +356,17 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
         """
         Create the set of output results produced by this analysis.
         """
+        results_name = results_import.qc_results_name_template.format(
+            jira_ticket=self.jira,
+            analysis_type=self.analysis_type,
+            library_id=self.args['library_id'],
+        )
+
         results = results_import.create_dlp_results(
             self.tantalus_api,
             self.out_dir,
             self.get_id(),
-            '{}_{}'.format(self.jira, self.analysis_type),
+            results_name,
             self.get_input_samples(),
             self.get_input_libraries(),
             storages['working_results'],
