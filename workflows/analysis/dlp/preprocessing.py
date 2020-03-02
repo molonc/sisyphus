@@ -1,3 +1,5 @@
+import logging
+import packaging.version
 import pandas as pd
 
 
@@ -16,19 +18,27 @@ def get_passed_cell_ids(tantalus_api, results_id, storage_name):
     f = storage_client.open_file(file_instance['file_resource']['filename'])
     data = pd.read_csv(f, compression='gzip')
 
-    # Recalculate the is_contaminated flag
-    data['fastqscreen_grch37_exclusive'] = data['fastqscreen_grch37'] - data['fastqscreen_grch37_multihit']
-    data['fastqscreen_mm10_exclusive'] = data['fastqscreen_mm10'] - data['fastqscreen_mm10_multihit']
-    data['fastqscreen_salmon_exclusive'] = data['fastqscreen_salmon'] - data['fastqscreen_salmon_multihit']
+    # Recalculate the is_contaminated flag for results prior to v0.5.17
+    assert results['results_type'] == 'annotation'
+    annotation_version = results['results_version']
+    if packaging.version.parse(annotation_version) < packaging.version.parse('v0.5.17')
+        logging.info(f'recalculating is_contaminated for annotation results version {annotation_version}')
 
-    data['proportion_grch37'] = data['fastqscreen_grch37_exclusive'] / data['total_reads']
-    data['proportion_mm10'] = data['fastqscreen_mm10_exclusive'] / data['total_reads']
-    data['proportion_salmon'] = data['fastqscreen_salmon_exclusive'] / data['total_reads']
+        data['fastqscreen_grch37_exclusive'] = data['fastqscreen_grch37'] - data['fastqscreen_grch37_multihit']
+        data['fastqscreen_mm10_exclusive'] = data['fastqscreen_mm10'] - data['fastqscreen_mm10_multihit']
+        data['fastqscreen_salmon_exclusive'] = data['fastqscreen_salmon'] - data['fastqscreen_salmon_multihit']
 
-    data['is_contaminated'] = (
-        (data['proportion_mm10'] > 0.05) |
-        (data['proportion_salmon'] > 0.05)
-    )
+        data['proportion_grch37'] = data['fastqscreen_grch37_exclusive'] / data['total_reads']
+        data['proportion_mm10'] = data['fastqscreen_mm10_exclusive'] / data['total_reads']
+        data['proportion_salmon'] = data['fastqscreen_salmon_exclusive'] / data['total_reads']
+
+        data['is_contaminated'] = (
+            (data['proportion_mm10'] > 0.05) |
+            (data['proportion_salmon'] > 0.05)
+        )
+
+    else:
+        logging.info(f'using existing is_contaminated for annotation results version {annotation_version}')
 
     # Filter cells marked as contaminated
     data = data[~data['is_contaminated']]
