@@ -99,6 +99,10 @@ def create_sequence_dataset_models(
 ):
     """Create tantalus sequence models for a list of files."""
 
+    analysis = None
+    if analysis_id is not None:
+        analysis = tantalus_api.get('analysis', id=analysis_id)
+
     # Get storage and tag PKs
     storage = tantalus_api.get("storage", name=storage_name)
     storage_pk = storage["id"]
@@ -115,6 +119,7 @@ def create_sequence_dataset_models(
                 lanes_hash=get_lanes_hash(info["sequence_lanes"]),
                 aligner=info["aligner_name"],
                 reference_genome=info["ref_genome"],
+                jira_ticket=analysis["jira_ticket"],
             )
         elif info["dataset_type"] == 'FQ':
             dataset_name = templates.SC_WGS_FQ_NAME_TEMPLATE.format(
