@@ -3,6 +3,11 @@ import yaml
 import logging
 
 
+qc_results_name_template = '{jira_ticket}_{analysis_type}_{library_id}'
+
+pseudobulk_results_name_template = '{jira_ticket}_{analysis_type}_{library_id}_{sample_id}'
+
+
 def create_dlp_results(
         tantalus_api,
         results_dir,
