@@ -24,9 +24,8 @@ class HaplotypeCallingAnalysis(workflows.analysis.base.Analysis):
 
     @classmethod
     def search_input_datasets(cls, tantalus_api, jira, version, args):
-        dataset = workflows.analysis.dlp.utils.get_most_recent(
+        dataset = workflows.analysis.dlp.utils.get_most_recent_dataset(
             tantalus_api,
-            "sequencedataset",
             sample__sample_id=args["sample_id"],
             library__library_id=args["library_id"],
             aligner__name__startswith=args["aligner"],

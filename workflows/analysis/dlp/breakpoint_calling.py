@@ -26,9 +26,8 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
     @classmethod
     def search_input_datasets(cls, tantalus_api, jira, version, args):
-        tumour_dataset = workflows.analysis.dlp.utils.get_most_recent(
+        tumour_dataset = workflows.analysis.dlp.utils.get_most_recent_dataset(
             tantalus_api,
-            'sequencedataset',
             dataset_type='BAM',
             analysis__jira_ticket=jira,
             library__library_id=args['library_id'],
@@ -46,9 +45,8 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             raise Exception('unknown aligner')
 
         # TODO: this could also work for normals that are cells
-        normal_dataset = workflows.analysis.dlp.utils.get_most_recent(
+        normal_dataset = workflows.analysis.dlp.utils.get_most_recent_dataset(
             tantalus_api,
-            'sequencedataset',
             dataset_type='BAM',
             sample__sample_id=args['normal_sample_id'],
             library__library_id=args['normal_library_id'],
