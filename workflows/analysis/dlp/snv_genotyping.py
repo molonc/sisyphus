@@ -72,8 +72,7 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
 
     @classmethod
     def generate_unique_name(cls, tantalus_api, jira, version, args, input_datasets, input_results):
-        name = '{jira}_{group_id}_{analysis_type}'.format(
-            jira=jira,
+        name = '{group_id}_{analysis_type}'.format(
             group_id=args['group_id'],
             analysis_type=cls.analysis_type_,
         )
