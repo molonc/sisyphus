@@ -21,7 +21,7 @@ def get_passed_cell_ids(tantalus_api, results_id, storage_name):
     # Recalculate the is_contaminated flag for results prior to v0.5.17
     assert results['results_type'] == 'annotation'
     annotation_version = results['results_version']
-    if packaging.version.parse(annotation_version) < packaging.version.parse('v0.5.17')
+    if packaging.version.parse(annotation_version) < packaging.version.parse('v0.5.17'):
         logging.info(f'recalculating is_contaminated for annotation results version {annotation_version}')
 
         data['fastqscreen_grch37_exclusive'] = data['fastqscreen_grch37'] - data['fastqscreen_grch37_multihit']
