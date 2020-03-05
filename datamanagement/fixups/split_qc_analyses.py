@@ -120,7 +120,6 @@ def split_qc_analyses():
             id=results["annotation"]["id"],
             analysis=annotation_analysis["id"],
         )
-    raise Exception("ok")
 
 
 if __name__ == "__main__":
