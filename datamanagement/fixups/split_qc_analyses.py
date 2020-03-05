@@ -47,7 +47,7 @@ def split_qc_analyses():
         # get bam datasets for hmmcopy
         bam_datasets = tantalus_api.list(
             "sequence_dataset",
-            dataset_type__name="BAM",
+            dataset_type="BAM",
             analysis=analysis['id'],
         )
 
@@ -120,6 +120,7 @@ def split_qc_analyses():
             id=results["annotation"]["id"],
             analysis=annotation_analysis["id"],
         )
+    raise Exception("ok")
 
 
 if __name__ == "__main__":
