@@ -74,6 +74,7 @@ SC_WGS_BAM_NAME_TEMPLATE = "-".join([
     "lanes_{lanes_hash}",
     "{aligner}",
     "{reference_genome}",
+    "{jira_ticket}",
 ])
 
 WGS_SPLIT_BAM_NAME_TEMPLATE = "-".join([

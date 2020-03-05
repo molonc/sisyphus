@@ -110,27 +110,6 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name,
             wait_for_finish(new_task_instance.uuid)
 
 
-def dlp_bam_import(jira, config, bam_paths, storage_name, storage_type, analysis_id, blob_container_name=None):
-    """
-    Import DLP bams.
-    """
-    user = config['user']
-    name = '{}_bam_import'.format(jira)
-
-    args = {
-        'bam_filenames': bam_paths,
-        'storage_name': storage_name,
-        'storage_type': storage_type,
-        'analysis_id': analysis_id,
-    }
-
-    if blob_container_name is not None:
-        args['blob_container_name'] = blob_container_name
-
-    task_type_id = get_task_type_id("DLP BAM Import")
-    get_or_create_task_instance(name, user, args, task_type_id, config['shahlab_task_queue'])
-
-
 def query_gsc_for_dlp_paired_fastqs(jira, config, storage_name, dlp_library_id):
     """
     Query the GSC for DLP paired fastqs.

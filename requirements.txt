@@ -45,7 +45,7 @@ requests==2.22.0
 requests-oauthlib==1.3.0
 requests-toolbelt==0.9.1
 saltant-py==0.4.0
--e git+git@github.com:shahcompbio/sisyphus.git@216c68931067086575e34704ae0d65aebbd7dd8d#egg=sisyphus
+-e ./
 six==1.13.0
 uritemplate==3.0.0
 urllib3==1.25.7

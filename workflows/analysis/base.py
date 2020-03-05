@@ -107,7 +107,10 @@ class Analysis:
             'version': version,
         }
 
-        keys = ['name']
+        keys = [
+            'name',
+            'jira_ticket',
+        ]
 
         analysis, updated = tantalus_api.create('analysis', fields, keys, get_existing=True, do_update=update)
 

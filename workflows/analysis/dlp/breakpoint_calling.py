@@ -9,6 +9,7 @@ import dbclients.tantalus
 import dbclients.colossus
 import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
+import workflows.analysis.dlp.utils
 import datamanagement.templates as templates
 from datamanagement.utils.utils import get_lanes_hash
 from datamanagement.utils.constants import LOGGING_FORMAT
@@ -25,8 +26,8 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
     @classmethod
     def search_input_datasets(cls, tantalus_api, jira, version, args):
-        tumour_dataset = tantalus_api.get(
-            'sequencedataset',
+        tumour_dataset = workflows.analysis.dlp.utils.get_most_recent_dataset(
+            tantalus_api,
             dataset_type='BAM',
             analysis__jira_ticket=jira,
             library__library_id=args['library_id'],
@@ -44,8 +45,8 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             raise Exception('unknown aligner')
 
         # TODO: this could also work for normals that are cells
-        normal_dataset = tantalus_api.get(
-            'sequencedataset',
+        normal_dataset = workflows.analysis.dlp.utils.get_most_recent_dataset(
+            tantalus_api,
             dataset_type='BAM',
             sample__sample_id=args['normal_sample_id'],
             library__library_id=args['normal_library_id'],
@@ -189,11 +190,18 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
         """
         Create the set of output results produced by this analysis.
         """
+        results_name = results_import.pseudobulk_results_name_template.format(
+            jira_ticket=self.jira,
+            analysis_type=self.analysis_type,
+            library_id=self.args['library_id'],
+            sample_id=self.args['sample_id'],
+        )
+
         results = results_import.create_dlp_results(
             self.tantalus_api,
             self.out_dir,
             self.get_id(),
-            '{}_{}'.format(self.jira, self.analysis_type),
+            results_name,
             self.get_input_samples(),
             self.get_input_libraries(),
             storages['working_results'],

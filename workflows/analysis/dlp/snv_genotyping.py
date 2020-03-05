@@ -72,8 +72,7 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
 
     @classmethod
     def generate_unique_name(cls, tantalus_api, jira, version, args, input_datasets, input_results):
-        name = '{jira}_{group_id}_{analysis_type}'.format(
-            jira=jira,
+        name = '{group_id}_{analysis_type}'.format(
             group_id=args['group_id'],
             analysis_type=cls.analysis_type_,
         )
@@ -81,19 +80,6 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
         return name
 
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
-        # Genotype only the cells that pass the contamination filter
-        cell_ids = set()
-        for results_id in self.analysis['input_results']:
-            results = self.tantalus_api.get('results', id=results_id)
-
-            if results['results_type'] != 'annotation':
-                continue
-
-            cell_ids.update(preprocessing.get_passed_cell_ids(
-                self.tantalus_api,
-                results_id,
-                storages['working_results']))
-
         input_info = {
             'vcf_files': {},
             'tumour_cells': {},
@@ -162,9 +148,6 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
 
                 index_sequence = file_resource['sequencefileinfo']['index_sequence']
                 cell_id = index_sequence_sublibraries[index_sequence]['cell_id']
-
-                if cell_id not in cell_ids:
-                    continue
 
                 input_info['tumour_cells'][sample_id] = input_info['tumour_cells'].get(sample_id, {})
                 input_info['tumour_cells'][sample_id][library_id] = input_info['tumour_cells'][sample_id].get(library_id, {})
