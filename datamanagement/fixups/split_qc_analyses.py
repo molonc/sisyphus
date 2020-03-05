@@ -35,7 +35,7 @@ def split_qc_analyses():
         bam_datasets_ids = [d['id'] for d in bam_datasets]
 
         if len(bam_datasets_ids) == 0:
-            raise Exception(f"No bams under analysis {analysis['id']} with ticket {jira_ticket}")
+            log.warning(f"No bams under analysis {analysis['id']} with ticket {jira_ticket}")
 
         # change this analysis to align
         log.info(f"renaming analysis to {name.replace('sc_qc', 'sc_align')}")
@@ -46,6 +46,10 @@ def split_qc_analyses():
             analysis_type="align",
             last_updated=analysis["last_updated"],
         )
+
+        if analysis["status"] != 'complete':
+            log.info("skipping creating hmmcopy/annotations object since not complete")
+            continue
 
         # get results
         results_datasets = tantalus_api.list(
@@ -123,7 +127,6 @@ def split_qc_analyses():
             id=results["annotation"]["id"],
             analysis=annotation_analysis["id"],
         )
-        raise Exception("ok")
 
 
 if __name__ == "__main__":
