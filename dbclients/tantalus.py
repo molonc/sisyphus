@@ -83,11 +83,15 @@ class BlobStorageClient(object):
         created_time = properties.properties.last_modified.isoformat()
         return created_time
 
-    def get_url(self, blobname):
+    def get_url(self, blobname, write_permission=False):
+        permission = azure.storage.blob.BlobPermissions.READ
+        if write_permission:
+            permission |= azure.storage.blob.BlobPermissions.CREATE
+            permission |= azure.storage.blob.BlobPermissions.WRITE
         sas_token = self.blob_service.generate_blob_shared_access_signature(
             self.storage_container,
             blobname,
-            permission=azure.storage.blob.BlobPermissions.READ,
+            permission=permission,
             expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=12),
         )
         blob_url = self.blob_service.make_blob_url(
