@@ -165,19 +165,21 @@ def add_sequence_dataset(
                 version_number = max(d['version_number'] for d in similar_datasets) + 1
                 logging.info(f"creating new version of dataset {dataset_name} with version number {version_number}")
 
-            sequence_dataset = tantalus_api.create(
-                "sequence_dataset",
-                name=dataset_name,
-                version_number=version_number,
-                dataset_type=dataset_type,
-                sample=sample["id"],
-                library=library["id"],
-                sequence_lanes=sequence_lane_pks,
-                file_resources=file_resource_pks,
-                reference_genome=reference_genome,
-                aligner=aligner,
-                tags=tags,
-            )
+            fields={
+                'name': dataset_name,
+                'version_number': version_number,
+                'dataset_type': dataset_type,
+                'sample': sample["id"],
+                'library': library["id"],
+                'sequence_lanes': sequence_lane_pks,
+                'file_resources': file_resource_pks,
+                'reference_genome': reference_genome,
+                'aligner': aligner,
+                'tags': tags,
+            }
+
+            sequence_dataset, is_updated = tantalus_api.create(
+                "sequence_dataset", fields, keys=["name", "version_number"])
 
         return sequence_dataset
 
@@ -306,6 +308,7 @@ def import_bam(
     library=None,
     lane_infos=None,
     read_type=None,
+    ref_genome=None,
     tag_name=None,
     update=False):
     """
@@ -336,7 +339,9 @@ def import_bam(
     bam_header = pysam.AlignmentFile(bam_url).header
     bam_header_info = get_bam_header_info(bam_header)
 
-    ref_genome = get_bam_ref_genome(bam_header)
+    if ref_genome is None:
+        ref_genome = get_bam_ref_genome(bam_header)
+
     aligner_name = get_bam_aligner_name(bam_header)
 
     logging.info(f"bam header shows reference genome {ref_genome} and aligner {aligner_name}")
@@ -407,6 +412,7 @@ def import_bam(
 @click.option("--library_type")
 @click.option("--index_format")
 @click.option("--read_type")
+@click.option("--ref_genome")
 @click.option("--update",is_flag=True)
 @click.option("--tag_name",default=None)
 def main(storage_name, bam_file_path, **kwargs):
@@ -440,6 +446,7 @@ def main(storage_name, bam_file_path, **kwargs):
         sample=sample,
         library=library,
         read_type=kwargs.get('read_type'),
+        ref_genome=kwargs.get('ref_genome'),
         update=kwargs.get('update'),
         tag_name=kwargs.get('tag_name'),
     )
