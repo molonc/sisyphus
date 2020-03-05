@@ -32,12 +32,13 @@ def split_qc_analyses():
             id=analysis['id'],
             name=name.replace("sc_qc", "sc_align"),
             analysis_type="align",
+            last_updated=analysis["last_updated"],
         )
 
         # get results
         results_datasets = tantalus_api.list(
             "resultsdataset",
-            analysis__jira_ticket=jira_ticket,
+            analysis=analysis["id"],
         )
 
         # organize results by analysis type
@@ -47,9 +48,10 @@ def split_qc_analyses():
         bam_datasets = tantalus_api.list(
             "sequence_dataset",
             dataset_type__name="BAM",
-            analysis__jira_ticket=jira_ticket,
+            analysis=analysis['id'],
         )
-        hmmcopy_inputs = [d['id'] for d in bam_datasets if not d["region_split_length"]]
+
+        bam_datasets_ids = [d['id'] for d in bam_datasets]
 
         # update args
         args = dict(
@@ -64,18 +66,19 @@ def split_qc_analyses():
             fields=dict(
                 name=name.replace('sc_qc', 'sc_hmmcopy'),
                 analysis_type="hmmcopy",
-                input_datasets=hmmcopy_inputs,
+                input_datasets=bam_datasets_ids,
                 args=args,
-                version=analysis["args"]["version"],
+                version=analysis["version"],
                 jira_ticket=jira_ticket,
-                status=analysis["args"]["status"],
+                status=analysis["status"],
+                last_updated=analysis["last_updated"],
             ),
             keys=[
                 "jira_ticket",
                 "name",
             ],
         )
-        log.info(f"created annoations analysis {hmmcopy_analysis['id']}")
+        log.info(f"created hmmcopy analysis {hmmcopy_analysis['id']}")
 
         log.info(f"updating analysis of hmmcopy results from {results['hmmcopy']['id']} to {hmmcopy_analysis['id']}")
         # update hmmcopy result with hmmcopy analysis
@@ -92,20 +95,21 @@ def split_qc_analyses():
                 name=name.replace('sc_qc', 'sc_annotation'),
                 analysis_type="annotation",
                 args=args,
-                version=analysis["args"]["version"],
+                version=analysis["version"],
                 jira_ticket=jira_ticket,
-                status=analysis["args"]["status"],
+                status=analysis["status"],
                 input_results=[
                     results["align"]["id"],
                     results["hmmcopy"]["id"],
                 ],
+                last_updated=analysis["last_updated"],
             ),
             keys=[
                 "jira_ticket",
                 "name",
             ],
         )
-        log.info(f"created annoations analysis {annotation_analysis['id']}")
+        log.info(f"created annotations analysis {annotation_analysis['id']}")
 
         log.info(
             f"updating analysis of annotation results from {results['annotation']['id']} to {annotation_analysis['id']}"
