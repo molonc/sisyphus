@@ -25,6 +25,18 @@ def split_qc_analyses():
         name = analysis["name"]
         jira_ticket = analysis["jira_ticket"]
 
+        # get bam datasets for hmmcopy
+        bam_datasets = tantalus_api.list(
+            "sequence_dataset",
+            dataset_type="BAM",
+            analysis=analysis['id'],
+        )
+
+        bam_datasets_ids = [d['id'] for d in bam_datasets]
+
+        if len(bam_datasets_ids) == 0:
+            raise Exception(f"No bams under analysis {analysis['id']} with ticket {jira_ticket}")
+
         # change this analysis to align
         log.info(f"renaming analysis to {name.replace('sc_qc', 'sc_align')}")
         tantalus_api.update(
@@ -43,15 +55,6 @@ def split_qc_analyses():
 
         # organize results by analysis type
         results = {result["results_type"]: result for result in results_datasets}
-
-        # get bam datasets for hmmcopy
-        bam_datasets = tantalus_api.list(
-            "sequence_dataset",
-            dataset_type="BAM",
-            analysis=analysis['id'],
-        )
-
-        bam_datasets_ids = [d['id'] for d in bam_datasets]
 
         # update args
         args = dict(
@@ -120,6 +123,7 @@ def split_qc_analyses():
             id=results["annotation"]["id"],
             analysis=annotation_analysis["id"],
         )
+        raise Exception("ok")
 
 
 if __name__ == "__main__":
