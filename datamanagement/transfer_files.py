@@ -11,6 +11,7 @@ import sys
 import time
 import traceback
 import shutil
+import tempfile
 from azure.storage.blob import BlockBlobService, ContainerPermissions
 from datamanagement.utils.constants import LOGGING_FORMAT
 from dbclients.tantalus import TantalusApi, NotFoundError
@@ -34,6 +35,16 @@ if shutil.which('azcopy') is not None:
     azcopy = True
 else:
     azcopy = False
+
+
+def run_azcopy(src, dest):
+    with tempfile.TemporaryDirectory() as azcopy_temp:
+        os.environ['AZCOPY_LOG_LOCATION'] = azcopy_temp
+        os.environ['AZCOPY_JOB_PLAN_LOCATION'] = azcopy_temp
+        with open(os.devnull, 'w') as devnull:
+            subprocess.check_call(
+                ['azcopy', 'copy', '--log-level', 'NONE', src, dest],
+                stdout=devnull)
 
 
 class FileAlreadyExists(Exception):
@@ -150,12 +161,7 @@ class AzureBlobServerDownload(object):
 
         if azcopy:
             blob_url = self.storage_client.get_url(cloud_blobname)
-            os.environ['AZCOPY_LOG_LOCATION'] = '/tmp/'
-            os.environ['AZCOPY_JOB_PLAN_LOCATION'] = '' # TODO: find somewhere to put plan files
-            with open(os.devnull, 'w') as devnull:
-                subprocess.check_call(
-                    ['azcopy', 'copy', '--log-level', 'NONE', blob_url, local_filepath],
-                    stdout=devnull)
+            run_azcopy(blob_url, local_filepath)
 
         else:
             self.block_blob_service.get_blob_to_path(
@@ -215,14 +221,20 @@ class AzureBlobServerUpload(object):
             )
             raise FileAlreadyExists(error_message)
 
-        self.block_blob_service.create_blob_from_path(
-            cloud_container,
-            cloud_blobname,
-            local_filepath,
-            progress_callback=TransferProgress().print_progress,
-            max_connections=16,
-            timeout=10 * 60 * 64,
-        )
+        if azcopy:
+            storage_client = self.tantalus_api.get_storage_client(self.to_storage['name'])
+            blob_url = storage_client.get_url(cloud_blobname, write_permission=True)
+            run_azcopy(local_filepath, blob_url)
+
+        else:
+            self.block_blob_service.create_blob_from_path(
+                cloud_container,
+                cloud_blobname,
+                local_filepath,
+                progress_callback=TransferProgress().print_progress,
+                max_connections=16,
+                timeout=10 * 60 * 64,
+            )
 
 
 class AzureBlobBlobTransfer(object):
