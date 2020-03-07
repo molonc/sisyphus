@@ -119,7 +119,7 @@ pysftp==0.2.9
 python-dateutil==2.7.3
 pytz==2018.4
 PyVCF==0.6.8
-PyYAML==3.12
+PyYAML==5.1
 remixt==0.5.5
 requests==2.19.1
 requests-oauthlib==1.0.0
