@@ -51,11 +51,16 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
             analysis__jira_ticket=jira,
             library__library_id=args['library_id'],
             dataset_type='BAM',
+            aligner__name__startswith=args['aligner'],
+            reference_genome__name=args['ref_genome'],
         )
 
         # TODO: check aligner and reference genome against bam dataset
 
         lanes_hashed = get_datasets_lanes_hash(tantalus_api, [d['id'] for d in bam_datasets])
+
+        # TODO: control aligner vocabulary elsewhere
+        assert args['aligner'] in ('BWA_ALN', 'BWA_MEM')
 
         name = templates.SC_QC_ANALYSIS_NAME_TEMPLATE.format(
             analysis_type=cls.analysis_type_,

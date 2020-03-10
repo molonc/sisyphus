@@ -72,6 +72,8 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
                 dataset_type='BAM',
                 analysis__jira_ticket=jira,
                 library__library_id=args['library_id'],
+                aligner__name__startswith=args['aligner'],
+                reference_genome__name=args['ref_genome'],
             ))
 
         # check if complete set of datasets were fetched
@@ -82,6 +84,9 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
     @classmethod
     def generate_unique_name(cls, tantalus_api, jira, version, args, input_datasets, input_results):
         lanes_hashed = get_datasets_lanes_hash(tantalus_api, input_datasets)
+
+        # TODO: control aligner vocabulary elsewhere
+        assert args['aligner'] in ('BWA_ALN', 'BWA_MEM')
 
         name = templates.SC_QC_ANALYSIS_NAME_TEMPLATE.format(
             analysis_type=cls.analysis_type_,

@@ -49,6 +49,9 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
     def _get_bams_dir(self, jira, args):
         lanes = self._get_lanes()
 
+        # TODO: control aligner vocabulary elsewhere
+        assert args['aligner'] in ('BWA_ALN', 'BWA_MEM')
+
         bams_dir = templates.SC_WGS_BAM_DIR_TEMPLATE.format(
             library_id=args["library_id"],
             ref_genome=reference_genome_map[args["ref_genome"]],
@@ -101,6 +104,9 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
     @classmethod
     def generate_unique_name(cls, tantalus_api, jira, version, args, input_datasets, input_results):
         lanes_hashed = get_datasets_lanes_hash(tantalus_api, input_datasets)
+
+        # TODO: control aligner vocabulary elsewhere
+        assert args['aligner'] in ('BWA_ALN', 'BWA_MEM')
 
         name = templates.SC_QC_ANALYSIS_NAME_TEMPLATE.format(
             analysis_type=cls.analysis_type_,
