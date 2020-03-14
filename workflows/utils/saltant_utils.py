@@ -154,22 +154,11 @@ def run_analysis(analysis_id, analysis_type, jira, version, library_id, aligner,
     queue_name = config['headnode_task_queue']
 
     args = {
-        'jira': jira,
-        'version': version,
-        'analysis_type': analysis_type,
-        'library_id': library_id,
-        'aligner': aligner,
         'analysis_id': analysis_id,
     }
 
-    analysis_type_task_map = {
-        "align": "Run Align",
-        "hmmcopy": "Run Hmmcopy",
-        "annotation": "Run Annotation",
-    }
-
     try:
-        task_type_id = get_task_type_id(analysis_type_task_map[analysis_type])
+        task_type_id = get_task_type_id("Run Analysis")
     except:
         raise Exception(f"no task found for analysis type {analysis_type}")
 
