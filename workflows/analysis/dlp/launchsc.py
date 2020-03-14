@@ -58,8 +58,11 @@ def run_pipeline(
             output_dir,
         ]
 
-    if not run_options['saltant']:
+    if run_options['saltant']:
+        run_cmd += ['--loglevel', 'ERROR']
+    else:
         run_cmd += ['--loglevel', 'DEBUG']
+
     if run_options['local_run']:
         run_cmd += ["--submit", "local"]
 
