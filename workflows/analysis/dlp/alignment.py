@@ -383,69 +383,21 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
         return [results['id']]
 
 
+    @classmethod
+    def create_analysis_cli(cls):
+        cls.create_cli([
+            'library_id',
+            'aligner',
+            'ref_genome',
+        ], [
+            ('gsc_lanes', None),
+            ('brc_flowcell_ids', None),
+        ])
+
+
 workflows.analysis.base.Analysis.register_analysis(AlignmentAnalysis)
-
-
-def create_analysis(jira_id, version, args):
-    tantalus_api = dbclients.tantalus.TantalusApi()
-
-    analysis = AlignmentAnalysis.create_from_args(tantalus_api, jira_id, version, args)
-
-    logging.info(f'created analysis {analysis.get_id()}')
-
-    if analysis.status.lower() in ('error', 'unknown'):
-        analysis.set_ready_status()
-
-    else:
-        logging.warning(f'analysis {analysis.get_id()} has status {analysis.status}')
-
-
-@click.group()
-def analysis():
-    pass
-
-
-@analysis.command()
-@click.argument('jira_id')
-@click.argument('version')
-@click.argument('library_id')
-@click.argument('aligner')
-@click.argument('ref_genome')
-@click.option('--gsc_lanes')
-@click.option('--brc_flowcell_ids')
-def create_single_analysis(jira_id, version, library_id, aligner, ref_genome, **kwargs):
-    args = {}
-    args['library_id'] = library_id
-    args['aligner'] = aligner
-    args['ref_genome'] = ref_genome
-    args['gsc_lanes'] = kwargs.get('gsc_lanes')
-    args['brc_flowcell_ids'] = kwargs.get('brc_flowcell_ids')
-
-    create_analysis(jira_id, version, args)
-
-
-@analysis.command()
-@click.argument('version')
-@click.argument('info_table')
-def create_multiple_analyses(version, info_table):
-    info = pd.read_csv(info_table)
-
-    for idx, row in info.iterrows():
-        jira_id = row['jira_id']
-
-        args = {}
-        args['library_id'] = row['library_id']
-        args['aligner'] = row['aligner']
-        args['ref_genome'] = row['ref_genome']
-        args['gsc_lanes'] = row.get('gsc_lanes')
-        args['brc_flowcell_ids'] = row.get('brc_flowcell_ids')
-
-        try:
-            create_analysis(jira_id, version, args)
-        except:
-            logging.exception(f'create analysis failed for {jira_id}')
 
 
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
-    analysis()
+    AlignmentAnalysis.create_analysis_cli()
