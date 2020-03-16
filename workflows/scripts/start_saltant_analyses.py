@@ -23,7 +23,7 @@ def start_analyses_saltant(analysis_table, analysis_type, delay=None):
 
     analyses = pd.read_csv(analysis_table)
 
-    for jira_ticket in analyses['jira_id'].values:
+    for jira_ticket in analyses['jira_id'].unique():
         try:
             analyses = tantalus_api.list('analysis', jira_ticket=jira_ticket, analysis_type__name=analysis_type)
 

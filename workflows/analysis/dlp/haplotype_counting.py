@@ -9,7 +9,7 @@ import dbclients.tantalus
 import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
 import datamanagement.templates as templates
-from datamanagement.utils.utils import get_lanes_hash
+from datamanagement.utils.utils import get_lanes_hash, get_datasets_lanes_hash
 from datamanagement.utils.constants import LOGGING_FORMAT
 import workflows.analysis.dlp.results_import as results_import
 import workflows.analysis.dlp.preprocessing as preprocessing
