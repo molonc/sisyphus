@@ -32,26 +32,18 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             analysis__jira_ticket=jira,
             library__library_id=args['library_id'],
             sample__sample_id=args['sample_id'],
+            aligner__name__startswith=args['aligner'],
+            reference_genome__name=args['ref_genome'],
             region_split_length=None,
         )
 
-        # TODO: kludge related to the fact that aligner are equivalent between minor versions
-        aligner_name = None
-        if tumour_dataset['aligner'].startswith('BWA_MEM'):
-            aligner_name = 'BWA_MEM'
-        elif tumour_dataset['aligner'].startswith('BWA_ALN'):
-            aligner_name = 'BWA_ALN'
-        else:
-            raise Exception('unknown aligner')
-
-        # TODO: this could also work for normals that are cells
         normal_dataset = workflows.analysis.dlp.utils.get_most_recent_dataset(
             tantalus_api,
             dataset_type='BAM',
             sample__sample_id=args['normal_sample_id'],
             library__library_id=args['normal_library_id'],
-            aligner__name__startswith=aligner_name,
-            reference_genome__name=tumour_dataset['reference_genome'],
+            aligner__name__startswith=args['aligner'],
+            reference_genome__name=args['ref_genome'],
             region_split_length=None,
         )
 
@@ -76,12 +68,17 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             if dataset['sample']['sample_id'] == args['sample_id']:
                 tumour_dataset = dataset
 
+        assert tumour_dataset['aligner'].startswith(args['aligner'])
+        assert tumour_dataset['reference_genome'] == args['ref_genome']
+        assert tumour_dataset['library']['library_id'] == args['library_id']
+        assert tumour_dataset['sample']['sample_id'] == args['sample_id']
+
         name = templates.SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE.format(
             analysis_type=cls.analysis_type_,
-            aligner=tumour_dataset['aligner'],
-            ref_genome=tumour_dataset['reference_genome'],
-            library_id=tumour_dataset['library']['library_id'],
-            sample_id=tumour_dataset['sample']['sample_id'],
+            aligner=args['aligner'],
+            ref_genome=args['ref_genome'],
+            library_id=args['library_id'],
+            sample_id=args['sample_id'],
             lanes_hashed=get_lanes_hash(tumour_dataset["sequence_lanes"]),
         )
 
@@ -211,71 +208,21 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
         return [results['id']]
 
+    @classmethod
+    def create_analysis_cli(cls):
+        cls.create_cli([
+            'sample_id',
+            'library_id',
+            'normal_sample_id',
+            'normal_library_id',
+            'aligner',
+            'ref_genome',
+        ])
+
 
 workflows.analysis.base.Analysis.register_analysis(BreakpointCallingAnalysis)
 
 
-def create_analysis(jira_id, version, args, update=False):
-    tantalus_api = dbclients.tantalus.TantalusApi()
-
-    analysis = BreakpointCallingAnalysis.create_from_args(tantalus_api, jira_id, version, args, update=update)
-
-    logging.info(f'created analysis {analysis.get_id()}')
-
-    if analysis.status.lower() in ('error', 'unknown'):
-        analysis.set_ready_status()
-
-    else:
-        logging.warning(f'analysis {analysis.get_id()} has status {analysis.status}')
-
-
-@click.group()
-def analysis():
-    pass
-
-
-@analysis.command()
-@click.argument('jira_id')
-@click.argument('version')
-@click.argument('sample_id')
-@click.argument('library_id')
-@click.argument('normal_sample_id')
-@click.argument('normal_library_id')
-@click.option('--update', is_flag=True)
-def create_single_analysis(jira_id, version, sample_id, library_id, normal_sample_id, normal_library_id, update=False):
-    args = {}
-    args['sample_id'] = sample_id
-    args['library_id'] = library_id
-    args['normal_sample_id'] = normal_sample_id
-    args['normal_library_id'] = normal_library_id
-
-    create_analysis(jira_id, version, args, update=update)
-
-
-@analysis.command()
-@click.argument('version')
-@click.argument('info_table')
-@click.option('--update', is_flag=True)
-def create_multiple_analyses(version, info_table, update=False):
-    info = pd.read_csv(info_table)
-
-    for idx, row in info.iterrows():
-        jira_id = row['jira_id']
-
-        args = {}
-        args['sample_id'] = row['sample_id']
-        args['library_id'] = row['library_id']
-        args['normal_sample_id'] = row['normal_sample_id']
-        args['normal_library_id'] = row['normal_library_id']
-
-        try:
-            create_analysis(jira_id, version, args, update=update)
-        except KeyboardInterrupt:
-            raise
-        except:
-            logging.exception(f'create analysis failed for {jira_id}')
-
-
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
-    analysis()
+    BreakpointCallingAnalysis.create_analysis_cli()

@@ -211,20 +211,6 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
 workflows.analysis.base.Analysis.register_analysis(SnvGenotypingAnalysis)
 
 
-def create_analysis(jira_id, version, args, update=False):
-    tantalus_api = dbclients.tantalus.TantalusApi()
-
-    analysis = SnvGenotypingAnalysis.create_from_args(tantalus_api, jira_id, version, args, update=update)
-
-    logging.info(f'created analysis {analysis.get_id()}')
-
-    if analysis.status.lower() in ('error', 'unknown'):
-        analysis.set_ready_status()
-
-    else:
-        logging.warning(f'analysis {analysis.get_id()} has status {analysis.status}')
-
-
 @click.group()
 def analysis():
     pass
@@ -241,6 +227,8 @@ def analysis():
 @click.option('--normal_sample_id', multiple=True)
 @click.option('--update', is_flag=True)
 def create_single_analysis(jira_id, version, group_id, library_jira_id, library_id, sample_id, normal_library_id, normal_sample_id, update=False):
+    tantalus_api = dbclients.tantalus.TantalusApi()
+
     if not (len(library_jira_id) == len(library_id) == len(sample_id) == len(normal_library_id) == len(normal_sample_id)):
         raise ValueError('library_jira_id, library_id, sample_id normal_library_id, normal_sample_id, must be of the same length')
 
@@ -258,7 +246,7 @@ def create_single_analysis(jira_id, version, group_id, library_jira_id, library_
             'normal_sample_id': ns,
         })
 
-    create_analysis(jira_id, version, args, update=update)
+    SnvGenotypingAnalysis.create_from_args(tantalus_api, jira_id, version, args, update=update)
 
 
 @analysis.command()
@@ -266,6 +254,8 @@ def create_single_analysis(jira_id, version, group_id, library_jira_id, library_
 @click.argument('info_table')
 @click.option('--update', is_flag=True)
 def create_multiple_analyses(version, info_table, update=False):
+    tantalus_api = dbclients.tantalus.TantalusApi()
+
     info = pd.read_csv(info_table)
 
     for (jira_id, group_id), df in info.groupby(['jira_id', 'group_id']):
@@ -284,7 +274,7 @@ def create_multiple_analyses(version, info_table, update=False):
             })
 
         try:
-            create_analysis(jira_id, version, args, update=update)
+            SnvGenotypingAnalysis.create_from_args(tantalus_api, jira_id, version, args, update=update)
         except KeyboardInterrupt:
             raise
         except:

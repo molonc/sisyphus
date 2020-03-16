@@ -10,7 +10,7 @@ import dbclients.colossus
 import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
 import datamanagement.templates as templates
-from datamanagement.utils.utils import get_lanes_hash
+from datamanagement.utils.utils import get_lanes_hash, get_datasets_lanes_hash
 from datamanagement.utils.constants import LOGGING_FORMAT
 import workflows.analysis.dlp.preprocessing as preprocessing
 
@@ -32,6 +32,8 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
             analysis__jira_ticket=jira,
             library__library_id=args['library_id'],
             sample__sample_id=args['sample_id'],
+            aligner__name__startswith=args["aligner"],
+            reference_genome__name=args["ref_genome"],
             dataset_type='BAM',
             region_split_length=None,
         )
@@ -51,16 +53,15 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
     @classmethod
     def generate_unique_name(cls, tantalus_api, jira, version, args, input_datasets, input_results):
-        assert len(input_datasets) == 1
-        dataset = tantalus_api.get('sequence_dataset', id=input_datasets[0])
+        lanes_hashed = get_datasets_lanes_hash(tantalus_api, input_datasets)
 
         name = templates.SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE.format(
             analysis_type=cls.analysis_type_,
-            aligner=dataset['aligner'],
-            ref_genome=dataset['reference_genome'],
-            library_id=dataset['library']['library_id'],
-            sample_id=dataset['sample']['sample_id'],
-            lanes_hashed=get_lanes_hash(dataset["sequence_lanes"]),
+            aligner=args['aligner'],
+            ref_genome=args['ref_genome'],
+            library_id=args['library_id'],
+            sample_id=args['sample_id'],
+            lanes_hashed=lanes_hashed,
         )
 
         return name
@@ -192,65 +193,20 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
         return [output_dataset]
 
+    @classmethod
+    def create_analysis_cli(cls):
+        cls.create_cli([
+            'sample_id',
+            'library_id',
+            'aligner',
+            'ref_genome',
+        ])
+
 
 workflows.analysis.base.Analysis.register_analysis(MergeCellBamsAnalysis)
 
 
-def create_analysis(jira_id, version, args, update=False):
-    tantalus_api = dbclients.tantalus.TantalusApi()
-
-    analysis = MergeCellBamsAnalysis.create_from_args(tantalus_api, jira_id, version, args, update=update)
-
-    logging.info(f'created analysis {analysis.get_id()}')
-
-    if analysis.status.lower() in ('error', 'unknown'):
-        analysis.set_ready_status()
-
-    else:
-        logging.warning(f'analysis {analysis.get_id()} has status {analysis.status}')
-
-
-@click.group()
-def analysis():
-    pass
-
-
-@analysis.command()
-@click.argument('jira_id')
-@click.argument('version')
-@click.argument('sample_id')
-@click.argument('library_id')
-@click.option('--update', is_flag=True)
-def create_single_analysis(jira_id, version, sample_id, library_id, update=False):
-    args = {}
-    args['sample_id'] = sample_id
-    args['library_id'] = library_id
-
-    create_analysis(jira_id, version, args, update=update)
-
-
-@analysis.command()
-@click.argument('version')
-@click.argument('info_table')
-@click.option('--update', is_flag=True)
-def create_multiple_analyses(version, info_table, update=False):
-    info = pd.read_csv(info_table)
-
-    for idx, row in info.iterrows():
-        jira_id = row['jira_id']
-
-        args = {}
-        args['sample_id'] = row['sample_id']
-        args['library_id'] = row['library_id']
-
-        try:
-            create_analysis(jira_id, version, args, update=update)
-        except KeyboardInterrupt:
-            raise
-        except:
-            logging.exception(f'create analysis failed for {jira_id}')
-
-
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
-    analysis()
+    MergeCellBamsAnalysis.create_analysis_cli()
+

@@ -1,5 +1,7 @@
 import logging
 import datetime
+import click
+import pandas as pd
 
 import dbclients.tantalus
 
@@ -115,7 +117,21 @@ class Analysis:
         analysis, updated = tantalus_api.create('analysis', fields, keys, get_existing=True, do_update=update)
 
         if updated:
+            if analysis['status'] == 'running':
+                logging.error(f'updated running analysis {analysis["id"]}')
+
+            else:
+                logging.info(f'updated existing analysis {analysis["id"]} with status {analysis["status"]}')
+
+            logging.error(f'resetting analysis {analysis["id"]} to status error')
             analysis = tantalus_api.update('analysis', id=analysis['id'], status='error')
+
+        elif analysis['status'].lower() == 'unknown':
+            analysis = tantalus_api.update('analysis', id=analysis['id'], status='ready')
+            logging.info(f'created analysis {analysis["id"]} with status {analysis["status"]}')
+
+        else:
+            logging.info(f'existing analysis {analysis["id"]} is identical')
 
         return analysis
 
@@ -227,3 +243,50 @@ class Analysis:
         Get the filenames of results from a list of templates.
         """
         raise NotImplementedError
+
+    @classmethod
+    def create_cli(cls, arguments, options=()):
+        """
+        Simple cli for creating analyses.
+        """
+        tantalus_api = dbclients.tantalus.TantalusApi()
+
+        def create_single_analysis(jira_id, version, update=False, **args):
+            cls.create_from_args(tantalus_api, jira_id, version, args, update=update)
+
+        for arg_name in reversed(['jira_id', 'version'] + arguments):
+            create_single_analysis = click.argument(arg_name)(create_single_analysis)
+
+        for opt_name, default in reversed(options):
+            create_single_analysis = click.option('--' + opt_name, default=default)(create_single_analysis)
+
+        def create_multiple_analyses(version, info_table, update=False):
+            info = pd.read_csv(info_table)
+
+            for idx, row in info.iterrows():
+                jira_id = row['jira_id']
+
+                args = {}
+                for arg_name in arguments:
+                    args[arg_name] = row[arg_name]
+                for opt_name, default in options:
+                    args[opt_name] = row.get(opt_name, default)
+
+                try:
+                    cls.create_from_args(tantalus_api, jira_id, version, args, update=update)
+                except KeyboardInterrupt:
+                    raise
+                except:
+                    logging.exception(f'create analysis failed for {jira_id}')
+
+        def analysis():
+            pass
+
+        analysis = click.group()(analysis)
+        create_single_analysis = analysis.command()(create_single_analysis)
+
+        create_multiple_analyses = click.argument('info_table')(create_multiple_analyses)
+        create_multiple_analyses = click.argument('version')(create_multiple_analyses)
+        create_multiple_analyses = analysis.command()(create_multiple_analyses)
+
+        analysis()
