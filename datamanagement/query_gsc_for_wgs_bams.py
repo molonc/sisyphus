@@ -25,7 +25,7 @@ from datamanagement.cram_to_bam import create_bam as HelperCram
 from datamanagement.bam_import import import_bam
 
 from datamanagement.templates import (
-        WGS_BAM_NAME_TEMPLATE, 
+        WGS_BAM_PATH_TEMPLATE,
         MERGE_BAM_PATH_TEMPLATE, 
         LANE_BAM_PATH_TEMPLATE, 
         MULTIPLEXED_LANE_BAM_PATH_TEMPLATE,
@@ -188,7 +188,7 @@ def get_tantalus_bam_filename(sample, library, lane_infos):
                     naming conventions
     """
     lanes_str = get_lanes_hash(lane_infos)
-    bam_path = WGS_BAM_NAME_TEMPLATE.format(
+    bam_path = WGS_BAM_PATH_TEMPLATE.format(
         sample_id=sample["sample_id"],
         library_type=library["library_type"],
         library_id=library["library_id"],

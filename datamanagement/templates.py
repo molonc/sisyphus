@@ -5,10 +5,10 @@ LANE_ID_RE = re.compile("^.*_\\d$")
 JIRA_ID_RE = re.compile('^SC-[0-9]+$')
 
 ALIGNMENT_METRICS = os.path.join(
-	'{results_dir}',
-	'results',
-	'alignment',
-	'{library_id}_alignment_metrics.csv.gz'
+    '{results_dir}',
+    'results',
+    'alignment',
+    '{library_id}_alignment_metrics.csv.gz'
 )
 
 SC_WGS_FQ_TEMPLATE = os.path.join(
@@ -21,26 +21,26 @@ SC_WGS_FQ_TEMPLATE = os.path.join(
 )
 
 SC_WGS_BAM_TEMPLATE = os.path.join(
-	'single_cell_indexing',
-	'bam',
-	'{library_id}',
-	'{ref_genome}',
-	'{aligner_name}',
-	'numlanes_{number_lanes}',
-	'{cell_id}.bam'
+    'single_cell_indexing',
+    'bam',
+    '{library_id}',
+    '{ref_genome}',
+    '{aligner_name}',
+    'numlanes_{number_lanes}',
+    '{cell_id}.bam'
 )
 
 SC_WGS_BAM_DIR_TEMPLATE = os.path.join(
-	'single_cell_indexing',
-	'bam',
-	'{library_id}',
-	'{ref_genome}',
-	'{aligner_name}',
-	'numlanes_{number_lanes}',
+    'single_cell_indexing',
+    'bam',
+    '{library_id}',
+    '{ref_genome}',
+    '{aligner_name}',
+    'numlanes_{number_lanes}',
     '{jira_ticket}',
 )
 
-WGS_BAM_NAME_TEMPLATE = os.path.join(
+WGS_BAM_PATH_TEMPLATE = os.path.join(
     "{sample_id}",
     "bam",
     "{library_type}",
@@ -75,6 +75,16 @@ SC_WGS_BAM_NAME_TEMPLATE = "-".join([
     "{aligner}",
     "{reference_genome}",
     "{jira_ticket}",
+])
+
+WGS_BAM_NAME_TEMPLATE = "-".join([
+    "{dataset_type}",
+    "{sample_id}",
+    "{library_type}",
+    "{library_id}",
+    "lanes_{lanes_hash}",
+    "{aligner}",
+    "{reference_genome}",
 ])
 
 WGS_SPLIT_BAM_NAME_TEMPLATE = "-".join([

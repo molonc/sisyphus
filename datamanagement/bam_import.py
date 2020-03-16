@@ -109,7 +109,7 @@ def add_sequence_dataset(
             file_resource, file_instance = tantalus_api.add_file(storage_name, bai_file_path, update=update)
             file_resource_pks.append(file_resource["id"])
 
-        dataset_name = templates.SC_WGS_BAM_NAME_TEMPLATE.format(
+        dataset_name = templates.WGS_BAM_NAME_TEMPLATE.format(
             dataset_type="BAM",
             sample_id=sample["sample_id"],
             library_type=library["library_type"],
