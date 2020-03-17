@@ -2,6 +2,9 @@ import yaml
 import os
 import json
 import click
+import logging
+import collections
+import io
 
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
@@ -137,7 +140,7 @@ def create_fastq_metadata_yaml(library_id, storage_name, dry_run=False):
 
     for dataset_info, metadata in create_lane_fastq_metadata(tantalus_api, library_id):
         metadata_filename = os.path.join(dataset_info['base_dir'], 'metadata.yaml')
-        metadata_filepath = tantalus_api.get_filepath('singlecellresults', metadata_filename)
+        metadata_filepath = tantalus_api.get_filepath(storage_name, metadata_filename)
 
         metadata_io = io.BytesIO()
         metadata_io.write(yaml.dump(metadata, default_flow_style=False).encode())
@@ -148,10 +151,12 @@ def create_fastq_metadata_yaml(library_id, storage_name, dry_run=False):
         logging.info(f'adding {metadata_filepath} to tantalus')
 
         if not dry_run:
-            file_resource, file_instance = tantalus_api.add_file('singlecellblob', metadata_filepath, update=True)
+            file_resource, file_instance = tantalus_api.add_file(storage_name, metadata_filepath, update=True)
 
             for dataset_id in dataset_info['dataset_ids']:
-                new_file_resources = set(results['file_resources'])
+                dataset = tantalus_api.get('sequencedataset', id=dataset_id)
+
+                new_file_resources = set(dataset['file_resources'])
                 new_file_resources.add(file_resource['id'])
 
                 tantalus_api.update('sequencedataset', id=dataset_id, file_resources=list(new_file_resources))
