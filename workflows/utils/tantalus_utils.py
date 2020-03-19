@@ -2,7 +2,9 @@ import os
 import datamanagement.templates as templates
 import dbclients.tantalus
 import dbclients.colossus
-from workflows.analysis.dlp import alignment, hmmcopy, annotation
+from workflows.analysis.dlp.alignment import AlignmentAnalysis
+from workflows.analysis.dlp.annotation import AnnotationAnalysis
+from workflows.analysis.dlp.hmmcopy import HMMCopyAnalysis
 from workflows.utils.colossus_utils import get_ref_genome
 
 tantalus_api = dbclients.tantalus.TantalusApi()
@@ -94,7 +96,7 @@ def create_qc_analyses_from_library(library_id, jira_ticket, version, analysis_t
 
     # creates align analysis object on tantalus
     if analysis_type == "align":
-        alignment.create_analysis(jira_ticket, version, args)
+        AlignmentAnalysis.create_from_args(tantalus_api, jira_ticket, version, args)
 
     else:
         # delete arguments not needed for hmmcopy and annotation
@@ -102,9 +104,9 @@ def create_qc_analyses_from_library(library_id, jira_ticket, version, analysis_t
         del args['brc_flowcell_ids']
 
         if analysis_type == "hmmcopy":
-            hmmcopy.create_analysis(jira_ticket, version, args)
+            HMMCopyAnalysis.create_from_args(tantalus_api, jira_ticket, version, args)
 
         elif analysis_type == "annotation":
-            annotation.create_analysis(jira_ticket, version, args)
+            AnnotationAnalysis.create_from_args(tantalus_api, jira_ticket, version, args)
         else:
             raise Exception(f"{analysis_type} is an invalid analysis type")
