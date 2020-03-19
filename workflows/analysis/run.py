@@ -108,8 +108,8 @@ def main(
 
     pipeline_dir = os.path.join(config['analysis_directory'], jira_id, analysis_name)
 
-    scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', jira_id)
-    tmp_dir = os.path.join('singlecelltemp', 'temp', jira_id)
+    scpipeline_dir = os.path.join('singlecelllogs', 'pipeline', f'analysis_{analysis_id}')
+    tmp_dir = os.path.join('singlecelltemp', 'temp', f'analysis_{analysis_id}')
 
     log_utils.init_pl_dir(pipeline_dir, run_options['clean'])
 

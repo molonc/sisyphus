@@ -97,6 +97,8 @@ def run_pipeline(
             '{d}:{d}'.format(d=d),
         ])
 
+    docker_cmd.extend(['-v', '{d}:{d}'.format(d=os.path.dirname(context_config_file))])
+
     docker_cmd.append(f'{docker_server}:{version}')
     run_cmd = docker_cmd + run_cmd
 
