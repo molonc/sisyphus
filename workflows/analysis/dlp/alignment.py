@@ -339,7 +339,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                     index_format='D',
                     sequence_lanes=sequence_lanes,
                     ref_genome=self.args['ref_genome'],
-                    aligner_name=self.args['aligner'],
+                    aligner_name='BWA_MEM_0_7_17',#HACK!! self.args['aligner'],
                     index_sequence=cell_sublibraries[cell_id]['index_sequence'],
                     filepath=filepath,
                 )
