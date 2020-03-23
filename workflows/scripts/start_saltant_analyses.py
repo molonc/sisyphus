@@ -73,14 +73,14 @@ def from_table(jira_ticket_file, analysis_type, delay=None):
 
 
 @cli.command()
-@click.argument('analysis_id', type=int)
+@click.argument('analysis_ids', type=int, nargs=-1)
 @click.option('--delay', type=int)
-def from_id(analysis_id, delay=None):
+def from_ids(analysis_ids, delay=None):
     tantalus_api = dbclients.tantalus.TantalusApi()
 
-    analysis = tantalus_api.get('analysis', id=analysis_id)
-
-    run_analysis(analysis, delay=delay)
+    for analysis_id in analysis_ids:
+        analysis = tantalus_api.get('analysis', id=analysis_id)
+        run_analysis(analysis, delay=delay)
 
 
 if __name__ == '__main__':
