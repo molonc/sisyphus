@@ -496,6 +496,10 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
     """
     assert dataset_model in ("sequencedataset", "resultsdataset")
 
+    if tantalus_api.is_dataset_on_storage(dataset_id, dataset_model, to_storage_name):
+        logging.info(f'{dataset_model} {dataset_id} already on {to_storage_name}')
+        return
+
     dataset = tantalus_api.get(dataset_model, id=dataset_id)
 
     to_storage = tantalus_api.get("storage", name=to_storage_name)

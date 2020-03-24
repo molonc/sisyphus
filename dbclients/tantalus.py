@@ -665,20 +665,20 @@ class TantalusApi(BasicAPIClient):
 
         return file_resources
 
-    def is_sequence_dataset_on_storage(self, dataset, storage_name):
+    def is_dataset_on_storage(self, dataset_id, dataset_model, storage_name):
         """
         Given a dataset test if all files are on a specific storage.
 
         Args:
-            dataset (dict)
-            storage_name (str)
+            dataset_id (int): primary key of sequencedataset or resultsdataset
+            dataset_model (str): model type, sequencedataset or resultsdataset
 
         Returns:
             bool
         """
 
         try:
-            self.get_dataset_file_instances(dataset["id"], 'sequencedataset', storage_name)
+            self.get_dataset_file_instances(dataset_id, dataset_model, storage_name)
 
         except DataNotOnStorageError:
             return False

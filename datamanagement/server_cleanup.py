@@ -66,7 +66,7 @@ def main(
 
         # Optionally skip datasets not present and intact on the remote storage
         if check_remote is not None:
-            if not tantalus_api.is_sequence_dataset_on_storage(dataset, check_remote):
+            if not tantalus_api.is_dataset_on_storage(dataset['id'], 'sequencedataset', check_remote):
                 logging.warning('not deleting dataset with id {}, not on remote storage '.format(
                     dataset['id'], check_remote))
                 continue
