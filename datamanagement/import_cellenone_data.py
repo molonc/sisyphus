@@ -17,13 +17,22 @@ from dbclients.colossus import ColossusApi
 from add_generic_results import add_generic_results
 
 
+CELLENONE_RESULTS_TEMPLATE = 'CELLENONE_{library_id}'
+CELLENONE_RESULTS_TYPE = 'CELLENONE'
+CELLENONE_RESULTS_VERSION = 'v1'
+
+CELLENONE_IMPORT_TEMPLATE = 'CELLENONE_RAW_IMPORT_{library_id}_{version}'
+CELLENONE_IMPORT_TYPE = 'CELLENONE_RAW_IMPORT'
+CELLENONE_IMPORT_VERSION = 'v1'
+
+
 def add_cellenone_results(filepaths, library_id, storage_name, tag_name=None, update=False, remote_storage_name=None):
     colossus_api = ColossusApi()
     tantalus_api = TantalusApi()
 
-    results_name = 'CELLENONE_{}'.format(library_id)
-    results_type = 'CELLENONE'
-    results_version = None
+    results_name = CELLENONE_RESULTS_TEMPLATE.format(library_id=library_id)
+    results_type = CELLENONE_RESULTS_TYPE
+    results_version = CELLENONE_RESULTS_VERSION
 
     results_dataset = add_generic_results(
         filepaths=filepaths,
@@ -75,11 +84,50 @@ def glob_cellenone_data(filepaths, storage_name, tag_name=None, update=False, re
         library_paths[library_id].add(filepath)
 
     for library_id in library_paths:
+        analysis_name = CELLENONE_IMPORT_TEMPLATE.format(
+            library_id=library_id, version=CELLENONE_RESULTS_VERSION)
+        analysis_type = CELLENONE_IMPORT_TYPE
+        analysis_version = CELLENONE_IMPORT_VERSION
+
+        fields = {
+            'name': analysis_name,
+            'analysis_type': analysis_type,
+            'version': analysis_type,
+            'jira_ticket': None,
+            'args': {'library_id': library_id},
+            # 'input_datasets': input_datasets,
+            # 'input_results': input_results,
+        }
+
+        keys = [
+            'name',
+            'jira_ticket',
+        ]
+
+        analysis, updated = tantalus_api.create(
+            'analysis',
+            fields,
+            keys,
+            do_update=update)
+
+        analysis, updated = tantalus_api.create('analysis', fields, keys, do_update=update)
+
+        status = analysis['status']
+        if updated:
+            status = 'error'
+
+        if status == 'complete':
+            logging.info(f'skipping import of {library_id} already complete')
+            continue
+
         add_cellenone_results(
             library_paths[library_id], library_id,
             storage_name, tag_name=tag_name, update=update,
             remote_storage_name=remote_storage_name,
         )
+
+        logging.info(f'import of {library_id} completed')
+        analysis = tantalus_api.update('analysis', id=analysis['id'], status='complete')
 
 
 @cli.command()
