@@ -38,6 +38,8 @@ from datamanagement.utils.constants import (
 
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 gsc_api = GSCAPI()
+TXSHAH_IP = "10.9.208.161"
+TXSHAH_USER_NAME = os.environ["SERVER_USER_NAME"]
 
 def size_match(local_file_path, remote_file_path, ip_address, username):
     '''
@@ -253,22 +255,34 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
         )
     # Otherwise, rsync to destination server
     else:
-        # Transfer the bam
-        rsync_file(
-            from_path=bam_paths["source_bam_path"],
-            to_path=bam_paths["tantalus_bam_path"],
-            sftp=sftp,
-            remote_host=remote_host
-        )
-        # Transfer the bam index if it exists
-        if bam_paths["source_bai_path"]:
-            # Transfer the bai
+        bam_exist = os.path.exists(bam_paths["tantalus_bam_path"])
+        bam_size_match = False
+        if bam_exist:
+            bam_size_match = size_match(bam_paths["tantalus_bam_path"], bam_paths["source_bam_path"], TXSHAH_IP, TXSHAH_USER_NAME)
+        if not bam_size_match:
+            logging.info("Bam file {} not exists or file sizes don't match, transfer the file".format(bam_paths["tantalus_bam_path"]))
+            # Transfer the bam
             rsync_file(
-                from_path=bam_paths["source_bai_path"],
-                to_path=bam_paths["tantalus_bai_path"],
+                from_path=bam_paths["source_bam_path"],
+                to_path=bam_paths["tantalus_bam_path"],
                 sftp=sftp,
                 remote_host=remote_host
             )
+        # Transfer the bam index if it exists
+        if bam_paths["source_bai_path"]:
+            bai_exist = os.path.exists(bam_paths["tantalus_bai_path"])                                                                
+            bai_size_match = False
+            if bai_exist:                                                                                                                 
+                bai_size_match = size_match(bam_paths["tantalus_bai_path"], bam_paths["source_bai_path"], TXSHAH_IP, TXSHAH_USER_NAME)
+            if not bai_size_match:
+                logging.info("Bai file {} not exists or file sizes don't match, transfer the file".format(bam_paths["tantalus_bai_path"]))                                                                                                     
+                # Transfer the bai
+                rsync_file(
+                    from_path=bam_paths["source_bai_path"],
+                    to_path=bam_paths["tantalus_bai_path"],
+                    sftp=sftp,
+                    remote_host=remote_host
+                )
         # Create a new bai if the source bai does not exist
         else:
             logging.info("Creating bam index at {}".format(bam_paths["tantalus_bai_path"]))
@@ -758,7 +772,12 @@ def main(**kwargs):
             if not kwargs["skip_file_import"]:
                 # Transfer the bam to the specified storage
                 transfer_gsc_bams(detail, bam_paths, storage, sftp)
-
+                #check if the local file size matches the remote 
+                same_size = size_match(bam_paths["tantalus_bam_path"], bam_paths["source_bam_path"], TXSHAH_IP, TXSHAH_USER_NAME)
+                if not same_size:
+                    logging.info("The local and remote sizes of file {} don't match, please transfer again.".format(bam_paths["tantalus_bam_path"]))
+                    continue 
+                logging.info("The local and remote sizes of file {} match.".format(bam_paths["tantalus_bam_path"]))
                 # Add the files to Tantalus
                 logging.info("Importing {} to Tantalus".format(bam_paths["tantalus_bam_path"]))
 
