@@ -15,6 +15,8 @@ import datetime
 import logging
 import shutil
 import pandas as pd
+import subprocess
+import socket
 
 try:
     from urllib.request import urlopen
@@ -29,7 +31,7 @@ from azure.keyvault import KeyVaultClient, KeyVaultAuthentication
 from azure.common.credentials import ServicePrincipalCredentials
 
 log = logging.getLogger('sisyphus')
-
+logging.getLogger().setLevel(logging.INFO)
 TANTALUS_API_URL = os.environ.get(
     'TANTALUS_API_URL',
     "https://tantalus.canadacentral.cloudapp.azure.com/api/")
@@ -141,13 +143,24 @@ class BlobStorageClient(object):
 
 
 class ServerStorageClient(object):
-    def __init__(self, storage_directory, prefix):
-        self.storage_directory = storage_directory
-        self.prefix = prefix
+    def __init__(self, storage_obj):
+        self.storage_directory = storage_obj["storage_directory"]
+        self.prefix = storage_obj["prefix"]
+        self.server_ip = storage_obj["server_ip"]
+        current_ip = socket.gethostbyname(socket.gethostname())
+        self.on_server = (current_ip == self.server_ip)
+        #Remember to setup the serverless login before using the script
+        self.username = os.environ["SERVER_USER_NAME"]
 
     def get_size(self, filename):
-        filepath = os.path.join(self.storage_directory, filename)
-        return os.path.getsize(filepath)
+        if self.on_server:
+            return os.path.getsize(filepath)
+        if not self.exists(filename):
+            logging.info("The file {} does not exists at {}".format(filename, self.storage_directory))
+            return
+        command = 'ssh {}@{} stat -c%s "{}"'.format(self.username, self.server_ip, filepath)
+        remote_size = int(subprocess.check_output(command, shell=True).decode("utf-8").strip("\n"))
+        return remote_size
 
     def get_created_time(self, filename):
         filepath = os.path.join(self.storage_directory, filename)
@@ -159,20 +172,40 @@ class ServerStorageClient(object):
         return filepath
 
     def delete(self, filename):
-        os.remove(self.get_url(filename))
+        filepath = self.get_url(filename)
+        if self.on_server:
+            #os.remove(self.get_url(filename))
+            command = 'rm -f {}'.format(self.username, self.server_ip, filepath)
+            subprocess.check_output(command, shell=True)
+        else:
+            command = 'ssh {}@{} rm -f {}'.format(self.username, self.server_ip, filepath)
+            subprocess.check_output(command, shell=True)
 
     def open_file(self, filename):
-        filepath = os.path.join(self.storage_directory, filename)
-        return open(filepath)
+        filepath = self.get_url(filename)
+        if self.on_server:
+            logging.info("The file {} is on the local storage, opening the file.".format(filename))
+            return open(filepath)
+        logging.info("The file {} is not on the local storage, can't open it.".format(filename))
 
     def exists(self, filename):
-        filepath = os.path.join(self.storage_directory, filename)
-        return os.path.exists(filepath)
+        filepath = self.get_url(filename)
+        if self.on_server:
+            return os.path.exists(filepath)
+        command = "ssh {}@{} [[ -f {} ]] && echo 'True' || echo 'False'".format(self.username, self.server_ip, filepath)
+        file_exist = (subprocess.check_output(command, shell=True).decode("utf-8").strip("\n") == "True")
+        return file_exist
 
     def list(self, prefix):
-        for root, dirs, files in os.walk(os.path.join(self.storage_directory, prefix)):
-            for filename in files:
-                yield os.path.join(root, filename)
+        #list all the files in the given predix, under the storage directory
+        if self.on_server:
+            for root, dirs, files in os.walk(os.path.join(self.storage_directory, prefix)):
+                for filename in files:
+                    yield os.path.join(root, filename)
+        else:
+            #TODO
+            command = "find $({}) -type f -not -path '*/\.*'".format(prefix)
+            output = subprocess.check_output(command, shell=True).decode("utf-8").strip("\n")
 
     def write_data(self, filename, stream):
         stream.seek(0)
@@ -339,7 +372,7 @@ class TantalusApi(BasicAPIClient):
         if storage['storage_type'] == 'blob':
             client = BlobStorageClient(storage['storage_account'], storage['storage_container'], storage['prefix'])
         elif storage['storage_type'] == 'server':
-            client = ServerStorageClient(storage['storage_directory'], storage['prefix'])
+            client = ServerStorageClient(storage)
         else:
             return ValueError('unsupported storage type {}'.format(storage['storage_type']))
 
@@ -712,3 +745,85 @@ class TantalusApi(BasicAPIClient):
             raise Exception('failed with error: "{}", reason: "{}"'.format(r.reason, r.text))
 
         return r.json()
+    def curation_update_datasets(self, curation_name, datasets, operation):
+    """
+    Args:
+        curation: (string) The name of the curation.
+        datasets: (list) A list of dataset ids that will be deleted/added.
+        operation: (string) The operation that will be performed to the given curation.
+    Returns:
+        curation (dict)
+    """
+    assert operation in ["delete", "add"], "Please provide a valid operation"
+    #user = os.environ["TANTALUS_API_USER"]
+    try:
+        #check if any datasets are provided
+        if not datasets:
+            logging.info("No datasets were given, exit the function.")
+            return curation
+        #get the curation that will be modified
+        curation = self.get("curation", name=curation_name)
+        #get the id and the version of the current curation
+        curation_id = curation["id"]
+        previous_version = curation["version"]
+        #increase the version
+        new_version = "v" + str(int(previous_version[1:].split(".")[0]) + 1) + ".0.0"
+        datasets_set = set(datasets)
+        #get the list of datasets that currently associated with the curation
+        existing_datasets = set(curation["sequencedatasets"])
+        field_changed = False
+        #check if the operation is adding datasets to the curation
+        if operation == "add":
+            for dataset in datasets_set:
+                logging.info("Adding the dataset {}".format(dataset))
+                # check if the current dataset is already in the curation.
+                if dataset in existing_datasets:
+                    logging.info("The dataset {} is already in curation {}, skip.".format(dataset, curation_name))
+                    continue
+                #create an entry in curation_dataset model
+                self.create("curation_dataset",
+                    curation_instance=curation_id,
+                    sequencedataset_instance=dataset,
+                    version=new_version)
+                field_changed = True
+        #check if the operation is deleting datasets to the curation
+        if operation == "delete":
+            for dataset in datasets_set:
+                logging.info("Deleting the dataset {}".format(dataset))
+                #check if the dataset is in the curation
+                if dataset not in existing_datasets:
+                    logging.info("The dataset {} is not in curation {}, skip.".format(dataset, curation_name))
+                    continue
+                #if the dataset is in the curation, remove it.
+                existing_datasets.remove(dataset)
+                #remove the entry in curation dataset table.
+                curation_dataset = self.get("curation_dataset",
+                    curation_instance=curation_id,
+                    sequencedataset_instance=dataset,
+                    version=previous_version)
+                self.delete("curation_dataset", id=curation_dataset["id"])
+                field_changed = True
+        # if the dataset set is changed, update the curation version and the version of the current
+        # datasets in the curation, else, skip.
+        if field_changed:
+            if existing_datasets:
+                logging.info("Updating the version of datasets {}".format(list(existing_datasets)))
+                #next, update the version of the existing datasets
+                for old_dataset in existing_datasets:
+                    old_curation_dataset = self.get("curation_dataset",
+                        curation_instance=curation_id,
+                        sequencedataset_instance=old_dataset,
+                        version=previous_version)
+                    logging.info("updating {}".format(old_curation_dataset["id"]))
+                    self.update("curation_dataset",
+                        id=old_curation_dataset["id"],
+                        version=new_version)
+                    logging.info("The instance was updated")
+            logging.info("Update the curation version.")
+            curation = self.update("curation", id=curation_id, version=new_version)
+        #if no change was performed, then display the message to the user.
+        if not field_changed:
+            logging.info("No change detected.")
+        return self.get("curation", name=curation_name)
+    except NotFoundError:
+        raise Exception("The curation {} does not exist, create it first.".format(curation_name))

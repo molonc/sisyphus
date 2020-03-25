@@ -82,7 +82,7 @@ def add_sequence_dataset(
 
             # Optional fields for create
             for field_name in ("read_type", "sequencing_centre", "sequencing_instrument"):
-                if field_name in lane_fields:
+                if field_name in lane:
                     lane_fields[field_name] = lane[field_name]
                 else:
                     logging.warning(f"field {field_name} missing for lane {lane['flowcell_id']}_{lane['lane_number']}")
@@ -244,6 +244,12 @@ def get_bam_aligner_name(bam_header):
                 version = version[:version.index("-r")]
             version = version.replace(".", "_")
             return bwa_variant + "_" + version
+        if ("PN" in pg and pg["PN"] == "JAGuaR") or ("CL" in pg and "JAGuaR" in pg["CL"]):
+            version = pg["VN"]
+            version = version.replace(".", "_")
+            return "JAGuaR".upper() + "_" + version
+        if pg["CL"] == "Sambamba":
+            pass
         else:
             raise ValueError(f"unrecognized aligner in {pg}")
     raise Exception("no aligner name found")
@@ -342,7 +348,7 @@ def import_bam(
     if ref_genome is None:
         ref_genome = get_bam_ref_genome(bam_header)
 
-    aligner_name = get_bam_aligner_name(bam_header)
+    aligner_name = get_bam_aligner_name(bam_header).upper()
 
     logging.info(f"bam header shows reference genome {ref_genome} and aligner {aligner_name}")
 
