@@ -481,7 +481,7 @@ def _transfer_files_with_retry(f_transfer, file_instance, overwrite=False):
                 raise
 
 
-@cli.command("transfer")
+@cli.command("transfer_dataset")
 @click.argument("dataset_id", type=int)
 @click.argument("dataset_model", type=click.Choice(["sequencedataset", "resultsdataset"]))
 @click.argument("from_storage_name")
@@ -537,7 +537,7 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
         tantalus_api.add_instance(file_resource, to_storage)
 
 
-@cli.command("cache")
+@cli.command("cache_dataset")
 @click.argument("dataset_id", type=int)
 @click.argument("dataset_model", type=click.Choice(["sequencedataset", "resultsdataset"]))
 @click.argument("from_storage_name")
@@ -583,6 +583,13 @@ def cache_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, ca
 
     return filepaths
 
+@cli.command("cache_file")
+@click.argument("file_instance_id", type=int)
+@click.argument("cache_directory")
+def cache_file_cmd(file_instance_id, cache_directory):
+    tantalus_api = TantalusApi()
+    file_instance = tantalus_api.get("file_instance", id=file_instance_id)
+    cache_file(tantalus_api, file_instance, cache_directory)
 
 def cache_file(tantalus_api, file_instance, cache_directory):
     """ Cache a single file.
@@ -596,6 +603,45 @@ def cache_file(tantalus_api, file_instance, cache_directory):
 
     return os.path.join(cache_directory, file_instance['file_resource']['filename'])
 
+@cli.command("transfer_file")
+@click.argument("file_instance_id", type=int)
+@click.argument("from_storage_name")
+@click.argument("to_storage_name")
+def transfer_file_cmd(file_instance_id, from_storage_name, to_storage_name):
+    """
+    Transfer a file instance from from_storage_name to to_storage_name.
+    """
+    tantalus_api = TantalusApi()
+    file_instance = tantalus_api.get("file_instance", id=file_instance_id)
+    transfer_file(tantalus_api, file_instance, from_storage_name, to_storage_name)
+
+def transfer_file(tantalus_api, file_instance, from_storage_name, to_storage_name):
+    """
+    Transfer a single file.
+    """
+    from_storage_client = tantalus_api.get_storage_client(from_storage_name)
+    to_storage_client = tantalus_api.get_storage_client(to_storage_name)
+    
+    to_storage = tantalus_api.get("storage", name=to_storage_name)
+    from_storage = tantalus_api.get("storage", name=from_storage_name)
+    
+    file_resource = file_instance["file_resource"]
+    file_name =	file_resource["filename"]
+
+    if not from_storage_client.exists(file_name):
+        logging.warning("The file instance not exists on the source storage, please check.")
+        return
+
+    #check if the file exists at the destination storage with the same sizes
+    if to_storage_client.exists(file_name):
+        if to_storage_client.get_size(file_name) == file_resource["size"]:
+            logging.warning("The file exists at the destination storage with same sizes, skip transfer.")
+            return
+
+    f_transfer = get_file_transfer_function(tantalus_api, from_storage, to_storage)
+    _transfer_files_with_retry(f_transfer, file_instance, overwrite=overwrite)
+    tantalus_api.add_instance(file_resource, to_storage)    
+    
 
 if __name__ == "__main__":
     # Set up the root logger
