@@ -9,6 +9,7 @@ import click
 import socket
 import logging
 import subprocess
+import pandas as pd
 from datetime import datetime
 
 from datamanagement.utils.gsc import get_sequencing_instrument, GSCAPI
@@ -268,6 +269,7 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
                 sftp=sftp,
                 remote_host=remote_host
             )
+        logging.info("Bam file {} has been transferred.".format(bam_paths["tantalus_bam_path"]))
         # Transfer the bam index if it exists
         if bam_paths["source_bai_path"]:
             bai_exist = os.path.exists(bam_paths["tantalus_bai_path"])                                                                
@@ -283,6 +285,7 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
                     sftp=sftp,
                     remote_host=remote_host
                 )
+            logging.info("Bai file {} has been transferred.".format(bam_paths["tantalus_bai_path"]))
         # Create a new bai if the source bai does not exist
         else:
             logging.info("Creating bam index at {}".format(bam_paths["tantalus_bai_path"]))
@@ -693,6 +696,50 @@ def get_gsc_details(library_infos, skip_older_than):
     return details_list
 
 
+def create_record(output_csv, detail, file_name, original_file_name):
+    """
+    Create the file transfer record for the given file.
+    
+    Args:
+        output_csv:         (string) The path of the log csv file
+        detail:             (string) The information of the file
+        file_name:          (string) The local file name
+        original_file_name: (string) The source file name 
+    """
+    if not os.path.exists(output_csv):
+        df = pd.DataFrame(columns = [
+            "library_id",
+            "original_file_name"
+            "file_name",
+            "sample_id",
+            ])
+    else:
+        df = pd.read_csv(output_csv)
+        if not df.loc[df["file_name"] == file_name].empty:
+            return
+        df = df.append({
+              "library_id": detail["library"]["library_id"],
+              "original_file_name": original_file_name,
+              "file_name": file_name,
+              "sample_id": detail["sample"]["sample_id"]
+              }, ignore_index=True)
+    df.to_csv(output_csv, index=False)
+
+def update_record(output_csv, file_name, column, value):
+    '''
+    Update the log record of a given file.
+
+    Args:
+        output_csv:   (string) the path of the log csv file
+        file_name:    (string) the name of the file being transferred
+        column:       (string) the name of the column being updated
+        value:        (string) new value of the column
+
+    '''
+    df = pd.read_csv(output_csv)
+    df.loc[df["file_name"] == file_name, column] = value
+    df.to_csv(output_csv, index=False)
+
 @click.command()
 @click.argument('ids', nargs=-1)
 @click.argument('storage', nargs=1)
@@ -701,6 +748,7 @@ def get_gsc_details(library_infos, skip_older_than):
 @click.option('--tag_name')
 @click.option('--update', is_flag=True)
 @click.option('--skip_file_import', is_flag=True)
+@click.option('--log_file')
 @click.option('--query_only', is_flag=True)
 def main(**kwargs):
     """
@@ -717,8 +765,12 @@ def main(**kwargs):
         update:             (flag) specifies whether metadata in tantalus is
                             to be updated or not
         skip_file_import:   (flag) import only new lanes into tantalus
+        log_file:           (string) path to the log file
         query_only:         (flag) only query for the bam paths on the GSC 
     """
+    log_file = None
+    if kwargs["log_file"]:
+        log_file = kwargs["log_file"]
     # Check if this script is being run on thost
     # If not, connect to an ssh client to access /projects/files
     if socket.gethostname() != "txshah":
@@ -730,7 +782,6 @@ def main(**kwargs):
     # Connect to the Tantalus API
     tantalus_api = TantalusApi()
     storage = tantalus_api.get_storage(kwargs["storage"])
-
     # Convert the date to the format we want
     if kwargs["skip_older_than"]:
         skip_older_than = valid_date(kwargs["skip_older_than"])
@@ -770,8 +821,13 @@ def main(**kwargs):
                 continue
 
             if not kwargs["skip_file_import"]:
+                if log_file:
+                    #initiate the record
+                    create_record(log_file, detail, bam_paths["tantalus_bam_name"], bam_paths["source_bam_path"])
                 # Transfer the bam to the specified storage
                 transfer_gsc_bams(detail, bam_paths, storage, sftp)
+                if log_file:
+                    update_record(output_csv, bam_paths["tantalus_bam_name"], "transferred_into_local_directory", True)
                 #check if the local file size matches the remote 
                 same_size = size_match(bam_paths["tantalus_bam_path"], bam_paths["source_bam_path"], TXSHAH_IP, TXSHAH_USER_NAME)
                 if not same_size:
@@ -793,6 +849,8 @@ def main(**kwargs):
                 )
 
                 logging.info("Successfully added sequence dataset with ID {}".format(dataset["id"]))
+                if log_file:
+                    update_record(output_csv, bam_paths["tantalus_bam_name"], "tantalus_dataset_id", dataset["id"])
             else:
                 logging.info("Importing library {} to tantalus".format(detail["library"]["library_id"]))
                 library_pk = tantalus_api.get_or_create(
