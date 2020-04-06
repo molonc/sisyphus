@@ -12,7 +12,7 @@ import workflows.utils.saltant_utils
 from datamanagement.utils.constants import LOGGING_FORMAT
 
 
-def run_analysis(analysis, delay=None):
+def run_analysis(analysis, saltant_user, saltant_queue, delay=None):
     analysis_id = analysis['id']
     analysis_status = analysis['status']
     jira_ticket = analysis['jira_ticket']
@@ -29,14 +29,14 @@ def run_analysis(analysis, delay=None):
 
     workflows.utils.saltant_utils.get_or_create_task_instance(
         'run_{}'.format(analysis_id),
-        'andrew', # TODO: cli
+        saltant_user,
         {
             'analysis_id': analysis_id,
             'jira': jira_ticket
         },
         14, # TODO: by name, cli
-        'andrew-pseudobulk',
-    ) # TODO: cli
+        saltant_queue,
+    )
 
 
 @click.group()
@@ -45,10 +45,12 @@ def cli():
 
 
 @cli.command()
+@click.argument('saltant_user')
+@click.argument('saltant_queue')
 @click.argument('jira_ticket_file')
 @click.argument('analysis_type')
 @click.option('--delay', type=int)
-def from_table(jira_ticket_file, analysis_type, delay=None):
+def from_table(saltant_user, saltant_queue, jira_ticket_file, analysis_type, delay=None):
     tantalus_api = dbclients.tantalus.TantalusApi()
 
     analyses = pd.read_csv(jira_ticket_file)
@@ -63,7 +65,7 @@ def from_table(jira_ticket_file, analysis_type, delay=None):
 
         for analysis in analyses:
             try:
-                run_analysis(analysis, delay=delay)
+                run_analysis(saltant_user, saltant_queue, analysis, delay=delay)
 
             except KeyboardInterrupt:
                 raise
@@ -73,14 +75,16 @@ def from_table(jira_ticket_file, analysis_type, delay=None):
 
 
 @cli.command()
+@click.argument('saltant_user')
+@click.argument('saltant_queue')
 @click.argument('analysis_ids', type=int, nargs=-1)
 @click.option('--delay', type=int)
-def from_ids(analysis_ids, delay=None):
+def from_ids(saltant_user, saltant_queue, analysis_ids, delay=None):
     tantalus_api = dbclients.tantalus.TantalusApi()
 
     for analysis_id in analysis_ids:
         analysis = tantalus_api.get('analysis', id=analysis_id)
-        run_analysis(analysis, delay=delay)
+        run_analysis(saltant_user, saltant_queue, analysis, delay=delay)
 
 
 if __name__ == '__main__':
