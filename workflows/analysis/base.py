@@ -260,6 +260,8 @@ class Analysis:
         for opt_name, default in reversed(options):
             create_single_analysis = click.option('--' + opt_name, default=default)(create_single_analysis)
 
+        create_single_analysis = click.option('--update', is_flag=True)(create_single_analysis)
+
         def create_multiple_analyses(version, info_table, update=False):
             info = pd.read_csv(info_table)
 
@@ -287,6 +289,7 @@ class Analysis:
 
         create_multiple_analyses = click.argument('info_table')(create_multiple_analyses)
         create_multiple_analyses = click.argument('version')(create_multiple_analyses)
+        create_multiple_analyses = click.option('--update', is_flag=True)(create_multiple_analyses)
         create_multiple_analyses = analysis.command()(create_multiple_analyses)
 
         analysis()
