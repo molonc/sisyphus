@@ -20,7 +20,12 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
 
     def __init__(self, *args, **kwargs):
         super(VariantCallingAnalysis, self).__init__(*args, **kwargs)
-        self.out_dir = os.path.join(self.jira, "results", self.analysis_type, 'sample_{}'.format(self.args['sample_id']))
+        self.out_dir = os.path.join(
+            self.jira,
+            "results",
+            self.analysis_type,
+            'sample_{}'.format(self.args['sample_id']),
+        )
 
     # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
     region_split_length = 10000000
@@ -55,7 +60,8 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
         assert len(input_datasets) == 2
         for dataset_id in input_datasets:
             dataset = tantalus_api.get('sequencedataset', id=dataset_id)
-            if dataset['sample']['sample_id'] == args['sample_id']:
+            if dataset['sample']['sample_id'] == args['sample_id'] and dataset['library']['library_id'] == args[
+                    'library_id']:
                 tumour_dataset = dataset
 
         assert tumour_dataset['aligner'].startswith(args['aligner'])
@@ -86,7 +92,9 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
 
             # Read the metadata yaml file
             file_instances = self.tantalus_api.get_dataset_file_instances(
-                dataset_id, 'sequencedataset', storages['working_inputs'],
+                dataset_id,
+                'sequencedataset',
+                storages['working_inputs'],
                 filters={'filename__endswith': 'metadata.yaml'})
             assert len(file_instances) == 1
             file_instance = file_instances[0]
@@ -105,15 +113,14 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
                 assert region not in bam_info
 
                 bam_info[region] = {}
-                bam_info[region]['bam'] = os.path.join(
-                    storage_client.prefix,
-                    base_dir,
-                    bams_filename)
+                bam_info[region]['bam'] = os.path.join(storage_client.prefix, base_dir, bams_filename)
 
-            if dataset['sample']['sample_id'] == self.args['normal_sample_id']:
+            if dataset['sample']['sample_id'] == self.args['normal_sample_id'] and dataset['library'][
+                    'library_id'] == self.args['normal_library_id']:
                 assert 'normal' not in input_info
                 input_info['normal'] = bam_info
-            elif dataset['sample']['sample_id'] == self.args['sample_id']:
+            elif dataset['sample']['sample_id'] == self.args['sample_id'] and dataset['library'][
+                    'library_id'] == self.args['library_id']:
                 assert 'tumour' not in input_info
                 input_info['tumour'] = bam_info
             else:
@@ -133,7 +140,7 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
             dirs,
             run_options,
             storages,
-        ):
+    ):
         storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         out_path = os.path.join(storage_client.prefix, self.out_dir)
 
@@ -192,7 +199,6 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
 
 
 workflows.analysis.base.Analysis.register_analysis(VariantCallingAnalysis)
-
 
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)

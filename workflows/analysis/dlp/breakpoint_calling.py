@@ -22,7 +22,12 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
     def __init__(self, *args, **kwargs):
         super(BreakpointCallingAnalysis, self).__init__(*args, **kwargs)
-        self.out_dir = os.path.join(self.jira, "results", self.analysis_type, 'sample_{}'.format(self.args['sample_id']))
+        self.out_dir = os.path.join(
+            self.jira,
+            "results",
+            self.analysis_type,
+            'sample_{}'.format(self.args['sample_id']),
+        )
 
     @classmethod
     def search_input_datasets(cls, tantalus_api, jira, version, args):
@@ -65,7 +70,8 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
         assert len(input_datasets) == 2
         for dataset_id in input_datasets:
             dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
-            if dataset['sample']['sample_id'] == args['sample_id']:
+            if dataset['sample']['sample_id'] == args['sample_id'] and dataset['library']['library_id'] == args[
+                    'library_id']:
                 tumour_dataset = dataset
 
         assert tumour_dataset['aligner'].startswith(args['aligner'])
@@ -87,12 +93,14 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
     def _get_cell_bams(self, dataset, storages, passed_cell_ids=None):
         colossus_api = dbclients.colossus.ColossusApi()
 
-        index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(
-            dataset['library']['library_id'])
+        index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(dataset['library']['library_id'])
 
         file_instances = self.tantalus_api.get_dataset_file_instances(
-            dataset['id'], 'sequencedataset', storages['working_inputs'],
-            filters={'filename__endswith': '.bam'})
+            dataset['id'],
+            'sequencedataset',
+            storages['working_inputs'],
+            filters={'filename__endswith': '.bam'},
+        )
 
         cell_bams = {}
 
@@ -128,7 +136,9 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
                 elif dataset['library']['library_type'] == 'WGS':
                     file_instances = self.tantalus_api.get_dataset_file_instances(
-                        dataset_id, 'sequencedataset', storages['working_inputs'],
+                        dataset_id,
+                        'sequencedataset',
+                        storages['working_inputs'],
                         filters={'filename__endswith': '.bam'})
 
                     assert len(file_instances) == 1
@@ -144,7 +154,8 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                 cell_ids = preprocessing.get_passed_cell_ids(
                     self.tantalus_api,
                     self.analysis['input_results'][0],
-                    storages['working_results'])
+                    storages['working_results'],
+                )
 
                 input_info['tumour'] = self._get_cell_bams(dataset, storages, passed_cell_ids=cell_ids)
 
@@ -162,7 +173,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             dirs,
             run_options,
             storages,
-        ):
+    ):
         storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         out_path = os.path.join(storage_client.prefix, self.out_dir)
 
@@ -221,7 +232,6 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
 
 
 workflows.analysis.base.Analysis.register_analysis(BreakpointCallingAnalysis)
-
 
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
