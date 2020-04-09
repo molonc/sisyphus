@@ -16,7 +16,6 @@ from datamanagement.utils.dlp import create_sequence_dataset_models
 import workflows.analysis.dlp.results_import as results_import
 from workflows.generate_inputs import generate_sample_info
 
-
 reference_genome_map = {
     'HG19': 'grch37',
     'MM10': 'mm10',
@@ -190,7 +189,11 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                 'read_type': dataset['sequence_lanes'][0]['read_type'],
             }
 
-            file_instances = self.tantalus_api.get_dataset_file_instances(dataset['id'], 'sequencedataset', storage_name)
+            file_instances = self.tantalus_api.get_dataset_file_instances(
+                dataset['id'],
+                'sequencedataset',
+                storage_name,
+            )
 
             for file_instance in file_instances:
                 file_resource = file_instance['file_resource']
@@ -264,7 +267,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             dirs,
             run_options,
             storages,
-        ):
+    ):
         out_storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         out_path = os.path.join(out_storage_client.prefix, self.out_dir)
         bams_storage_client = self.tantalus_api.get_storage_client(storages["working_inputs"])
@@ -339,7 +342,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                     index_format='D',
                     sequence_lanes=sequence_lanes,
                     ref_genome=self.args['ref_genome'],
-                    aligner_name='BWA_MEM_0_7_17',#HACK!! self.args['aligner'],
+                    aligner_name='BWA_MEM_0_7_17', #HACK!! self.args['aligner'],
                     index_sequence=cell_sublibraries[cell_id]['index_sequence'],
                     filepath=filepath,
                 )
@@ -376,12 +379,11 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             self.get_input_samples(),
             self.get_input_libraries(),
             storages['working_results'],
-            update=False,
-            skip_missing=False,
+            update=update,
+            skip_missing=skip_missing,
         )
 
         return [results['id']]
-
 
     @classmethod
     def create_analysis_cli(cls):
@@ -396,7 +398,6 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
 
 
 workflows.analysis.base.Analysis.register_analysis(AlignmentAnalysis)
-
 
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)

@@ -154,6 +154,7 @@ def run_analysis(analysis_id, analysis_type, jira, version, library_id, aligner,
     queue_name = config['headnode_task_queue']
 
     args = {
+        'jira': jira,
         'analysis_id': analysis_id,
     }
 

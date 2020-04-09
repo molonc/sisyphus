@@ -83,6 +83,8 @@ def run_pipeline(
         '-v',
         '$PWD:$PWD',
         '-v',
+        '$HOME:$HOME',
+        '-v',
         '/var/run/docker.sock',
         '-v',
         '/usr/bin/docker',
@@ -114,4 +116,3 @@ def run_pipeline(
         log.info('skipping pipeline on request')
     else:
         subprocess.check_call(run_cmd_string, shell=True)
-
