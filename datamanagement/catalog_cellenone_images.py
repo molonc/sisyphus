@@ -361,6 +361,44 @@ def catalog_cellenone_data(
     catalog_images(library_id, source_dir, destination_dir)
 
 
+@cli.command()
+@click.argument('library_id')
+@click.argument('storage_name')
+@click.argument('destination_dir')
+def catalog_cellenone_dataset(
+        library_id,
+        storage_name,
+        destination_dir):
+
+    dataset = tantalus_api.get('resultsdataset', results__type='CELLENONE', libraries__library_id=library_id)
+
+    if not tantalus_api.is_dataset_on_storage(dataset['id'], 'resultsdataset', storage_name):
+        raise ValueError(f"dataset {dataset['id']} not on storage {storage_name}")
+
+    # Assume all files in the raw dataset are under the directory:
+    #  single_cell_indexing/Cellenone/Cellenone_images/{date}_{library_id}
+
+    filename_prefix = 'single_cell_indexing/Cellenone/Cellenone_images/'
+
+    source_dir = None 
+    for file_resource in tantalus_api.get_dataset_file_resources(dataset['id'], 'resultsdataset'):
+        if source_dir is None:
+            if file_resource['filename'].startswith(filename_prefix):
+                raise ValueError(f"file {file_resource['filename']} is not in directory {filename_prefix}")
+
+            library_subdir = file_resource['filename'].split('/')[3]
+
+            if not library_subdir.endswith(library_id):
+                raise ValueError(f"file {file_resource['filename']} is not in a directory ending with {library_id}")
+
+            source_dir = '/'.join(file_resource['filename'].split('/')[:4])
+
+        elif file_resource['filename'].startswith(source_dir):
+            raise ValueError(f"file {file_resource['filename']} is not in directory {source_dir}")
+
+    catalog_images(library_id, source_dir, destination_dir)
+
+
 if __name__=='__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
     cli()
