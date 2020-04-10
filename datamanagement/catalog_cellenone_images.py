@@ -218,6 +218,8 @@ def catalog_images(library_id, source_dir, destination_dir):
     with open(metadata_filepath, 'w') as meta_yaml:
         yaml.safe_dump(metadata, meta_yaml, default_flow_style=False)    
 
+    filepaths.append(metadata_filepath)
+
     return filepaths
 
 
@@ -374,7 +376,9 @@ def catalog_cellenone_dataset(
         update=False,
         remote_storage_name=None):
 
-    dataset = tantalus_api.get('resultsdataset', results__type='CELLENONE', libraries__library_id=library_id)
+    tantalus_api = TantalusApi()
+
+    dataset = tantalus_api.get('resultsdataset', results_type='CELLENONE', libraries__library_id=library_id)
 
     if not tantalus_api.is_dataset_on_storage(dataset['id'], 'resultsdataset', storage_name):
         raise ValueError(f"dataset {dataset['id']} not on storage {storage_name}")
@@ -387,7 +391,7 @@ def catalog_cellenone_dataset(
     source_dir = None 
     for file_resource in tantalus_api.get_dataset_file_resources(dataset['id'], 'resultsdataset'):
         if source_dir is None:
-            if file_resource['filename'].startswith(filename_prefix):
+            if not file_resource['filename'].startswith(filename_prefix):
                 raise ValueError(f"file {file_resource['filename']} is not in directory {filename_prefix}")
 
             library_subdir = file_resource['filename'].split('/')[3]
@@ -397,10 +401,12 @@ def catalog_cellenone_dataset(
 
             source_dir = '/'.join(file_resource['filename'].split('/')[:4])
 
-        elif file_resource['filename'].startswith(source_dir):
+        elif not file_resource['filename'].startswith(source_dir):
             raise ValueError(f"file {file_resource['filename']} is not in directory {source_dir}")
 
     assert source_dir is not None
+
+    source_dir = tantalus_api.get_filepath(storage_name, source_dir)
 
     process_cellenone_images(
         library_id,
