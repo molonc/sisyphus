@@ -280,6 +280,53 @@ def process_cellenone_images(
     )
 
 
+def process_cellenone_dataset(
+        dataset,
+        storage_name,
+        tag_name=None,
+        update=False,
+        remote_storage_name=None):
+
+    tantalus_api = TantalusApi()
+
+    if not tantalus_api.is_dataset_on_storage(dataset['id'], 'resultsdataset', storage_name):
+        raise ValueError(f"dataset {dataset['id']} not on storage {storage_name}")
+
+    # Assume all files in the raw dataset are under the directory:
+    #  single_cell_indexing/Cellenone/Cellenone_images/{date}_{library_id}
+
+    filename_prefix = 'single_cell_indexing/Cellenone/Cellenone_images/'
+
+    source_dir = None 
+    for file_resource in tantalus_api.get_dataset_file_resources(dataset['id'], 'resultsdataset'):
+        if source_dir is None:
+            if not file_resource['filename'].startswith(filename_prefix):
+                raise ValueError(f"file {file_resource['filename']} is not in directory {filename_prefix}")
+
+            library_subdir = file_resource['filename'].split('/')[3]
+
+            if not library_subdir.endswith(library_id):
+                raise ValueError(f"file {file_resource['filename']} is not in a directory ending with {library_id}")
+
+            source_dir = '/'.join(file_resource['filename'].split('/')[:4])
+
+        elif not file_resource['filename'].startswith(source_dir):
+            raise ValueError(f"file {file_resource['filename']} is not in directory {source_dir}")
+
+    assert source_dir is not None
+
+    source_dir = tantalus_api.get_filepath(storage_name, source_dir)
+
+    process_cellenone_images(
+        library_id,
+        source_dir,
+        storage_name,
+        tag_name=tag_name,
+        update=update,
+        remote_storage_name=remote_storage_name,
+    )
+
+
 @click.group()
 def cli():
     pass
@@ -380,42 +427,47 @@ def catalog_cellenone_dataset(
 
     dataset = tantalus_api.get('resultsdataset', results_type='CELLENONE', libraries__library_id=library_id)
 
-    if not tantalus_api.is_dataset_on_storage(dataset['id'], 'resultsdataset', storage_name):
-        raise ValueError(f"dataset {dataset['id']} not on storage {storage_name}")
-
-    # Assume all files in the raw dataset are under the directory:
-    #  single_cell_indexing/Cellenone/Cellenone_images/{date}_{library_id}
-
-    filename_prefix = 'single_cell_indexing/Cellenone/Cellenone_images/'
-
-    source_dir = None 
-    for file_resource in tantalus_api.get_dataset_file_resources(dataset['id'], 'resultsdataset'):
-        if source_dir is None:
-            if not file_resource['filename'].startswith(filename_prefix):
-                raise ValueError(f"file {file_resource['filename']} is not in directory {filename_prefix}")
-
-            library_subdir = file_resource['filename'].split('/')[3]
-
-            if not library_subdir.endswith(library_id):
-                raise ValueError(f"file {file_resource['filename']} is not in a directory ending with {library_id}")
-
-            source_dir = '/'.join(file_resource['filename'].split('/')[:4])
-
-        elif not file_resource['filename'].startswith(source_dir):
-            raise ValueError(f"file {file_resource['filename']} is not in directory {source_dir}")
-
-    assert source_dir is not None
-
-    source_dir = tantalus_api.get_filepath(storage_name, source_dir)
-
-    process_cellenone_images(
-        library_id,
-        source_dir,
+    process_cellenone_dataset(
+        dataset,
         storage_name,
         tag_name=tag_name,
         update=update,
-        remote_storage_name=remote_storage_name,
-    )
+        remote_storage_name=remote_storage_name)
+
+
+@cli.command()
+@click.argument('storage_name')
+@click.option('--tag_name')
+@click.option('--update', is_flag=True)
+@click.option('--remote_storage_name')
+def catalog_cellenone_datasets(
+        library_id,
+        storage_name,
+        tag_name=None,
+        update=False,
+        remote_storage_name=None):
+
+    tantalus_api = TantalusApi()
+
+    for dataset in tantalus_api.list('resultsdataset', results_type='CELLENONE'):
+        # HACK: Check for metadata yaml file in dataset
+        found_metadata = False
+        try:
+            file_resource = tantalus_api.get('file_resource', resultsdataset__id=dataset['id'], filename__endswith=metadata.yaml)
+            found_metadata = True
+        except NotFoundError:
+            logging.info(f"no metadata for dataset {dataset['id']}")
+
+        if found_metadata:
+            logging.info(f"found metadata for dataset {dataset['id']}, skipping")
+            continue
+
+        process_cellenone_dataset(
+            dataset,
+            storage_name,
+            tag_name=tag_name,
+            update=update,
+            remote_storage_name=remote_storage_name)
 
 
 if __name__=='__main__':
