@@ -364,14 +364,15 @@ def catalog_cellenone_data(
 @cli.command()
 @click.argument('library_id')
 @click.argument('storage_name')
-@click.argument('destination_dir')
 @click.option('--tag_name')
 @click.option('--update', is_flag=True)
 @click.option('--remote_storage_name')
 def catalog_cellenone_dataset(
         library_id,
         storage_name,
-        destination_dir):
+        tag_name=None,
+        update=False,
+        remote_storage_name=None):
 
     dataset = tantalus_api.get('resultsdataset', results__type='CELLENONE', libraries__library_id=library_id)
 
