@@ -365,6 +365,9 @@ def catalog_cellenone_data(
 @click.argument('library_id')
 @click.argument('storage_name')
 @click.argument('destination_dir')
+@click.option('--tag_name')
+@click.option('--update', is_flag=True)
+@click.option('--remote_storage_name')
 def catalog_cellenone_dataset(
         library_id,
         storage_name,
@@ -396,7 +399,16 @@ def catalog_cellenone_dataset(
         elif file_resource['filename'].startswith(source_dir):
             raise ValueError(f"file {file_resource['filename']} is not in directory {source_dir}")
 
-    catalog_images(library_id, source_dir, destination_dir)
+    assert source_dir is not None
+
+    process_cellenone_images(
+        library_id,
+        source_dir,
+        storage_name,
+        tag_name=tag_name,
+        update=update,
+        remote_storage_name=remote_storage_name,
+    )
 
 
 if __name__=='__main__':
