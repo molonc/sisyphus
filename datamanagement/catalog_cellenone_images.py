@@ -287,6 +287,9 @@ def process_cellenone_dataset(
         update=False,
         remote_storage_name=None):
 
+    assert len(dataset['libraries']) == 1
+    library_id = dataset['libraries'][0]['library_id']
+
     tantalus_api = TantalusApi()
 
     if not tantalus_api.is_dataset_on_storage(dataset['id'], 'resultsdataset', storage_name):
@@ -441,7 +444,6 @@ def catalog_cellenone_dataset(
 @click.option('--update', is_flag=True)
 @click.option('--remote_storage_name')
 def catalog_cellenone_datasets(
-        library_id,
         storage_name,
         tag_name=None,
         update=False,
@@ -453,7 +455,7 @@ def catalog_cellenone_datasets(
         # HACK: Check for metadata yaml file in dataset
         found_metadata = False
         try:
-            file_resource = tantalus_api.get('file_resource', resultsdataset__id=dataset['id'], filename__endswith=metadata.yaml)
+            file_resource = tantalus_api.get('file_resource', resultsdataset__id=dataset['id'], filename__endswith='metadata.yaml')
             found_metadata = True
         except NotFoundError:
             logging.info(f"no metadata for dataset {dataset['id']}")
@@ -462,12 +464,19 @@ def catalog_cellenone_datasets(
             logging.info(f"found metadata for dataset {dataset['id']}, skipping")
             continue
 
-        process_cellenone_dataset(
-            dataset,
-            storage_name,
-            tag_name=tag_name,
-            update=update,
-            remote_storage_name=remote_storage_name)
+        try:
+            process_cellenone_dataset(
+                dataset,
+                storage_name,
+                tag_name=tag_name,
+                update=update,
+                remote_storage_name=remote_storage_name)
+
+        except KeyboardInterrupt:
+            raise
+
+        except:
+            logging.exception(f"catalog failed for dataset {dataset['id']}")
 
 
 if __name__=='__main__':
