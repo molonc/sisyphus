@@ -108,6 +108,21 @@ def read_cellenone_isolated_files(source_dir):
     return catalog
 
 
+def _check_file_same_local(source_filepath, destination_filepath):
+    source_filesize = os.path.getsize(source_filepath)
+    destination_filesize = os.path.getsize(destination_filepath)
+    if source_filesize != destination_filesize:
+        return False
+    return True
+
+
+def _copy_if_different(source_filepath, destination_filepath):
+    if not _check_file_same_local(source_filepath, destination_filepath):
+        shutil.copyfile(source_filepath, destination_filepath)
+    else:
+        logging.info(f'skipping copy of {source_filepath} to {destination_filepath} with same size')
+
+
 def catalog_images(library_id, source_dir, destination_dir):
     """ Catalog cellenone images and organize into a new directory
     
@@ -154,7 +169,7 @@ def catalog_images(library_id, source_dir, destination_dir):
         original_filename = catalog.loc[idx, 'original_filename']
         original_filepath = os.path.join(source_dir, original_filename)
 
-        shutil.copyfile(original_filepath, new_filepath)
+        _copy_if_different(original_filepath, new_filepath)
 
         filepaths.append(new_filepath)
 
@@ -174,7 +189,7 @@ def catalog_images(library_id, source_dir, destination_dir):
 
         original_filepath = os.path.join(source_dir, original_filename)
 
-        shutil.copyfile(original_filepath, new_filepath)
+        _copy_if_different(original_filepath, new_filepath)
 
         filepaths.append(new_filepath)
 
