@@ -18,7 +18,7 @@ class GSCAPI(object):
             "Accept": "application/json",
         }
 
-        self.gsc_api_url = os.environ.get("GSC_API_URL", "http://sbs:8100/")
+        self.gsc_api_url = os.environ.get("GSC_API_URL", "https://sbs.bcgsc.ca:8100/")
 
         create_session_url = os.path.join(self.gsc_api_url, "session")
         auth_json = {
