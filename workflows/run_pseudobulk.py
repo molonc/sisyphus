@@ -87,7 +87,7 @@ def run_haplotype_calling(jira, args):
 
     # check status
     if analysis['status'] in ('complete', 'running'):
-        log.info("analysis has status {} for sample {} and library {}".format(
+        log.info("infer_haps has status {} for sample {} and library {}".format(
             analysis['status'],
             args['sample_id'],
             args['library_id'],
@@ -152,7 +152,7 @@ def run_split_wgs_bam(jira, args):
 
     # check status
     if analysis['status'] in ('complete', 'running'):
-        log.info("split wgs bams has status {} for sample {} and library {}".format(
+        log.info("split_wgs_bams has status {} for sample {} and library {}".format(
             analysis['status'],
             args['sample_id'],
             args['library_id'],
@@ -420,7 +420,7 @@ def run_variant_calling(jira, args):
 
     # check status
     if analysis['status'] in ('complete', 'running'):
-        log.info("count_haps has status {} for sample {} and library {}".format(
+        log.info("variant_calling has status {} for sample {} and library {}".format(
             analysis['status'],
             args['sample_id'],
             args['library_id'],
@@ -495,11 +495,13 @@ def run(jira, library_id):
 
         if normal_info:
             normal_info = normal_info[0]
-            print(normal_info)
             normal_sample_id = normal_info['normal_sample_id']
             normal_library_id = normal_info['normal_library_id']
             args['normal_sample_id'] = normal_sample_id
             args['normal_library_id'] = normal_library_id
+            log.info(
+                f"found normal info with sample {normal_info['normal_sample_id']} and library {normal_info['normal_library_id']}"
+            )
         else:
             raise Exception(f"no normal match found for sample {sample_id}")
 
