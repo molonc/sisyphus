@@ -166,7 +166,6 @@ def run_align(jira, args):
             "analysis",
             jira_ticket=jira,
             analysis_type="align",
-            input_datasets__library__library_id=args['library_id'],
         )
     except:
         analysis = None
@@ -177,7 +176,11 @@ def run_align(jira, args):
             tantalus_api,
             jira,
             config["scp_version"],
-            args,
+            {
+                **args,
+                "gsc_lanes": None,
+                "brc_flowcell_ids": None,
+            },
         )
         analysis = analysis.analysis
         log.info(f"created align analysis {analysis['id']} under ticket {jira}")
@@ -225,7 +228,6 @@ def run_hmmcopy(jira, args):
             "analysis",
             jira_ticket=jira,
             analysis_type="hmmcopy",
-            input_datasets__library__library_id=args['library_id'],
         )
     except:
         analysis = None
@@ -284,7 +286,6 @@ def run_annotation(jira, args):
             "analysis",
             jira_ticket=jira,
             analysis_type="annotation",
-            input_datasets__library__library_id=args['library_id'],
         )
     except:
         analysis = None
@@ -381,8 +382,11 @@ def run_qc(aligner):
 
         # check annotation complete
         if statuses["annotation"]:
-            # run pseudobulk
-            run_pseudobulk.run(jira, library_id)
+            try:
+                # run pseudobulk
+                run_pseudobulk.run(jira, library_id)
+            except Exception as e:
+                log.error(f"Failed to run pseudobulk: {e}")
 
 
 @click.command()
