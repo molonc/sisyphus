@@ -12,7 +12,7 @@ import workflows.utils.saltant_utils
 from datamanagement.utils.constants import LOGGING_FORMAT
 
 
-def run_analysis(analysis, saltant_user, saltant_queue, delay=None):
+def run_analysis(saltant_user, saltant_queue, analysis, delay=None, update=False, rerun=False):
     analysis_id = analysis['id']
     analysis_status = analysis['status']
     jira_ticket = analysis['jira_ticket']
@@ -27,13 +27,21 @@ def run_analysis(analysis, saltant_user, saltant_queue, delay=None):
 
     logging.info(f'starting analysis {analysis_id} with status {analysis_status} from jira ticket {jira_ticket}')
 
+    args = {
+        'analysis_id': analysis_id,
+        'jira': jira_ticket,
+    }
+
+    if update:
+        args['update'] = update
+
+    if rerun:
+        args['rerun'] = rerun
+
     workflows.utils.saltant_utils.get_or_create_task_instance(
         'run_{}'.format(analysis_id),
         saltant_user,
-        {
-            'analysis_id': analysis_id,
-            'jira': jira_ticket
-        },
+        args,
         14, # TODO: by name, cli
         saltant_queue,
     )
@@ -71,7 +79,7 @@ def from_table(saltant_user, saltant_queue, jira_ticket_file, analysis_type, del
                 raise
 
             except:
-                logging.exception(f'start analysis failed for {analysis_id}')
+                logging.exception(f"start analysis failed for {analysis['id']}")
 
 
 @cli.command()
@@ -79,12 +87,21 @@ def from_table(saltant_user, saltant_queue, jira_ticket_file, analysis_type, del
 @click.argument('saltant_queue')
 @click.argument('analysis_ids', type=int, nargs=-1)
 @click.option('--delay', type=int)
-def from_ids(saltant_user, saltant_queue, analysis_ids, delay=None):
+@click.option('--update', is_flag=True)
+@click.option('--rerun', is_flag=True)
+def from_ids(saltant_user, saltant_queue, analysis_ids, delay=None, update=True, rerun=True):
     tantalus_api = dbclients.tantalus.TantalusApi()
 
     for analysis_id in analysis_ids:
         analysis = tantalus_api.get('analysis', id=analysis_id)
-        run_analysis(saltant_user, saltant_queue, analysis, delay=delay)
+        run_analysis(
+            saltant_user,
+            saltant_queue,
+            analysis,
+            delay=delay,
+            update=update,
+            rerun=rerun,
+        )
 
 
 if __name__ == '__main__':

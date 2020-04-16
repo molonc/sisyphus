@@ -162,8 +162,8 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
             self.get_input_samples(),
             self.get_input_libraries(),
             storages['working_results'],
-            update=False,
-            skip_missing=False,
+            update=update,
+            skip_missing=skip_missing,
         )
 
         return [results['id']]
@@ -178,7 +178,6 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
 
 
 workflows.analysis.base.Analysis.register_analysis(AnnotationAnalysis)
-
 
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)

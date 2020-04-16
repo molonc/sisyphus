@@ -14,7 +14,10 @@ def get_client():
     global client
     if client is None:
         client = Client(
-            base_api_url=os.environ.get('SALTANT_API_URL', 'https://saltant.canadacentral.cloudapp.azure.com/api/'),
+            base_api_url=os.environ.get(
+                'SALTANT_API_URL',
+                'https://saltant.canadacentral.cloudapp.azure.com/api/',
+            ),
             auth_token=os.environ['SALTANT_API_TOKEN'],
         )
     return client
@@ -149,18 +152,32 @@ def transfer_files(jira, config, tag_name, from_storage, to_storage):
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 
 
-def run_analysis(analysis_id, analysis_type, jira, version, library_id, aligner, config):
-    name = f"{jira}_{library_id}_{aligner}_{analysis_type}"
+def run_analysis(
+        analysis_id,
+        analysis_type,
+        jira,
+        version,
+        library_id,
+        aligner,
+        config,
+        skip_missing=False,
+        update=False,
+):
+    name = f"{jira}_{library_id}_{aligner}_{analysis_type}_{analysis_id}"
     queue_name = config['headnode_task_queue']
 
     args = {
+        'jira': jira,
         'analysis_id': analysis_id,
     }
 
-    try:
-        task_type_id = get_task_type_id("Run Analysis")
-    except:
-        raise Exception(f"no task found for analysis type {analysis_type}")
+    if skip_missing:
+        args['skip_missing'] = skip_missing
+
+    if update:
+        args['update'] = update
+
+    task_type_id = get_task_type_id("Run Analysis")
 
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 

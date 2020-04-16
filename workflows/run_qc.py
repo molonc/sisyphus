@@ -9,25 +9,52 @@ from dateutil import parser
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 
-from workflows.utils import saltant_utils, file_utils, tantalus_utils
+from workflows.analysis.dlp import (
+    alignment,
+    hmmcopy,
+    annotation,
+)
+
+from workflows import run_pseudobulk
+
+from workflows.utils import saltant_utils, file_utils, tantalus_utils, colossus_utils
 from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
 stream_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-stream_handler.setFormatter(formatter)
-log.addHandler(stream_handler)
-log.propagate = False
 
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
 
+# load config file
+config = file_utils.load_json(
+    os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        'config',
+        'normal_config.json',
+    ))
+
 
 def attach_qc_report(jira, library_id, storages):
+    """ 
+    Adds qc report to library jira ticket
+
+    Arguments:
+        jira {str} -- id of jira ticket e.g SC-1234
+        library_id {str} -- library name
+        storages {dict} -- dictionary of storages names for results and inputs
+    """
 
     storage_client = tantalus_api.get_storage_client(storages["remote_results"])
-    results_dataset = tantalus_api.get("resultsdataset", name="{}_annotation".format(jira))
+    results_dataset = tantalus_api.get(
+        "resultsdataset",
+        name="{}_annotation_{}".format(
+            jira,
+            library_id,
+        ),
+    )
 
     qc_filename = "{}_QC_report.html".format(library_id)
     jira_qc_filename = "{}_{}_QC_report.html".format(library_id, jira)
@@ -60,7 +87,16 @@ def attach_qc_report(jira, library_id, storages):
     add_attachment(library_ticket, local_path, jira_qc_filename)
 
 
-def load_ticket(jira):
+def load_data_to_montage(jira):
+    """
+    SSH into loader machine and triggers import into montage
+    
+    Arguments:
+        jira {str} -- jira id
+    
+    Raises:
+        Exception: Ticket failed to load
+    """
     log.info(f"Loading {jira} into Montage")
     try:
         # TODO: add directory in config
@@ -76,148 +112,10 @@ def load_ticket(jira):
     log.info(f"Successfully loaded {jira} into Montage")
 
 
-@click.command()
-@click.option("--aligner", type=click.Choice(['A', 'M']))
-def main(aligner):
+def run_viz():
     """
-    Gets all qc (align, hmmcopy, annotation) analyses set to ready 
-    and checks if requirements have been satisfied before triggering
-    run on saltant.
-
-    Kwargs:
-        aligner (str): name of aligner 
+    Update jira ticket, add QC report, and load data on Montage
     """
-
-    # load config file
-    config = file_utils.load_json(
-        os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            'config',
-            'normal_config.json',
-        ))
-
-    # map of type of analyses required before particular analysis can run
-    # note: keep this order to avoid checking requirements more than once
-    required_analyses_map = {
-        'annotation': [
-            'hmmcopy',
-            'align',
-        ],
-        'hmmcopy': ['align'],
-        'align': [],
-    }
-
-    # get colossus analysis information objects with status not complete
-    analyses = colossus_api.list(
-        "analysis_information",
-        analysis_run__run_status_ne="complete",
-        aligner=aligner if aligner else config["default_aligner"],
-    )
-
-    for analysis in analyses:
-        # get library id
-        library_id = analysis["library"]["pool_id"]
-        log.info(f"{library_id}")
-
-        # skip analysis if marked as complete
-        status = analysis["analysis_run"]["run_status"]
-
-        # skip analyses older than this year
-        # parse off ending time range
-        last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < datetime(2020, 1, 1):
-            continue
-
-        jira_ticket = analysis["analysis_jira_ticket"]
-        log.info(f"checking ticket {jira_ticket} library {library_id}")
-        for analysis_type in required_analyses_map:
-            log.info(f"checking requirements for {analysis_type}")
-            # check if analysis exists on tantalus
-            try:
-                tantalus_analysis = tantalus_api.get(
-                    'analysis',
-                    jira_ticket=jira_ticket,
-                    analysis_type__name=analysis_type,
-                )
-            except:
-                tantalus_analysis = None
-
-            if tantalus_analysis is not None:
-                # check if running or complete
-                status = tantalus_analysis["status"]
-                if status in ('running', 'complete'):
-                    log.info(f"skipping {analysis_type} for {jira_ticket} since status is {status}")
-
-                    # update run status on colossus
-                    if analysis_type == "annotation" and status == "complete":
-                        analysis_run_id = analysis["analysis_run"]["id"]
-                        analysis_run = colossus_api.get("analysis_run", id=analysis_run_id)
-                        colossus_api.update("analysis_run", id=analysis_run_id, run_status="complete")
-
-                    continue
-
-                log.info(f"running {analysis_type} in library {library_id} with ticket {jira_ticket}")
-                # otherwise run analysis
-                saltant_utils.run_analysis(
-                    tantalus_analysis['id'],
-                    analysis_type,
-                    jira_ticket,
-                    config["scp_version"],
-                    library_id,
-                    aligner if aligner else config["default_aligner"],
-                    config,
-                )
-            else:
-                # set boolean determining trigger of run
-                is_ready_to_create = True
-                # check if required completed analyses exist
-                for required_analysis_type in required_analyses_map[analysis_type]:
-                    try:
-                        required_analysis = tantalus_api.get(
-                            'analysis',
-                            jira_ticket=jira_ticket,
-                            analysis_type__name=required_analysis_type,
-                            status="complete",
-                        )
-                    except:
-                        log.error(
-                            f"a completed {required_analysis_type} analysis is required to run before {analysis_type} runs for {jira_ticket}"
-                        )
-                        # set boolean as false since analysis cannot be created yet
-                        is_ready_to_create = False
-                        break
-
-                # create analysis and trigger on saltant if analysis creation has met requirements
-                if is_ready_to_create:
-                    log.info(f"creating {analysis_type} analysis for ticket {jira_ticket}")
-
-                    try:
-                        tantalus_utils.create_qc_analyses_from_library(
-                            library_id,
-                            jira_ticket,
-                            config["scp_version"],
-                            analysis_type,
-                        )
-                    except Exception as e:
-                        log.error(f"failed to create {analysis_type} analysis for ticket {jira_ticket}")
-                        continue
-                    tantalus_analysis = tantalus_api.get(
-                        'analysis',
-                        jira_ticket=jira_ticket,
-                        analysis_type__name=analysis_type,
-                    )
-
-                    log.info(f"running {analysis_type} in library {library_id} with ticket {jira_ticket}")
-                    saltant_utils.run_analysis(
-                        tantalus_analysis['id'],
-                        analysis_type,
-                        jira_ticket,
-                        config["scp_version"],
-                        library_id,
-                        aligner if aligner else config["default_aligner"],
-                        config,
-                    )
-
     # get completed analyses that need montage loading
     analyses = colossus_api.list(
         "analysis_information",
@@ -236,12 +134,269 @@ def main(aligner):
             continue
 
         jira_ticket = analysis["analysis_jira_ticket"]
-        update_jira_dlp(jira_ticket, "M")
+
+        # update ticket description
+        update_jira_dlp(jira_ticket, analysis["aligner"])
+
         # upload qc report to jira ticket
         attach_qc_report(jira_ticket, library_id, config["storages"])
 
         # load analysis into montage
-        load_ticket(jira_ticket)
+        load_data_to_montage(jira_ticket)
+
+
+def run_align(jira, args):
+    """
+    Run align if not ran yet
+    
+    Arguments:
+        jira {str} -- jira id
+        args {dict} -- analysis arguments 
+            library_id 
+            aligner
+            ref_genome
+
+    Returns:
+        Boolean -- Analysis complete
+    """
+
+    # get analysis
+    try:
+        analysis = tantalus_api.get(
+            "analysis",
+            jira_ticket=jira,
+            analysis_type="align",
+        )
+    except:
+        analysis = None
+
+    if not analysis:
+        # create breakpoint calling analysis
+        analysis = alignment.AlignmentAnalysis.create_from_args(
+            tantalus_api,
+            jira,
+            config["scp_version"],
+            {
+                **args,
+                "gsc_lanes": None,
+                "brc_flowcell_ids": None,
+            },
+        )
+        analysis = analysis.analysis
+        log.info(f"created align analysis {analysis['id']} under ticket {jira}")
+
+    # check status
+    if analysis['status'] in ('complete', 'running'):
+        log.info("align has status {} for library {}".format(
+            analysis['status'],
+            args['library_id'],
+        ))
+        return analysis['status'] == 'complete'
+
+    log.info(f"running align analysis {analysis['id']}")
+    saltant_utils.run_analysis(
+        analysis['id'],
+        'align',
+        jira,
+        config["scp_version"],
+        args['library_id'],
+        args['aligner'],
+        config,
+    )
+
+    return False
+
+
+def run_hmmcopy(jira, args):
+    """
+    Run hmmcopy if not ran yet
+    
+    Arguments:
+        jira {str} -- jira id
+        args {dict} -- analysis arguments 
+            library_id 
+            aligner
+            ref_genome
+
+    Returns:
+        Boolean -- Analysis complete
+    """
+
+    # get analysis
+    try:
+        analysis = tantalus_api.get(
+            "analysis",
+            jira_ticket=jira,
+            analysis_type="hmmcopy",
+        )
+    except:
+        analysis = None
+
+    if not analysis:
+        # create breakpoint calling analysis
+        analysis = hmmcopy.HMMCopyAnalysis.create_from_args(
+            tantalus_api,
+            jira,
+            config["scp_version"],
+            args,
+        )
+        analysis = analysis.analysis
+        log.info(f"created hmmcopy analysis {analysis['id']} under ticket {jira}")
+
+    # check status
+    if analysis['status'] in ('complete', 'running'):
+        log.info("hmmcopy has status {} for library {}".format(
+            analysis['status'],
+            args['library_id'],
+        ))
+        return analysis['status'] == 'complete'
+
+    log.info(f"running hmmcopy analysis {analysis['id']}")
+    saltant_utils.run_analysis(
+        analysis['id'],
+        'hmmcopy',
+        jira,
+        config["scp_version"],
+        args['library_id'],
+        args['aligner'],
+        config,
+    )
+
+    return False
+
+
+def run_annotation(jira, args):
+    """
+    Run annotation if not ran yet
+    
+    Arguments:
+        jira {str} -- jira id
+        args {dict} -- analysis arguments 
+            library_id 
+            aligner
+            ref_genome
+
+    Returns:
+        Boolean -- Analysis complete
+    """
+
+    # get analysis
+    try:
+        analysis = tantalus_api.get(
+            "analysis",
+            jira_ticket=jira,
+            analysis_type="annotation",
+        )
+    except:
+        analysis = None
+
+    if not analysis:
+        # create breakpoint calling analysis
+        analysis = annotation.AnnotationAnalysis.create_from_args(
+            tantalus_api,
+            jira,
+            config["scp_version"],
+            args,
+        )
+        analysis = analysis.analysis
+        log.info(f"created annotation analysis {analysis['id']} under ticket {jira}")
+
+    # check status
+    if analysis['status'] in ('complete', 'running'):
+        log.info("annotation has status {} for library {}".format(
+            analysis['status'],
+            args['library_id'],
+        ))
+        return analysis['status'] == 'complete'
+
+    log.info(f"running annotation analysis {analysis['id']}")
+    saltant_utils.run_analysis(
+        analysis['id'],
+        'annotation',
+        jira,
+        config["scp_version"],
+        args['library_id'],
+        args['aligner'],
+        config,
+    )
+
+    return False
+
+
+def run_qc(aligner):
+    """
+    Gets all qc (align, hmmcopy, annotation) analyses set to ready 
+    and checks if requirements have been satisfied before triggering
+    run on saltant.
+
+    Arguments:
+        aligner {str} -- name of aligner 
+    """
+
+    # get colossus analysis information objects with status not complete
+    analyses = colossus_api.list(
+        "analysis_information",
+        analysis_run__run_status_ne="complete",
+        aligner=aligner if aligner else config["default_aligner"],
+    )
+
+    for analysis in analyses:
+        # get library id
+        library_id = analysis["library"]["pool_id"]
+
+        # skip analyses older than this year
+        # parse off ending time range
+        last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
+        if last_updated_date < datetime(2020, 1, 1):
+            continue
+
+        # get jira ticket
+        jira = analysis["analysis_jira_ticket"]
+
+        # init args for analysis
+        args = {
+            'library_id': library_id,
+            'aligner': "BWA_MEM" if analysis['aligner'] == "M" else "BWA_ALN",
+            'ref_genome': colossus_utils.get_ref_genome(analysis["library"]),
+        }
+
+        log.info(f"checking ticket {jira} library {library_id}")
+
+        # track qc analyses
+        statuses = {
+            "align": False,
+            "hmmcopy": False,
+            "annotation": False,
+        }
+        statuses["align"] = run_align(jira, args)
+
+        # check align is complete
+        if statuses["align"]:
+            # run hmmcopy
+            statuses["hmmcopy"] = run_hmmcopy(jira, args)
+
+        # check hmmcopy complete
+        if statuses["hmmcopy"]:
+            # run annotation
+            statuses["annotation"] = run_annotation(jira, args)
+
+        # check annotation complete
+        if statuses["annotation"]:
+            try:
+                # run pseudobulk
+                run_pseudobulk.run(jira, library_id)
+            except Exception as e:
+                log.error(f"Failed to run pseudobulk: {e}")
+
+
+@click.command()
+@click.option("--aligner", type=click.Choice(['A', 'M']))
+def main(aligner):
+    # run qcs
+    run_qc(aligner)
+
+    # update ticket and load to montage
+    run_viz()
 
 
 if __name__ == "__main__":

@@ -130,6 +130,35 @@ def add_attachment(jira_id, attachment_file_path, attachment_filename):
         jira_api.add_attachment(issue=jira_id, attachment=attachment_file_path)
 
 
+def create_ticket(key, summary):
+    """
+    Create jira ticket
+    
+    Arguments:
+        key {str} -- Project
+        summary {str} -- Ticket description
+    
+    Returns:
+        str -- created ticket id
+    """
+    jira_user = os.environ['JIRA_USERNAME']
+    jira_api = get_jira_api()
+
+    task = {
+        'project': {
+            'key': 'SC'
+        },
+        'summary': summary,
+        'issuetype': {
+            'name': 'Task'
+        },
+    }
+
+    issue = jira_api.create_issue(fields=task)
+
+    return issue.key
+
+
 def create_jira_ticket_from_library(library_id):
     """
     Create analysis jira ticket as subtask of library jira ticket
