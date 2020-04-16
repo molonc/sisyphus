@@ -416,7 +416,7 @@ def run_variant_calling(jira, args):
             args,
         )
         analysis = analysis.analysis
-        log.info(f"created count haps analysis {analysis['id']} under ticket {jira}")
+        log.info(f"created variant calling analysis {analysis['id']} under ticket {jira}")
 
     # check status
     if analysis['status'] in ('complete', 'running'):
