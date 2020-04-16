@@ -20,7 +20,7 @@ from workflows.analysis.dlp import (
 )
 
 from workflows.utils import saltant_utils, file_utils, tantalus_utils
-from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
+from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira, create_ticket
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
@@ -162,10 +162,14 @@ def run_haplotype_calling(jira, args):
         input_datasets__library__library_id=args['normal_library_id'],
     )
     if not infer_haps_analysis:
+        jira_ticket = create_ticket(
+            "SC",
+            f"Hapolotype calling for {args['normal_sample_id']}_{args['normal_library_id']}",
+        )
         # create split wgs bam analysis
         infer_haps_analysis = haplotype_calling.HaplotypeCallingAnalysis.create_from_args(
             tantalus_api,
-            jira,
+            jira_ticket,
             config["scp_version"],
             args,
         )
@@ -566,9 +570,13 @@ def run_pseudobulk(jira, library_id):
         # check if dataset is linked to WGS library
         if normal_dataset["library"]["library_type"] == "WGS":
             # TODO: create ticket for split wgs bams
+            jira_ticket = create_ticket(
+                "SC",
+                f"Hapolotype calling for {normal_sample_id}_{normal_library_id}",
+            )
 
             # split wgs bam
-            statuses['split_wgs_bams'] = run_split_wgs_bam(jira, args)
+            statuses['split_wgs_bams'] = run_split_wgs_bam(jira_ticket, args)
 
             # check if split wgs bams completed
             if statuses['split_wgs_bams']:
@@ -578,7 +586,6 @@ def run_pseudobulk(jira, library_id):
         else:
             # merge tumour bam dataset
             statuses['merge_cell_bams'] = run_merge_cell_bams(jira, args)
-            # merge normal bam dataset
             statuses['merge_normal_cell_bams'] = run_merge_cell_bams(jira, args, is_normal=True)
 
             # check if tumour and normal bams merge cell bams completed
