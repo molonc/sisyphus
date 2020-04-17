@@ -382,11 +382,35 @@ def run_qc(aligner):
 
         # check annotation complete
         if statuses["annotation"]:
-            try:
-                # run pseudobulk
-                run_pseudobulk.run(jira, library_id)
-            except Exception as e:
-                log.error(f"Failed to run pseudobulk: {e}")
+            # update status on colossus
+            analysis_run_id = analysis["analysis_run"]["id"]
+            analysis_run = colossus_api.get(
+                "analysis_run",
+                id=analysis_run_id,
+            )
+            colossus_api.update(
+                "analysis_run",
+                id=analysis_run_id,
+                run_status="complete",
+            )
+
+    # get annotation analysis completed in last week
+    analyses = tantalus_api.list(
+        "analysis",
+        status="complete",
+        analysis_type__name="annotation",
+        last_updated__gte=str(datetime.now() - timedelta(days=7)),
+    )
+
+    for analysis in analyses:
+        try:
+            # run pseudobulk
+            run_pseudobulk.run(
+                analysis["jira_ticket"],
+                analysis["args"]["library_id"],
+            )
+        except Exception as e:
+            log.error(f"Failed to run pseudobulk: {e}")
 
 
 @click.command()
