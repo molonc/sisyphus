@@ -53,6 +53,7 @@ def add_generic_results(
         tag_name=None, update=False, remote_storage_name=None):
 
     tantalus_api = TantalusApi()
+    storage_client = tantalus_api.get_storage_client(storage_name)
 
     sample_pks = []
     for sample_id in sample_ids:
@@ -75,10 +76,10 @@ def add_generic_results(
     for filepath in filepaths:
         if recursive:
             logging.info("Recursing directory {}".format(filepath))
+            filename_prefix = tantalus_api.get_file_resource_filename(storage_name, filepath)
             add_filepaths = []
-            for (dirpath, dirnames, filenames) in os.walk(filepath):
-                for filename in filenames:
-                    add_filepaths.append(os.path.join(dirpath, filename))
+            for filename in storage_client.list(filename_prefix):
+                add_filepaths.append(tantalus_api.get_filepath(storage_name, filename))
 
         else:
             add_filepaths = [filepath]
