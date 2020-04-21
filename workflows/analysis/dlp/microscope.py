@@ -41,7 +41,6 @@ def get_colossus_tifs(library_id):
 
 
 def get_tantalus_tifs(dataset_ids):
-
     tantalus_tiffs = []
     for dataset_id in dataset_ids:
         files = tantalus_api.list(
@@ -78,7 +77,6 @@ class MicroscopePreprocessing(workflows.analysis.base.Analysis):
     def search_input_results(cls, tantalus_api, jira, version, args):
         ### Search in colossus for the cell ids for the library given by args['library_id']
         ## Search according to a template for the location in singlecellresults hwere the data sits
-
         try:
             microscope_results_dataset = tantalus_api.list(
                 'resultsdataset',
@@ -103,7 +101,7 @@ class MicroscopePreprocessing(workflows.analysis.base.Analysis):
         # storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
 
         t_df = get_tantalus_tifs(self.analysis['input_results'])
-        c_df = get_colossus_tifs(self.analysis['library_id'])
+        c_df = get_colossus_tifs(self.args['library_id'])
         merged_df = pd.merge(left=c_df, right=t_df, left_on='file_ch', right_on='file_ch')
 
         input_info = {'cell_images': {}}
