@@ -77,8 +77,9 @@ class MicroscopePreprocessing(workflows.analysis.base.Analysis):
     def search_input_results(cls, tantalus_api, jira, version, args):
         ### Search in colossus for the cell ids for the library given by args['library_id']
         ## Search according to a template for the location in singlecellresults hwere the data sits
+        print('------- getting microsocope dataset id ----------')
         try:
-            microscope_results_dataset = tantalus_api.list(
+            microscope_results_dataset = tantalus_api.get(
                 'resultsdataset',
                 libraries__library_id=args['library_id'],
                 results_type='MICROSCOPE'
@@ -86,7 +87,7 @@ class MicroscopePreprocessing(workflows.analysis.base.Analysis):
         except:
             raise Exception(f"Error while retrieving Microscope result dataset for library {args['library_id']}")
 
-        return [dataset["id"] for dataset in microscope_results_dataset]
+        return [microscope_results_dataset["id"]]
 
 
     @classmethod
@@ -99,6 +100,7 @@ class MicroscopePreprocessing(workflows.analysis.base.Analysis):
 
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         # storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
+        print('------- generating input yaml ----------')
 
         t_df = get_tantalus_tifs(self.analysis['input_results'])
         c_df = get_colossus_tifs(self.args['library_id'])
@@ -136,7 +138,21 @@ class MicroscopePreprocessing(workflows.analysis.base.Analysis):
         storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         out_path = os.path.join(storage_client.prefix, self.out_dir)
 
-        # run the pipeline
+        return workflows.analysis.dlp.launchmic.run_pipeline(
+            version=self.version,
+            run_options=run_options,
+            micpipeline_dir=scpipeline_dir,
+            tmp_dir=tmp_dir,
+            inputs_yaml=inputs_yaml,
+            context_config_file=context_config_file,
+            docker_env_file=docker_env_file,
+            docker_server=docker_server,
+            output_dirs={
+                'out_dir': out_path,
+            },
+            max_jobs='400',
+            dirs=dirs,
+        )
 
     def create_output_results(self, storages, update=False, skip_missing=False):
         """
@@ -175,11 +191,9 @@ workflows.analysis.base.Analysis.register_analysis(MicroscopePreprocessing)
 if __name__ == '__main__':
 
     '''
-    
     # search input results
-    datasets = tantalus_api.list('resultsdataset', libraries__library_id='A98256B', results_type='MICROSCOPE')
-    dataset_ids = [dataset["id"] for dataset in datasets]
-
+    dataset = tantalus_api.get('resultsdataset', libraries__library_id='A98256B', results_type='MICROSCOPE')
+    dataset_ids = [dataset["id"]]
     # generate inputs yaml
     t_df = get_tantalus_tifs(dataset_ids)
     c_df = get_colossus_tifs('A98256B')
