@@ -32,6 +32,7 @@ def get_colossus_tifs(library_id):
             colossus_tiffs.append(
                 {
                     'file_ch': sublibrary_brief[f'file_ch{tif_num}'],
+                    'ch_number': tif_num,
                     'row': str(sublibrary_brief['row']),
                     'column': str(sublibrary_brief['column']),
                     'cell_id': cell_ids[(sublibrary_brief['row'], sublibrary_brief['column'])],
@@ -59,12 +60,6 @@ def get_tantalus_tifs(dataset_ids):
                 }
             )
     return pd.DataFrame(tantalus_tiffs)
-
-
-def get_tif_color_from_path(path):
-    tif_color = path.split('_')[-1].replace('.tif', '').lower()
-    assert tif_color in ['cyan', 'red', 'green']
-    return tif_color
 
 
 class MicroscopePreprocessing(workflows.analysis.base.Analysis):
@@ -104,15 +99,13 @@ class MicroscopePreprocessing(workflows.analysis.base.Analysis):
         input_info = {'cell_images': {}}
         prefix = os.path.join(storages['working_results'], "results")
         for index, row in merged_df.iterrows():
-            color = get_tif_color_from_path(row['file_ch'])
-
             if row['cell_id'] not in input_info['cell_images'].keys():
                 input_info['cell_images'][row['cell_id']] = {}
-            # input_info['cell_images'][row['cell_id']][f"{color}_filepath"] = row['filename']
-            if color == 'cyan':
-                input_info['cell_images'][row['cell_id']]["livedead"] = os.path.join(prefix, row['filename'])
-            else:
+
+            if row['ch_number'] == '1':
                 input_info['cell_images'][row['cell_id']]["cfse"] = os.path.join(prefix, row['filename'])
+            else:
+                input_info['cell_images'][row['cell_id']]["livedead"] = os.path.join(prefix, row['filename'])
 
         for cell_id in input_info['cell_images'].keys():
             tif_count = len(input_info['cell_images'][cell_id].keys())
@@ -188,34 +181,6 @@ class MicroscopePreprocessing(workflows.analysis.base.Analysis):
 workflows.analysis.base.Analysis.register_analysis(MicroscopePreprocessing)
 
 if __name__ == '__main__':
-
-    '''
-    # search input results
-    dataset = tantalus_api.get('resultsdataset', libraries__library_id='A98256B', results_type='MICROSCOPE')
-    dataset_ids = [dataset["id"]]
-    # generate inputs yaml
-    t_df = get_tantalus_tifs(dataset_ids)
-    c_df = get_colossus_tifs('A98256B')
-    merged_df = pd.merge(left=c_df, right=t_df, left_on='file_ch', right_on='file_ch')
-    # merged_df = pd.read_csv(r"/Users/havasove/Desktop/tifs.csv", converters={i: str for i in range(0, 100)})
-
-    input_info = {'cell_images': {}}
-    for index, row in merged_df.iterrows():
-        color = get_tif_color_from_path(row['file_ch'])
-
-        if row['cell_id'] not in input_info['cell_images'].keys():
-            input_info['cell_images'][row['cell_id']] = {}
-        input_info['cell_images'][row['cell_id']][f"{color}_filepath"] = row['filename']
-
-    for cell_id in input_info['cell_images'].keys():
-        tif_count = len(input_info['cell_images'][cell_id].keys())
-        assert tif_count == 2, f'For cell_id "{cell_id}" expected 2 tifs but got {tif_count}'
-
-    with open('/Users/havasove/Desktop/tifs_1.yaml', 'w') as inputs_yaml:
-        yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
-
-    '''
-
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
     MicroscopePreprocessing.create_analysis_cli()
 
