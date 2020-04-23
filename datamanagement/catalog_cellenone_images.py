@@ -35,7 +35,7 @@ def clean_filename(filename):
 
 
 cell_filename_template = '{library_id}_R{row:02d}_C{column:02d}.png'
-background_filename_template = 'background_{idx}.tiff'
+background_filename_template = 'background_{idx}{extension}'
 
 def generate_new_filename(row):
     library_id = row['library_id']
@@ -87,14 +87,20 @@ def read_cellenone_isolated_files(source_dir):
         data['chip_row'] = data['YPos']
         data['chip_column'] = data['XPos']
 
-        # Assume a _Background.tiff exists along side __isolated.xls
-        background_filename = isolated_filename[:-len('__isolated.xls')] + '_Background.tiff'
-
-        if not os.path.exists(background_filename):
-            logging.error(f'expected {background_filename} along side {isolated_filename}')
+        # Assume a _Background.(tiff|png) exists along side __isolated.xls
+        background_filename_prefix = isolated_filename[:-len('__isolated.xls')] + '_Background'
+        background_filenames = glob.glob(background_filename_prefix + '.*')
+        if len(background_filenames) != 1:
+            raise ValueError(f'found background files {background_filenames} along side {isolated_filename}')
+        background_filename = background_filenames[0]
+        assert background_filename.startswith(background_filename_prefix)
+        background_extension = background_filename[len(background_filename_prefix):]
+        if background_extension not in ('.tiff', '.png'):
+            raise ValueError(f'found background file with unexpected extension {background_extension}')
 
         # Original background filename relative to root cellenone directory
         data['original_background_filename'] = os.path.join(images_dir, os.path.basename(background_filename))
+        data['original_background_extension'] = background_extension
 
         catalog.append(data)
 
@@ -117,7 +123,7 @@ def _check_file_same_local(source_filepath, destination_filepath):
 
 
 def _copy_if_different(source_filepath, destination_filepath):
-    if not _check_file_same_local(source_filepath, destination_filepath):
+    if not os.path.exists(destination_filepath) or not _check_file_same_local(source_filepath, destination_filepath):
         shutil.copyfile(source_filepath, destination_filepath)
     else:
         logging.info(f'skipping copy of {source_filepath} to {destination_filepath} with same size')
@@ -176,12 +182,12 @@ def catalog_images(library_id, source_dir, destination_dir):
     # Move the background images into the source directory
     catalog['background_filename'] = None
     catalog['background_idx'] = None
-    orig_bg_filenames = catalog['original_background_filename'].unique()
-    for idx, original_filename in enumerate(orig_bg_filenames):
+    orig_bg_filenames = catalog[['original_background_filename', 'original_background_extension']].drop_duplicates()
+    for idx, (original_filename, original_extension) in enumerate(orig_bg_filenames.values):
         if original_filename is None:
             continue
 
-        new_filename = background_filename_template.format(idx=idx)
+        new_filename = background_filename_template.format(idx=idx, extension=original_extension)
         new_filepath = os.path.join(destination_dir, new_filename)
 
         catalog.loc[catalog['original_background_filename'] == original_filename, 'background_idx'] = idx
@@ -385,7 +391,7 @@ def glob_cellenone_data(filepaths, storage_name, tag_name=None, update=False, re
                 update=update,
                 remote_storage_name=remote_storage_name,
             )
-        except ValueError:
+        except (ValueError, FileNotFoundError):
             logging.exception(f'unable to process {library_id}, {filepath}')
 
 
