@@ -391,7 +391,7 @@ def glob_cellenone_data(filepaths, storage_name, tag_name=None, update=False, re
                 update=update,
                 remote_storage_name=remote_storage_name,
             )
-        except ValueError:
+        except (ValueError, FileNotFoundError):
             logging.exception(f'unable to process {library_id}, {filepath}')
 
 
