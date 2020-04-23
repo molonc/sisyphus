@@ -5,8 +5,8 @@ import json
 import subprocess
 import logging
 from distutils.version import StrictVersion
-
 import datamanagement.templates as templates
+from workflows.utils import file_utils
 
 log = logging.getLogger('sisyphus')
 
@@ -28,14 +28,17 @@ def run_pipeline(
 ):
     config_override = run_options.get('config_override')
     default_config = os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, 'config', 'normal_config.json'))
+    config = file_utils.load_json(default_config)
+
     run_cmd = [
         f'microscope_image_converter',
         '--input_yaml', inputs_yaml,
         '--tmpdir', tmp_dir,
         '--context_config', context_config_file,
         '--pipelinedir', micpipeline_dir,
-        '--submit_config', default_config['submit_config'],
+        '--submit_config', config['submit_config'],
         '--sentinel_only',
+        '--maxjobs', str(max_jobs),
     ]
 
     run_cmd.extend(cli_args)

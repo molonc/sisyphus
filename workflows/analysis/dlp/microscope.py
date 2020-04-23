@@ -9,6 +9,7 @@ import dbclients.tantalus
 import workflows.analysis.base
 from datamanagement.utils.constants import LOGGING_FORMAT
 import workflows.analysis.dlp.results_import as results_import
+import workflows.analysis.dlp.launchmic
 
 import pandas as pd
 import dbclients.colossus
@@ -75,9 +76,6 @@ class MicroscopePreprocessing(workflows.analysis.base.Analysis):
 
     @classmethod
     def search_input_results(cls, tantalus_api, jira, version, args):
-        ### Search in colossus for the cell ids for the library given by args['library_id']
-        ## Search according to a template for the location in singlecellresults hwere the data sits
-        print('------- getting microsocope dataset id ----------')
         try:
             microscope_results_dataset = tantalus_api.get(
                 'resultsdataset',
@@ -99,21 +97,22 @@ class MicroscopePreprocessing(workflows.analysis.base.Analysis):
         return name
 
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
-        # storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
-        print('------- generating input yaml ----------')
-
         t_df = get_tantalus_tifs(self.analysis['input_results'])
         c_df = get_colossus_tifs(self.args['library_id'])
         merged_df = pd.merge(left=c_df, right=t_df, left_on='file_ch', right_on='file_ch')
 
         input_info = {'cell_images': {}}
-
+        prefix = os.path.join(storages['working_results'], "results")
         for index, row in merged_df.iterrows():
             color = get_tif_color_from_path(row['file_ch'])
 
             if row['cell_id'] not in input_info['cell_images'].keys():
                 input_info['cell_images'][row['cell_id']] = {}
-            input_info['cell_images'][row['cell_id']][f"{color}_filepath"] = row['filename']
+            # input_info['cell_images'][row['cell_id']][f"{color}_filepath"] = row['filename']
+            if color == 'cyan':
+                input_info['cell_images'][row['cell_id']]["livedead"] = os.path.join(prefix, row['filename'])
+            else:
+                input_info['cell_images'][row['cell_id']]["cfse"] = os.path.join(prefix, row['filename'])
 
         for cell_id in input_info['cell_images'].keys():
             tif_count = len(input_info['cell_images'][cell_id].keys())
@@ -150,7 +149,7 @@ class MicroscopePreprocessing(workflows.analysis.base.Analysis):
             output_dirs={
                 'out_dir': out_path,
             },
-            max_jobs='400',
+            max_jobs='1000',
             dirs=dirs,
         )
 

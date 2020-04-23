@@ -23,6 +23,7 @@ import workflows.analysis.dlp.merge_cell_bams
 import workflows.analysis.dlp.split_wgs_bam
 import workflows.analysis.dlp.variant_calling
 import workflows.analysis.dlp.snv_genotyping
+import workflows.analysis.dlp.microscope
 
 import datamanagement.templates as templates
 from datamanagement.transfer_files import transfer_dataset
