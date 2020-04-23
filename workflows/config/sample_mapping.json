@@ -131,6 +131,14 @@
         "normal_sample_id": "SA1202N",
         "normal_library_id": "09443_I"
     },
+    "SA1256": {
+        "normal_sample_id": "SA1256N",
+        "normal_library_id": "09443_AD"
+    },
+    "SA1257": {
+        "normal_sample_id": "SA1256N",
+        "normal_library_id": "09443_AD"
+    },
     "TFRIPAIR2": {
         "normal_sample_id": "TFRIPAIR2_FL",
         "normal_library_id": "A98288"
@@ -138,5 +146,465 @@
     "TFRIPAIR3": {
         "normal_sample_id": "TFRIPAIR3_FL",
         "normal_library_id": "A98297"
+    },
+    "SA1073": {
+        "normal_sample_id": "SA1073N",
+        "normal_library_id": "A80248"
+    },
+    "SA1071": {
+        "normal_sample_id": "SA1071N",
+        "normal_library_id": "A80246"
+    },
+    "SA718": {
+        "normal_sample_id": "SA718N",
+        "normal_library_id": "A51604"
+    },
+    "SA1072": {
+        "normal_sample_id": "SA1072N",
+        "normal_library_id": "A80247"
+    },
+    "SA1130": {
+        "normal_sample_id": "SA1130N",
+        "normal_library_id": "A94377"
+    },
+    "SA1074": {
+        "normal_sample_id": "SA1074N",
+        "normal_library_id": "A80249"
+    },
+    "SA1139": {
+        "normal_sample_id": "SA1139N",
+        "normal_library_id": "A95557"
+    },
+    "SA533": {
+        "normal_sample_id": "SA533N",
+        "normal_library_id": "A30656"
+    },
+    "SA576": {
+        "normal_sample_id": "SA576N",
+        "normal_library_id": "A44773"
+    },
+    "SA610": {
+        "normal_sample_id": "SA610N",
+        "normal_library_id": "A49449"
+    },
+    "SA1062": {
+        "normal_sample_id": "SA1062N",
+        "normal_library_id": "A80237"
+    },
+    "SA605": {
+        "normal_sample_id": "SA605N",
+        "normal_library_id": "A49446"
+    },
+    "SA1064": {
+        "normal_sample_id": "SA1064N",
+        "normal_library_id": "A80239"
+    },
+    "SA1065": {
+        "normal_sample_id": "SA1065N",
+        "normal_library_id": "A80240"
+    },
+    "SA1140": {
+        "normal_sample_id": "SA1140N",
+        "normal_library_id": "A95558"
+    },
+    "SA402": {
+        "normal_sample_id": "SA402N",
+        "normal_library_id": "A47296"
+    },
+    "SA404": {
+        "normal_sample_id": "SA404N",
+        "normal_library_id": "A47298"
+    },
+    "SA720": {
+        "normal_sample_id": "SA720N",
+        "normal_library_id": "A51606"
+    },
+    "SA1069": {
+        "normal_sample_id": "SA1069N",
+        "normal_library_id": "A80244"
+    },
+    "SA1070": {
+        "normal_sample_id": "SA1070N",
+        "normal_library_id": "A80245"
+    },
+    "SA495": {
+        "normal_sample_id": "SA495N",
+        "normal_library_id": "A20871"
+    },
+    "SA585": {
+        "normal_sample_id": "SA585N",
+        "normal_library_id": "A47280"
+    },
+    "SA666": {
+        "normal_sample_id": "SA666N",
+        "normal_library_id": "A48994"
+    },
+    "SA586": {
+        "normal_sample_id": "SA586N",
+        "normal_library_id": "A47281"
+    },
+    "SA667": {
+        "normal_sample_id": "SA667N",
+        "normal_library_id": "A51461"
+    },
+    "SA218": {
+        "normal_sample_id": "SA218N",
+        "normal_library_id": "A50137"
+    },
+    "SA289": {
+        "normal_sample_id": "SA289N",
+        "normal_library_id": "A26505"
+    },
+    "SA588": {
+        "normal_sample_id": "SA588N",
+        "normal_library_id": "A47282"
+    },
+    "SA291": {
+        "normal_sample_id": "SA291N",
+        "normal_library_id": "A26506"
+    },
+    "SA219": {
+        "normal_sample_id": "SA219N",
+        "normal_library_id": "A50138"
+    },
+    "SA394": {
+        "normal_sample_id": "SA394N",
+        "normal_library_id": "A48992"
+    },
+    "SA668": {
+        "normal_sample_id": "SA668N",
+        "normal_library_id": "A48996"
+    },
+    "SA274": {
+        "normal_sample_id": "SA274N",
+        "normal_library_id": "A47301"
+    },
+    "SA590": {
+        "normal_sample_id": "SA590N",
+        "normal_library_id": "A47284"
+    },
+    "SA214": {
+        "normal_sample_id": "SA214N",
+        "normal_library_id": "A91662"
+    },
+    "SA669": {
+        "normal_sample_id": "SA669N",
+        "normal_library_id": "A48997"
+    },
+    "SA234": {
+        "normal_sample_id": "SA234N",
+        "normal_library_id": "A91673"
+    },
+    "SA229": {
+        "normal_sample_id": "SA229N",
+        "normal_library_id": "A91669"
+    },
+    "SA398": {
+        "normal_sample_id": "SA398N",
+        "normal_library_id": "A49014"
+    },
+    "SA286": {
+        "normal_sample_id": "SA286N",
+        "normal_library_id": "A26504"
+    },
+    "SA272": {
+        "normal_sample_id": "SA272N",
+        "normal_library_id": "A49015"
+    },
+    "SA288": {
+        "normal_sample_id": "SA288N",
+        "normal_library_id": "A46110"
+    },
+    "SA591": {
+        "normal_sample_id": "SA591N",
+        "normal_library_id": "A47285"
+    },
+    "SA279": {
+        "normal_sample_id": "SA279N",
+        "normal_library_id": "A47304"
+    },
+    "SA290": {
+        "normal_sample_id": "SA290N",
+        "normal_library_id": "A46109"
+    },
+    "SA285": {
+        "normal_sample_id": "SA285N",
+        "normal_library_id": "A46108"
+    },
+    "SA239": {
+        "normal_sample_id": "SA239N",
+        "normal_library_id": "A06684"
+    },
+    "SA592": {
+        "normal_sample_id": "SA592N",
+        "normal_library_id": "A47286"
+    },
+    "SA420": {
+        "normal_sample_id": "SA420N",
+        "normal_library_id": "A46102"
+    },
+    "SA671": {
+        "normal_sample_id": "SA671N",
+        "normal_library_id": "A48999"
+    },
+    "SA425": {
+        "normal_sample_id": "SA425N",
+        "normal_library_id": "A08462"
+    },
+    "SA423": {
+        "normal_sample_id": "SA423N",
+        "normal_library_id": "A08461"
+    },
+    "SA409": {
+        "normal_sample_id": "SA409N",
+        "normal_library_id": "A46098"
+    },
+    "SA672": {
+        "normal_sample_id": "SA672N",
+        "normal_library_id": "A49000"
+    },
+    "SA673": {
+        "normal_sample_id": "SA673N",
+        "normal_library_id": "A49001"
+    },
+    "SA593": {
+        "normal_sample_id": "SA593N",
+        "normal_library_id": "A47287"
+    },
+    "SA674": {
+        "normal_sample_id": "SA674N",
+        "normal_library_id": "A49002"
+    },
+    "SA654": {
+        "normal_sample_id": "SA654N",
+        "normal_library_id": "A47299"
+    },
+    "SA675": {
+        "normal_sample_id": "SA675N",
+        "normal_library_id": "A49003"
+    },
+    "SA676": {
+        "normal_sample_id": "SA676N",
+        "normal_library_id": "A49004"
+    },
+    "SA677": {
+        "normal_sample_id": "SA677N",
+        "normal_library_id": "A49005"
+    },
+    "SA232": {
+        "normal_sample_id": "SA232N",
+        "normal_library_id": "A06682"
+    },
+    "SA595": {
+        "normal_sample_id": "SA595N",
+        "normal_library_id": "A47289"
+    },
+    "SA678": {
+        "normal_sample_id": "SA678N",
+        "normal_library_id": "A49006"
+    },
+    "SA226": {
+        "normal_sample_id": "SA226N",
+        "normal_library_id": "A91667"
+    },
+    "SA228": {
+        "normal_sample_id": "SA228N",
+        "normal_library_id": "A91668"
+    },
+    "SA679": {
+        "normal_sample_id": "SA679N",
+        "normal_library_id": "A49007"
+    },
+    "SA680": {
+        "normal_sample_id": "SA680N",
+        "normal_library_id": "A49008"
+    },
+    "SA665": {
+        "normal_sample_id": "SA665N",
+        "normal_library_id": "A48158"
+    },
+    "SA681": {
+        "normal_sample_id": "SA681N",
+        "normal_library_id": "A49009"
+    },
+    "SA596": {
+        "normal_sample_id": "SA596N",
+        "normal_library_id": "A47290"
+    },
+    "SA682": {
+        "normal_sample_id": "SA682N",
+        "normal_library_id": "A49011"
+    },
+    "SA597": {
+        "normal_sample_id": "SA597N",
+        "normal_library_id": "A47291"
+    },
+    "SA284": {
+        "normal_sample_id": "SA284N",
+        "normal_library_id": "A91679"
+    },
+    "SA598": {
+        "normal_sample_id": "SA598N",
+        "normal_library_id": "A47292"
+    },
+    "SA599": {
+        "normal_sample_id": "SA599N",
+        "normal_library_id": "A47293"
+    },
+    "SA600": {
+        "normal_sample_id": "SA600N",
+        "normal_library_id": "A47294"
+    },
+    "SA683": {
+        "normal_sample_id": "SA683N",
+        "normal_library_id": "A49010"
+    },
+    "SA655": {
+        "normal_sample_id": "SA655N",
+        "normal_library_id": "A47300"
+    },
+    "SA280": {
+        "normal_sample_id": "SA280N",
+        "normal_library_id": "A26507"
+    },
+    "SA283": {
+        "normal_sample_id": "SA283N",
+        "normal_library_id": "A48990"
+    },
+    "SA212": {
+        "normal_sample_id": "SA212N",
+        "normal_library_id": "A91661"
+    },
+    "SA395": {
+        "normal_sample_id": "SA395N",
+        "normal_library_id": "A48993"
+    },
+    "SA230": {
+        "normal_sample_id": "SA230N",
+        "normal_library_id": "A91670"
+    },
+    "SA275": {
+        "normal_sample_id": "SA275N",
+        "normal_library_id": "A48989"
+    },
+    "SA221": {
+        "normal_sample_id": "SA221N",
+        "normal_library_id": "A06679"
+    },
+    "SA287": {
+        "normal_sample_id": "SA287N",
+        "normal_library_id": "A47302"
+    },
+    "SA211": {
+        "normal_sample_id": "SA211N",
+        "normal_library_id": "A91660"
+    },
+    "SA601": {
+        "normal_sample_id": "SA601N",
+        "normal_library_id": "A47295"
+    },
+    "SA1027": {
+        "normal_sample_id": "SA1027N",
+        "normal_library_id": "A77824"
+    },
+    "SA1028": {
+        "normal_sample_id": "SA1028N",
+        "normal_library_id": "A77839"
+    },
+    "SA998": {
+        "normal_sample_id": "SA998N",
+        "normal_library_id": "A66769"
+    },
+    "SA994": {
+        "normal_sample_id": "SA994N",
+        "normal_library_id": "A77818"
+    },
+    "SA1017": {
+        "normal_sample_id": "SA1017N",
+        "normal_library_id": "A77803"
+    },
+    "SA997": {
+        "normal_sample_id": "SA997N",
+        "normal_library_id": "A66771"
+    },
+    "SA992": {
+        "normal_sample_id": "SA992N",
+        "normal_library_id": "A77809"
+    },
+    "SA1026": {
+        "normal_sample_id": "SA1026N",
+        "normal_library_id": "A77871"
+    },
+    "SA1040": {
+        "normal_sample_id": "SA1040N",
+        "normal_library_id": "A77887"
+    },
+    "SA101": {
+        "normal_sample_id": "SA101N",
+        "normal_library_id": "A91659"
+    },
+    "SA225": {
+        "normal_sample_id": "SA225N",
+        "normal_library_id": "A91666"
+    },
+    "SA220": {
+        "normal_sample_id": "SA220N",
+        "normal_library_id": "A91663"
+    },
+    "SA224": {
+        "normal_sample_id": "SA224N",
+        "normal_library_id": "A91665"
+    },
+    "SA231": {
+        "normal_sample_id": "SA231N",
+        "normal_library_id": "A91671"
+    },
+    "SA233": {
+        "normal_sample_id": "SA233N",
+        "normal_library_id": "A91672"
+    },
+    "SA237": {
+        "normal_sample_id": "SA237N",
+        "normal_library_id": "A91674"
+    },
+    "SA271": {
+        "normal_sample_id": "SA271N",
+        "normal_library_id": "A91675"
+    },
+    "SA277": {
+        "normal_sample_id": "SA277N",
+        "normal_library_id": "A91676"
+    },
+    "SA278": {
+        "normal_sample_id": "SA278N",
+        "normal_library_id": "A91677"
+    },
+    "SA282": {
+        "normal_sample_id": "SA282N",
+        "normal_library_id": "A91678"
+    },
+    "SA294": {
+        "normal_sample_id": "SA294N",
+        "normal_library_id": "A91686"
+    },
+    "SA297": {
+        "normal_sample_id": "SA297N",
+        "normal_library_id": "A91680"
+    },
+    "SA399": {
+        "normal_sample_id": "SA399N",
+        "normal_library_id": "A91681"
+    },
+    "SA400": {
+        "normal_sample_id": "SA400N",
+        "normal_library_id": "A91682"
+    },
+    "SA415": {
+        "normal_sample_id": "SA415N",
+        "normal_library_id": "A91683"
+    },
+    "SA416": {
+        "normal_sample_id": "SA416N",
+        "normal_library_id": "A91684"
     }
 }
