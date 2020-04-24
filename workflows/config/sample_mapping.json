@@ -131,11 +131,11 @@
         "normal_sample_id": "SA1202N",
         "normal_library_id": "09443_I"
     },
-    "SA1256": {
-        "normal_sample_id": "SA1256N",
-        "normal_library_id": "09443_AD"
+    "SA1255": {
+        "normal_sample_id": "SA1255N",
+        "normal_library_id": "09443_S"
     },
-    "SA1257": {
+    "SA1256": {
         "normal_sample_id": "SA1256N",
         "normal_library_id": "09443_AD"
     },
