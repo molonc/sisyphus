@@ -25,6 +25,15 @@ def add_microscope_results(filepaths, chip_id, library_ids, storage_name, tag_na
     results_type = 'MICROSCOPE'
     results_version = None
 
+    try:
+        existing_results = tantalus_api.get('results', name=results_name)
+    except NotFoundError:
+        existing_results = None
+
+    if existing_results is not None and not update:
+        logging.info(f'results for {chip_id} exist, not processing')
+        return
+
     results_dataset = add_generic_results(
         filepaths=filepaths,
         storage_name=storage_name,
@@ -70,7 +79,7 @@ def glob_microscope_data(filepaths, storage_name, tag_name=None, update=False, r
         libraries = list(tantalus_api.list('dna_library', library_id__startswith=chip_id))
 
         if len(libraries) == 0:
-            logging.eror('skipping file with unknown library {}'.format(filepath))
+            logging.error('skipping file with unknown library {}'.format(filepath))
             continue
 
         library_ids = set([library['library_id'] for library in libraries])
