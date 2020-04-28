@@ -9,6 +9,7 @@ colossus_api = ColossusApi()
 tantalus_api = TantalusApi()
 
 log = logging.getLogger('sisyphus')
+jira_api = get_jira_api()
 
 
 def get_jira_api():
@@ -30,7 +31,6 @@ def get_parent_issue(jira_id):
         parent_ticket (str): Ticket id of parent ticket
 
     """
-    jira_api = get_jira_api()
 
     issue = jira_api.issue(jira_id)
 
@@ -49,10 +49,21 @@ def comment_jira(jira_id, comment):
     Comment on jira ticket
     """
 
-    jira_api = get_jira_api()
     log.info("Commenting \n{} on ticket {}".format(comment, jira_id))
 
     jira_api.add_comment(jira_id, comment)
+
+
+def close_ticket(jira_id):
+    """
+    Close jira ticket
+
+    Arguments:
+        jira_id {str} -- jira ticket id
+    """
+
+    issue = jira_api.issue(jira_id)
+    jira_api.transition_issue(issue, '2')
 
 
 def update_jira_dlp(jira_id, aligner):
@@ -75,7 +86,13 @@ def update_jira_dlp(jira_id, aligner):
         update_description(jira_id, description, "shwu", remove_watcher=True)
 
     else:
-        update_description(jira_id, description, "jbiele", remove_watcher=True)
+        # assign parent ticket to justina
+        parent_jira_id = get_parent_issue(jira_id)
+        issue = jira_api.issue(parent_jira_id)
+        issue.update(notify=False, assignee={"name": "jbiele"})
+
+        update_description(jira_id, description, "jpham", remove_watcher=True)
+        close_ticket(jira_id)
 
 
 def update_jira_tenx(jira_id, args):
@@ -100,11 +117,16 @@ def update_jira_tenx(jira_id, args):
         "Colossus Library: https://colossus.canadacentral.cloudapp.azure.com/tenx/library/{}".format(library_id),
     ]
 
-    update_description(jira_id, description, "coflanagan", remove_watcher=True)
+    # assign parent ticket to justina
+    parent_jira_id = get_parent_issue(jira_id)
+    issue = jira_api.issue(parent_jira_id)
+    issue.update(notify=False, assignee={"name": "jbwang"})
+
+    update_description(jira_id, description, "jpham", remove_watcher=True)
+    close_ticket(jira_id)
 
 
 def update_description(jira_id, description, assignee, remove_watcher=False):
-    jira_api = get_jira_api()
 
     description = '\n\n'.join(description)
     issue = jira_api.issue(jira_id)
@@ -116,8 +138,6 @@ def add_attachment(jira_id, attachment_file_path, attachment_filename):
     """
     Checks if file is already added to jira ticket; attaches if not. 
     """
-
-    jira_api = get_jira_api()
 
     issue = jira_api.issue(jira_id)
     current_attachments = [a.filename for a in issue.fields.attachment]
@@ -142,7 +162,6 @@ def create_ticket(key, summary):
         str -- created ticket id
     """
     jira_user = os.environ['JIRA_USERNAME']
-    jira_api = get_jira_api()
 
     task = {
         'project': {
@@ -170,7 +189,6 @@ def create_jira_ticket_from_library(library_id):
         analysis_jira_ticket: jira ticket id (ex. SC-1234)
     """
     jira_user = os.environ['JIRA_USERNAME']
-    jira_api = get_jira_api()
 
     library = colossus_api.get('library', pool_id=library_id)
     sample_id = library['sample']['sample_id']
@@ -200,10 +218,6 @@ def create_jira_ticket_from_library(library_id):
 
     # Add watchers
     jira_api.add_watcher(analysis_jira_ticket, jira_user)
-    jira_api.add_watcher(analysis_jira_ticket, 'jedwards')
-    jira_api.add_watcher(analysis_jira_ticket, 'jbiele')
-    jira_api.add_watcher(analysis_jira_ticket, 'jbwang')
-    jira_api.add_watcher(analysis_jira_ticket, 'elaks')
 
     # Assign task to myself
     analysis_issue = jira_api.issue(analysis_jira_ticket)
