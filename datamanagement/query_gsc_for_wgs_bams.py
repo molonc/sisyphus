@@ -59,8 +59,8 @@ def rsync_file(from_path, to_path, sftp=None, remote_host=None):
     subprocess_cmd = [
         "rsync",
         "-avPL",
-        "--chmod=D555",
-        "--chmod=F444",
+        "--chmod=Da+rw",
+        "--chmod=Fa+r",
         transfer_from_path,
         to_path,
     ]
@@ -418,7 +418,7 @@ def get_merge_info(details_list, gsc_api, library, sample, skip_older_than):
     Returns:
         merged_lanes:   (set) 
     """
-    merge_infos = gsc_api.query("merge?library={}".format(library["library_id"]))
+    merge_infos = gsc_api.query("merge?library={}&production=true".format(library["library_id"]))
     merged_lanes = set()
     for merge_info in merge_infos:
         data_path = merge_info["data_path"]
@@ -452,6 +452,12 @@ def get_merge_info(details_list, gsc_api, library, sample, skip_older_than):
                 assert len(libcores) == 1
                 libcore = libcores[0]
                 primer = gsc_api.query("primer/{}".format(libcore["primer_id"]))
+            elif merge_xref["object_type"] == "repo.analysis":
+                aligned_libcore_id = gsc_api.query("repo_analysis/{}".format(merge_xref["object_id"]))["aligned_libcore_id"]
+                aligned_libcore = gsc_api.query("aligned_libcore/{}/info".format(aligned_libcore_id))
+                libcore = aligned_libcore["libcore"]
+                run = libcore["run"]
+                primer = libcore["primer"]
             else:
                 raise Exception('unknown object type {}'.format(merge_xref["object_type"]))
             flowcell_info = gsc_api.query("flowcell/{}".format(run["flowcell_id"]))

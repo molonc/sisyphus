@@ -120,7 +120,7 @@ class AzureBlobServerDownload(object):
         self.from_storage = from_storage
         self.to_storage_name = to_storage_name
         self.to_storage_prefix = to_storage_prefix
-
+        self.block_blob_service = self.storage_client.blob_service
     def download_from_blob(self, file_instance, overwrite=False):
         """ Download file from blob to a server.
 

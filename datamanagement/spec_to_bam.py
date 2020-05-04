@@ -77,7 +77,7 @@ def spec_to_bam(spec_path,
     # If an sftp client was passed in 
     if sftp_client:
         # Connect to thost via SSH client
-        local_spec_path = oytput_bam_path + ".spec"
+        local_spec_path = output_bam_path + ".spec"
         cmd = [
             "rsync",
             "-avPL",
