@@ -9,15 +9,11 @@ colossus_api = ColossusApi()
 tantalus_api = TantalusApi()
 
 log = logging.getLogger('sisyphus')
-jira_api = get_jira_api()
 
+jira_user = os.environ['JIRA_USERNAME']
+jira_password = os.environ['JIRA_PASSWORD']
+jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(jira_user, jira_password))
 
-def get_jira_api():
-    jira_user = os.environ['JIRA_USERNAME']
-    jira_password = os.environ['JIRA_PASSWORD']
-    jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(jira_user, jira_password))
-
-    return jira_api
 
 
 def get_parent_issue(jira_id):
