@@ -317,21 +317,29 @@ def import_gsc_dlp_paired_fastqs(
     # to fetch primers
     primer_libcore = collections.defaultdict(set)
 
-    # initialize flowcell id
-    flowcell_id = None
+    # initialize flowcell mapping where key will be  flowcell id and value is flowcell code
+    flowcell_id_mapping = {}
     for fastq_info in gsc_fastq_infos:
         # check if cell condition start with GSC as we do not have permission to these
         if gsc_library_id.startswith("IX") and fastq_info["libcore"]["library"]["cell_condition"].startswith("GSC-"):
             continue
 
-        # check if flowcell_id not set
-        # NOTE: the same batch of fastqs have the same flowcell id so only need to query once
-        if not flowcell_id:
-            logging.info("Fetching flowcell information")
-            # get flowcell lane name
-            flowcell_id = str(fastq_info['libcore']['run']['flowcell_id'])
+        # get flowcell id
+        flowcell_id = str(fastq_info['libcore']['run']['flowcell_id'])
+
+        # check if flowcell id hasnt already been added to mapping
+        if flowcell_id not in flowcell_id_mapping:
+            # query for flowcell info
             flowcell_info = gsc_api.query("flowcell?id={}".format(flowcell_id))
-            flowcell_id = str(flowcell_info[0]['lims_flowcell_code'])
+            # get flowcell code name
+            flowcell_code = str(flowcell_info[0]['lims_flowcell_code'])
+            # add to flowcell id mapping
+            flowcell_id_mapping[flowcell_id] = flowcell_code
+            # use flowecell code as flowcell id
+            flowcell_id = flowcell_code
+
+        else:
+            flowcell_id = flowcell_id_mapping[flowcell_id]
 
         # get flowcell lane number
         lane_number = str(fastq_info['libcore']['run']['lane_number'])
@@ -632,7 +640,7 @@ def check_lanes(colossus_api, sequencing, num_lanes):
         logging.info('Sequencing goal is less than total number of lanes. Updating.')
         colossus_api.update('sequencing', sequencing['id'], number_of_lanes_requested=num_lanes)
 
-    elif sequencing['number_of_lanes_requested'] > num_lanes:
+    else:
         raise Exception("Expected number of lanes is {} but total lanes imported is {}".format(
             sequencing['number_of_lanes_requested'], num_lanes))
 
@@ -756,6 +764,7 @@ def main(storage_name,
     # importing all libraries from the gsc
     elif all:
         sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC'))
+
     # importing only sequencing expecting more lanes
     else:
         sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC'))
