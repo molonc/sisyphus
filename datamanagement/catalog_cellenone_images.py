@@ -8,6 +8,8 @@ import collections
 import re
 import yaml
 import pandas as pd
+import PIL.Image
+import tempfile
 
 from dbclients.basicclient import NotFoundError
 from dbclients.tantalus import TantalusApi
@@ -129,13 +131,14 @@ def _copy_if_different(source_filepath, destination_filepath):
         logging.info(f'skipping copy of {source_filepath} to {destination_filepath} with same size')
 
 
-def catalog_images(library_id, source_dir, destination_dir):
+def catalog_images(library_id, source_dir, destination_dir, temp_dir):
     """ Catalog cellenone images and organize into a new directory
     
     Args:
         library_id (str): DLP Library ID
         source_dir (str): Source Cellenone directory
         destination_dir (str): Destination catalogued images directory
+        temp_dir (str): Temporary directory
     """
 
     catalog = read_cellenone_isolated_files(source_dir)
@@ -187,15 +190,22 @@ def catalog_images(library_id, source_dir, destination_dir):
         if original_filename is None:
             continue
 
-        new_filename = background_filename_template.format(idx=idx, extension=original_extension)
+        original_filepath = os.path.join(source_dir, original_filename)
+
+        new_filename = background_filename_template.format(idx=idx, extension='.png')
         new_filepath = os.path.join(destination_dir, new_filename)
+
+        if original_extension != '.png':
+            copy_from_filepath = os.path.join(temp_dir, new_filename)
+            PIL.Image.open(original_filepath).save(copy_from_filepath)
+
+        else:
+            copy_from_filepath = original_filepath
 
         catalog.loc[catalog['original_background_filename'] == original_filename, 'background_idx'] = idx
         catalog.loc[catalog['original_background_filename'] == original_filename, 'background_filename'] = new_filename
 
-        original_filepath = os.path.join(source_dir, original_filename)
-
-        _copy_if_different(original_filepath, new_filepath)
+        _copy_if_different(copy_from_filepath, new_filepath)
 
         filepaths.append(new_filepath)
 
@@ -285,7 +295,8 @@ def process_cellenone_images(
     except:
         pass
 
-    filepaths = catalog_images(library_id, source_dir, destination_dir)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        filepaths = catalog_images(library_id, source_dir, destination_dir, temp_dir)
 
     results_dataset = add_generic_results(
         filepaths=filepaths,
