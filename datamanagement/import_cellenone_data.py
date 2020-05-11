@@ -17,13 +17,21 @@ from dbclients.colossus import ColossusApi
 from add_generic_results import add_generic_results
 
 
-def add_cellenone_results(filepaths, library_id, storage_name, tag_name=None, update=False, remote_storage_name=None):
+def add_cellenone_results(filepaths, library_id, storage_name, tag_name=None, update=False, skip_existing=False, remote_storage_name=None):
     colossus_api = ColossusApi()
     tantalus_api = TantalusApi()
 
     results_name = 'CELLENONE_{}'.format(library_id)
     results_type = 'CELLENONE'
     results_version = None
+
+    try:
+        existing_results = tantalus_api.get('resultsdataset', name=results_name, results_type=results_type)
+    except NotFoundError:
+        existing_results = None
+
+    if skip_existing and existing_results is not None:
+        return existing_results
 
     results_dataset = add_generic_results(
         filepaths=filepaths,
@@ -38,6 +46,8 @@ def add_cellenone_results(filepaths, library_id, storage_name, tag_name=None, up
         remote_storage_name=remote_storage_name,
     )
 
+    return results_dataset
+
 
 @click.group()
 def cli():
@@ -49,15 +59,16 @@ def cli():
 @click.option('--storage_name')
 @click.option('--tag_name')
 @click.option('--update', is_flag=True)
+@click.option('--skip_existing', is_flag=True)
 @click.option('--remote_storage_name')
-def glob_cellenone_data(filepaths, storage_name, tag_name=None, update=False, remote_storage_name=None):
+def glob_cellenone_data(filepaths, storage_name, tag_name=None, update=False, skip_existing=False, remote_storage_name=None):
 
     tantalus_api = TantalusApi()
 
     library_paths = collections.defaultdict(set)
 
     for filepath in filepaths:
-        match = re.match(r".*/single_cell_indexing/Cellenone/Cellenone_images/(\d+)_(A\d+[A-Z]*)/", filepath)
+        match = re.match(r".*/single_cell_indexing/Cellenone/Cellenone_images/(\d+)_(A\d+[A-Z]*)/?$", filepath)
         if match is None:
             logging.warning('skipping malformed {}'.format(filepath))
             continue
@@ -72,12 +83,14 @@ def glob_cellenone_data(filepaths, storage_name, tag_name=None, update=False, re
             logging.warning('skipping file with unknown library {}'.format(filepath))
             continue
 
+        logging.info(f'queueing library {library_id} data from {filepath}')
         library_paths[library_id].add(filepath)
 
     for library_id in library_paths:
         add_cellenone_results(
             library_paths[library_id], library_id,
             storage_name, tag_name=tag_name, update=update,
+            skip_existing=skip_existing,
             remote_storage_name=remote_storage_name,
         )
 
