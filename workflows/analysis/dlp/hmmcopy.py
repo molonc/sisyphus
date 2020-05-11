@@ -192,6 +192,10 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
         storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         out_path = os.path.join(storage_client.prefix, self.out_dir)
 
+        # get scp configuration i.e. specifies aligner and reference genome
+        scp_config = self.get_config(self.args)
+        run_options['config_override'] = scp_config
+
         return workflows.analysis.dlp.launchsc.run_pipeline(
             analysis_type='hmmcopy',
             version=self.version,

@@ -1,6 +1,7 @@
+import json
+import click
 import logging
 import datetime
-import click
 import pandas as pd
 
 import dbclients.tantalus
@@ -134,6 +135,27 @@ class Analysis:
             logging.info(f'existing analysis {analysis["id"]} is identical')
 
         return analysis
+
+    def get_config(self, args):
+        """ 
+        Get configuration string for scp docker command
+        """
+
+        reference_genome_map = {
+            'HG19': 'grch37',
+            'MM10': 'mm10',
+        }
+
+        config = {
+            'aligner': args["aligner"].lower().replace("_", "-"),
+            'reference': reference_genome_map[args["ref_genome"]],
+        }
+
+        config_string = json.dumps(config)
+
+        # Remove all whitespace
+        config_string = ''.join(config_string.split()) 
+        return r"{}".format(config_string)
 
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         raise NotImplementedError()

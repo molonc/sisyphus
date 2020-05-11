@@ -273,6 +273,10 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
         bams_storage_client = self.tantalus_api.get_storage_client(storages["working_inputs"])
         bams_path = os.path.join(bams_storage_client.prefix, self.bams_dir)
 
+        # get scp configuration i.e. specifies aligner and reference genome
+        scp_config = self.get_config(self.args)
+        run_options['config_override'] = scp_config
+
         return workflows.analysis.dlp.launchsc.run_pipeline(
             analysis_type='alignment',
             version=self.version,
