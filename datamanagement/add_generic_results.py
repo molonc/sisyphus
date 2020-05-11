@@ -87,21 +87,11 @@ def add_generic_results(
 
         for add_filepath in add_filepaths:
             logging.info("Adding file resource for {} to Tantalus".format(add_filepath))
-            success = False
-            for attempt in range(3):
-                try:
-                    resource, instance = tantalus_api.add_file(
-                        storage_name=storage_name,
-                        filepath=add_filepath,
-                        update=update,
-                    )
-                    success = True
-                    break
-                except:
-                    logging.exception(f'failed at attempt {attempt}')
-                time.sleep(10)
-            if not success:
-                raise Exception('failed to add file')
+            resource, instance = tantalus_api.add_file(
+                storage_name=storage_name,
+                filepath=add_filepath,
+                update=update,
+            )
             file_resource_pks.append(resource["id"])
 
     results_dataset_fields = dict(
