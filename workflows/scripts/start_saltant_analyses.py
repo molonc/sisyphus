@@ -89,7 +89,7 @@ def from_table(saltant_user, saltant_queue, jira_ticket_file, analysis_type, del
 @click.option('--delay', type=int)
 @click.option('--update', is_flag=True)
 @click.option('--rerun', is_flag=True)
-def from_ids(saltant_user, saltant_queue, analysis_ids, delay=None, update=True, rerun=True):
+def from_ids(saltant_user, saltant_queue, analysis_ids, delay=None, update=False, rerun=False):
     tantalus_api = dbclients.tantalus.TantalusApi()
 
     for analysis_id in analysis_ids:

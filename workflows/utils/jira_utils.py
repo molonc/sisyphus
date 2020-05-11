@@ -57,9 +57,12 @@ def close_ticket(jira_id):
     Arguments:
         jira_id {str} -- jira ticket id
     """
-
+    # get jira issue
     issue = jira_api.issue(jira_id)
-    jira_api.transition_issue(issue, '2')
+    # check if ticket isn't closed
+    if issue.fields.status.name != "Closed":
+        # close ticket
+        jira_api.transition_issue(issue, '2')
 
 
 def update_jira_dlp(jira_id, aligner):
