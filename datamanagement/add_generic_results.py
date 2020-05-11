@@ -9,7 +9,6 @@ import sys
 import click
 import json
 import ast
-import time
 import pandas as pd
 
 from datamanagement.utils.constants import LOGGING_FORMAT
