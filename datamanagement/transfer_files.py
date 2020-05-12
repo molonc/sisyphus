@@ -486,12 +486,13 @@ def _transfer_files_with_retry(f_transfer, file_instance, overwrite=False):
 @click.argument("dataset_model", type=click.Choice(["sequencedataset", "resultsdataset"]))
 @click.argument("from_storage_name")
 @click.argument("to_storage_name")
-def transfer_dataset_cmd(dataset_id, dataset_model, from_storage_name, to_storage_name):
+@click.option("--suffix_filter", required=False)
+def transfer_dataset_cmd(dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=None):
     tantalus_api = TantalusApi()
-    transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name)
+    transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=suffix_filter)
 
 
-def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name):
+def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=None):
     """ Transfer a dataset
     """
     assert dataset_model in ("sequencedataset", "resultsdataset")
@@ -507,7 +508,11 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
 
     f_transfer = get_file_transfer_function(tantalus_api, from_storage, to_storage)
 
-    file_instances = tantalus_api.get_dataset_file_instances(dataset_id, dataset_model, from_storage_name)
+    if suffix_filter is not None:
+        file_instances = tantalus_api.get_dataset_file_instances(dataset_id, dataset_model, from_storage_name, filters={'filename__endswith': suffix_filter})
+
+    else:
+        file_instances = tantalus_api.get_dataset_file_instances(dataset_id, dataset_model, from_storage_name)
 
     for file_instance in file_instances:
         file_resource = file_instance["file_resource"]
