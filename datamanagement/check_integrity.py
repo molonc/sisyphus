@@ -10,7 +10,7 @@ logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO
 logging.getLogger('azure.storage').setLevel(logging.ERROR)
 
 
-def get_dataset_file_instances(tantalus_api, dataset_type, dataset_id=None, tag_name=None):
+def get_dataset_file_instances(tantalus_api, dataset_type, dataset_id=None, tag_name=None, filters=None):
     if dataset_type is None:
         raise ValueError('require dataset type')
 
@@ -33,7 +33,7 @@ def get_dataset_file_instances(tantalus_api, dataset_type, dataset_id=None, tag_
         logging.info('checking dataset with id {}, name {}'.format(
             dataset['id'], dataset['name']))
 
-        for file_resource in tantalus_api.get_dataset_file_resources(dataset['id'], dataset_type):
+        for file_resource in tantalus_api.get_dataset_file_resources(dataset['id'], dataset_type, filters=filters):
             yield file_resource
 
 
@@ -42,6 +42,7 @@ def get_dataset_file_instances(tantalus_api, dataset_type, dataset_id=None, tag_
 @click.option('--dataset_type')
 @click.option('--dataset_id', type=int)
 @click.option('--tag_name')
+@click.option('--filename_prefix')
 @click.option('--all_file_instances', is_flag=True)
 @click.option('--dry_run', is_flag=True)
 @click.option('--fix_corrupt', is_flag=True)
@@ -51,6 +52,7 @@ def main(
         dataset_type=None,
         dataset_id=None,
         tag_name=None,
+        filename_prefix=None,
         all_file_instances=False,
         dry_run=False,
         fix_corrupt=False,
@@ -60,12 +62,16 @@ def main(
 
     tantalus_api = TantalusApi()
 
+    filters = None
+    if filename_prefix is not None:
+        filters = {'filename__startswith': filename_prefix}
+
     if all_file_instances:
-        file_resources = tantalus_api.list('file_resource', fileinstance__storage__name=storage_name)
+        file_resources = tantalus_api.list('file_resource', fileinstance__storage__name=storage_name, filters=filters)
 
     else:
         file_resources = get_dataset_file_instances(
-            tantalus_api, dataset_type, dataset_id=dataset_id, tag_name=tag_name)
+            tantalus_api, dataset_type, dataset_id=dataset_id, tag_name=tag_name, filters=filters)
 
     for file_resource in file_resources:
         try:
