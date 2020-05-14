@@ -54,13 +54,26 @@ class HaplotypeCallingAnalysis(workflows.analysis.base.Analysis):
         assert len(self.analysis['input_datasets']) == 1
 
         dataset_id = self.analysis['input_datasets'][0]
-        file_instances = self.tantalus_api.get_dataset_file_instances(
-            dataset_id, 'sequencedataset', storages['working_inputs'],
-            filters={'filename__endswith': '.bam'})
+
+        dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
 
         input_info = {'normal': {}}
-        for file_instance in file_instances:
-            input_info['normal']['bam'] = str(file_instance['filepath'])
+
+        if dataset['library']['library_type'] == 'SC_WGS':
+            input_info['normal'] = workflows.analysis.dlp.utils.get_cell_bams(tantalus_api, dataset, storages)
+
+        elif dataset['library']['library_type'] == 'WGS':
+            file_instances = self.tantalus_api.get_dataset_file_instances(
+                dataset_id,
+                'sequencedataset',
+                storages['working_inputs'],
+                filters={'filename__endswith': '.bam'})
+
+            assert len(file_instances) == 1
+            input_info['normal']['bam'] = str(file_instances[0]['filepath'])
+
+        else:
+            raise ValueError(f'unsupported library type for dataset {dataset}')
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
