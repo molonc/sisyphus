@@ -60,7 +60,7 @@ class HaplotypeCallingAnalysis(workflows.analysis.base.Analysis):
         input_info = {'normal': {}}
 
         if dataset['library']['library_type'] == 'SC_WGS':
-            input_info['normal'] = workflows.analysis.dlp.utils.get_cell_bams(tantalus_api, dataset, storages)
+            input_info['normal'] = workflows.analysis.dlp.utils.get_cell_bams(self.tantalus_api, dataset, storages)
 
         elif dataset['library']['library_type'] == 'WGS':
             file_instances = self.tantalus_api.get_dataset_file_instances(

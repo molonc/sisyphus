@@ -104,7 +104,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                 input_info['normal'] = {}
 
                 if dataset['library']['library_type'] == 'SC_WGS':
-                    input_info['normal'] = workflows.analysis.dlp.utils.get_cell_bams(tantalus_api, dataset, storages)
+                    input_info['normal'] = workflows.analysis.dlp.utils.get_cell_bams(self.tantalus_api, dataset, storages)
 
                 elif dataset['library']['library_type'] == 'WGS':
                     file_instances = self.tantalus_api.get_dataset_file_instances(
@@ -129,7 +129,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                     storages['working_results'],
                 )
 
-                input_info['tumour'] = workflows.analysis.dlp.utils.get_cell_bams(tantalus_api, dataset, storages, passed_cell_ids=cell_ids)
+                input_info['tumour'] = workflows.analysis.dlp.utils.get_cell_bams(self.tantalus_api, dataset, storages, passed_cell_ids=cell_ids)
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
