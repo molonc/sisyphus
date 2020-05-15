@@ -1,6 +1,8 @@
 import collections
 import dateutil.parser
 
+import dbclients.colossus
+
 
 def get_most_recent_dataset(tantalus_api, **kwargs):
     datasets = collections.OrderedDict()
