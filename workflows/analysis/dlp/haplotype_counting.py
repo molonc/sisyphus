@@ -83,10 +83,15 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
             else:
                 raise ValueError('unrecognized results type {results["results_type"]}')
 
-        # Get the haplotypes filepath
+        # Get the haplotypes filepath, analysis version dependent
+        analysis_version = tantalus_api.get('analysis', id=infer_haps_results['analysis'])['version']
+        if packaging.version.parse(analysis_version) < packaging.version.parse('v0.6.0'):
+            haplotypes_filename = 'haplotypes.tsv'
+        else:
+            haplotypes_filename = 'haplotypes.csv.gz'
         file_instances = self.tantalus_api.get_dataset_file_instances(
             infer_haps_results['id'], 'resultsdataset', storages['working_results'],
-            filters={'filename__endswith': 'haplotypes.tsv'})
+            filters={'filename__endswith': haplotypes_filename})
         assert len(file_instances) == 1
         haplotypes_filepath = file_instances[0]['filepath']
 
