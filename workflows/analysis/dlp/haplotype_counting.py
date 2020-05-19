@@ -4,6 +4,7 @@ import logging
 import click
 import sys
 import pandas as pd
+import packaging.version
 
 import dbclients.tantalus
 import workflows.analysis.base
