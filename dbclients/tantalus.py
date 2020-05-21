@@ -625,6 +625,7 @@ class TantalusApi(BasicAPIClient):
                 'file_instance',
                 file_resource__sequencedataset__id=dataset_id,
                 storage__name=storage_name,
+                is_deleted=False,
             )
 
         elif dataset_model == 'resultsdataset':
@@ -632,6 +633,7 @@ class TantalusApi(BasicAPIClient):
                 'file_instance',
                 file_resource__resultsdataset__id=dataset_id,
                 storage__name=storage_name,
+                is_deleted=False,
             )
 
         else:
