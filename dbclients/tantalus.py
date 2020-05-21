@@ -232,9 +232,6 @@ class DataNotOnStorageError(Exception):
 class TantalusApi(BasicAPIClient):
     """Tantalus API class."""
 
-    # Parameters used for pagination
-    pagination_param_names = ("limit", "offset")
-
     def __init__(self):
         """Set up authentication using basic authentication.
 
@@ -251,6 +248,28 @@ class TantalusApi(BasicAPIClient):
 
         self.cached_storages = {}
         self.cached_storage_clients = {}
+
+    def get_list_pagination_initial_params(self, params):
+        """ Get initial pagination parameters specific to this API.
+
+        For example, offset and limit for offset/limit pagination.
+
+        Args:
+            params: A dict which is changed in place.
+        """
+        params["page_size"] = 1000
+        params["page"] = 1
+
+    def get_list_pagination_next_page_params(self, params):
+        """ Get next page pagination parameters specific to this API.
+
+        For example, offset and limit for offset/limit pagination.
+
+        Args:
+            params: A dict which is changed in place.
+        """
+        params["page_size"] = 1000
+        params["page"] += 1
 
     def get_file_resource_filename(self, storage_name, filepath):
         """ Strip the storage directory from a filepath to create a tantalus filename.
