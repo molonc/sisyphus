@@ -387,7 +387,7 @@ class TantalusApi(BasicAPIClient):
         exists on the given storage.
 
         If the file already exists in tantalus and the file being added
-        has different properties, functionality will depend on the
+        has different size, functionality will depend on the
         update kwarg.  If update=False, fail with FieldMismatchError.
         If update=True, update the file resource, create a file instance
         on the given storage, and set all other file instances to
@@ -399,8 +399,21 @@ class TantalusApi(BasicAPIClient):
         created = storage_client.get_created_time(filename)
         size = storage_client.get_size(filename)
 
+        # Try getting the file resource with the same size
+        try:
+            file_resource = self.get('file_resource', filename=filename, size=size)
+            log.info('file resource has id {}'.format(file_resource['id']))
+        except NotFoundError:
+            log.info('no identical file resource by size')
+            file_resource = None
+        if file_resource is not None:
+            file_instance = self.add_instance(file_resource, storage)
+            return file_resource, file_instance
+
         # Try getting or creating the file resource, will
-        # fail if exists with different properties.
+        # fail only if exists with different size.  If the
+        # file has the same size but different created time
+        # the above get will have suceeded.
         try:
             file_resource, _ = self.create(
                 'file_resource',
