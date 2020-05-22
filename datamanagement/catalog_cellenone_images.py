@@ -10,18 +10,13 @@ import yaml
 import pandas as pd
 import PIL.Image
 import tempfile
+import codecs
 
 from dbclients.basicclient import NotFoundError
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
 from datamanagement.add_generic_results import add_generic_results
 from utils.constants import LOGGING_FORMAT
-
-
-# library_id = "A96146A"
-# source_dir = '/shahlab/archive/single_cell_indexing/Cellenone/Cellenone_images/20180831_A96146A'
-# source_dir = '/shahlab/archive/single_cell_indexing/Cellenone/Cellenone_images/20171019_A95664B'
-# destination_dir = '/shahlab/amcpherson/temp123'
 
 
 def clean_filename(filename):
@@ -48,6 +43,18 @@ def generate_new_filename(row):
         library_id=library_id, row=chip_row, column=chip_column)
 
     return new_filename
+
+
+def read_log_filename(log_filename):
+    for line in codecs.open(log_filename, 'r', encoding='utf-8', errors='ignore'):
+        pattern = 'Ejection zone bondary:\s+(\d+)\s+Sedimentation zone bondary:\s+(\d+)'
+        result = re.match(pattern, str(line))
+        if not result:
+            continue
+        ejection = int(result.group(1))
+        sedimention = int(result.group(2))
+        return {'ejection_zone_boundary': ejection, 'sedimentation_zone_boundary': sedimention}
+    raise ValueError(f'unable to parse log {log_filename}')
 
 
 def read_cellenone_isolated_files(source_dir):
@@ -89,14 +96,15 @@ def read_cellenone_isolated_files(source_dir):
         data['chip_row'] = data['YPos']
         data['chip_column'] = data['XPos']
 
-        # Assume a _Background.(tiff|png) exists along side __isolated.xls
-        background_filename_prefix = isolated_filename[:-len('__isolated.xls')] + '_Background'
-        background_filenames = glob.glob(background_filename_prefix + '.*')
+        # Assume a single _Background.(tiff|png) exists along side __isolated.xls
+        background_filename_prefix = os.path.basename(isolated_filename).split('.')[0]
+        background_filename_dirname = os.path.dirname(isolated_filename)
+        background_filename_glob = os.path.join(background_filename_dirname, background_filename_prefix + '*Background*')
+        background_filenames = glob.glob(background_filename_glob)
         if len(background_filenames) != 1:
-            raise ValueError(f'found background files {background_filenames} along side {isolated_filename}')
+            raise ValueError(f'found background files {background_filenames} along side {isolated_filename}, matching {background_filename_glob}')
         background_filename = background_filenames[0]
-        assert background_filename.startswith(background_filename_prefix)
-        background_extension = background_filename[len(background_filename_prefix):]
+        background_extension = '.' + background_filename.split('.')[-1]
         if background_extension not in ('.tiff', '.png'):
             raise ValueError(f'found background file with unexpected extension {background_extension}')
 
@@ -104,12 +112,53 @@ def read_cellenone_isolated_files(source_dir):
         data['original_background_filename'] = os.path.join(images_dir, os.path.basename(background_filename))
         data['original_background_extension'] = background_extension
 
+        # Read additional run parameters out of the log file
+        run_directory = os.path.dirname(isolated_filename)
+        log_filenames = glob.glob(os.path.join(run_directory, '*_Logfile.log'))
+        if len(log_filenames) != 1:
+            raise ValueError(f'found {len(log_filenames)} log files')
+        log_filename = log_filenames[0]
+
+        log_info = read_log_filename(log_filename)
+
+        for name, value in log_info.items():
+            data[name] = value
+
         catalog.append(data)
 
     if len(catalog) == 0:
         return pd.DataFrame()
 
     catalog = pd.concat(catalog, ignore_index=True)
+
+    # Standardize columns
+    catalog = catalog.rename(columns={'Circ': 'Circularity', 'Elong': 'Elongation'})
+    columns = [
+        'DropNo',
+        'X',
+        'Y',
+        'Diameter',
+        'Elongation',
+        'Circularity',
+        'Intensity',
+        'Plate',
+        'Well',
+        'Target',
+        'Field',
+        'XPos',
+        'YPos',
+        'Date',
+        'Time',
+        'ImageFile',
+        'original_filename',
+        'chip_row',
+        'chip_column',
+        'original_background_filename',
+        'original_background_extension',
+        'ejection_zone_boundary',
+        'sedimentation_zone_boundary',
+    ]
+    catalog = catalog[columns]
 
     logging.info(f'found {len(catalog.index)} entries for {source_dir}')
 
