@@ -14,9 +14,9 @@ ALIGNMENT_METRICS = os.path.join(
 SC_WGS_FQ_TEMPLATE = os.path.join(
     "single_cell_indexing",
     "fastq",
-    "{primary_sample_id}",
     "{dlp_library_id}",
     "{flowcell_id}_{lane_number}",
+    "{cell_sample_id}",
     "{cell_sample_id}_{dlp_library_id}_{index_sequence}_{read_end}.fastq{extension}",
 )
 
