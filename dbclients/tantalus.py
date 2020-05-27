@@ -22,6 +22,7 @@ except ImportError:
     from urllib2 import urlopen
 
 from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
+from datamanagement.utils.utils import make_dirs
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
 
 import azure.storage.blob
@@ -139,6 +140,15 @@ class BlobStorageClient(object):
         log.info("Creating blob {} from path {}".format(blobname, filepath))
         self.blob_service.create_blob_from_path(self.storage_container, blobname, filepath)
 
+    def copy(self, blobname, new_blobname, wait=False):
+        url = self.get_url(blobname)
+        copy_props = self.blob_service.copy_blob(self.storage_container, new_blobname, url)
+        if wait:
+            while copy_props.status != 'success':
+                time.sleep(1)
+                blob = self.blob_service.get_blob_properties(self.storage_container, new_blobname)
+                copy_props = blob.properties.copy
+
 
 class ServerStorageClient(object):
     def __init__(self, storage_directory, prefix):
@@ -203,6 +213,13 @@ class ServerStorageClient(object):
         tantalus_filepath = os.path.join(self.storage_directory, filename)
         if not os.path.samefile(filepath, tantalus_filepath):
             shutil.copy(filepath, tantalus_filepath)
+
+    def copy(self, filename, new_filename, wait=None):
+        filepath = os.path.join(self.storage_directory, filename)
+        new_filepath = os.path.join(self.storage_directory, new_filename)
+        if not os.path.exists(os.path.dirname(new_filepath)):
+            make_dirs(os.path.dirname(new_filepath))
+        os.link(filepath, new_filepath)
 
 
 class DataError(Exception):
@@ -581,6 +598,50 @@ class TantalusApi(BasicAPIClient):
                 file_resources.remove(file_resource["id"])
                 logging.info(f"removing file resource {file_resource['id']} from {dataset['id']}")
                 self.update(dataset_type, id=dataset["id"], file_resources=file_resources)
+
+    def swap_file(self, file_instance, new_filename):
+        """
+        Swap with an identical file within the same storage.
+
+        Args:
+            file_instance (dict): file instance to rename
+            new_filename (str): destination filename
+
+        The file will be swapped to a file within the same storage.  All other instances
+        on other storages will be marked as deleted.
+        """
+
+        storage_name = file_instance['storage']['name']
+        storage_client = self.get_storage_client(storage_name)
+
+        file_resource = file_instance['file_resource']
+        filename = file_resource['filename']
+
+        # Check the files are identical by size
+        size = storage_client.get_size(filename)
+        new_size = storage_client.get_size(new_filename)
+        if size != new_size:
+            raise ValueError(f'files {filename} and {new_filename} have nonequal sizes {size} and {new_size}')
+
+        # Update the file properties
+        file_resource = self.update(
+            'file_resource',
+            id=file_resource['id'],
+            filename=new_filename,
+        )
+        log.info(f'renamed file from {filename} to {new_filename}')
+
+        # Delete all other instances
+        other_file_instances = self.list("file_instance", file_resource=file_resource["id"])
+        for other_file_instance in other_file_instances:
+            if other_file_instance['id'] == file_instance['id']:
+                continue
+            other_file_instance = self.update(
+                'file_instance',
+                id=other_file_instance['id'],
+                is_deleted=True,
+            )
+            log.info('deleted file instance {}'.format(other_file_instance['id']))
 
     def add_instance(self, file_resource, storage):
         """
