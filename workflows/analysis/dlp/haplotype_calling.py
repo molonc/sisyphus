@@ -69,7 +69,8 @@ class HaplotypeCallingAnalysis(workflows.analysis.base.Analysis):
                 dataset_id,
                 'sequencedataset',
                 storages['working_inputs'],
-                filters={'filename__endswith': '.bam'})
+                filters={'filename__endswith': '.bam'},
+            )
 
             assert len(file_instances) == 1
             assert storage_client.exists(file_instances[0]['file_resource']['filename'])
@@ -92,7 +93,7 @@ class HaplotypeCallingAnalysis(workflows.analysis.base.Analysis):
             dirs,
             run_options,
             storages,
-        ):
+    ):
         storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         out_dir = os.path.join(storage_client.prefix, self.out_dir)
 
@@ -146,7 +147,6 @@ class HaplotypeCallingAnalysis(workflows.analysis.base.Analysis):
 
 
 workflows.analysis.base.Analysis.register_analysis(HaplotypeCallingAnalysis)
-
 
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)

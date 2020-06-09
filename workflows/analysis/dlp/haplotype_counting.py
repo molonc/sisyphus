@@ -21,7 +21,12 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
 
     def __init__(self, *args, **kwargs):
         super(HaplotypeCountingAnalysis, self).__init__(*args, **kwargs)
-        self.out_dir = os.path.join(self.jira, "results", self.analysis_type, 'sample_{}'.format(self.args['sample_id']))
+        self.out_dir = os.path.join(
+            self.jira,
+            "results",
+            self.analysis_type,
+            'sample_{}'.format(self.args['sample_id']),
+        )
 
     @classmethod
     def search_input_datasets(cls, tantalus_api, jira, version, args):
@@ -92,8 +97,12 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
         else:
             haplotypes_filename = 'haplotypes.csv.gz'
         file_instances = self.tantalus_api.get_dataset_file_instances(
-            infer_haps_results['id'], 'resultsdataset', storages['working_results'],
-            filters={'filename__endswith': haplotypes_filename})
+            infer_haps_results['id'],
+            'resultsdataset',
+            storages['working_results'],
+            filters={'filename__endswith': haplotypes_filename},
+        )
+
         assert len(file_instances) == 1
         assert storage_client.exists(file_instances[0]['file_resource']['filename'])
         haplotypes_filepath = file_instances[0]['filepath']
@@ -109,8 +118,11 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
         assert len(self.analysis['input_datasets']) == 1
         dataset_id = self.analysis['input_datasets'][0]
         file_instances = self.tantalus_api.get_dataset_file_instances(
-            dataset_id, 'sequencedataset', storages['working_inputs'],
-            filters={'filename__endswith': '.bam'})
+            dataset_id,
+            'sequencedataset',
+            storages['working_inputs'],
+            filters={'filename__endswith': '.bam'},
+        )
 
         index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
 
@@ -139,7 +151,7 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
             dirs,
             run_options,
             storages,
-        ):
+    ):
         storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         out_path = os.path.join(storage_client.prefix, self.out_dir)
 
@@ -203,7 +215,6 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
 
 
 workflows.analysis.base.Analysis.register_analysis(HaplotypeCountingAnalysis)
-
 
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)

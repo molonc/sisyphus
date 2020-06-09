@@ -205,7 +205,6 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                 # check if file exists on storage
                 assert storage_client.exists(file_instance['file_resource']['filename'])
 
-
         input_info = {}
 
         for idx, row in sample_info.iterrows():

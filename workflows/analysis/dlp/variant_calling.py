@@ -84,7 +84,7 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
         assert len(self.analysis['input_datasets']) == 2
 
         storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
-        
+
         input_info = {}
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.tantalus_api.get('sequencedataset', id=dataset_id)
