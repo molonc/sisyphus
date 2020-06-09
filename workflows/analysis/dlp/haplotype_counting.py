@@ -73,6 +73,7 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
         return name
 
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
+        storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
         # Separate the results into annotation and infer haps
         for results_id in self.analysis['input_results']:
             results = self.tantalus_api.get('results', id=results_id)
@@ -94,6 +95,7 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
             infer_haps_results['id'], 'resultsdataset', storages['working_results'],
             filters={'filename__endswith': haplotypes_filename})
         assert len(file_instances) == 1
+        assert storage_client.exists(file_instances[0]['file_resource']['filename'])
         haplotypes_filepath = file_instances[0]['filepath']
 
         input_info = {

@@ -171,7 +171,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
 
         tantalus_index_sequences = set()
         colossus_index_sequences = set()
-
+        storage_client = self.tantalus_api.get_storage_client(storage_name)
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
 
@@ -201,6 +201,10 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                 index_sequence = file_resource['sequencefileinfo']['index_sequence']
                 tantalus_index_sequences.add(index_sequence)
                 fastq_filepaths[(index_sequence, lane_id, read_end)] = str(file_instance['filepath'])
+
+                # check if file exists on storage
+                assert storage_client.exists(file_instance['file_resource']['filename'])
+
 
         input_info = {}
 

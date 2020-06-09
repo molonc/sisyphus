@@ -103,6 +103,9 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
                 assert len(file_instances) == 1
                 file_instance = file_instances[0]
 
+                # check if file exists on storage
+                assert storage_client.exists(file_instance['file_resource']['filename'])
+
                 input_info[file_type] = file_instance['filepath']
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:

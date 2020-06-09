@@ -83,12 +83,11 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         assert len(self.analysis['input_datasets']) == 2
 
+        storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
+        
         input_info = {}
-
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.tantalus_api.get('sequencedataset', id=dataset_id)
-
-            storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
 
             # Read the metadata yaml file
             file_instances = self.tantalus_api.get_dataset_file_instances(
@@ -111,6 +110,8 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
                 bams_filename = template.format(**instance)
                 assert bams_filename in metadata['filenames']
                 assert region not in bam_info
+
+                assert storage_client.exists(os.path.join(base_dir, bams_filename))
 
                 bam_info[region] = {}
                 bam_info[region]['bam'] = os.path.join(storage_client.prefix, base_dir, bams_filename)

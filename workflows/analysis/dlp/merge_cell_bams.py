@@ -68,8 +68,10 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         assert len(self.analysis['input_datasets']) == 1
-
+    
         colossus_api = dbclients.colossus.ColossusApi()
+
+        storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
 
         dataset_id = self.analysis['input_datasets'][0]
         file_instances = self.tantalus_api.get_dataset_file_instances(
@@ -96,6 +98,9 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
             if not cell_id in cell_ids:
                 continue
+
+            # check if file exists on storage
+            assert storage_client.exists(file_instance['file_resource']['filename'])
 
             input_info['cell_bams'][cell_id] = {}
             input_info['cell_bams'][cell_id]['bam'] = str(file_instance['filepath'])
