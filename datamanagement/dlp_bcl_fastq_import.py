@@ -285,7 +285,6 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
         fastq_path = os.path.join(output_dir, filename)
 
         tantalus_filename = templates.SC_WGS_FQ_TEMPLATE.format(
-            primary_sample_id=primary_sample_id,
             dlp_library_id=library_id,
             flowcell_id=flowcell_id,
             lane_number=lane_number,

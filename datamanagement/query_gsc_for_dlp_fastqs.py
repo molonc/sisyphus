@@ -487,7 +487,6 @@ def import_gsc_dlp_paired_fastqs(
 
             # format filename for tantalus
             tantalus_filename = templates.SC_WGS_FQ_TEMPLATE.format(
-                primary_sample_id=primary_sample_id,
                 dlp_library_id=dlp_library_id,
                 flowcell_id=flowcell_id,
                 lane_number=lane_number,
