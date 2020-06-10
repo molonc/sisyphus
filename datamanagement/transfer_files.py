@@ -142,22 +142,24 @@ class AzureBlobServerDownload(object):
 
         self.tantalus_api.check_file(file_instance)
 
+        # Check any existing file, skip if the same, raise error if different
+        # and we are not overwriting
         if os.path.isfile(local_filepath):
-            if overwrite:
-                logging.info(f'removing existing file {local_filepath}')
-                os.remove(local_filepath)
-
-            else:
-                if _check_file_same_local(file_resource, local_filepath):
-                    logging.info(
-                        "skipping transfer of file resource {} that matches existing file".format(
-                            file_resource["filename"]))
-                    return
+            if _check_file_same_local(file_resource, local_filepath):
+                logging.info(
+                    "skipping transfer of file resource {} that matches existing file".format(
+                        file_resource["filename"]))
+                return
+            elif not overwrite:
                 error_message = "target file {filepath} already exists on {storage} with different size".format(
                     filepath=local_filepath,
                     storage=self.to_storage_name,
                 )
                 raise FileAlreadyExists(error_message)
+
+            else:
+                logging.info(f'removing existing file {local_filepath}')
+                os.remove(local_filepath)
 
         if azcopy:
             blob_url = self.storage_client.get_url(cloud_blobname)
@@ -226,7 +228,6 @@ class AzureBlobServerUpload(object):
                 logging.info(
                     "overwriting existing file {}".format(file_resource["filename"]))
 
-        raise
         if azcopy:
             storage_client = self.tantalus_api.get_storage_client(self.to_storage['name'])
             blob_url = storage_client.get_url(cloud_blobname, write_permission=True)
@@ -280,8 +281,9 @@ class AzureBlobBlobTransfer(object):
         # Check if file instance exists and size matches
         self.tantalus_api.check_file(file_instance)
 
-        # Check any existing file unless we intend to overwrite
-        if self.destination_account.exists(destination_container, blobname) and not overwrite:
+        # Check any existing file, skip if the same, raise error if different
+        # and we are not overwriting
+        if self.destination_account.exists(destination_container, blobname):
             if _check_file_same_blob(
                     self.destination_account,
                     file_resource, destination_container, blobname):
@@ -289,12 +291,18 @@ class AzureBlobBlobTransfer(object):
                     "skipping transfer of file resource {} that matches existing file".format(
                         file_resource["filename"]))
                 return
-            error_message = "target blob {blobname} in container {container} already exists on {storage} with different size".format(
-                filepath=blobname,
-                container=destination_container,
-                storage=self.destination_storage["name"],
-            )
-            raise FileAlreadyExists(error_message)
+
+            elif not overwrite:
+                error_message = "target blob {blobname} in container {container} already exists on {storage} with different size".format(
+                    blobname=blobname,
+                    container=destination_container,
+                    storage=self.destination_storage["name"],
+                )
+                raise FileAlreadyExists(error_message)
+
+            else:
+                logging.info(
+                    "overwriting existing file {}".format(file_resource["filename"]))
 
         # Finally, transfer the file between the blobs
         source_sas_url = self.source_account.make_blob_url(
@@ -334,22 +342,24 @@ class RsyncTransfer(object):
             local_filepath = local_filepath + "/"
             remote_filepath = remote_filepath + "/"
 
+        # Check any existing file, skip if the same, raise error if different
+        # and we are not overwriting
         if os.path.isfile(local_filepath):
-            if overwrite:
-                logging.info(f'removing existing file {local_filepath}')
-                os.remove(local_filepath)
+            if _check_file_same_local(file_instance["file_resource"], local_filepath):
+                logging.info(
+                    "skipping transfer of file resource {} that matches existing file".format(
+                        file_resource["filename"]))
+                return
 
-            else:
-                if _check_file_same_local(file_instance["file_resource"], local_filepath):
-                    logging.info(
-                        "skipping transfer of file resource {} that matches existing file".format(
-                            file_resource["filename"]))
-                    return
-
+            elif not overwrite:
                 error_message = "target file {filepath} already exists on {storage} with different size".format(
                     filepath=local_filepath, storage=self.to_storage_name)
 
                 raise FileAlreadyExists(error_message)
+
+            else:
+                logging.info(f'removing existing file {local_filepath}')
+                os.remove(local_filepath)
 
         if file_instance["storage"]["server_ip"] == self.local_transfer:
             remote_location = remote_filepath
