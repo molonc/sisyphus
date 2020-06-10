@@ -350,7 +350,6 @@ class RsyncTransfer(object):
             elif not overwrite:
                 error_message = "target file {filepath} already exists on {storage} with different size".format(
                     filepath=local_filepath, storage=self.to_storage_name)
-
                 raise FileAlreadyExists(error_message)
             else:
                 logging.info(f'removing existing file {local_filepath}')
