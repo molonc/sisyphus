@@ -206,8 +206,9 @@ class AzureBlobServerUpload(object):
         # Check if file instance to be uploaded exists and size matches
         self.tantalus_api.check_file(file_instance)
 
-        # Check any existing file unless we intend to overwrite
-        if self.block_blob_service.exists(cloud_container, cloud_blobname) and not overwrite:
+        # Check any existing file, skip if the same, raise error if different
+        # and we are not overwriting
+        if self.block_blob_service.exists(cloud_container, cloud_blobname):
             if _check_file_same_blob(
                     self.block_blob_service,
                     file_resource, cloud_container, cloud_blobname):
@@ -215,12 +216,17 @@ class AzureBlobServerUpload(object):
                     "skipping transfer of file resource {} that matches existing file".format(
                         file_resource["filename"]))
                 return
-            error_message = "target file {filepath} already exists on {storage} with different size".format(
-                filepath=cloud_filepath,
-                storage=self.to_storage["name"],
-            )
-            raise FileAlreadyExists(error_message)
+            elif not overwrite:
+                error_message = "target file {filepath} already exists on {storage} with different size".format(
+                    filepath=cloud_filepath,
+                    storage=self.to_storage["name"],
+                )
+                raise FileAlreadyExists(error_message)
+            else:
+                logging.info(
+                    "overwriting existing file {}".format(file_resource["filename"]))
 
+        raise
         if azcopy:
             storage_client = self.tantalus_api.get_storage_client(self.to_storage['name'])
             blob_url = storage_client.get_url(cloud_blobname, write_permission=True)
