@@ -73,7 +73,7 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
         return name
 
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
-        storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
+        storage_client = self.tantalus_api.get_storage_client(storages['working_results'])
 
         assert len(self.analysis['input_results']) == 2
 

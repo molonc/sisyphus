@@ -139,7 +139,8 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
                 bam_filepaths[index_sequence] = str(file_instance['filepath'])
 
                 # check if file exists on storage
-                assert storage_client.exists(file_instance['file_resource']['filename'])
+                 error_msg = f"{file_instance['file_resource']['filename']} does not exist on {storage_name}"
+                assert storage_client.exists(file_instance['file_resource']['filename']), error_msg
 
         input_info = {}
 

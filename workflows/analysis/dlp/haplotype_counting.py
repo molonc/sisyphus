@@ -78,7 +78,6 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
         return name
 
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
-        storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
         # Separate the results into annotation and infer haps
         for results_id in self.analysis['input_results']:
             results = self.tantalus_api.get('results', id=results_id)
@@ -92,10 +91,10 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
 
         # Get the haplotypes filepath, analysis version dependent
         analysis_version = self.tantalus_api.get('analysis', id=infer_haps_results['analysis'])['version']
-        if packaging.version.parse(analysis_version) < packaging.version.parse('v0.6.0'):
-            haplotypes_filename = 'haplotypes.tsv'
-        else:
-            haplotypes_filename = 'haplotypes.csv.gz'
+        # if packaging.version.parse(analysis_version) < packaging.version.parse('v0.6.0'):
+        #     haplotypes_filename = 'haplotypes.tsv'
+        # else:
+        haplotypes_filename = 'haplotypes.csv.gz'
         file_instances = self.tantalus_api.get_dataset_file_instances(
             infer_haps_results['id'],
             'resultsdataset',
@@ -104,7 +103,10 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
         )
 
         assert len(file_instances) == 1
-        assert storage_client.exists(file_instances[0]['file_resource']['filename'])
+        storage_client = self.tantalus_api.get_storage_client(storages['working_results'])
+        error_msg =  f"{file_instances[0]['file_resource']['filename']} does not exist on {storages['working_results']}"
+        assert storage_client.exists(file_instances[0]['file_resource']['filename']), error_msg
+
         haplotypes_filepath = file_instances[0]['filepath']
 
         input_info = {
@@ -125,7 +127,7 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
         )
 
         index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(self.args['library_id'])
-
+        storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
         for file_instance in file_instances:
             file_resource = file_instance['file_resource']
 
@@ -134,6 +136,9 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
 
             input_info['tumour'][cell_id] = {}
             input_info['tumour'][cell_id]['bam'] = str(file_instance['filepath'])
+
+            if not storage_client.exists(file_instance['file_resource']['filename']):
+                raise Exception(f"{file_instance['file_resource']['filename']} does not exist on {storages['working_inputs']}")
 
         assert len(input_info['tumour']) > 0
 
