@@ -156,7 +156,6 @@ class AzureBlobServerDownload(object):
                     storage=self.to_storage_name,
                 )
                 raise FileAlreadyExists(error_message)
-
             else:
                 logging.info(f'removing existing file {local_filepath}')
                 os.remove(local_filepath)
@@ -291,7 +290,6 @@ class AzureBlobBlobTransfer(object):
                     "skipping transfer of file resource {} that matches existing file".format(
                         file_resource["filename"]))
                 return
-
             elif not overwrite:
                 error_message = "target blob {blobname} in container {container} already exists on {storage} with different size".format(
                     blobname=blobname,
@@ -299,7 +297,6 @@ class AzureBlobBlobTransfer(object):
                     storage=self.destination_storage["name"],
                 )
                 raise FileAlreadyExists(error_message)
-
             else:
                 logging.info(
                     "overwriting existing file {}".format(file_resource["filename"]))
@@ -350,13 +347,11 @@ class RsyncTransfer(object):
                     "skipping transfer of file resource {} that matches existing file".format(
                         file_resource["filename"]))
                 return
-
             elif not overwrite:
                 error_message = "target file {filepath} already exists on {storage} with different size".format(
                     filepath=local_filepath, storage=self.to_storage_name)
 
                 raise FileAlreadyExists(error_message)
-
             else:
                 logging.info(f'removing existing file {local_filepath}')
                 os.remove(local_filepath)
