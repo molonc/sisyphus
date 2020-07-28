@@ -10,7 +10,7 @@ logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO
 logging.getLogger('azure.storage').setLevel(logging.ERROR)
 
 
-def get_dataset_file_instances(tantalus_api, dataset_type, dataset_id=None, tag_name=None, filters=None):
+def get_dataset_file_instances(tantalus_api, dataset_type, storage_name, dataset_id=None, tag_name=None, filters=None):
     if dataset_type is None:
         raise ValueError('require dataset type')
 
@@ -32,6 +32,11 @@ def get_dataset_file_instances(tantalus_api, dataset_type, dataset_id=None, tag_
     for dataset in datasets:
         logging.info('checking dataset with id {}, name {}'.format(
             dataset['id'], dataset['name']))
+
+        if not tantalus_api.is_dataset_on_storage(dataset['id'], dataset_type, storage_name):
+            logging.info('dataset with id {}, name {} not on {}'.format(
+                dataset['id'], dataset['name'], storage_name))
+            continue
 
         for file_resource in tantalus_api.get_dataset_file_resources(dataset['id'], dataset_type, filters=filters):
             yield file_resource
@@ -71,7 +76,7 @@ def main(
 
     else:
         file_resources = get_dataset_file_instances(
-            tantalus_api, dataset_type, dataset_id=dataset_id, tag_name=tag_name, filters=filters)
+            tantalus_api, dataset_type, storage_name, dataset_id=dataset_id, tag_name=tag_name, filters=filters)
 
     for file_resource in file_resources:
         try:
