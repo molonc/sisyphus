@@ -544,8 +544,8 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
         overwrite = (other_file_instance is not None and other_file_instance['is_deleted'])
 
         logging.info(
-            "starting transfer {} to {}".format(
-                file_resource["filename"], to_storage["name"]))
+            "starting transfer {} from {} to {}".format(
+                file_resource["filename"], from_storage["name"], to_storage["name"]))
 
         _transfer_files_with_retry(f_transfer, file_instance, overwrite=overwrite)
 
