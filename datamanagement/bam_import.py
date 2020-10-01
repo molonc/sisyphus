@@ -243,7 +243,7 @@ def get_bam_aligner_name(bam_header):
             if "-r" in version:
                 version = version[:version.index("-r")]
             version = version.replace(".", "_")
-            return bwa_variant + "_" + version
+            return bwa_variant + "_" + version.upper()
         else:
             raise ValueError(f"unrecognized aligner in {pg}")
     raise Exception("no aligner name found")
