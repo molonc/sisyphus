@@ -366,7 +366,9 @@ def import_bam(
         if len(bam_header_info["library_ids"]) != 1:
             raise ValueError(f"found library_ids={bam_header_info['library_ids']}, please specify override library id")
         library_id = list(bam_header_info["library_ids"])[0]
-        library = tantalus_api.get('dna_library', library_id=library_id)
+        dataset_library = tantalus_api.get('dna_library', library_id=library_id)
+    else:
+        dataset_library = library
 
     # Default paired end reads
     if read_type is None:
@@ -376,10 +378,14 @@ def import_bam(
     if lane_infos is None:
         lane_infos = []
         for lane in bam_header_info["sequence_lanes"]:
+            if library is None:
+                lane_library_id = lane["library_id"]
+            else:
+                lane_library_id = library['library_id']
             lane_info = {
                 "flowcell_id": lane["flowcell_id"],
                 "lane_number": lane["lane_number"],
-                "library_id": lane["library_id"],
+                "library_id": lane_library_id,
                 "sequencing_centre": lane["sequencing_centre"],
                 "read_type": read_type,
             }
@@ -390,7 +396,7 @@ def import_bam(
         tantalus_api,
         storage_name=storage_name,
         sample=sample,
-        library=library,
+        library=dataset_library,
         dataset_type="BAM",
         sequence_lanes=lane_infos,
         bam_file_path=bam_file_path,
@@ -433,12 +439,18 @@ def main(storage_name, bam_file_path, **kwargs):
 
     library = None
     if kwargs.get('library_id') is not None:
-        library = tantalus_api.get_or_create(
-            'dna_library',
-            library_id=kwargs['library_id'],
-            library_type=kwargs['library_type'],
-            index_format=kwargs['index_format'],
-        )
+        if kwargs.get('library_type') is not None and kwargs.get('index_format') is not None:
+            library = tantalus_api.get_or_create(
+                'dna_library',
+                library_id=kwargs['library_id'],
+                library_type=kwargs['library_type'],
+                index_format=kwargs['index_format'],
+            )
+        else:
+            library = tantalus_api.get(
+                'dna_library',
+                library_id=kwargs['library_id'],
+            )
 
     dataset = import_bam(
         storage_name,
