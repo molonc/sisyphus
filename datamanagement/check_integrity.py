@@ -23,11 +23,11 @@ def get_dataset_file_instances(tantalus_api, dataset_type, storage_name, dataset
 
     elif tag_name is not None:
         logging.info('check tag {}'.format(tag_name))
-        datasets = tantalus_api.list(dataset_type, tags__name=tag_name)
+        datasets = tantalus_api.list(dataset_type, tags__name=tag_name, file_resources__fileinstance__storage__name=storage_name)
 
     else:
         logging.info('check all datasets of type {}'.format(dataset_type))
-        datasets = tantalus_api.list(dataset_type)
+        datasets = tantalus_api.list(dataset_type, file_resources__fileinstance__storage__name=storage_name)
 
     for dataset in datasets:
         logging.info('checking dataset with id {}, name {}'.format(
