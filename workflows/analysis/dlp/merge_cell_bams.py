@@ -20,7 +20,7 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
     def __init__(self, *args, **kwargs):
         super(MergeCellBamsAnalysis, self).__init__(*args, **kwargs)
-        self.bams_dir = os.path.join(self.jira, "results", self.analysis_type)
+        self.bams_dir = os.path.join(self.jira, "results", self.analysis_type, self.args['sample_id'])
 
         # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
         self.split_size = 10000000
