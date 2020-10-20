@@ -73,7 +73,7 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
         return name
 
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
-        storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
+        storage_client = self.tantalus_api.get_storage_client(storages['working_results'])
 
         assert len(self.analysis['input_results']) == 2
 
@@ -102,6 +102,9 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
                     filters={'filename__endswith': file_suffix})
                 assert len(file_instances) == 1
                 file_instance = file_instances[0]
+
+                # check if file exists on storage
+                assert storage_client.exists(file_instance['file_resource']['filename'])
 
                 input_info[file_type] = file_instance['filepath']
 

@@ -19,6 +19,7 @@ from workflows.generate_inputs import generate_sample_info
 reference_genome_map = {
     'HG19': 'grch37',
     'MM10': 'mm10',
+    'AT10': 'at10',
 }
 
 
@@ -171,7 +172,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
 
         tantalus_index_sequences = set()
         colossus_index_sequences = set()
-
+        storage_client = self.tantalus_api.get_storage_client(storage_name)
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
 
@@ -196,11 +197,19 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             )
 
             for file_instance in file_instances:
+                # skip metadata.yaml
+                if os.path.basename(file_instance['file_resource']['filename']) == "metadata.yaml":
+                    continue
+
                 file_resource = file_instance['file_resource']
                 read_end = file_resource['sequencefileinfo']['read_end']
                 index_sequence = file_resource['sequencefileinfo']['index_sequence']
                 tantalus_index_sequences.add(index_sequence)
                 fastq_filepaths[(index_sequence, lane_id, read_end)] = str(file_instance['filepath'])
+
+                # check if file exists on storage
+                error_msg = f"{file_instance['file_resource']['filename']} does not exist on {storage_name}"
+                assert storage_client.exists(file_instance['file_resource']['filename']), error_msg
 
         input_info = {}
 

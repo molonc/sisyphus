@@ -93,8 +93,9 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         assert len(self.analysis['input_datasets']) == 2
 
-        input_info = {}
+        storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
 
+        input_info = {}
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
 
@@ -104,7 +105,11 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                 input_info['normal'] = {}
 
                 if dataset['library']['library_type'] == 'SC_WGS':
-                    input_info['normal'] = workflows.analysis.dlp.utils.get_cell_bams(self.tantalus_api, dataset, storages)
+                    input_info['normal'] = workflows.analysis.dlp.utils.get_cell_bams(
+                        self.tantalus_api,
+                        dataset,
+                        storages,
+                    )
 
                 elif dataset['library']['library_type'] == 'WGS':
                     file_instances = self.tantalus_api.get_dataset_file_instances(
@@ -114,6 +119,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                         filters={'filename__endswith': '.bam'})
 
                     assert len(file_instances) == 1
+                    assert storage_client.exists(file_instances[0]['file_resource']['filename'])
                     input_info['normal']['bam'] = str(file_instances[0]['filepath'])
 
                 else:
@@ -129,7 +135,12 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
                     storages['working_results'],
                 )
 
-                input_info['tumour'] = workflows.analysis.dlp.utils.get_cell_bams(self.tantalus_api, dataset, storages, passed_cell_ids=cell_ids)
+                input_info['tumour'] = workflows.analysis.dlp.utils.get_cell_bams(
+                    self.tantalus_api,
+                    dataset,
+                    storages,
+                    passed_cell_ids=cell_ids,
+                )
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)

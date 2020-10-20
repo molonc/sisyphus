@@ -20,7 +20,7 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
     def __init__(self, *args, **kwargs):
         super(MergeCellBamsAnalysis, self).__init__(*args, **kwargs)
-        self.bams_dir = os.path.join(self.jira, "results", self.analysis_type)
+        self.bams_dir = os.path.join(self.jira, "results", self.analysis_type, self.args['sample_id'])
 
         # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
         self.split_size = 10000000
@@ -71,16 +71,22 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
         colossus_api = dbclients.colossus.ColossusApi()
 
+        storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
+
         dataset_id = self.analysis['input_datasets'][0]
         file_instances = self.tantalus_api.get_dataset_file_instances(
-            dataset_id, 'sequencedataset', storages['working_inputs'],
-            filters={'filename__endswith': '.bam'})
+            dataset_id,
+            'sequencedataset',
+            storages['working_inputs'],
+            filters={'filename__endswith': '.bam'},
+        )
 
         assert len(self.analysis['input_results']) == 1
         cell_ids = preprocessing.get_passed_cell_ids(
             self.tantalus_api,
             self.analysis['input_results'][0],
-            storages['working_results'])
+            storages['working_results'],
+        )
 
         if len(cell_ids) == 0:
             raise Exception('0 cells passed preprocessing')
@@ -96,6 +102,9 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
             if not cell_id in cell_ids:
                 continue
+
+            # check if file exists on storage
+            assert storage_client.exists(file_instance['file_resource']['filename'])
 
             input_info['cell_bams'][cell_id] = {}
             input_info['cell_bams'][cell_id]['bam'] = str(file_instance['filepath'])
@@ -116,7 +125,7 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
             dirs,
             run_options,
             storages,
-        ):
+    ):
         storage_client = self.tantalus_api.get_storage_client(storages["working_inputs"])
         bams_path = os.path.join(storage_client.prefix, self.bams_dir)
 
@@ -165,10 +174,12 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
         file_resources = []
         for filename in metadata_yaml["filenames"] + ['metadata.yaml']:
-            filepath = os.path.join(
-                storage_client.prefix, self.bams_dir, filename)
+            filepath = os.path.join(storage_client.prefix, self.bams_dir, filename)
             file_resource, file_instance = self.tantalus_api.add_file(
-                storages["working_inputs"], filepath, update=update)
+                storages["working_inputs"],
+                filepath,
+                update=update,
+            )
             file_resources.append(file_resource["id"])
 
         data = {
@@ -191,7 +202,12 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
         ]
 
         output_dataset, _ = self.tantalus_api.create(
-            'sequencedataset', data, keys, get_existing=True, do_update=update)
+            'sequencedataset',
+            data,
+            keys,
+            get_existing=True,
+            do_update=update,
+        )
 
         logging.info("Created sequence dataset {}".format(name))
 
@@ -209,8 +225,6 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
 workflows.analysis.base.Analysis.register_analysis(MergeCellBamsAnalysis)
 
-
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
     MergeCellBamsAnalysis.create_analysis_cli()
-

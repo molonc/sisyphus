@@ -21,6 +21,8 @@ def get_most_recent_dataset(tantalus_api, **kwargs):
 def get_cell_bams(tantalus_api, dataset, storages, passed_cell_ids=None):
     colossus_api = dbclients.colossus.ColossusApi()
 
+    storage_client = tantalus_api.get_storage_client(storages['working_inputs'])
+
     index_sequence_sublibraries = colossus_api.get_sublibraries_by_index_sequence(dataset['library']['library_id'])
 
     file_instances = tantalus_api.get_dataset_file_instances(
@@ -40,6 +42,8 @@ def get_cell_bams(tantalus_api, dataset, storages, passed_cell_ids=None):
 
         if passed_cell_ids is not None and cell_id not in passed_cell_ids:
             continue
+
+        assert storage_client.exists(file_instance['file_resource']['filename'])
 
         cell_bams[cell_id] = {}
         cell_bams[cell_id]['bam'] = str(file_instance['filepath'])

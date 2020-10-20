@@ -120,6 +120,8 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
         tantalus_index_sequences = set()
         colossus_index_sequences = set()
 
+        storage_client = self.tantalus_api.get_storage_client(storage_name)
+
         for dataset_id in self.analysis['input_datasets']:
             dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
 
@@ -135,6 +137,10 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
                 index_sequence = file_resource['sequencefileinfo']['index_sequence']
                 tantalus_index_sequences.add(index_sequence)
                 bam_filepaths[index_sequence] = str(file_instance['filepath'])
+
+                # check if file exists on storage
+                error_msg = f"{file_instance['file_resource']['filename']} does not exist on {storage_name}"
+                assert storage_client.exists(file_instance['file_resource']['filename']), error_msg
 
         input_info = {}
 
