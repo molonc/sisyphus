@@ -58,6 +58,7 @@ def get_ref_genome(library_info, is_tenx=False):
         taxonomy_id_map = {
             '9606': 'HG19',
             '10090': 'MM10',
+            '3702': 'AT10'
         }
 
     taxonomy_id = library_info['sample']['taxonomy_id']
@@ -87,6 +88,8 @@ def create_colossus_analysis(library_id, jira_ticket, version, aligner):
         taxonomy_id_map = {
             # grch37
             '9606': 1,
+            # at10
+            '3702': 3,
             # mm10
             '10090': 2,
         }
