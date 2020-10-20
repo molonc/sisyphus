@@ -65,6 +65,7 @@ def close_ticket(jira_id):
         jira_api.transition_issue(issue, '2')
 
 
+
 def update_jira_dlp(jira_id, aligner):
 
     logging.info("Updating description on {}".format(jira_id))
@@ -84,13 +85,16 @@ def update_jira_dlp(jira_id, aligner):
     if sample.startswith("TFRI"):
         update_description(jira_id, description, "shwu", remove_watcher=True)
 
-    else:
-        # assign parent ticket to justina
-        parent_jira_id = get_parent_issue(jira_id)
-        issue = jira_api.issue(parent_jira_id)
-        issue.update(notify=False, assignee={"name": "jbiele"})
+    elif sample.startswith("SA"):
+        issue = jira_api.issue(jira_id)
+        
+        if issue.fields.status.name != "Closed":
+            # assign parent ticket to justina 
+            parent_jira_id = get_parent_issue(jira_id)
+            parent_issue = jira_api.issue(parent_jira_id)
+            parent_issue.update(assignee={"name": "jbiele"})
 
-        update_description(jira_id, description, "jpham", remove_watcher=True)
+        update_description(jira_id, description, jira_user, remove_watcher=True)
         close_ticket(jira_id)
 
 
@@ -121,7 +125,7 @@ def update_jira_tenx(jira_id, args):
     issue = jira_api.issue(parent_jira_id)
     issue.update(notify=False, assignee={"name": "jbwang"})
 
-    update_description(jira_id, description, "jpham", remove_watcher=True)
+    update_description(jira_id, description, jira_user, remove_watcher=True)
     close_ticket(jira_id)
 
 
@@ -130,7 +134,7 @@ def update_description(jira_id, description, assignee, remove_watcher=False):
     description = '\n\n'.join(description)
     issue = jira_api.issue(jira_id)
 
-    issue.update(notify=False, assignee={"name": assignee}, description=description)
+    issue.update(assignee={"name": assignee}, description=description)
 
 
 def add_attachment(jira_id, attachment_file_path, attachment_filename):
