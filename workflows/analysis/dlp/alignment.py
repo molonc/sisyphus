@@ -19,6 +19,7 @@ from workflows.generate_inputs import generate_sample_info
 reference_genome_map = {
     'HG19': 'grch37',
     'MM10': 'mm10',
+    'AT10': 'at10',
 }
 
 
@@ -196,6 +197,10 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             )
 
             for file_instance in file_instances:
+                # skip metadata.yaml
+                if os.path.basename(file_instance['file_resource']['filename']) == "metadata.yaml":
+                    continue
+
                 file_resource = file_instance['file_resource']
                 read_end = file_resource['sequencefileinfo']['read_end']
                 index_sequence = file_resource['sequencefileinfo']['index_sequence']
