@@ -91,10 +91,10 @@ class HaplotypeCountingAnalysis(workflows.analysis.base.Analysis):
 
         # Get the haplotypes filepath, analysis version dependent
         analysis_version = self.tantalus_api.get('analysis', id=infer_haps_results['analysis'])['version']
-        # if packaging.version.parse(analysis_version) < packaging.version.parse('v0.6.0'):
-        #     haplotypes_filename = 'haplotypes.tsv'
-        # else:
-        haplotypes_filename = 'haplotypes.csv.gz'
+        if packaging.version.parse(analysis_version) < packaging.version.parse('v0.6.0'):
+            haplotypes_filename = 'haplotypes.tsv'
+        else:
+            haplotypes_filename = 'haplotypes.csv.gz'
         file_instances = self.tantalus_api.get_dataset_file_instances(
             infer_haps_results['id'],
             'resultsdataset',
