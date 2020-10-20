@@ -2,6 +2,7 @@
 import os
 import click
 import logging
+import traceback
 import subprocess
 from datetime import datetime, timedelta
 from dateutil import parser
@@ -135,7 +136,7 @@ def run_viz():
 
         jira_ticket = analysis["analysis_jira_ticket"]
 
-        # update ticket description
+        # close jira ticket and update ticket description
         update_jira_dlp(jira_ticket, analysis["aligner"])
 
         # upload qc report to jira ticket
@@ -399,7 +400,7 @@ def run_qc(aligner):
         "analysis",
         status="complete",
         analysis_type__name="annotation",
-        last_updated__gte=str(datetime.now() - timedelta(days=7)),
+        last_updated__gte=str(datetime.now() - timedelta(days=21)),
     )
 
     for analysis in analyses:
@@ -410,7 +411,8 @@ def run_qc(aligner):
                 analysis["args"]["library_id"],
             )
         except Exception as e:
-            log.error(f"Failed to run pseudobulk: {e}")
+            traceback.print_exc()
+            log.error(f"Failed to run pseudobulk for {analysis['args']['library_id']}: {e}")
 
 
 @click.command()

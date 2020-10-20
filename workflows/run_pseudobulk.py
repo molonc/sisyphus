@@ -43,12 +43,11 @@ sample_normal_mapping = file_utils.load_json(
     ))
 
 
-def run_haplotype_calling(jira, args):
+def run_haplotype_calling(args):
     """
     Run haplotype calling if not ran yet
     
     Arguments:
-        jira {str} -- jira id
         args {dict} -- analysis arguments 
             sample_id
             library_id 
@@ -66,24 +65,26 @@ def run_haplotype_calling(jira, args):
             input_datasets__sample__sample_id=args['sample_id'],
             input_datasets__library__library_id=args['library_id'],
         )
+        jira = analysis["jira_ticket"]
     except:
         analysis = None
 
     if not analysis:
-        jira_ticket = create_ticket(
+        jira = create_ticket(
             "SC",
             f"Hapolotype calling for {args['sample_id']}_{args['library_id']}",
         )
         # create split wgs bam analysis
         analysis = haplotype_calling.HaplotypeCallingAnalysis.create_from_args(
             tantalus_api,
-            jira_ticket,
+            jira,
             config["scp_version"],
             args,
         )
 
         analysis = analysis.analysis
-        log.info(f"created haplotype calling analysis {analysis['id']} under ticket {jira_ticket}")
+        log.info(f"created haplotype calling analysis {analysis['id']} under ticket {jira}")
+
 
     # check status
     if analysis['status'] in ('complete', 'running'):
@@ -108,12 +109,11 @@ def run_haplotype_calling(jira, args):
     return False
 
 
-def run_split_wgs_bam(jira, args):
+def run_split_wgs_bam(args):
     """
     Run split wgs bams if not ran yet
     
     Arguments:
-        jira {str} -- jira id
         args {dict} -- analysis arguments 
             sample_id
             library_id 
@@ -132,23 +132,24 @@ def run_split_wgs_bam(jira, args):
             input_datasets__sample__sample_id=args['sample_id'],
             input_datasets__library__library_id=args['library_id'],
         )
+        jira = analysis["jira_ticket"]
     except:
         analysis = None
 
     if not analysis:
-        jira_ticket = create_ticket(
+        jira = create_ticket(
             "SC",
             f"Split WGS bams for {args['sample_id']}_{args['library_id']}",
         )
         # create split wgs bam analysis
         analysis = split_wgs_bam.SplitWGSBamAnalysis.create_from_args(
             tantalus_api,
-            jira_ticket,
+            jira,
             config["scp_version"],
             args,
         )
         analysis = analysis.analysis
-        log.info(f"created split wgs bams analysis {analysis['id']} under ticket {jira_ticket}")
+        log.info(f"created split wgs bams analysis {analysis['id']} under ticket {jira}")
 
     # check status
     if analysis['status'] in ('complete', 'running'):
@@ -173,7 +174,7 @@ def run_split_wgs_bam(jira, args):
     return False
 
 
-def run_merge_cell_bams(jira, args, is_normal=False):
+def run_merge_cell_bams(jira, args):
     """
     Run merge cells bams if not ran yet
     
@@ -188,9 +189,9 @@ def run_merge_cell_bams(jira, args, is_normal=False):
     Returns:
         Boolean -- Analysis complete
     """
-    # define sample and library depending on is_normal bool
-    sample_id = args['normal_sample_id'] if is_normal else args['sample_id']
-    library_id = args['normal_library_id'] if is_normal else args['library_id']
+
+    sample_id = args['sample_id']
+    library_id = args['library_id']
 
     # get analysis
     try:
@@ -441,7 +442,7 @@ def run_variant_calling(jira, args):
     return False
 
 
-def run(jira, library_id):
+def run(jira, library_id,primary_sample_id=None):
     """
     Checks if conditions are satisfied for each step of pseudobulk and triggers runs
     
@@ -463,7 +464,13 @@ def run(jira, library_id):
 
     # get library on colossus to get primary sample
     library = colossus_api.get("library", pool_id=library_id)
-    primary_sample_id = library["sample"]["sample_id"]
+    primary_sample_id = primary_sample_id if primary_sample_id else library["sample"]["sample_id"]
+
+    # TODO: get normals from colossus library object once correct normals are added
+    # init normals
+    normal_sample_id = None
+    normal_library_id = None
+
 
     # iterate through input datasets and run pseudobulk
     for input_dataset in analysis['input_datasets']:
@@ -486,24 +493,27 @@ def run(jira, library_id):
             'ref_genome': analysis['args']['ref_genome'],
         }
 
-        # get normal sample and library for dataset sample by searching in
-        # mapping for a key partially matching with sample_id
-        normal_info = [
-            sample_normal_mapping[sample_prefix] for sample_prefix in sample_normal_mapping
-            if sample_id.startswith(sample_prefix)
-        ]
+        # check if normal sample information was added to library
+        if not normal_library_id or not normal_sample_id:
+            # get normal sample and library for dataset sample by searching in
+            # mapping for a key partially matching with sample_id
+            normal_info = [
+                sample_normal_mapping[sample_prefix] for sample_prefix in sample_normal_mapping
+                if sample_id.startswith(sample_prefix)
+            ]
 
-        if normal_info:
-            normal_info = normal_info[0]
-            normal_sample_id = normal_info['normal_sample_id']
-            normal_library_id = normal_info['normal_library_id']
-            args['normal_sample_id'] = normal_sample_id
-            args['normal_library_id'] = normal_library_id
-            log.info(
-                f"found normal info with sample {normal_info['normal_sample_id']} and library {normal_info['normal_library_id']}"
-            )
-        else:
-            raise Exception(f"no normal match found for sample {sample_id}")
+            if normal_info:
+                normal_info = normal_info[0]
+                normal_sample_id = normal_info['normal_sample_id']
+                normal_library_id = normal_info['normal_library_id']
+                log.info(
+                    f"found normal info with sample {normal_info['normal_sample_id']} and library {normal_info['normal_library_id']}"
+                )
+            else:
+                raise Exception(f"no normal match found for sample {sample_id}")
+
+        args['normal_sample_id'] = normal_sample_id
+        args['normal_library_id'] = normal_library_id
 
         # get normal dataset
         normal_dataset = workflows.analysis.dlp.utils.get_most_recent_dataset(
@@ -519,8 +529,8 @@ def run(jira, library_id):
         if not normal_dataset:
             raise Exception(f"no normal dataset found for sample {normal_sample_id} and library {normal_library_id}")
 
-        # track pseudobulk analyses
-        statuses = {
+        # track analysis complete status
+        status_complete = {
             "infer_haps": False,
             "split_wgs_bams": False,
             "merge_normal_cell_bams": False,
@@ -530,8 +540,7 @@ def run(jira, library_id):
             "count_haps": False,
         }
 
-        statuses['infer_haps'] = run_haplotype_calling(
-            jira,
+        status_complete['infer_haps'] = run_haplotype_calling(
             args={
                 'sample_id': args['normal_sample_id'],
                 'library_id': args['normal_library_id'],
@@ -542,8 +551,7 @@ def run(jira, library_id):
         # check if dataset is linked to WGS library
         if normal_dataset["library"]["library_type"] == "WGS":
             # run split wgs bam
-            statuses['split_wgs_bams'] = run_split_wgs_bam(
-                jira,
+            status_complete['split_wgs_bams'] = run_split_wgs_bam(
                 args={
                     'sample_id': args['normal_sample_id'],
                     'library_id': args['normal_library_id'],
@@ -553,7 +561,7 @@ def run(jira, library_id):
             )
         else:
             # merge tumour cell bams for normal
-            statuses['merge_normal_cell_bams'] = run_merge_cell_bams(
+            status_complete['merge_normal_cell_bams'] = run_merge_cell_bams(
                 jira,
                 args={
                     'sample_id': args['normal_sample_id'],
@@ -565,7 +573,7 @@ def run(jira, library_id):
             )
 
         # merge tumour bam dataset
-        statuses['merge_cell_bams'] = run_merge_cell_bams(
+        status_complete['merge_cell_bams'] = run_merge_cell_bams(
             jira,
             args={
                 'sample_id': args['sample_id'],
@@ -576,13 +584,13 @@ def run(jira, library_id):
         )
 
         # check if tumour and normal bams merge cell bams completed
-        if (statuses['merge_normal_cell_bams'] or statuses['split_wgs_bams']) and statuses['merge_cell_bams']:
+        if (status_complete['merge_normal_cell_bams'] or status_complete['split_wgs_bams']) and status_complete['merge_cell_bams']:
             # run variant calling
-            statuses['variant_calling'] = run_variant_calling(jira, args)
+            status_complete['variant_calling'] = run_variant_calling(jira, args)
 
-        statuses['breakpoint_calling'] = run_breakpoint_calling(jira, args)
+        status_complete['breakpoint_calling'] = run_breakpoint_calling(jira, args)
 
         # check if haplotype calling complete
-        if statuses['infer_haps']:
+        if status_complete['infer_haps']:
             # run haplotype counting
-            statuses['count_haps'] = run_haplotype_counting(jira, args)
+            status_complete['count_haps'] = run_haplotype_counting(jira, args)
