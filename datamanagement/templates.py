@@ -4,12 +4,7 @@ import re
 LANE_ID_RE = re.compile("^.*_\\d$")
 JIRA_ID_RE = re.compile('^SC-[0-9]+$')
 
-ALIGNMENT_METRICS = os.path.join(
-    '{results_dir}',
-    'results',
-    'alignment',
-    '{library_id}_alignment_metrics.csv.gz'
-)
+ALIGNMENT_METRICS = os.path.join('{results_dir}', 'results', 'alignment', '{library_id}_alignment_metrics.csv.gz')
 
 SC_WGS_FQ_TEMPLATE = os.path.join(
     "single_cell_indexing",
@@ -27,7 +22,7 @@ SC_WGS_BAM_TEMPLATE = os.path.join(
     '{ref_genome}',
     '{aligner_name}',
     'numlanes_{number_lanes}',
-    '{cell_id}.bam'
+    '{cell_id}.bam',
 )
 
 SC_WGS_BAM_DIR_TEMPLATE = os.path.join(
@@ -112,7 +107,7 @@ SC_QC_ANALYSIS_NAME_TEMPLATE = "_".join([
     "{aligner}",
     "{ref_genome}",
     "{library_id}",
-    "{lanes_hashed}"   
+    "{lanes_hashed}",
 ])
 
 SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE = "_".join([
@@ -122,7 +117,7 @@ SC_PSEUDOBULK_ANALYSIS_NAME_TEMPLATE = "_".join([
     "{ref_genome}",
     "{library_id}",
     "{sample_id}",
-    "{lanes_hashed}"   
+    "{lanes_hashed}",
 ])
 
 GSC_SCRNA_FASTQ_PATH_TEMPLATE = os.path.join(
@@ -133,8 +128,16 @@ GSC_SCRNA_FASTQ_PATH_TEMPLATE = os.path.join(
     "Solexa",
     "Data",
     "current",
-    "BaseCalls"
+    "BaseCalls",
 )
+
+TENX_ANALYSIS_NAME_TEMPLATE = "_".join([
+    "sc",
+    "{analysis_type}",
+    "{ref_genome}",
+    "{library_id}",
+    "{lanes_hashed}",
+])
 
 TENX_FASTQ_NAME_TEMPLATE = "_".join([
     "{library_id}",
@@ -144,7 +147,7 @@ TENX_FASTQ_NAME_TEMPLATE = "_".join([
 
 TENX_FASTQ_BLOB_TEMPLATE = os.path.join(
     "{library_id}",
-    "{fastq_name}"
+    "{fastq_name}",
 )
 
 TENX_SCRNA_DATASET_TEMPLATE = "-".join([
