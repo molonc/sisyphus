@@ -11,8 +11,8 @@ import json
 import ast
 import pandas as pd
 
-from utils.constants import LOGGING_FORMAT
-from utils.runtime_args import parse_runtime_args
+from datamanagement.utils.constants import LOGGING_FORMAT
+from datamanagement.utils.runtime_args import parse_runtime_args
 from dbclients.tantalus import TantalusApi
 import datamanagement.templates as templates
 
@@ -27,12 +27,7 @@ REQUIRED_FIELDS = [
     'dataset_type',
 ]
 
-OPTIONAL_FIELDS = [
-    'tag_name',
-    'aligner',
-    'sequence_lane_pks',
-    'reference_genome'
-]
+OPTIONAL_FIELDS = ['tag_name', 'aligner', 'sequence_lane_pks', 'reference_genome']
 
 
 class ListParameter(click.Option):
@@ -53,7 +48,7 @@ def input_type():
 @click.option('--update', is_flag=True)
 def json_input(**kwargs):
     missing_input = False
-    
+
     #Parse the input json file
     try:
         with open(kwargs['json_file']) as f:
@@ -71,7 +66,7 @@ def json_input(**kwargs):
         if key not in inputs:
             logging.error("Missing input for {}".format(key))
             missing_input = True
-    
+
     if missing_input:
         raise Exception("Please add missing inputs")
 
@@ -111,7 +106,7 @@ def command_line(**kwargs):
 
     if missing_input:
         raise Exception("Please add missing inputs")
-    
+
     #Call main with these arguments
     add_generic_dataset(**kwargs)
 
@@ -121,15 +116,9 @@ def add_generic_dataset(**kwargs):
 
     file_resource_pks = []
 
-    sample = tantalus_api.get(
-        "sample",
-        sample_id=kwargs['sample_id']
-    )
+    sample = tantalus_api.get_or_create("sample", sample_id=kwargs['sample_id'])
 
-    library = tantalus_api.get(
-        "dna_library",
-        library_id=kwargs['library_id']
-    )
+    library = tantalus_api.get_or_create("dna_library", library_id=kwargs['library_id'])
 
     #Add the file resource to tantalus
     for filepath in kwargs['filepaths']:
@@ -137,7 +126,7 @@ def add_generic_dataset(**kwargs):
         resource, instance = tantalus_api.add_file(
             storage_name=kwargs['storage_name'],
             filepath=filepath,
-            update=kwargs['update']
+            update=kwargs['update'],
         )
         file_resource_pks.append(resource["id"])
 
@@ -150,25 +139,22 @@ def add_generic_dataset(**kwargs):
     ref_genome = kwargs.get("reference_genome")
     aligner = kwargs.get("aligner")
 
-    if "sequence_lane_pks" in kwargs:
-        sequence_pks = map(str, kwargs["sequence_lane_pks"])
-
-    #Add the dataset to tantalus
+    # Add the dataset to tantalus
     sequence_dataset = tantalus_api.get_or_create(
-            "sequence_dataset",
-            name=kwargs['dataset_name'],
-            dataset_type=kwargs['dataset_type'],
-            sample=sample["id"],
-            library=library["id"],
-            sequence_lanes=sequence_pks,
-            file_resources=file_resource_pks,
-            reference_genome=ref_genome,
-            aligner=aligner,
-            tags=tags,
+        "sequence_dataset",
+        name=kwargs['dataset_name'],
+        dataset_type=kwargs['dataset_type'],
+        sample=sample["id"],
+        library=library["id"],
+        sequence_lanes=kwargs["sequence_lane_pks"],
+        file_resources=file_resource_pks,
+        reference_genome=ref_genome,
+        aligner=aligner,
+        tags=tags,
     )
 
     logging.info("Succesfully created sequence dataset with ID {}".format(sequence_dataset["id"]))
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     input_type()
