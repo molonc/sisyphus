@@ -15,7 +15,6 @@ jira_password = os.environ['JIRA_PASSWORD']
 jira_api = JIRA('https://www.bcgsc.ca/jira/', basic_auth=(jira_user, jira_password))
 
 
-
 def get_parent_issue(jira_id):
     """
     Get parent ticket id
@@ -65,7 +64,6 @@ def close_ticket(jira_id):
         jira_api.transition_issue(issue, '2')
 
 
-
 def update_jira_dlp(jira_id, aligner):
 
     logging.info("Updating description on {}".format(jira_id))
@@ -87,9 +85,9 @@ def update_jira_dlp(jira_id, aligner):
 
     elif sample.startswith("SA"):
         issue = jira_api.issue(jira_id)
-        
+
         if issue.fields.status.name != "Closed":
-            # assign parent ticket to justina 
+            # assign parent ticket to justina
             parent_jira_id = get_parent_issue(jira_id)
             parent_issue = jira_api.issue(parent_jira_id)
             parent_issue.update(assignee={"name": "jbiele"})
@@ -98,7 +96,7 @@ def update_jira_dlp(jira_id, aligner):
         close_ticket(jira_id)
 
 
-def update_jira_tenx(jira_id, args):
+def update_jira_tenx(jira_id, library_pk):
     """
     Update analysis jira ticket desription with link to Tantalus result dataset and 
         Colossus library
@@ -111,19 +109,21 @@ def update_jira_tenx(jira_id, args):
     results_dataset = tantalus_api.get("resultsdataset", analysis__jira_ticket=jira_id)
     results_dataset_id = results_dataset["id"]
 
-    library = colossus_api.get("tenxlibrary", name=args["library_id"])
-    library_id = library["id"]
+    library = colossus_api.get("tenxlibrary", id=int(library_pk))
 
     description = [
         "{noformat}Storage Account: scrnadata\n {noformat}",
         "Tantalus Results: https://tantalus.canadacentral.cloudapp.azure.com/results/{}".format(results_dataset_id),
-        "Colossus Library: https://colossus.canadacentral.cloudapp.azure.com/tenx/library/{}".format(library_id),
+        "Colossus Library: https://colossus.canadacentral.cloudapp.azure.com/tenx/library/{}".format(library_pk),
     ]
 
-    # assign parent ticket to justina
+    # assign parent ticket
     parent_jira_id = get_parent_issue(jira_id)
     issue = jira_api.issue(parent_jira_id)
-    issue.update(notify=False, assignee={"name": "jbwang"})
+    if library['sample']['sample_id'].startswith("TFRI"):
+        issue.update(assignee={"name": "shwu"})
+    else:
+        issue.update(assignee={"name": "jbwang"})
 
     update_description(jira_id, description, jira_user, remove_watcher=True)
     close_ticket(jira_id)
