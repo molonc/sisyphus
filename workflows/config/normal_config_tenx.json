@@ -1,0 +1,43 @@
+{
+    "_comment": "Use this config as an example. Create your own and save it as normal_config.json",
+    "email": "jpham@bccrc.ca",
+    "storages": {
+        "local_results": "jphamvm",
+        "working_inputs": "scrna_fastq",
+        "remote_inputs": "scrna_fastq",
+        "working_results": {
+            "HG38": [
+                "scrna_cellrangerv3",
+                "scrna_rdatav3",
+                "scrna_rdatarawv3",
+                "scrna_reports",
+                "scrna_bams"
+            ],
+            "MM10": [
+                "scrna_cellrangermousev3",
+                "scrna_rdatamousev3",
+                "scrna_rdatarawmousev3",
+                "scrna_mousereports",
+                "scrna_mousebams"
+            ]
+        },
+        "remote_results": {
+            "HG38": [
+                "scrna_cellrangerv3",
+                "scrna_rdatav3",
+                "scrna_rdatarawv3",
+                "scrna_reports",
+                "scrna_bams"
+            ],
+            "MM10": [
+                "scrna_cellrangermousev3",
+                "scrna_rdatamousev3",
+                "scrna_rdatarawmousev3",
+                "scrna_mousereports",
+                "scrna_mousebams"
+            ]
+        }
+    },
+    "user": "jpham",
+    "version": "vm"
+}

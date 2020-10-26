@@ -24,6 +24,7 @@ from dbclients.tantalus import TantalusApi
 from datamanagement.transfer_files import transfer_dataset
 
 from workflows.tenx.models import TenXAnalysis, TenXAnalysisInfo
+from workflows.tenx.reports import generate_qc
 
 from workflows.utils import file_utils
 from workflows.utils import log_utils
@@ -78,49 +79,43 @@ def download_data(storage_account, data_dir, library):
         blob = storage_client.blob_service.get_blob_to_path(container_name="rnaseq", blob_name=blob, file_path=filepath)
 
 
-def add_report(jira_ticket):
+def add_report(library_pk, jira_ticket, runs_dir, results_dir):
     """
-    Downloads reports tar file, untars, and adds summary.html report to ticket
+    Attaches cellranger summary and qc reprot to ticket
     """
-    storage_client = tantalus_api.get_storage_client("scrna_reports")
-    results_dataset = tantalus_api.get("resultsdataset", analysis__jira_ticket=jira_ticket)
-    reports = list(
-        tantalus_api.get_dataset_file_resources(
-            results_dataset["id"],
-            "resultsdataset",
-            {"fileinstance__storage__name": "scrna_reports"},
-        ), )
 
-    filename = reports[0]["filename"]
-    filepath = os.path.join("reports", jira_ticket)
-    local_path = os.path.join(filepath, filename)
-    if not os.path.exists(filepath):
-        os.makedirs(filepath)
+    # get colossus library
+    library = colossus_api.get("tenxlibrary", id=library_pk)
+    # get library name and ticket
+    library_id = library["name"]
+    library_ticket = library["jira_ticket"]
 
-    blob = storage_client.blob_service.get_blob_to_path(
-        container_name="reports",
-        blob_name=filename,
-        file_path=local_path,
+    # file path to summary report generated from cellranger
+    filepath = os.path.join(
+        results_dir,
+        f"{library_id}_report",
+        "summary.html",
     )
-    subprocess.call(['tar', '-xvf', local_path, '-C', filepath])
 
-    report_files = os.listdir(local_path)
+    jira_filename = "{}_summary.html".format(jira_ticket)
+    # add summary report from cellranger
+    add_attachment(library_ticket, filepath, jira_filename)
 
-    summary_filename = "summary.html"
-    if summary_filename in report_files:
-        # Get library ticket
-        analysis = colossus_api.get("tenxanalysis", jira_ticket=jira_ticket)
-        library_id = analysis["tenx_library"]
-        library = colossus_api.get("tenxlibrary", id=library_id)
-        library_ticket = library["jira_ticket"]
+    log.info("Creating QC reports")
+    input_dir = os.path.join(runs_dir, ".cache", library_id)
+    output_dir = os.path.join("/datadrive", "QC")
+    generate_qc.rscript(library_id, input_dir, output_dir)
+    generate_qc.generate_html(library_id, output_dir)
 
-        log.info("adding report to parent ticket of {}".format(jira_ticket))
-        summary_filepath = os.path.join(local_path, summary_filename)
-        summary_filename = "{}_summary.html".format(jira_ticket)
-        add_attachment(library_ticket, summary_filepath, summary_filename)
-
-    log.info("Removing {}".format(local_path))
-    shutil.rmtree(local_path)
+    # add qc report
+    filepath = os.path.join(
+        output_dir,
+        "libraries",
+        library_id,
+        f"QC_report_{library_id}.html",
+    )
+    jira_filename = "{}_QC_report.html".format(jira_ticket)
+    add_attachment(library_ticket, filepath, jira_filename)
 
 
 def create_analysis_jira_ticket(library_id, sample, library_ticket):
@@ -190,8 +185,6 @@ def start_automation(
         jira,
         version,
         args,
-        run_options,
-        library_pk,
         storages=storages,
         update=run_options["update"],
     )
@@ -244,7 +237,7 @@ def start_automation(
     if not run_options["is_test_run"]:
         update_jira_tenx(jira, library_pk)
 
-    add_report(jira)
+    add_report(library_pk, jira, runs_dir, results_dir)
 
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))
@@ -265,7 +258,6 @@ def cli():
 @click.option('--data_dir')
 @click.option('--runs_dir')
 @click.option('--results_dir')
-@click.option('--new_ticket', is_flag=True)
 @click.option('--testing', is_flag=True)
 @click.option('--config_filename')
 @click.option('--skip_pipeline', is_flag=True)
@@ -281,7 +273,6 @@ def run_all(
     jira=None,
     no_download=False,
     config_filename=None,
-    new_ticket=False,
     data_dir=None,
     runs_dir=None,
     results_dir=None,
@@ -308,7 +299,17 @@ def run_all(
         jira_ticket = analysis["jira_ticket"]
         library_id = analysis["args"]["library_id"]
 
-        run(analysis["id"], config["version"], **run_options)
+        run(
+            analysis["id"],
+            config["version"],
+            jira=jira,
+            no_download=no_download,
+            config_filename=config_filename,
+            data_dir=data_dir,
+            runs_dir=runs_dir,
+            results_dir=results_dir,
+            **run_options,
+        )
 
 
 @cli.command("run_single")
@@ -319,7 +320,6 @@ def run_all(
 @click.option('--data_dir')
 @click.option('--runs_dir')
 @click.option('--results_dir')
-@click.option('--new_ticket', is_flag=True)
 @click.option('--testing', is_flag=True)
 @click.option('--config_filename')
 @click.option('--skip_pipeline', is_flag=True)
@@ -336,15 +336,24 @@ def run_single(
     jira=None,
     no_download=False,
     config_filename=None,
-    new_ticket=False,
     data_dir=None,
     runs_dir=None,
     results_dir=None,
     **run_options,
 ):
     config = file_utils.load_json(default_config)
-    
-    run(analysis_id, config["version"], **run_options)
+
+    run(
+        analysis_id,
+        config["version"],
+        jira=jira,
+        no_download=no_download,
+        config_filename=config_filename,
+        data_dir=data_dir,
+        runs_dir=runs_dir,
+        results_dir=results_dir,
+        **run_options,
+    )
 
 
 def run(
@@ -353,7 +362,6 @@ def run(
     jira=None,
     no_download=False,
     config_filename=None,
-    new_ticket=False,
     data_dir=None,
     runs_dir=None,
     results_dir=None,
@@ -368,6 +376,10 @@ def run(
     storages = config["storages"]
 
     analysis = tantalus_api.get("analysis", id=analysis_id)
+
+    if analysis["status"] in ("running", "complete"):
+        raise Exception(f'analysis {analysis_id} already {analysis["status"]}')
+
     jira_ticket = analysis["jira_ticket"]
     library_id = analysis["args"]["library_id"]
 
