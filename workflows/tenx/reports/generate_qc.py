@@ -4,9 +4,6 @@ import subprocess
 from workflows.tenx.reports.html_generation import generation as generate
 
 Rpath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "qc.R")
-# library_id = "SCRNA10X_SA_CHIP0201_004"
-# input_dir = "/datadrive/runs/SCRNA10X_SA_CHIP0201_004/.cache/SCRNA10X_SA_CHIP0201_004"
-# output_dir = "/datadrive/qc"
 
 
 def rscript(library_id, input_dir, output_dir):
