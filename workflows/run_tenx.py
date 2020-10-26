@@ -253,7 +253,6 @@ def cli():
 
 @cli.command("run_all")
 @click.option('--version')
-@click.option('--jira', nargs=1)
 @click.option('--no_download', is_flag=True)
 @click.option('--data_dir')
 @click.option('--runs_dir')
@@ -297,12 +296,11 @@ def run_all(
 
     for analysis in chain(analyses_ready, analyses_error):
         jira_ticket = analysis["jira_ticket"]
-        library_id = analysis["args"]["library_id"]
 
         run(
             analysis["id"],
             config["version"],
-            jira=jira,
+            jira=jira_ticket,
             no_download=no_download,
             config_filename=config_filename,
             data_dir=data_dir,
