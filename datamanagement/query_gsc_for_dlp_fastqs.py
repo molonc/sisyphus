@@ -20,6 +20,7 @@ import datamanagement.templates as templates
 from datamanagement.utils.filecopy import rsync_file, try_gzip
 from datamanagement.utils.gsc import get_sequencing_instrument, GSCAPI
 from datamanagement.utils.runtime_args import parse_runtime_args
+from datamanagement.fixups.add_fastq_metadata import add_fastq_metadata_yaml
 
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
@@ -570,7 +571,18 @@ def import_gsc_dlp_paired_fastqs(
 
     if not check_library:
         # create dataset to track fastqs on tantalus
-        create_sequence_dataset_models(fastq_file_info, storage["name"], tag_name, tantalus_api, update=update)
+        dataset_ids = create_sequence_dataset_models(
+            fastq_file_info,
+            storage["name"],
+            tag_name,
+            tantalus_api,
+            update=update,
+        )
+
+        # add metadata
+        for dataset_id in dataset_ids:
+            add_fastq_metadata_yaml(dataset_id, storage['name'], dry_run=False)
+
         # notify lab that library has been imported by commenting on jira ticket
         comment_status(jira_ticket, lanes, gsc_library_id, sequencing_colossus_path)
 
@@ -638,8 +650,7 @@ def check_lanes(colossus_api, sequencing, num_lanes):
     if sequencing['number_of_lanes_requested'] < num_lanes:
         logging.info('Sequencing goal is less than total number of lanes. Updating.')
         colossus_api.update('sequencing', sequencing['id'], number_of_lanes_requested=num_lanes)
-
-    else:
+    elif sequencing['number_of_lanes_requested'] > num_lanes:
         raise Exception("Expected number of lanes is {} but total lanes imported is {}".format(
             sequencing['number_of_lanes_requested'], num_lanes))
 
