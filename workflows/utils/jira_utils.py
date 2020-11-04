@@ -49,6 +49,18 @@ def comment_jira(jira_id, comment):
     jira_api.add_comment(jira_id, comment)
 
 
+def delete_ticket(jira_id):
+    """
+    Comment on jira ticket
+    """
+
+    log.info(f"deleting {jira_id}")
+
+    issue = jira_api.issue(jira_id)
+
+    issue.delete()
+
+
 def close_ticket(jira_id):
     """
     Close jira ticket

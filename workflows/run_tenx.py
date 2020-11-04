@@ -7,7 +7,7 @@ import click
 import shutil
 import tarfile
 import logging
-from datetime import datetime, timedelta
+import datetime
 from dateutil import parser
 import traceback
 import subprocess
@@ -30,14 +30,13 @@ from workflows.utils import file_utils
 from workflows.utils import log_utils
 from workflows.utils import saltant_utils
 from workflows.utils.colossus_utils import get_ref_genome
-from workflows.utils.jira_utils import update_jira_tenx, add_attachment
+from workflows.utils.jira_utils import update_jira_tenx, add_attachment, delete_ticket
+from workflows.utils.tantalus_utils import create_tenx_analysis_from_library
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
 stream_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-log.addHandler(stream_handler)
-log.propagate = False
 
 colossus_api = ColossusApi()
 tantalus_api = TantalusApi()
@@ -251,6 +250,86 @@ def cli():
     pass
 
 
+@cli.command("run_new")
+@click.argument("library_id")
+@click.option('--version')
+@click.option('--no_download', is_flag=True)
+@click.option('--data_dir')
+@click.option('--runs_dir')
+@click.option('--results_dir')
+@click.option('--testing', is_flag=True)
+@click.option('--config_filename')
+@click.option('--skip_pipeline', is_flag=True)
+@click.option('--skip_missing', is_flag=True)
+@click.option('--is_test_run', is_flag=True)
+@click.option('--clean', is_flag=True)
+@click.option('--tag', type=str, default='')
+@click.option('--update', is_flag=True)
+@click.option('--sisyphus_interactive', is_flag=True)
+@click.option('--ref_genome', type=click.Choice(['HG38', 'MM10']))
+def run_new(
+    library_id,
+    version,
+    jira=None,
+    no_download=False,
+    config_filename=None,
+    data_dir=None,
+    runs_dir=None,
+    results_dir=None,
+    **run_options,
+):
+    # get tenx library info
+    library = colossus_api.get(
+        "tenxlibrary",
+        name=library_id,
+    )
+    sample = library["sample"]["sample_id"]
+    library_ticket = library["jira_ticket"]
+
+    # create jira ticket
+    jira_ticket = create_analysis_jira_ticket(library_id, sample, library_ticket)
+
+    # create colossus analysis
+    colossus_analysis, _ = colossus_api.create(
+        "tenxanalysis",
+        fields={
+            "version": "vm",
+            "jira_ticket": jira_ticket,
+            "run_status": "idle",
+            "tenx_library": library["id"],
+            "submission_date": str(datetime.date.today()),
+            "tenxsequencing_set": [],
+        },
+        keys=["jira_ticket"],
+    )
+
+    # create tantalus analysis
+    analysis = create_tenx_analysis_from_library(jira_ticket, library["name"])
+
+    # check if analysis with same inputs has already been ran under different ticket
+    if analysis["jira_ticket"] != jira_ticket:
+        log.info(f"Analysis with same input datasets has already been ran under {analysis['jira_ticket']}")
+        # remove jira ticket
+        delete_ticket(jira_ticket)
+        # remove colossus analysis
+        colossus_api.delete("tenxanalysis", colossus_analysis["id"])
+    else:
+        # load config
+        config = file_utils.load_json(default_config)
+
+        run(
+            analysis["id"],
+            config["version"],
+            jira=jira_ticket,
+            no_download=no_download,
+            config_filename=config_filename,
+            data_dir=data_dir,
+            runs_dir=runs_dir,
+            results_dir=results_dir,
+            **run_options,
+        )
+
+
 @cli.command("run_all")
 @click.option('--version')
 @click.option('--no_download', is_flag=True)
@@ -284,14 +363,14 @@ def run_all(
         "analysis",
         analysis_type__name="tenx",
         status="ready",
-        last_updated__gte=str(datetime.now() - timedelta(days=7)),
+        last_updated__gte=str(datetime.datetime.now() - datetime.timedelta(days=7)),
     )
     # get latest analyses with status error
     analyses_error = tantalus_api.list(
         "analysis",
         analysis_type__name="tenx",
         status="error",
-        last_updated__gte=str(datetime.now() - timedelta(days=7)),
+        last_updated__gte=str(datetime.datetime.now() - datetime.timedelta(days=7)),
     )
 
     for analysis in chain(analyses_ready, analyses_error):
