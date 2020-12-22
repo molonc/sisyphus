@@ -23,7 +23,7 @@ def create_lane_fastq_metadata(tantalus_api, dataset_id):
     """
     colossus_api = ColossusApi()
 
-    dataset = tantalus_api.get( "sequencedataset", id=dataset_id)
+    dataset = tantalus_api.get("sequencedataset", id=dataset_id)
     library_id = dataset['library']['library_id']
     sample_id = dataset['sample']['sample_id']
     assert len(dataset['sequence_lanes']) == 1
