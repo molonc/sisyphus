@@ -23,9 +23,9 @@ class ColossusApi(BasicAPIClient):
         """
 
         super(ColossusApi, self).__init__(
-            os.environ.get("COLOSSUS_API_URL", COLOSSUS_API_URL),
-            username=os.environ.get("COLOSSUS_API_USERNAME"),
-            password=os.environ.get("COLOSSUS_API_PASSWORD"),
+            "https://colossus.canadacentral.cloudapp.azure.com/api/",
+            username="sbeatty",
+            password="colmeQ!@3"
         )
 
     def get_colossus_sublibraries_from_library_id(self, library_id, brief=False):
