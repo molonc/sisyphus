@@ -532,7 +532,6 @@ def import_gsc_dlp_paired_fastqs(
                     index_sequence=index_sequence,
                     filepath=tantalus_path,
                 ))
-            print(fastq_file_info)
 
             if not check_library:
                 # transfer fastq if destination storage is server type
@@ -753,7 +752,7 @@ def create_tickets_and_analyses(import_info):
 @click.option('--update', is_flag=True)
 @click.option('--check_library', is_flag=True)
 @click.option('--dry_run', is_flag=True)
-@click.option('--external_identifier', is_flag=True)
+@click.option('--external_identifier', is_flag=True, help='If flagged will use Colossus External GSC ID to query GSC. Useful if samples have been flipped.')
 def main(storage_name,
          dlp_library_id=None,
          internal_id=None,
