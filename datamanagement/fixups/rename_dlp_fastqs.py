@@ -17,7 +17,7 @@ SC_WGS_FQ_TEMPLATE = os.path.join(
 )
 
 
-def rename_fastqs(dataset_id, storage_name, dry_run=False):
+def rename_fastqs(dataset_id, storage_name, dry_run=False, check_only=False):
     logging.info(f'dataset: {dataset_id}')
     logging.info(f'dry run: {dry_run}')
 
@@ -41,21 +41,35 @@ def rename_fastqs(dataset_id, storage_name, dry_run=False):
         assert len(dataset['sequence_lanes']) == 1
 
         parts = filename.split('/')
-        assert parts[0] == 'single_cell_indexing'
-        assert parts[1] == 'fastq'
-        assert parts[3] == dataset['library']['library_id']
-        assert parts[4].split('_')[0] == dataset['sequence_lanes'][0]['flowcell_id']
-        assert parts[4].split('_')[1] == dataset['sequence_lanes'][0]['lane_number']
-        assert parts[5].split('_')[0] == dataset['sample']['sample_id']
-        assert parts[5].split('_')[1] == dataset['library']['library_id']
+        basename = os.path.basename(filename)
+
+        non_conforming = False
+        try:
+            assert parts[0] == 'single_cell_indexing'
+            assert parts[1] == 'fastq'
+            assert parts[2] == dataset['library']['library_id']
+            assert parts[3].split('_')[0] == dataset['sequence_lanes'][0]['flowcell_id']
+            assert parts[3].split('_')[1] == dataset['sequence_lanes'][0]['lane_number']
+            assert parts[4] == dataset['sample']['sample_id']
+        except AssertionError:
+            non_conforming = True
+
+        if check_only:
+            if non_conforming:
+                raise Exception(f'filename {filename} does not conform')
+            continue
 
         new_filename = SC_WGS_FQ_TEMPLATE.format(
             dlp_library_id=dataset['library']['library_id'],
             flowcell_id=dataset['sequence_lanes'][0]['flowcell_id'],
             lane_number=dataset['sequence_lanes'][0]['lane_number'],
             cell_sample_id=dataset['sample']['sample_id'],
-            cell_filename=parts[5],
+            cell_filename=basename,
         )
+
+        if new_filename == filename:
+            logging.info(f'skipping conforming {filename} on {storage_name}')
+            continue
 
         logging.info(f'renaming {filename} to {new_filename} on {storage_name}')
 
@@ -70,9 +84,11 @@ def rename_fastqs(dataset_id, storage_name, dry_run=False):
 @click.argument('storage_name')
 @click.argument('dataset_id', type=int, nargs=-1)
 @click.option('--dry_run', is_flag=True, default=False)
-def rename_fastq_dataset(storage_name, dataset_id, dry_run=False):
+@click.option('--check_only', is_flag=True, default=False)
+def rename_fastq_dataset(storage_name, dataset_id, dry_run=False, check_only=False):
     for id_ in dataset_id:
-        rename_fastqs(id_, storage_name, dry_run=dry_run)
+        rename_fastqs(id_, storage_name, dry_run=dry_run, check_only=check_only)
+        logging.info(f'finished dataset: {id_}')
 
 
 if __name__ == "__main__":
