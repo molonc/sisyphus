@@ -109,7 +109,8 @@ class BlobStorageClient(object):
         return url
 
     def delete(self, blobname):
-        self.blob_service.delete_blob(self.storage_container, blobname)
+        blob_client = self.blob_service.get_blob_client(self.storage_container, blobname)
+        blob_client.delete_blob()
 
     def open_file(self, blobname):
         url = self.get_url(blobname)

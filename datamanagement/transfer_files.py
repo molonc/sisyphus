@@ -12,7 +12,6 @@ import time
 import traceback
 import shutil
 import tempfile
-from azure.storage.blob import BlockBlobService, ContainerPermissions
 from datamanagement.utils.constants import LOGGING_FORMAT
 from dbclients.tantalus import TantalusApi, NotFoundError
 from datamanagement.utils.utils import make_dirs
