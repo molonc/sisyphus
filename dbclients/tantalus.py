@@ -136,7 +136,13 @@ class BlobStorageClient(object):
         blob_client = self.blob_service.get_blob_client(self.storage_container, blobname)
         return blob_client.upload_blob(stream, overwrite=True)
 
-    def create(self, blobname, filepath, update=False):
+    def create(self, blobname, filepath, update=False, max_concurrency=None, timeout=None):
+        kwargs = {}
+        if max_concurrency:
+            kwargs['max_concurrency'] = max_concurrency
+        if timeout:
+            kwargs['timeout'] = timeout
+
         if self.exists(blobname):
             log.info("{} already exists on {}".format(blobname, self.prefix))
 
@@ -167,6 +173,38 @@ class BlobStorageClient(object):
                 time.sleep(1)
                 blob = blob_client.get_blob_properties(self.storage_container, new_blobname)
                 copy_props = blob.properties.copy
+
+    def download(
+            self, blob_name, destination_file_path, max_concurrency=None, timeout=None
+    ):
+        """
+        download data from blob storage
+        :param container_name: blob container name
+        :param blob_name: blob path
+        :param destination_file_path: path to download the file to
+        :return: azure.storage.blob.baseblobservice.Blob instance with content properties and metadata
+        """
+        kwargs = {}
+        if max_concurrency:
+            kwargs['max_concurrency'] = max_concurrency
+        if timeout:
+            kwargs['timeout'] = timeout
+
+        try:
+            blob_client = self.blob_service.get_blob_client(self.storage_container, blob_name)
+            with open(destination_file_path, "wb") as my_blob:
+                download_stream = blob_client.download_blob(**kwargs)
+                my_blob.write(download_stream.readall())
+            blob = blob_client.get_blob_properties()
+        except Exception as exc:
+            print("Error downloading {} from {}".format(blob_name, self.storage_container))
+            raise exc
+
+        if not blob:
+            raise Exception('Blob download failure')
+
+        return blob
+
 
 
 class ServerStorageClient(object):
