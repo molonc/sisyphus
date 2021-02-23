@@ -208,7 +208,7 @@ class AzureBlobServerUpload(object):
 
         # Check any existing file, skip if the same, raise error if different
         # and we are not overwriting
-        if self.storage_client.exists(cloud_container, cloud_blobname):
+        if self.storage_client.exists(cloud_blobname):
             if _check_file_same_blob(
                     self.storage_client,
                     file_resource, cloud_container, cloud_blobname):
