@@ -183,7 +183,7 @@ class AzureBlobServerUpload(object):
 
     def __init__(self, tantalus_api, to_storage):
         self.tantalus_api = tantalus_api
-        self.block_blob_service = tantalus_api.get_storage_client(to_storage["name"])
+        self.storage_client = tantalus_api.get_storage_client(to_storage["name"])
         self.to_storage = to_storage
 
     def upload_to_blob(self, file_instance, overwrite=False):
@@ -208,9 +208,9 @@ class AzureBlobServerUpload(object):
 
         # Check any existing file, skip if the same, raise error if different
         # and we are not overwriting
-        if self.block_blob_service.exists(cloud_container, cloud_blobname):
+        if self.storage_client.exists(cloud_container, cloud_blobname):
             if _check_file_same_blob(
-                    self.block_blob_service,
+                    self.storage_client,
                     file_resource, cloud_container, cloud_blobname):
                 logging.info(
                     "skipping transfer of file resource {} that matches existing file".format(
@@ -232,8 +232,8 @@ class AzureBlobServerUpload(object):
             run_azcopy(local_filepath, blob_url)
 
         else:
-            assert cloud_container == self.block_blob_service.storage_container
-            self.block_blob_service.create(
+            assert cloud_container == self.storage_client.storage_container
+            self.storage_client.create(
                 cloud_blobname,
                 local_filepath,
                 max_concurrency=16,
