@@ -83,9 +83,9 @@ class TransferProgress(object):
         )
 
 
-def _check_file_same_blob(block_blob_service, file_resource, container, blobname):
-    assert container == block_blob_service.storage_container
-    blobsize = block_blob_service.get_size(blobname)
+def _check_file_same_blob(storage_client, file_resource, container, blobname):
+    assert container == storage_client.storage_container
+    blobsize = storage_client.get_size(blobname)
 
     if file_resource["size"] != blobsize:
         logging.info(
