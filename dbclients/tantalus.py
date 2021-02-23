@@ -20,7 +20,7 @@ import datetime
 import pandas as pd
 import time
 from azure.identity import ClientSecretCredential
-
+from azure.core.exceptions import ResourceNotFoundError
 try:
     from urllib.request import urlopen
 except ImportError:
@@ -122,7 +122,7 @@ class BlobStorageClient(object):
         try:
             blob_client.get_blob_properties()
             return True
-        except:
+        except ResourceNotFoundError:
             return False
 
     def list(self, prefix):
