@@ -8,14 +8,19 @@ scripts.
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-import json
-import os
-import time
-import datetime
-import logging
-import shutil
-import pandas as pd
 
+import json
+import logging
+import os
+import shutil
+
+import azure.storage.blob as azureblob
+import azure.storage.blob._shared_access_signature as blob_sas
+import datetime
+import pandas as pd
+import time
+from azure.identity import ClientSecretCredential
+from azure.core.exceptions import ResourceNotFoundError
 try:
     from urllib.request import urlopen
 except ImportError:
@@ -25,34 +30,11 @@ from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from datamanagement.utils.utils import make_dirs
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
 
-import azure.storage.blob
-from azure.keyvault import KeyVaultClient, KeyVaultAuthentication
-from azure.common.credentials import ServicePrincipalCredentials
-
 log = logging.getLogger('sisyphus')
 
 TANTALUS_API_URL = os.environ.get(
     'TANTALUS_API_URL',
     "https://tantalus.canadacentral.cloudapp.azure.com/api/")
-
-
-def get_storage_account_key(accountname, client_id, secret_key, tenant_id, keyvault_account):
-    def auth_callback(server, resource, scope):
-        credentials = ServicePrincipalCredentials(
-            client_id=client_id,
-            secret=secret_key,
-            tenant=tenant_id,
-            resource="https://vault.azure.net",
-        )
-        token = credentials.token
-        return token['token_type'], token['access_token']
-
-    client = KeyVaultClient(KeyVaultAuthentication(auth_callback))
-    keyvault = "https://{}.vault.azure.net/".format(keyvault_account)
-
-    # passing in empty string for version returns latest key
-    secret_bundle = client.get_secret(keyvault, accountname, "")
-    return secret_bundle.value
 
 
 class BlobStorageClient(object):
@@ -64,65 +46,104 @@ class BlobStorageClient(object):
         client_id = os.environ["CLIENT_ID"]
         secret_key = os.environ["SECRET_KEY"]
         tenant_id = os.environ["TENANT_ID"]
-        keyvault_account = os.environ['AZURE_KEYVAULT_ACCOUNT']
 
-        storage_key = get_storage_account_key(self.storage_account, client_id, secret_key, tenant_id, keyvault_account)
+        storage_account_token = ClientSecretCredential(tenant_id, client_id, secret_key)
 
-        self.blob_service = azure.storage.blob.BlockBlobService(
-            account_name=self.storage_account,
-            account_key=storage_key,
+        storage_account_url = "https://{}.blob.core.windows.net".format(
+            self.storage_account
         )
+
+        self.blob_service = azureblob.BlobServiceClient(
+            storage_account_url,
+            storage_account_token)
+
         self.blob_service.MAX_BLOCK_SIZE = 64 * 1024 * 1024
 
     def get_size(self, blobname):
-        properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
-        blobsize = properties.properties.content_length
-        return blobsize
+        blob_client = self.blob_service.get_blob_client(self.storage_container, blobname)
+        blob = blob_client.get_blob_properties()
+        return blob.size
 
     def get_created_time(self, blobname):
-        properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
-        created_time = properties.properties.last_modified.isoformat()
+        blob_client = self.blob_service.get_blob_client(self.storage_container, blobname)
+        blob = blob_client.get_blob_properties()
+        created_time = blob.last_modified.isoformat()
         return created_time
 
     def get_url(self, blobname, write_permission=False):
-        permission = azure.storage.blob.BlobPermissions.READ
+
         if write_permission:
-            permission |= azure.storage.blob.BlobPermissions.CREATE
-            permission |= azure.storage.blob.BlobPermissions.WRITE
-        sas_token = self.blob_service.generate_blob_shared_access_signature(
+            permissions = azureblob.BlobSasPermissions(read=True, write=True, create=True, delete=True)
+        else:
+            permissions = azureblob.BlobSasPermissions(read=True)
+
+        start_time = datetime.datetime.utcnow()
+        expiry_time = datetime.datetime.utcnow() + datetime.timedelta(hours=12)
+
+        token = self.blob_service.get_user_delegation_key(
+            key_start_time=start_time,
+            key_expiry_time=expiry_time
+        )
+
+        sas_token = blob_sas.generate_blob_sas(
+            self.storage_account,
             self.storage_container,
             blobname,
-            permission=permission,
-            expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=12),
+            user_delegation_key=token,
+            permission=permissions,
+            start=start_time,
+            expiry=expiry_time,
         )
-        blob_url = self.blob_service.make_blob_url(
-            container_name=self.storage_container,
-            blob_name=blobname,
-            protocol="https",
-            sas_token=sas_token,
+
+        protocol = "https"
+        primary_endpoint = "{}.blob.core.windows.net".format(self.storage_account)
+
+        url = '{}://{}/{}/{}'.format(
+            protocol,
+            primary_endpoint,
+            self.storage_container,
+            blobname,
         )
-        blob_url = blob_url.replace(' ', '%20')
-        return blob_url
+
+        url += '?' + sas_token
+        return url
 
     def delete(self, blobname):
-        self.blob_service.delete_blob(self.storage_container, blob_name=blobname)
+        blob_client = self.blob_service.get_blob_client(self.storage_container, blobname)
+        blob_client.delete_blob()
 
     def open_file(self, blobname):
         url = self.get_url(blobname)
         return urlopen(url)
 
     def exists(self, blobname):
-        return self.blob_service.exists(self.storage_container, blob_name=blobname)
+        blob_client = self.blob_service.get_blob_client(self.storage_container, blobname)
+
+        try:
+            blob_client.get_blob_properties()
+            return True
+        except ResourceNotFoundError:
+            return False
 
     def list(self, prefix):
-        for blob in self.blob_service.list_blobs(self.storage_container, prefix=prefix):
+        blob_client = self.blob_service.get_container_client(self.storage_container)
+        container_blobs = blob_client.list_blobs(name_starts_with=prefix)
+
+        for blob in container_blobs:
             yield blob.name
 
     def write_data(self, blobname, stream):
         stream.seek(0)
-        return self.blob_service.create_blob_from_stream(self.storage_container, blob_name=blobname, stream=stream)
+        blob_client = self.blob_service.get_blob_client(self.storage_container, blobname)
+        return blob_client.upload_blob(stream, overwrite=True)
 
-    def create(self, blobname, filepath, update=False):
+    def create(self, blobname, filepath, update=False, max_concurrency=None, timeout=None):
+        kwargs = {}
+        if max_concurrency:
+            kwargs['max_concurrency'] = max_concurrency
+        if timeout:
+            kwargs['timeout'] = timeout
+
         if self.exists(blobname):
             log.info("{} already exists on {}".format(blobname, self.prefix))
 
@@ -138,16 +159,53 @@ class BlobStorageClient(object):
                 raise Exception("blob size is {} but local file size is {}".format(blobsize, filesize))
 
         log.info("Creating blob {} from path {}".format(blobname, filepath))
-        self.blob_service.create_blob_from_path(self.storage_container, blobname, filepath)
+
+        blob_client = self.blob_service.get_blob_client(self.storage_container, blobname)
+
+        with open(filepath, "rb") as stream:
+            blob_client.upload_blob(stream, overwrite=True)
 
     def copy(self, blobname, new_blobname, wait=False):
         url = self.get_url(blobname)
-        copy_props = self.blob_service.copy_blob(self.storage_container, new_blobname, url)
+        blob_client = self.blob_service.get_blob_client(self.storage_container, new_blobname)
+        copy_props = blob_client.start_copy_from_url(url)
         if wait:
             while copy_props.status != 'success':
                 time.sleep(1)
-                blob = self.blob_service.get_blob_properties(self.storage_container, new_blobname)
+                blob = blob_client.get_blob_properties(self.storage_container, new_blobname)
                 copy_props = blob.properties.copy
+
+    def download(
+            self, blob_name, destination_file_path, max_concurrency=None, timeout=None
+    ):
+        """
+        download data from blob storage
+        :param container_name: blob container name
+        :param blob_name: blob path
+        :param destination_file_path: path to download the file to
+        :return: azure.storage.blob.baseblobservice.Blob instance with content properties and metadata
+        """
+        kwargs = {}
+        if max_concurrency:
+            kwargs['max_concurrency'] = max_concurrency
+        if timeout:
+            kwargs['timeout'] = timeout
+
+        try:
+            blob_client = self.blob_service.get_blob_client(self.storage_container, blob_name)
+            with open(destination_file_path, "wb") as my_blob:
+                download_stream = blob_client.download_blob(**kwargs)
+                my_blob.write(download_stream.readall())
+            blob = blob_client.get_blob_properties()
+        except Exception as exc:
+            print("Error downloading {} from {}".format(blob_name, self.storage_container))
+            raise exc
+
+        if not blob:
+            raise Exception('Blob download failure')
+
+        return blob
+
 
 
 class ServerStorageClient(object):
