@@ -497,12 +497,13 @@ def _transfer_files_with_retry(f_transfer, file_instance, overwrite=False):
 @click.argument("from_storage_name")
 @click.argument("to_storage_name")
 @click.option("--suffix_filter", required=False)
-def transfer_dataset_cmd(dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=None):
+@click.option("--overwrite", is_flag=True)
+def transfer_dataset_cmd(dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=None, overwrite=False):
     tantalus_api = TantalusApi()
-    transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=suffix_filter)
+    transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=suffix_filter, overwrite=overwrite)
 
 
-def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=None):
+def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=None, overwrite=False):
     """ Transfer a dataset
     """
     assert dataset_model in ("sequencedataset", "resultsdataset")
@@ -541,13 +542,14 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
             )
             continue
 
-        overwrite = (other_file_instance is not None and other_file_instance['is_deleted'])
+        is_deleted_overwrite = (other_file_instance is not None and other_file_instance['is_deleted'])
+        overwrite_file = overwrite or is_deleted_overwrite
 
         logging.info(
             "starting transfer {} from {} to {}".format(
                 file_resource["filename"], from_storage["name"], to_storage["name"]))
 
-        _transfer_files_with_retry(f_transfer, file_instance, overwrite=overwrite)
+        _transfer_files_with_retry(f_transfer, file_instance, overwrite=overwrite_file)
 
         tantalus_api.add_instance(file_resource, to_storage)
 
