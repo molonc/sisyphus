@@ -129,8 +129,8 @@ class BlobStorageClient(object):
         blob_client = self.blob_service.get_container_client(self.storage_container)
         container_blobs = blob_client.list_blobs(name_starts_with=prefix)
 
-        for container in container_blobs:
-            yield container
+        for blob in container_blobs:
+            yield blob.name
 
     def write_data(self, blobname, stream):
         stream.seek(0)
