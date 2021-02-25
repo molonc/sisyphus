@@ -12,7 +12,6 @@ import time
 import traceback
 import shutil
 import tempfile
-from azure.storage.blob import BlockBlobService, ContainerPermissions
 from datamanagement.utils.constants import LOGGING_FORMAT
 from dbclients.tantalus import TantalusApi, NotFoundError
 from datamanagement.utils.utils import make_dirs
@@ -84,9 +83,10 @@ class TransferProgress(object):
         )
 
 
-def _check_file_same_blob(block_blob_service, file_resource, container, blobname):
-    properties = block_blob_service.get_blob_properties(container, blobname)
-    blobsize = properties.properties.content_length
+def _check_file_same_blob(storage_client, file_resource, container, blobname):
+    assert container == storage_client.storage_container
+    blobsize = storage_client.get_size(blobname)
+
     if file_resource["size"] != blobsize:
         logging.info(
             "blob {} in container {} has size {} which mismatches recorded size {} for {} in tantalus".format(
@@ -165,12 +165,11 @@ class AzureBlobServerDownload(object):
             run_azcopy(blob_url, local_filepath)
 
         else:
-            self.block_blob_service.get_blob_to_path(
-                cloud_container,
+            assert cloud_container == self.storage_client.storage_container
+            self.storage_client.download(
                 cloud_blobname,
                 local_filepath,
-                progress_callback=TransferProgress().print_progress,
-                max_connections=16,
+                max_concurrency=16,
             )
 
         os.chmod(local_filepath, 0o444)
@@ -184,7 +183,7 @@ class AzureBlobServerUpload(object):
 
     def __init__(self, tantalus_api, to_storage):
         self.tantalus_api = tantalus_api
-        self.block_blob_service = tantalus_api.get_storage_client(to_storage["name"]).blob_service
+        self.storage_client = tantalus_api.get_storage_client(to_storage["name"])
         self.to_storage = to_storage
 
     def upload_to_blob(self, file_instance, overwrite=False):
@@ -209,9 +208,9 @@ class AzureBlobServerUpload(object):
 
         # Check any existing file, skip if the same, raise error if different
         # and we are not overwriting
-        if self.block_blob_service.exists(cloud_container, cloud_blobname):
+        if self.storage_client.exists(cloud_blobname):
             if _check_file_same_blob(
-                    self.block_blob_service,
+                    self.storage_client,
                     file_resource, cloud_container, cloud_blobname):
                 logging.info(
                     "skipping transfer of file resource {} that matches existing file".format(
@@ -233,12 +232,11 @@ class AzureBlobServerUpload(object):
             run_azcopy(local_filepath, blob_url)
 
         else:
-            self.block_blob_service.create_blob_from_path(
-                cloud_container,
+            assert cloud_container == self.storage_client.storage_container
+            self.storage_client.create(
                 cloud_blobname,
                 local_filepath,
-                progress_callback=TransferProgress().print_progress,
-                max_connections=16,
+                max_concurrency=16,
                 timeout=10 * 60 * 64,
             )
 
@@ -497,12 +495,13 @@ def _transfer_files_with_retry(f_transfer, file_instance, overwrite=False):
 @click.argument("from_storage_name")
 @click.argument("to_storage_name")
 @click.option("--suffix_filter", required=False)
-def transfer_dataset_cmd(dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=None):
+@click.option("--overwrite", is_flag=True)
+def transfer_dataset_cmd(dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=None, overwrite=False):
     tantalus_api = TantalusApi()
-    transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=suffix_filter)
+    transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=suffix_filter, overwrite=overwrite)
 
 
-def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=None):
+def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name, to_storage_name, suffix_filter=None, overwrite=False):
     """ Transfer a dataset
     """
     assert dataset_model in ("sequencedataset", "resultsdataset")
@@ -541,13 +540,14 @@ def transfer_dataset(tantalus_api, dataset_id, dataset_model, from_storage_name,
             )
             continue
 
-        overwrite = (other_file_instance is not None and other_file_instance['is_deleted'])
+        is_deleted_overwrite = (other_file_instance is not None and other_file_instance['is_deleted'])
+        overwrite_file = overwrite or is_deleted_overwrite
 
         logging.info(
             "starting transfer {} from {} to {}".format(
                 file_resource["filename"], from_storage["name"], to_storage["name"]))
 
-        _transfer_files_with_retry(f_transfer, file_instance, overwrite=overwrite)
+        _transfer_files_with_retry(f_transfer, file_instance, overwrite=overwrite_file)
 
         tantalus_api.add_instance(file_resource, to_storage)
 

@@ -12,6 +12,7 @@ from workflows import generate_inputs
 import dbclients.tantalus
 from datamanagement.utils.constants import LOGGING_FORMAT
 
+
 DATASET_TYPE = 'dlpfastqs'
 DATASET_VERSION = 'v.0.0.1'
 
@@ -77,7 +78,7 @@ def create_lane_fastq_metadata(tantalus_api, dataset_id):
     metadata['meta']['cells'] = {}
     for idx, row in sample_info.iterrows():
         cell_id = row['cell_id']
-
+        
         if cell_id not in cell_ids:
             continue
 
@@ -128,10 +129,10 @@ def add_fastq_metadata_yaml(dataset_id, storage_name, dry_run=False):
     metadata_io = io.BytesIO()
     metadata_io.write(yaml.dump(metadata, default_flow_style=False).encode())
 
-    print(f'writing metadata to file {metadata_filepath}')
+    logging.info(f'writing metadata to file {metadata_filepath}')
     client.write_data(metadata_filename, metadata_io)
 
-    print(f'adding {metadata_filepath} to tantalus')
+    logging.info(f'adding {metadata_filepath} to tantalus')
 
     if not dry_run:
         file_resource, file_instance = tantalus_api.add_file(storage_name, metadata_filepath, update=True)
@@ -154,5 +155,5 @@ def add_fastq_metadata_yamls(storage_name, dataset_id, dry_run=False):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(format=LOGGING_FORMAT, level=print)
+    logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
     add_fastq_metadata_yamls()
