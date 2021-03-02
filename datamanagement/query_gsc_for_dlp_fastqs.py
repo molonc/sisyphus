@@ -113,7 +113,6 @@ filename_pattern_map = {
     "*_2_*_adapter_trimmed_*.fastq.gz": (2, True),
 }
 
-
 def get_existing_fastq_data(tantalus_api, dlp_library_id):
     ''' Get the current set of fastq data in tantalus. Modified to cycle through datasets rather than lanes as the later may cause issues with incomplete datasets.
 
@@ -132,7 +131,6 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
             existing_flowcell_ids.append((lane['flowcell_id'], lane['lane_number']))
     logging.info(f"lanes already on tantalus: {existing_flowcell_ids}")
     return set(existing_flowcell_ids)
-
 
 def get_gsc_library_info(library_infos, external_identifier):
 
@@ -193,6 +191,7 @@ def import_gsc_dlp_paired_fastqs(
         update=False,
         check_library=False,
         dry_run=False,
+        external_id=False
 ):
     ''' Import dlp fastq data from the GSC.
 
@@ -246,7 +245,11 @@ def import_gsc_dlp_paired_fastqs(
     cell_samples = query_colossus_dlp_cell_info(colossus_api, dlp_library_id)
     rev_comp_overrides = query_colossus_dlp_rev_comp_override(colossus_api, dlp_library_id)
 
-    external_identifier = f"{primary_sample_id}_{dlp_library_id}"
+    if not external_id:
+        external_identifier = sequencing["external_gsc_id"]
+    else:
+        external_identifier = f"{primary_sample_id}_{dlp_library_id}"
+
 
     gsc_api = GSCAPI()
 
@@ -270,8 +273,13 @@ def import_gsc_dlp_paired_fastqs(
     # Not (1) and not (2)
     # No data is available on the GSC. Either database error or sequencing has not finished.
 
+
     gsc_fastq_infos = gsc_api.query(f"concat_fastq?parent_library={gsc_library_id}")
-    gsc_library_infos = gsc_api.query(f"library?external_identifier={external_identifier}")
+    if not external_id:
+        gsc_library_infos = gsc_api.query(f"library?external_identifier={external_identifier}")
+    else:
+        gsc_library_infos = gsc_api.query(f"library?external_identifier={external_identifier}")
+    
     if not gsc_library_infos:
         logging.info("searching by library id")
         gsc_library_infos = gsc_api.query(f"library?external_identifier={dlp_library_id}")
@@ -285,7 +293,8 @@ def import_gsc_dlp_paired_fastqs(
             return None
 
     if gsc_library_info is not None:
-        external_identifier = gsc_library_info["external_identifier"]
+        if external_id is None:
+            external_identifier = gsc_library_info["external_identifier"]
         gsc_library_id = check_colossus_gsc_library_id(
             colossus_api,
             jira_ticket,
@@ -740,6 +749,7 @@ def create_tickets_and_analyses(import_info):
 @click.option('--update', is_flag=True)
 @click.option('--check_library', is_flag=True)
 @click.option('--dry_run', is_flag=True)
+@click.option('--external_identifier', is_flag=True, help='If flagged will use Colossus External GSC ID to query GSC. Useful if samples have been flipped.')
 def main(storage_name,
          dlp_library_id=None,
          internal_id=None,
@@ -747,7 +757,9 @@ def main(storage_name,
          all=False,
          update=False,
          check_library=False,
-         dry_run=False):
+         dry_run=False,
+         external_identifier=False
+         ):
 
     # Set up the root logger
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
