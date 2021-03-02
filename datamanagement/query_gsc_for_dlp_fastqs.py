@@ -115,7 +115,7 @@ filename_pattern_map = {
 
 
 def get_existing_fastq_data(tantalus_api, dlp_library_id):
-    ''' Get the current set of fastq data in tantalus.
+    ''' Get the current set of fastq data in tantalus. Modified to cycle through datasets rather than lanes as the later may cause issues with incomplete datasets.
 
     Args:
         dlp_library_id: library id for the dlp run
@@ -124,13 +124,12 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
         existing_data: set of tuples of the form (flowcell_id, lane_number, index_sequence, read_end)
     '''
 
+    datasets = tantalus_api.list('sequencedataset', library__library_id=dlp_library_id)
     existing_flowcell_ids = []
-
-    lanes = tantalus_api.list('sequencing_lane', dna_library__library_id=dlp_library_id)
-
-    for lane in lanes:
-        existing_flowcell_ids.append((lane['flowcell_id'], lane['lane_number']))
-
+    for dataset in datasets:
+        lanes = tantalus_api.list('sequencing_lane', dna_library__library_id=dlp_library_id)
+        for lane in lanes:
+            existing_flowcell_ids.append((lane['flowcell_id'], lane['lane_number']))
     logging.info(f"lanes already on tantalus: {existing_flowcell_ids}")
     return set(existing_flowcell_ids)
 
