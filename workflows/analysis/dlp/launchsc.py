@@ -49,7 +49,7 @@ def run_pipeline(
 
     version_parsed = version_parsed = pd.Series(version.replace("v","").split(".")).apply(int).tolist()
     
-    if (version_parsed[0] >= 0) & (version_parsed[1] >= 6) & (version_parsed[2] >= 34):
+    if (version_parsed[0] >= 0) & (version_parsed[1] >= 6) & (version_parsed[2] > 34):
         if analysis_type == "alignment":
             run_cmd += ['--sequencing_center GSC']
 
