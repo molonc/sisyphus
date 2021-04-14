@@ -10,7 +10,8 @@ import time
 import collections
 import click
 import pandas as pd
-import datetime
+import datetime as dt
+
 from collections import defaultdict
 
 from datamanagement.utils.constants import LOGGING_FORMAT
@@ -570,13 +571,11 @@ def import_gsc_dlp_paired_fastqs(
         fastq_lane_index_sequences[flowcell_lane].add(info['index_sequence'])
     logging.info('all fastq files refer to indices known in colossus')
 
-    # Check that all index sequences in colossus have fastq files
+    #Check that all index sequences in colossus have fastq files
     for flowcell_lane in fastq_lane_index_sequences:
         for index_sequence in cell_index_sequences:
             if index_sequence not in fastq_lane_index_sequences[flowcell_lane]:
-                raise Exception(
-                    f'no fastq found for index sequence {index_sequence}, flowcell {flowcell_lane[0]}, lane {flowcell_lane[1]}'
-                )
+                raise Exception(f'no fastq found for index sequence {index_sequence}, flowcell {flowcell_lane[0]}, lane {flowcell_lane[1]}')
 
     logging.info('all indices in colossus have fastq files')
 
@@ -680,17 +679,19 @@ def write_import_statuses(successful_libs, failed_libs):
         os.remove(import_status_path)
 
     file = open(import_status_path, 'w+')
-    file.write("Date: {}\n\n".format(str(datetime.date.today())))
+    file.write("Date: {}\n\n".format(str(dt.date.today())))
 
     file.write("Successful imports: \n")
 
     for successful_lib in successful_libs:
-        file.write('\n{}, {} \n'.format(successful_lib['dlp_library_id'], successful_lib['gsc_library_id']))
-        for lane in successful_lib['lanes']:
-            flowcell = "{}_{}".format(lane['flowcell_id'], lane['lane_number'])
-            lane_message = "Flowcell: {}, Sequencing Date: {} \n".format(flowcell, lane['sequencing_date'])
-            file.write(lane_message)
-        file.write('Latest lane requested on {}'.format(successful_lib['lane_requested_date']))
+        print(successful_lib['lane_requested_date'])
+        if pd.to_datetime(successful_lib['lane_requested_date']) > dt.datetime(2020, 9, 1): 
+            file.write('\n{}, {} \n'.format(successful_lib['dlp_library_id'], successful_lib['gsc_library_id']))
+            for lane in successful_lib['lanes']:
+                flowcell = "{}_{}".format(lane['flowcell_id'], lane['lane_number'])
+                lane_message = "Flowcell: {}, Sequencing Date: {} \n".format(flowcell, lane['sequencing_date'])
+                file.write(lane_message)
+            file.write('Latest lane requested on {}'.format(successful_lib['lane_requested_date']))
 
     failed_libs.sort(key=lambda x: x['error'], reverse=True)
     file.write("\n\nFailed imports: \n")
@@ -858,19 +859,17 @@ def main(storage_name,
             logging.exception(f"Library {sequencing['library']} failed to import: {e}")
             continue
 
-    # Only write import statuses for bulk imports
-    if all or dlp_library_id is None:
-        # Sort lists by date in descending order
-        successful_libs.sort(
-            key=lambda x: datetime.datetime.strptime(x['lane_requested_date'], '%Y-%m-%d'),
-            reverse=True,
-        )
-        failed_libs.sort(
-            key=lambda x: datetime.datetime.strptime(x['lane_requested_date'], '%Y-%m-%d'),
-            reverse=True,
-        )
-        # write import report
-        write_import_statuses(successful_libs, failed_libs)
+    # Sort lists by date in descending order
+    successful_libs.sort(
+        key=lambda x: dt.datetime.strptime(x['lane_requested_date'], '%Y-%m-%d'),
+        reverse=True,
+    )
+    failed_libs.sort(
+        key=lambda x: dt.datetime.strptime(x['lane_requested_date'], '%Y-%m-%d'),
+        reverse=True,
+    )
+    # write import report
+    write_import_statuses(successful_libs, failed_libs)
 
 
 if __name__ == "__main__":
