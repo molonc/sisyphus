@@ -102,3 +102,7 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# context and normal config
+context_config.yaml
+normal_config.json
