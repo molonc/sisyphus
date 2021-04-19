@@ -90,7 +90,7 @@ def main(
         if not dry_run:
             try:
                 storage_client.delete(file_resource['filename'])
-            except FileNotFoundError:
+            except:
                 logging.exception('file already deleted')
 
         # Delete the instance model from tantalus
