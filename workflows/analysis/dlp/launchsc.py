@@ -44,6 +44,13 @@ def run_pipeline(
         context_config_file,
     ]
 
+    # alignment requires sequencing center field as of v0.8.0
+    if(analysis_type == 'alignment'):
+        run_cmd.extend([
+            '--sequencing_center',
+            'GSC',
+        ])
+
     run_cmd.extend(cli_args)
 
     if config_override is not None:
