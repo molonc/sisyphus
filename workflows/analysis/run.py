@@ -34,6 +34,8 @@ from dbclients.basicclient import NotFoundError
 
 from workflows.utils import file_utils, log_utils
 from workflows.utils.jira_utils import comment_jira
+from workflows.utils.constants import DOCKER_IMAGES
+from workflows.utils import config_utils
 
 
 log = logging.getLogger('sisyphus')
@@ -101,11 +103,14 @@ def main(
 
     jira_id = analysis.jira
     analysis_name = analysis.name
+    analysis_type = analysis.analysis_type
 
     if not templates.JIRA_ID_RE.match(jira_id):
         raise Exception(f'Invalid SC ID: {jira_id}')
 
     config = file_utils.load_json(config_filename)
+    # since pipeline is modularized fetch and update appropriate docker image based on analysis type
+    config_utils.update_config(config, "docker_server", DOCKER_IMAGES[analysis_type])
 
     pipeline_dir = os.path.join(config['analysis_directory'], jira_id, analysis_name)
 
@@ -156,10 +161,11 @@ def main(
             if storage['storage_type'] == 'server':
                 dirs.append(storage['storage_directory'])
 
+        # changed to be compatible with modularized pipeline as of v0.8.0
         if run_options['saltant']:
-            context_config_file = config['context_config_file']['saltant']
+            context_config_file = config['context_config_file']['saltant'][analysis_type]
         else:
-            context_config_file = config['context_config_file']['sisyphus']
+            context_config_file = config['context_config_file']['sisyphus'][analysis_type]
 
         log_utils.sentinel(
             f'Running single_cell {analysis_name}',
