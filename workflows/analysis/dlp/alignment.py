@@ -229,8 +229,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                 raise Exception('No fastqs for cell_id {}, index_sequence {}'.format(
                     row['cell_id'], row['index_sequence']))
 
-            sample_id = row['sample_id']
-
+            # sample ID and library ID required as of scpipeline alignment v0.8.0
             input_info[str(row['cell_id'])] = {
                 'fastqs': dict(lane_fastqs),
                 'pick_met': str(row['pick_met']),
@@ -242,6 +241,8 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                 'img_col': int(row['img_col']),
                 'column': int(row['column']),
                 'row': int(row['row']),
+                'sample_id': str(row['sample_id']),
+                'library_id': str(row['library_id']),
                 'sample_type': 'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
             }
 
