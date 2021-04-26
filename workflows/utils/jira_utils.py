@@ -5,6 +5,8 @@ from jira import JIRA, JIRAError
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 
+from constants.dbclients_constants import DEFAULT_TANTALUS_BASE_URL, DEFAULT_COLOSSUS_BASE_URL
+
 colossus_api = ColossusApi()
 tantalus_api = TantalusApi()
 
@@ -125,8 +127,8 @@ def update_jira_tenx(jira_id, library_pk):
 
     description = [
         "{noformat}Storage Account: scrnadata\n {noformat}",
-        "Tantalus Results: https://tantalus.canadacentral.cloudapp.azure.com/results/{}".format(results_dataset_id),
-        "Colossus Library: https://colossus.canadacentral.cloudapp.azure.com/tenx/library/{}".format(library_pk),
+        f"Tantalus Results: {DEFAULT_TANTALUS_BASE_URL}/results/{results_dataset_id}",
+        f"Colossus Library: {DEFAULT_COLOSSUS_BASE_URL}/tenx/library/{library_pk}",
     ]
 
     # assign parent ticket

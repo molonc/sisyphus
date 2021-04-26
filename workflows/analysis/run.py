@@ -34,8 +34,9 @@ from dbclients.basicclient import NotFoundError
 
 from workflows.utils import file_utils, log_utils
 from workflows.utils.jira_utils import comment_jira
-from workflows.utils.constants import DOCKER_IMAGES
 from workflows.utils import config_utils
+
+from constants.workflows_constants import DOCKER_IMAGES
 
 
 log = logging.getLogger('sisyphus')

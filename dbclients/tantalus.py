@@ -30,11 +30,13 @@ from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from datamanagement.utils.utils import make_dirs
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
 
+from constants.dbclients_constants import DEFAULT_TANTALUS_API_URL
+
 log = logging.getLogger('sisyphus')
 
 TANTALUS_API_URL = os.environ.get(
     'TANTALUS_API_URL',
-    "https://tantalus.canadacentral.cloudapp.azure.com/api/")
+    DEFAULT_TANTALUS_API_URL)
 
 
 class BlobStorageClient(object):

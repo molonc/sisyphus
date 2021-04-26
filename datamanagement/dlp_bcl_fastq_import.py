@@ -28,6 +28,8 @@ from datamanagement.utils.qsub_jobs import Bcl2FastqJob
 from datamanagement.utils.constants import DEFAULT_NATIVESPEC
 import datetime
 
+from constants.dbclients_constants import DEFAULT_COLOSSUS_BASE_URL
+
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 
@@ -108,7 +110,7 @@ def update_ticket(flowcell_id):
     library = colossus_api.get("library", pool_id=library_id)
     jira_ticket = library["jira_ticket"]
 
-    sequencing_url = "https://colossus.canadacentral.cloudapp.azure.com/dlp/sequencing/{}".format(sequencing_id)
+    sequencing_url = f"{DEFAULT_COLOSSUS_BASE_URL}/dlp/sequencing/{sequencing_id}"
     comment = "Import successful: \n\nLane: {} \n{}".format(
         flowcell_id,
         sequencing_url,
@@ -331,7 +333,7 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
 def get_samplesheet(destination, lane_id):
 
     r = requests.get(
-        'https://colossus.canadacentral.cloudapp.azure.com/api/samplesheet_query/{}'.format(lane_id),
+        f'{DEFAULT_COLOSSUS_BASE_URL}/api/samplesheet_query/{lane_id}',
         auth=(
             os.environ["COLOSSUS_API_USERNAME"],
             os.environ["COLOSSUS_API_PASSWORD"],
