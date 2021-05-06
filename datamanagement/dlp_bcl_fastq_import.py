@@ -371,11 +371,24 @@ def add_lanes(flowcell_id):
     for lane_number in range(1, 5):
         lane = "{}_{}".format(flowcell_id, lane_number)
         logging.info("creating {}".format(lane))
+
+        # table fields
+        fields = {
+            "sequencing": sequencing_id,
+            "sequencing_date": sequencing_date,
+            "flow_cell_id": lane,
+        }
+        # primary keys of the table
+        pks = [
+           "flow_cell_id", 
+        ]
+
         colossus_api.create(
             "lane",
-            sequencing=sequencing_id,
-            sequencing_date=sequencing_date,
-            flow_cell_id=lane,
+            fields,
+            pks,
+            get_existing=False,
+            do_update=False,
         )
 
 
