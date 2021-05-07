@@ -112,6 +112,30 @@ def load_data_to_montage(jira):
 
     log.info(f"Successfully loaded {jira} into Montage")
 
+def load_data_to_alhena(jira, es_host="10.1.0.8"):
+    """
+    SSH into loader machine and triggers import into Alhena
+    
+    Arguments:
+        jira {str} -- jira id
+        es_host {str} -- elasticsearch VM host IP address
+    
+    Raises:
+        Exception: Ticket failed to load
+    """
+    log.info(f"Loading {jira} into Alhena")
+    try:
+        # TODO: add directory in config
+        subprocess.call([
+            'ssh',
+            '-t',
+            'loader',
+            f'bash /home/spectrum/alhena-loader/load_ticket.sh {jira} {es_host}',
+        ])
+    except Exception as e:
+        raise Exception(f"failed to load ticket: {e}")
+
+    log.info(f"Successfully loaded {jira} into Montage")
 
 def run_viz():
     """
