@@ -31,7 +31,7 @@ from datamanagement.utils.comment_jira import comment_jira
 
 from workflows.utils.tantalus_utils import create_tenx_analysis_from_library
 
-from constants.dbclients_constants import DEFAULT_COLOSSUS_BASE_URL
+from constants.url_constants import DEFAULT_COLOSSUS_BASE_URL
 
 gsc_api = GSCAPI()
 tantalus_api = TantalusApi()

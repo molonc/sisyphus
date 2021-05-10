@@ -5,7 +5,7 @@ from jira import JIRA, JIRAError
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 
-from constants.dbclients_constants import DEFAULT_TANTALUS_BASE_URL, DEFAULT_COLOSSUS_BASE_URL
+from constants.url_constants import DEFAULT_TANTALUS_BASE_URL, DEFAULT_COLOSSUS_BASE_URL
 
 colossus_api = ColossusApi()
 tantalus_api = TantalusApi()

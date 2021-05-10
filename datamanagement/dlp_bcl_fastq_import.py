@@ -28,7 +28,7 @@ from datamanagement.utils.qsub_jobs import Bcl2FastqJob
 from datamanagement.utils.constants import DEFAULT_NATIVESPEC
 import datetime
 
-from constants.dbclients_constants import DEFAULT_COLOSSUS_BASE_URL
+from constants.url_constants import DEFAULT_COLOSSUS_BASE_URL
 
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)

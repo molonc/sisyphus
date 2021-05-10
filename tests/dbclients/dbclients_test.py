@@ -1,6 +1,6 @@
 import unittest
 import requests
-from constants.dbclients_constants import (
+from constants.url_constants import (
 	DEFAULT_TANTALUS_BASE_URL,
 	DEFAULT_COLOSSUS_BASE_URL,
 )

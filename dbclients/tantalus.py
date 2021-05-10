@@ -30,7 +30,7 @@ from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from datamanagement.utils.utils import make_dirs
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
 
-from constants.dbclients_constants import DEFAULT_TANTALUS_API_URL
+from constants.url_constants import DEFAULT_TANTALUS_API_URL
 
 log = logging.getLogger('sisyphus')
 

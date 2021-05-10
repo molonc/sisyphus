@@ -4,7 +4,7 @@ from __future__ import print_function
 import os
 from dbclients.basicclient import BasicAPIClient
 
-from constants.dbclients_constants import DEFAULT_COLOSSUS_API_URL
+from constants.url_constants import DEFAULT_COLOSSUS_API_URL
 
 COLOSSUS_API_URL = os.environ.get("COLOSSUS_API_URL", DEFAULT_COLOSSUS_API_URL)
 

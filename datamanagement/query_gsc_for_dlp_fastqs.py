@@ -30,7 +30,7 @@ from workflows.utils.colossus_utils import create_colossus_analysis
 from workflows.utils.file_utils import load_json
 from workflows.utils.tantalus_utils import create_qc_analyses_from_library
 
-from constants.dbclients_constants import DEFAULT_COLOSSUS_BASE_URL
+from constants.url_constants import DEFAULT_COLOSSUS_BASE_URL
 
 solexa_run_type_map = {"Paired": "P"}
 
