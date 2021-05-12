@@ -21,6 +21,8 @@ from workflows import run_pseudobulk
 from workflows.utils import saltant_utils, file_utils, tantalus_utils, colossus_utils
 from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
 
+from constants.workflows_constants import ALHENA_VALID_PROJECTS
+
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
 stream_handler = logging.StreamHandler()
@@ -112,6 +114,29 @@ def load_data_to_montage(jira):
 
     log.info(f"Successfully loaded {jira} into Montage")
 
+def generate_alhena_loader_projects_cli_args(projects):
+    """
+    Generate command line arguments to be passed to alhena loader script
+
+    Args:
+        projects: list of dict {'id': project_id, 'name': project_name}
+
+    Returb:
+        project_args: project arguments to be passed to alhena loader script
+    """
+    project_args_list = []
+
+    for project in projects:
+        project_name = project['name']
+
+        if(project_name in ALHENA_VALID_PROJECTS):
+            project_args_list.append(f'--project {project_name}')
+
+    project_args = ' '.join(project_args_list)
+
+    return project_args if project_args else ''
+
+
 def load_data_to_alhena(jira, es_host="10.1.0.8"):
     """
     SSH into loader machine and triggers import into Alhena
@@ -124,6 +149,11 @@ def load_data_to_alhena(jira, es_host="10.1.0.8"):
         Exception: Ticket failed to load
     """
     log.info(f"Loading {jira} into Alhena")
+
+    projects = colossus_utils.get_projects_from_jira_id(jira)
+
+    projects_cli_args = generate_alhena_loader_projects_cli_args(projects)
+
     try:
         # TODO: add directory in config
         subprocess.call([

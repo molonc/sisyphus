@@ -4,3 +4,8 @@ DOCKER_IMAGES = {
 	'annotation': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_annotation',
         'breakpoint_calling': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_breakpoint:v0.8.0',
 }
+
+ALHENA_VALID_PROJECTS = {
+	'DLP',
+	'fitness',
+}
