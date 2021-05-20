@@ -3,44 +3,111 @@ import pytest
 from datamanagement.query_gsc_for_dlp_fastqs import (
 	reverse_complement,
 	decode_raw_index_sequence,
+	map_index_sequence_to_cell_id,
+	summarize_index_errors,
+	raise_index_error,
 )
 
-@pytest.fixture
-def i5_sequence_upper():
-	return 'AGGTTT'
+# import fixtures
+from tests.datamanagement.fixtures.query_gsc_for_dlp_fastqs_fixtures import (
+	i5_sequence_upper,
+	i7_sequence_upper,
+	i5_sequence_lower,
+	index_sequence,
+	sequencing_instruments,
+	rev_comp_overrides,
+	cell_samples,
+	empty_valid_indexes,
+	empty_invalid_indexes,
+	valid_indexes,
+	invalid_indexes,
+	gsc_internal_id,
+	gsc_external_id,
+	colossus_library_id,
+	num_invalid_indexes,
+	index_errors,
+)
 
-@pytest.fixture
-def i7_sequence_upper():
-	return 'GCCTAA'
+from tests.dbclients.fixtures.colossus import (
+	colossus_list_sublibraries,
+)
 
-@pytest.fixture
-def i5_sequence_lower():
-	return 'aggttt'
+class TestIndexErrors():
+	def test_summarize_index_errors(self, colossus_library_id, valid_indexes, invalid_indexes, colossus_list_sublibraries, mocker):
+		mocker.patch('datamanagement.query_gsc_for_dlp_fastqs.ColossusApi.list', return_value=colossus_list_sublibraries)
 
-@pytest.fixture
-def index_sequence(i5_sequence_upper, i7_sequence_upper):
-	return i7_sequence_upper + "-" + i5_sequence_upper
+		obs_errors = summarize_index_errors(colossus_library_id, valid_indexes, invalid_indexes)
 
-@pytest.fixture
-def sequencing_instruments():
-	instruments = {
-		"HiSeqX": "HiSeqX",
-		"HiSeq2500": "HiSeq2500",
-		"NextSeq550": "NextSeq550",
-		"unknown": "unknown",
-	}
-	return instruments
+		# (matching index, unmatching index, total index)
+		expected_errors = (2, {'A': (2,2,4), 'gDNA': (1,0,1)})
 
-@pytest.fixture
-def rev_comp_overrides():
-	rev_comp = {
-		"i7,i5": "i7,i5",
-		"i7,rev(i5)": "i7,rev(i5)",
-		"rev(i7),i5": "rev(i7),i5",
-		"rev(i7),rev(i5)": "rev(i7),rev(i5)",
-		"unknown": "unknown",
-	}
-	return rev_comp
+		assert (obs_errors == expected_errors)
+
+	def test_raise_index_error(self, num_invalid_indexes, index_errors):
+		with pytest.raises(Exception) as excinfo:
+			raise_index_error(num_invalid_indexes, index_errors)
+
+		assert ("A: 1 / 2 missing." in str(excinfo.value))
+		assert ("gDNA: 2 / 3 missing." in str(excinfo.value))
+		assert ("NTC: 2 / 7 missing." in str(excinfo.value))
+		assert ("A-NCC" not in str(excinfo.value))
+
+
+class TestMapIndexSequenceToCellId():
+	def test_valid_index_matching(self, cell_samples, gsc_external_id, empty_valid_indexes, empty_invalid_indexes):
+		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		expected_valid_index = {
+			'AAAAAA-TTTTTT': 'sample1',
+		}
+
+		assert (obs_valid_index == expected_valid_index)
+
+	def test_invalid_index_matching(self, cell_samples, gsc_external_id, empty_valid_indexes, empty_invalid_indexes):
+		_, obs_invalid_index = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		expected_invalid_index = []
+
+		assert (obs_invalid_index == expected_invalid_index)
+
+	def test_valid_index_unmatching_external_id(self, cell_samples, gsc_external_id,  empty_valid_indexes, empty_invalid_indexes):
+		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-CCCCCC', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		expected_valid_index = {}
+
+		assert (obs_valid_index == expected_valid_index)
+
+	def test_invalid_index_unmatching_external_id(self, cell_samples, gsc_external_id, empty_valid_indexes, empty_invalid_indexes):
+		_, obs_invalid_index = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-CCCCCC', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		expected_invalid_index = [
+			'CCCCCC-CCCCCC',
+		]
+
+		assert (obs_invalid_index == expected_invalid_index)
+
+	def test_invalid_index_unmatching_internal_id(self, cell_samples, gsc_internal_id, empty_valid_indexes, empty_invalid_indexes):
+		_, obs_invalid_index = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-CCCCCC', gsc_internal_id, empty_valid_indexes, empty_invalid_indexes)
+		expected_invalid_index = []
+
+		assert (obs_invalid_index == expected_invalid_index)
+
+	def test_duplicate_index(self, cell_samples, gsc_external_id, empty_valid_indexes, empty_invalid_indexes):
+		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+
+		with pytest.raises(Exception) as excinfo:
+			obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, obs_valid_index, empty_invalid_indexes)
+
+		assert ("Duplicate" in str(excinfo.value))
+
+	def test_multiple_valid_index(self, cell_samples, gsc_external_id, empty_valid_indexes, empty_invalid_indexes):
+		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-GGGGGG', gsc_external_id, obs_valid_index, empty_invalid_indexes)
+		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'ACACAC-TGTGTG', gsc_external_id, obs_valid_index, empty_invalid_indexes)
+
+		expected_valid_index = {
+			'AAAAAA-TTTTTT': 'sample1',
+			'CCCCCC-GGGGGG': 'sample2',
+			'ACACAC-TGTGTG': 'sample3',
+		}
+
+		assert (obs_valid_index == expected_valid_index)
 
 class TestDecodeRawIndexSequence():
 	def test_reverse_complement_upper(self, i5_sequence_upper):
