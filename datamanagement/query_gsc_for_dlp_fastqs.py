@@ -32,8 +32,162 @@ from workflows.utils.tantalus_utils import create_qc_analyses_from_library
 
 from constants.url_constants import DEFAULT_COLOSSUS_BASE_URL
 
-solexa_run_type_map = {"Paired": "P"}
+SOLEXA_RUN_TYPE_MAP = {"Paired": "P"}
 
+# Mapping from filename pattern to read end, pass/fail
+FILENAME_PATTERN_MAP = {
+    "_1.fastq.gz": (1, True),
+    "_1_*.concat_chastity_passed.fastq.gz": (1, True),
+    "_1_chastity_passed.fastq.gz": (1, True),
+    "_1_chastity_failed.fastq.gz": (1, False),
+    "_1_*bp.concat.fastq.gz": (1, True),
+    "_1_*bp_*.concat_chastity_passed.fastq.gz": (1, True),
+    "_1_*bp.concat_chastity_passed.fastq.gz": (1, True),
+    "_2.fastq.gz": (2, True),
+    "_2_*.concat_chastity_passed.fastq.gz": (2, True),
+    "_2_chastity_passed.fastq.gz": (2, True),
+    "_2_chastity_failed.fastq.gz": (2, False),
+    "_2_*bp.concat.fastq.gz": (2, True),
+    "_2_*bp_*.concat_chastity_passed.fastq.gz": (2, True),
+    "_2_*bp.concat_chastity_passed.fastq.gz": (2, True),
+    "*_1_*_adapter_trimmed_*.fastq.gz": (1, True),
+    "*_2_*_adapter_trimmed_*.fastq.gz": (2, True),
+}
+
+def raise_index_error(num_index_errors, errors):
+    """
+    Raise exception if there is at least one unmatching GSC index to Colossus index.
+
+    Args:
+        num_index_errors (int): number of invalid indexes
+        errors (dict): dictionary with experiment condition as key, and tuple, (matching index, unmatching index, total index), as value
+    """
+
+    error_messages = []
+    for condition in errors:
+        matched = errors[condition][0]
+        unmatched = errors[condition][1]
+        total = errors[condition][2]
+
+        # skip if no unmatching index
+        if(unmatched == 0):
+            continue
+
+        error_message = f"Experiment condition, {condition}: {unmatched} / {total} missing."
+        error_messages.append(error_message)
+
+    index_error_message = f"Number of missing/duplicate indexes: {num_index_errors}"
+    error_messages.append(index_error_message)
+
+    raise Exception('\n'.join(error_messages))
+
+def summarize_index_errors(library_id, valid_indexes, invalid_indexes):
+    """
+    Generate useful error messages given list of dicts.
+    1. number of invalid GSC indexes
+    2. association between experiment conditions and "non-matching" indexes
+        - this is calculated by subtracting number of matching indexes from total number of Colossus indexes
+        - Note: number of 1 and 2 may differ!
+
+    Args:
+        library_id (str): Colossus library id
+        valid_indexes (dict): dictionary of valid GSC index sequence to Colossus cell ID.
+        invalid_indexes (list): list of GSC indexes sequences not matching with Colossus index sequences.
+
+    Return:
+        num_index_errors (int): number of invalid indexes
+        errors (dict): dictionary with experiment condition as key, and tuple, (matching index, unmatching index, total index), as value
+    """
+    # Report total number of indexes not found
+    num_index_errors = len(invalid_indexes)
+
+    if(num_index_errors == 0):
+        return (0, {})    
+
+    # Find experimental conditions indexes are associated with
+    sublibraries = ColossusApi().list('sublibraries', library__pool_id=library_id)
+
+    sublib_df = pd.DataFrame(sublibraries)
+    # construct index sequence
+    sublib_df['index_sequence'] = sublib_df["primer_i7"] + "-" + sublib_df["primer_i5"]
+    
+    # dataframe from GSC valid indexes
+    gsc_index_df = pd.DataFrame(data={'index_sequence': list(valid_indexes.keys())})
+
+    # join on 'index_sequence' column to find all matching indexes
+    # we only want index sequence and condition
+    cols_to_filter = ['index_sequence', 'condition']
+    merged_df = sublib_df[cols_to_filter].merge(gsc_index_df, on='index_sequence')
+
+    errors = {}
+    # iterate experiment conditions
+    for condition in merged_df['condition'].unique():
+        total = sublib_df[ sublib_df['condition'] == condition ].shape[0]
+        matched = merged_df[ merged_df['condition'] == condition ].shape[0]
+        unmatched = total - matched
+
+        errors[condition] = (matched, unmatched, total)
+    
+    return (num_index_errors, errors)
+
+def map_index_sequence_to_cell_id(cell_samples, gsc_index_sequence, gsc_library_id, valid_indexes={}, invalid_indexes=[]):
+    """
+    Map GSC fastq index sequence to Colossus cell ID.
+    If GSC index sequence does not match Colossus index sequence add it to error list to be reported.
+    Since dict and list are mutable, update and return them.
+
+    Args:
+        cell_samples (dict): dictionary with Colossus index sequence as key and cell ID as value.
+        gsc_index_sequence (str): GSC fastq index sequence.
+        gsc_library_id (str): GSC library ID.
+        valid_indexes (dict): dictionary of valid GSC index sequence to Colossus cell ID.
+        invalid_indexes (list): list of GSC indexes sequences not matching with Colossus index sequences.
+
+    Return:
+        valid_indexes (dict): dictionary of valid GSC index sequence to Colossus cell ID.
+        invalid_indexes (list): list of GSC indexes sequences not matching with Colossus index sequences.
+    """
+    # get sample id of index
+    try:
+        cell_sample_id = cell_samples[gsc_index_sequence]
+
+        # index sequence is unique across each cell
+        # raise error if there is a duplicate index for the same cell: TODO
+        #if(gsc_index_sequence in valid_indexes):
+        #    raise Exception(f"Duplicate index sequence, {gsc_index_sequence}, in library {gsc_library_id}.")
+        valid_indexes[gsc_index_sequence] = cell_sample_id
+    except KeyError:
+        # if index is not found, check if library being imported is an internal library i.e beginning with IX
+        # if so, we can skip this fastq
+        if not gsc_library_id.startswith("IX"):
+            invalid_indexes.append(gsc_index_sequence)
+
+    return (valid_indexes, invalid_indexes)
+
+def validate_fastq_from_filename(filename_pattern):
+    """
+    Check if fastq is valid given its filename pattern
+
+    Args:
+        filename_pattern: fastq filename pattern
+
+    Return:
+        is_valid: True if valid fastq else False
+        debug: True if debugging information needs to be saved else False
+    """
+    is_valid = True
+    debug = False
+
+    read_end, passed = FILENAME_PATTERN_MAP.get(filename_pattern, (None, None))
+
+    if read_end is None:
+        is_valid = False
+        debug = True
+
+    if not passed:
+        is_valid = False
+
+    return (is_valid, debug)
 
 def reverse_complement(sequence):
     return str(sequence[::-1]).translate(str.maketrans("ACTGactg", "TGACtgac"))
@@ -93,27 +247,6 @@ def query_colossus_dlp_rev_comp_override(colossus_api, library_id):
             rev_comp_override[lane["flow_cell_id"]] = sequencing["rev_comp_override"]
 
     return rev_comp_override
-
-
-# Mapping from filename pattern to read end, pass/fail
-filename_pattern_map = {
-    "_1.fastq.gz": (1, True),
-    "_1_*.concat_chastity_passed.fastq.gz": (1, True),
-    "_1_chastity_passed.fastq.gz": (1, True),
-    "_1_chastity_failed.fastq.gz": (1, False),
-    "_1_*bp.concat.fastq.gz": (1, True),
-    "_1_*bp_*.concat_chastity_passed.fastq.gz": (1, True),
-    "_1_*bp.concat_chastity_passed.fastq.gz": (1, True),
-    "_2.fastq.gz": (2, True),
-    "_2_*.concat_chastity_passed.fastq.gz": (2, True),
-    "_2_chastity_passed.fastq.gz": (2, True),
-    "_2_chastity_failed.fastq.gz": (2, False),
-    "_2_*bp.concat.fastq.gz": (2, True),
-    "_2_*bp_*.concat_chastity_passed.fastq.gz": (2, True),
-    "_2_*bp.concat_chastity_passed.fastq.gz": (2, True),
-    "*_1_*_adapter_trimmed_*.fastq.gz": (1, True),
-    "*_2_*_adapter_trimmed_*.fastq.gz": (2, True),
-}
 
 
 def get_existing_fastq_data(tantalus_api, dlp_library_id):
@@ -375,6 +508,9 @@ def import_gsc_dlp_paired_fastqs(
             # link primer info to libcore id
             libcore_primers[libcore_id] = primer
 
+    valid_indexes = {}
+    invalid_indexes = []
+    read_end_errors = []
     for (flowcell_id, lane_number, sequencing_date, sequencing_instrument) in gsc_lane_fastq_file_infos.keys():
 
         # check if lane already imported to tantalus
@@ -418,8 +554,6 @@ def import_gsc_dlp_paired_fastqs(
                 continue
 
             sequencing_instrument = get_sequencing_instrument(fastq_info["libcore"]["run"]["machine"])
-            solexa_run_type = fastq_info["libcore"]["run"]["solexarun_type"]
-            read_type = solexa_run_type_map[solexa_run_type]
 
             # get primer info by using libcore id
             primer_info = libcore_primers[fastq_info['libcore']['id']]
@@ -438,9 +572,6 @@ def import_gsc_dlp_paired_fastqs(
 
             filename_pattern = fastq_info["file_type"]["filename_pattern"]
 
-            # get read end of fastq
-            read_end, passed = filename_pattern_map.get(filename_pattern, (None, None))
-
             logging.info(
                 "loading fastq %s, raw index %s, index %s, %s",
                 fastq_info["id"],
@@ -449,26 +580,50 @@ def import_gsc_dlp_paired_fastqs(
                 fastq_path,
             )
 
-            if read_end is None:
-                raise Exception("Unrecognized file type: {}".format(filename_pattern))
-
-            if not passed:
+            is_valid, debug = validate_fastq_from_filename(filename_pattern)
+            if not(is_valid):
+                if(debug):
+                    raise Exception("Unrecognized file type: {}".format(filename_pattern))
+                    read_end_errors.append(filename_pattern)
                 continue
 
-            # get sample id of index
-            try:
-                cell_sample_id = cell_samples[index_sequence]
-            except KeyError:
-                # if index is not found, check if library being imported is an internal library i.e beginning with IX
-                # if so, we can skip this fastq
-                if gsc_library_id.startswith("IX"):
-                    continue
+            # map GSC index to Colossus sample ID
+            # TODO: forward and reverse fastqs have different IDs but same index sequence. Deal with it.
+            valid_indexes, invalid_indexes = map_index_sequence_to_cell_id(cell_samples, index_sequence, gsc_library_id, valid_indexes, invalid_indexes)
 
-                # if library is created by our lab, throw error since GSC has fastq with index that we do not have on our database
-                raise Exception('unable to find index {} for flowcell lane {} for library {}'.format(
-                    index_sequence, flowcell_lane, dlp_library_id))
+    # if there is at least one mismatching index, throw exception
+    if(len(invalid_indexes) > 0):
+        num_index_errors, errors = summarize_index_errors(colossus_api, dlp_library_id, valid_indexes, invalid_indexes)
+        raise_index_error(num_index_errors, errors)
 
-            # gunzip fastq
+    # in the first loop, it checks some conditions to skip cells
+    # duplicate it for now, and re-implement later?
+    for (flowcell_id, lane_number, sequencing_date, sequencing_instrument) in gsc_lane_fastq_file_infos.keys():
+        # check if lane already imported to tantalus
+        if (flowcell_id, lane_number) in existing_data:
+            new = False
+
+        else:
+            new = True
+
+        # move onto next collection of fastqs if lane already imported
+        if not new:
+            continue
+
+        if dry_run:
+            continue
+        for fastq_info in gsc_lane_fastq_file_infos[(flowcell_id, lane_number, sequencing_date, sequencing_instrument)]:
+            fastq_path = fastq_info["data_path"]
+
+            # get read end of fastq
+            read_end, passed = FILENAME_PATTERN_MAP.get(filename_pattern, (None, None))
+
+            solexa_run_type = fastq_info["libcore"]["run"]["solexarun_type"]
+            read_type = SOLEXA_RUN_TYPE_MAP[solexa_run_type]
+
+            sequencing_instrument = get_sequencing_instrument(fastq_info["libcore"]["run"]["machine"])
+
+            # check if fastq is gunzipped
             try:
                 try_gzip(fastq_path)
             except Exception as e:
@@ -638,7 +793,7 @@ def update_colossus_lane(colossus_api, sequencing, lanes):
                 flow_cell_id=flowcell_id,
             )
 
-            # update sequencing date if date on colossyus is incorrect
+            # update sequencing date if date on colossus is incorrect
             if lane['sequencing_date'] != lane_to_update['sequencing_date']:
                 colossus_api.update('lane', lane['id'], sequencing_date=lane_to_update['sequencing_date'])
 
