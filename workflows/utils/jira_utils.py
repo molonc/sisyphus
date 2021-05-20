@@ -312,7 +312,7 @@ def create_alhena_description(jira_id):
         alhena_description: link to Alhena along with other sequencing information
     """
 
-    alhena_link = f'Link to Alhena: {ALHENA_BASE_URL}/?dashboard={jira_id}'
+    alhena_link = f'Link to Alhena: {ALHENA_BASE_URL}/alhena/dashboards/{jira_id}'
 
     analysis_info = colossus_api.get("analysis_information", analysis_jira_ticket=jira_id)
 
@@ -350,8 +350,8 @@ def update_jira_alhena(jira_id):
     if (hasattr(parent.fields, 'description') and parent.fields.description):
         description_list = parent.fields.description.split("\n")
 
-        for i, line in enumerate(description):
-            if (f'https://montage.molonc.ca/?dashboard={jira_id}' in line):
+        for i, line in enumerate(description_list):
+            if (f'{ALHENA_BASE_URL}/alhena/dashboards/{jira_id}' in line):
                 description_list.pop(i)
     else:
         description_list = []

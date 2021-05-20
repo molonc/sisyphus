@@ -19,7 +19,7 @@ from workflows.analysis.dlp import (
 from workflows import run_pseudobulk
 
 from workflows.utils import saltant_utils, file_utils, tantalus_utils, colossus_utils
-from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira
+from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira, update_jira_alhena
 
 from constants.workflows_constants import ALHENA_VALID_PROJECTS
 
@@ -41,15 +41,6 @@ config = file_utils.load_json(
 
 
 def attach_qc_report(jira, library_id, storages):
-    """ 
-    Adds qc report to library jira ticket
-
-    Arguments:
-        jira {str} -- id of jira ticket e.g SC-1234
-        library_id {str} -- library name
-        storages {dict} -- dictionary of storages names for results and inputs
-    """
-
     storage_client = tantalus_api.get_storage_client(storages["remote_results"])
     results_dataset = tantalus_api.get(
         "resultsdataset",
@@ -58,34 +49,25 @@ def attach_qc_report(jira, library_id, storages):
             library_id,
         ),
     )
-
     qc_filename = "{}_QC_report.html".format(library_id)
     jira_qc_filename = "{}_{}_QC_report.html".format(library_id, jira)
-
     qc_report = list(
         tantalus_api.get_dataset_file_resources(
             results_dataset["id"],
             "resultsdataset",
             {"filename__endswith": qc_filename},
         ))
-
     blobname = qc_report[0]["filename"]
     local_dir = os.path.join("qc_reports", jira)
     local_path = os.path.join(local_dir, jira_qc_filename)
     if not os.path.exists(local_dir):
         os.makedirs(local_dir)
-
-    # Download blob
-    blob = storage_client.blob_service.get_blob_to_path(
-        container_name="results",
-        blob_name=blobname,
-        file_path=local_path,
-    )
-
-    # Get library ticket
+    blob_client = storage_client.blob_service.get_blob_client('results', blobname)
+    with open(local_path, "wb") as my_blob:
+        download_stream = blob_client.download_blob()
+        my_blob.write(download_stream.readall())
     analysis = colossus_api.get("analysis_information", analysis_jira_ticket=jira)
     library_ticket = analysis["library"]["jira_ticket"]
-
     log.info("Adding report to parent ticket of {}".format(jira))
     add_attachment(library_ticket, local_path, jira_qc_filename)
 
@@ -160,12 +142,12 @@ def load_data_to_alhena(jira, es_host="10.1.0.8"):
             'ssh',
             '-t',
             'loader',
-            f'bash /home/spectrum/alhena-loader/load_ticket.sh {jira} {es_host}',
+            f'bash /home/spectrum/alhena-loader/load_ticket.sh {jira} {es_host} {projects_cli_args}',
         ])
     except Exception as e:
         raise Exception(f"failed to load ticket: {e}")
 
-    log.info(f"Successfully loaded {jira} into Montage")
+    log.info(f"Successfully loaded {jira} into Alhena")
 
 def run_viz():
     """
@@ -198,6 +180,41 @@ def run_viz():
 
         # load analysis into montage
         load_data_to_montage(jira_ticket)
+
+def run_viz_alhena():
+    """
+    Update jira ticket, add QC report, and load data on Montage
+    """
+    # get completed analyses that need montage loading
+    #analyses = colossus_api.list(
+    #    "analysis_information",
+    #    montage_status="Pending",
+    #    analysis_run__run_status="complete",
+    #)
+    analyses = colossus_api.list("analysis_information", library__pool_id='A118340A')
+
+    for analysis in analyses:
+        # get library id
+        library_id = analysis["library"]["pool_id"]
+
+        # skip analyses older than this year
+        # parse off ending time range
+        last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
+        if last_updated_date < datetime(2020, 1, 1):
+            continue
+
+        jira_ticket = analysis["analysis_jira_ticket"]
+
+        # close jira ticket and update ticket description
+        update_jira_dlp(jira_ticket, analysis["aligner"])
+
+        update_jira_alhena(jira_ticket)
+
+        # upload qc report to jira ticket
+        attach_qc_report(jira_ticket, library_id, config["storages"])
+
+        # load analysis into montage
+        load_data_to_alhena(jira_ticket)
 
 
 def run_align(jira, args):
@@ -449,24 +466,24 @@ def run_qc(aligner):
                 run_status="complete",
             )
 
-    # get annotation analysis completed in last week
-    analyses = tantalus_api.list(
-        "analysis",
-        status="complete",
-        analysis_type__name="annotation",
-        last_updated__gte=str(datetime.now() - timedelta(days=21)),
-    )
-
-    for analysis in analyses:
-        try:
-            # run pseudobulk
-            run_pseudobulk.run(
-                analysis["jira_ticket"],
-                analysis["args"]["library_id"],
-            )
-        except Exception as e:
-            traceback.print_exc()
-            log.error(f"Failed to run pseudobulk for {analysis['args']['library_id']}: {e}")
+#    # get annotation analysis completed in last week
+#    analyses = tantalus_api.list(
+#        "analysis",
+#        status="complete",
+#        analysis_type__name="annotation",
+#        last_updated__gte=str(datetime.now() - timedelta(days=21)),
+#    )
+#
+#    for analysis in analyses:
+#        try:
+#            # run pseudobulk
+#            run_pseudobulk.run(
+#                analysis["jira_ticket"],
+#                analysis["args"]["library_id"],
+#            )
+#        except Exception as e:
+#            traceback.print_exc()
+#            log.error(f"Failed to run pseudobulk for {analysis['args']['library_id']}: {e}")
 
 
 @click.command()
