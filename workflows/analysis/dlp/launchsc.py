@@ -66,7 +66,8 @@ def run_pipeline(
         ]
 
     if run_options['saltant']:
-        run_cmd += ['--loglevel', 'ERROR']
+        #run_cmd += ['--loglevel', 'ERROR']
+        run_cmd += ['--loglevel', 'DEBUG']
     else:
         run_cmd += ['--loglevel', 'DEBUG']
 

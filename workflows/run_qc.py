@@ -167,7 +167,7 @@ def run_viz():
         # skip analyses older than this year
         # parse off ending time range
         last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < datetime(2020, 1, 1):
+        if last_updated_date < datetime(2020, 2, 2):
             continue
 
         jira_ticket = analysis["analysis_jira_ticket"]
@@ -200,7 +200,7 @@ def run_viz_alhena():
         # skip analyses older than this year
         # parse off ending time range
         last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < datetime(2020, 1, 1):
+        if last_updated_date < datetime(2020, 2, 2):
             continue
 
         jira_ticket = analysis["analysis_jira_ticket"]
@@ -419,7 +419,7 @@ def run_qc(aligner):
         # skip analyses older than this year
         # parse off ending time range
         last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < datetime(2020, 1, 1):
+        if last_updated_date < datetime(2021, 2, 2):
             continue
 
         # get jira ticket
@@ -493,7 +493,7 @@ def main(aligner):
     run_qc(aligner)
 
     # update ticket and load to montage
-    run_viz()
+    run_viz_alhena()
 
 
 if __name__ == "__main__":
