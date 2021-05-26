@@ -54,6 +54,65 @@ FILENAME_PATTERN_MAP = {
     "*_2_*_adapter_trimmed_*.fastq.gz": (2, True),
 }
 
+def upload_file(fastq_path, tantalus_filename, tantalus_path, storage, update):
+    """
+    Transfer fastq path to local server or blob storage.
+
+    Args:
+        fastq_path (str): path to fastq file
+        tantalus_filename: formatted Tantalus compatible filename
+        tantalus_path (str): system path to tantalus_filename
+        storage: (str) to storage details for transfer
+        update (bool): update an existing dataset
+    """
+    # transfer fastq if destination storage is server type
+    if storage['storage_type'] == 'server':
+        rsync_file(fastq_path, tantalus_path)
+
+    # create blob if destination storage blob type
+    elif storage['storage_type'] == 'blob':
+        storage_client = TantalusApi().get_storage_client(storage['name'])
+        storage_client.create(tantalus_filename, fastq_path, update=update)
+
+def validate_file_extension(fastq_path):
+    """
+    Validate fastq extension
+    """
+    extension = ''
+    if fastq_path.endswith('.gz'):
+        extension = '.gz'
+    elif not fastq_path.endswith('.fastq'):
+        raise ValueError(f'unknown extension for filename {fastq_path}')
+
+    return extension
+
+
+def check_gzipped(fastq_path, check_library):
+    """
+    Check if a file is gzipped.
+
+    Args:
+        fastq_path (str): path to fastq file
+        check_library (bool): only check the library, dont load
+
+    Return:
+        True if file is gzipped False otherwise
+    """
+    try:
+        try_gzip(fastq_path)
+    except Exception as e:
+        if check_library:
+            logging.warning('failed to gunzip: {}'.format(e))
+            return False
+        # check if gunzip failed due to fastqs being empty, if so import anyways
+        elif os.path.getsize(fastq_path) == 0:
+            logging.info(f"{fastq_path} is empty; importing anyways")
+            return True
+        # gunzip failed, raise error
+        else:
+            raise Exception(e)
+    return True
+
 def raise_index_error(num_index_errors, errors):
     """
     Raise exception if there is at least one unmatching GSC index to Colossus index.
@@ -146,23 +205,28 @@ def map_index_sequence_to_cell_id(cell_samples, gsc_index_sequence, gsc_library_
     Return:
         valid_indexes (dict): dictionary of valid GSC index sequence to Colossus cell ID.
         invalid_indexes (list): list of GSC indexes sequences not matching with Colossus index sequences.
+        is_internal (bool): True if internal GSC ID is used, False otherwise.
     """
     # get sample id of index
+    is_internal = False
     try:
         cell_sample_id = cell_samples[gsc_index_sequence]
 
         # index sequence is unique across each cell
-        # raise error if there is a duplicate index for the same cell: TODO
+        # raise error if there is a duplicate index for the same cell?: TODO
+        # TEMPORARY: allow duplicaet index for now...
         #if(gsc_index_sequence in valid_indexes):
         #    raise Exception(f"Duplicate index sequence, {gsc_index_sequence}, in library {gsc_library_id}.")
         valid_indexes[gsc_index_sequence] = cell_sample_id
     except KeyError:
         # if index is not found, check if library being imported is an internal library i.e beginning with IX
         # if so, we can skip this fastq
-        if not gsc_library_id.startswith("IX"):
+        if gsc_library_id.startswith("IX"):
+            is_internal = True
+        else:
             invalid_indexes.append(gsc_index_sequence)
-
-    return (valid_indexes, invalid_indexes)
+    finally:
+        return (valid_indexes, invalid_indexes, is_internal)
 
 def validate_fastq_from_filename(filename_pattern):
     """
@@ -554,6 +618,11 @@ def import_gsc_dlp_paired_fastqs(
                 continue
 
             sequencing_instrument = get_sequencing_instrument(fastq_info["libcore"]["run"]["machine"])
+            # get read end of fastq
+            read_end, passed = FILENAME_PATTERN_MAP.get(filename_pattern, (None, None))
+
+            solexa_run_type = fastq_info["libcore"]["run"]["solexarun_type"]
+            read_type = SOLEXA_RUN_TYPE_MAP[solexa_run_type]
 
             # get primer info by using libcore id
             primer_info = libcore_primers[fastq_info['libcore']['id']]
@@ -589,59 +658,19 @@ def import_gsc_dlp_paired_fastqs(
 
             # map GSC index to Colossus sample ID
             # TODO: forward and reverse fastqs have different IDs but same index sequence. Deal with it.
-            valid_indexes, invalid_indexes = map_index_sequence_to_cell_id(cell_samples, index_sequence, gsc_library_id, valid_indexes, invalid_indexes)
+            valid_indexes, invalid_indexes, is_internal = map_index_sequence_to_cell_id(cell_samples, index_sequence, gsc_library_id, valid_indexes, invalid_indexes)
 
-    # if there is at least one mismatching index, throw exception
-    if(len(invalid_indexes) > 0):
-        num_index_errors, errors = summarize_index_errors(colossus_api, dlp_library_id, valid_indexes, invalid_indexes)
-        raise_index_error(num_index_errors, errors)
+            # skip if GSC internal id is used
+            if(is_internal):
+                continue
 
-    # in the first loop, it checks some conditions to skip cells
-    # duplicate it for now, and re-implement later?
-    for (flowcell_id, lane_number, sequencing_date, sequencing_instrument) in gsc_lane_fastq_file_infos.keys():
-        # check if lane already imported to tantalus
-        if (flowcell_id, lane_number) in existing_data:
-            new = False
+            is_gzipped = check_gzipped(fastq_path, check_library)
 
-        else:
-            new = True
+            # skip sample if not gzipped
+            if not(is_gzipped):
+                continue
 
-        # move onto next collection of fastqs if lane already imported
-        if not new:
-            continue
-
-        if dry_run:
-            continue
-        for fastq_info in gsc_lane_fastq_file_infos[(flowcell_id, lane_number, sequencing_date, sequencing_instrument)]:
-            fastq_path = fastq_info["data_path"]
-
-            # get read end of fastq
-            read_end, passed = FILENAME_PATTERN_MAP.get(filename_pattern, (None, None))
-
-            solexa_run_type = fastq_info["libcore"]["run"]["solexarun_type"]
-            read_type = SOLEXA_RUN_TYPE_MAP[solexa_run_type]
-
-            sequencing_instrument = get_sequencing_instrument(fastq_info["libcore"]["run"]["machine"])
-
-            # check if fastq is gunzipped
-            try:
-                try_gzip(fastq_path)
-            except Exception as e:
-                if check_library:
-                    logging.warning('failed to gunzip: {}'.format(e))
-                    continue
-                # check if gunzip failed due to fastqs being empty, if so import anyways
-                elif os.path.getsize(fastq_path) == 0:
-                    logging.info(f"{fastq_path} is empty; importing anyways")
-                # gunzip failed, raise error
-                else:
-                    raise Exception(e)
-
-            extension = ''
-            if fastq_path.endswith('.gz'):
-                extension = '.gz'
-            elif not fastq_path.endswith('.fastq'):
-                raise ValueError(f'unknown extension for filename {fastq_path}')
+            extension = validate_file_extension(fastq_path)
 
             # format filename for tantalus
             tantalus_filename = templates.SC_WGS_FQ_TEMPLATE.format(
@@ -653,7 +682,6 @@ def import_gsc_dlp_paired_fastqs(
                 read_end=read_end,
                 extension=extension,
             )
-
             tantalus_path = os.path.join(storage["prefix"], tantalus_filename)
 
             # add information needed to track fastq on tantalus
@@ -679,15 +707,20 @@ def import_gsc_dlp_paired_fastqs(
                     filepath=tantalus_path,
                 ))
 
-            if not check_library:
-                # transfer fastq if destination storage is server type
-                if storage['storage_type'] == 'server':
-                    rsync_file(fastq_path, tantalus_path)
+            # upload fastq file to local server or remote blob storage
+            if not (check_library):
+                upload_file(
+                    fastq_path,
+                    tantalus_filename,
+                    tantalus_path,
+                    storage,
+                    update,
+                )
 
-                # create blob if destination storage blob type
-                elif storage['storage_type'] == 'blob':
-                    storage_client = tantalus_api.get_storage_client(storage['name'])
-                    storage_client.create(tantalus_filename, fastq_path, update=update)
+    # if there is at least one mismatching index, throw exception
+    if(len(invalid_indexes) > 0):
+        num_index_errors, errors = summarize_index_errors(colossus_api, dlp_library_id, valid_indexes, invalid_indexes)
+        raise_index_error(num_index_errors, errors)
 
     import_info = dict(
         dlp_library_id=dlp_library_id,

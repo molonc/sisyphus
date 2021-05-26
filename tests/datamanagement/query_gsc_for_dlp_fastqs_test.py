@@ -55,7 +55,7 @@ class TestIndexErrors():
 
 class TestMapIndexSequenceToCellId():
 	def test_valid_index_matching(self, cell_samples, gsc_external_id, empty_valid_indexes, empty_invalid_indexes):
-		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		obs_valid_index, _, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
 		expected_valid_index = {
 			'AAAAAA-TTTTTT': 'sample1',
 		}
@@ -63,19 +63,19 @@ class TestMapIndexSequenceToCellId():
 		assert (obs_valid_index == expected_valid_index)
 
 	def test_invalid_index_matching(self, cell_samples, gsc_external_id, empty_valid_indexes, empty_invalid_indexes):
-		_, obs_invalid_index = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		_, obs_invalid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
 		expected_invalid_index = []
 
 		assert (obs_invalid_index == expected_invalid_index)
 
 	def test_valid_index_unmatching_external_id(self, cell_samples, gsc_external_id,  empty_valid_indexes, empty_invalid_indexes):
-		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-CCCCCC', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		obs_valid_index, _, _ = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-CCCCCC', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
 		expected_valid_index = {}
 
 		assert (obs_valid_index == expected_valid_index)
 
 	def test_invalid_index_unmatching_external_id(self, cell_samples, gsc_external_id, empty_valid_indexes, empty_invalid_indexes):
-		_, obs_invalid_index = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-CCCCCC', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		_, obs_invalid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-CCCCCC', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
 		expected_invalid_index = [
 			'CCCCCC-CCCCCC',
 		]
@@ -83,23 +83,25 @@ class TestMapIndexSequenceToCellId():
 		assert (obs_invalid_index == expected_invalid_index)
 
 	def test_invalid_index_unmatching_internal_id(self, cell_samples, gsc_internal_id, empty_valid_indexes, empty_invalid_indexes):
-		_, obs_invalid_index = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-CCCCCC', gsc_internal_id, empty_valid_indexes, empty_invalid_indexes)
+		_, obs_invalid_index, obs_is_internal = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-CCCCCC', gsc_internal_id, empty_valid_indexes, empty_invalid_indexes)
 		expected_invalid_index = []
+		expected_is_internal = True
 
 		assert (obs_invalid_index == expected_invalid_index)
+		assert (obs_is_internal == expected_is_internal)
 
 	def test_duplicate_index(self, cell_samples, gsc_external_id, empty_valid_indexes, empty_invalid_indexes):
-		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		obs_valid_index, _, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
 
 		with pytest.raises(Exception) as excinfo:
-			obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, obs_valid_index, empty_invalid_indexes)
+			obs_valid_index, _, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, obs_valid_index, empty_invalid_indexes)
 
 		assert ("Duplicate" in str(excinfo.value))
 
 	def test_multiple_valid_index(self, cell_samples, gsc_external_id, empty_valid_indexes, empty_invalid_indexes):
-		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
-		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-GGGGGG', gsc_external_id, obs_valid_index, empty_invalid_indexes)
-		obs_valid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'ACACAC-TGTGTG', gsc_external_id, obs_valid_index, empty_invalid_indexes)
+		obs_valid_index, _, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		obs_valid_index, _, _ = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-GGGGGG', gsc_external_id, obs_valid_index, empty_invalid_indexes)
+		obs_valid_index, _, _ = map_index_sequence_to_cell_id(cell_samples, 'ACACAC-TGTGTG', gsc_external_id, obs_valid_index, empty_invalid_indexes)
 
 		expected_valid_index = {
 			'AAAAAA-TTTTTT': 'sample1',
@@ -108,6 +110,24 @@ class TestMapIndexSequenceToCellId():
 		}
 
 		assert (obs_valid_index == expected_valid_index)
+
+	# test multiple valid and invalid indexes
+	def test_multiple_mixed_index(self, cell_samples, gsc_external_id, empty_valid_indexes, empty_invalid_indexes):
+		obs_valid_index, obs_invalid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'AAAAAA-TTTTTT', gsc_external_id, empty_valid_indexes, empty_invalid_indexes)
+		obs_valid_index, obs_invalid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'CCCCCC-CCCCCC', gsc_external_id, obs_valid_index, obs_invalid_index)
+		obs_valid_index, obs_invalid_index, _ = map_index_sequence_to_cell_id(cell_samples, 'ACACAC-TGTGTG', gsc_external_id, obs_valid_index, obs_invalid_index)
+
+		expected_valid_index = {
+			'AAAAAA-TTTTTT': 'sample1',
+			'ACACAC-TGTGTG': 'sample3',
+		}
+
+		expected_invalid_index = [
+			'CCCCCC-CCCCCC',
+		]
+
+		assert (obs_valid_index == expected_valid_index)
+		assert (obs_invalid_index == expected_invalid_index)
 
 class TestDecodeRawIndexSequence():
 	def test_reverse_complement_upper(self, i5_sequence_upper):
