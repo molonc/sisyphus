@@ -30,14 +30,9 @@ from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from datamanagement.utils.utils import make_dirs
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
 
-from constants.url_constants import DEFAULT_TANTALUS_API_URL
+from dbclients.utils.dbclients_utils import get_tantalus_api_url
 
 log = logging.getLogger('sisyphus')
-
-TANTALUS_API_URL = os.environ.get(
-    'TANTALUS_API_URL',
-    DEFAULT_TANTALUS_API_URL)
-
 
 class BlobStorageClient(object):
     def __init__(self, storage_account, storage_container, prefix):
@@ -309,16 +304,17 @@ class DataNotOnStorageError(Exception):
 class TantalusApi(BasicAPIClient):
     """Tantalus API class."""
 
-    def __init__(self):
+    def __init__(self, mode="production"):
         """Set up authentication using basic authentication.
 
         Expects to find valid environment variables
         TANTALUS_API_USERNAME and TANTALUS_API_PASSWORD. Also looks for
         an optional TANTALUS_API_URL.
         """
+        TANTALUS_API_URL = get_tantalus_api_url(mode)
 
         super(TantalusApi, self).__init__(
-            os.environ.get("TANTALUS_API_URL", TANTALUS_API_URL),
+            TANTALUS_API_URL,
             username=os.environ.get("TANTALUS_API_USERNAME"),
             password=os.environ.get("TANTALUS_API_PASSWORD"),
         )

@@ -3,11 +3,7 @@ from __future__ import division
 from __future__ import print_function
 import os
 from dbclients.basicclient import BasicAPIClient
-
-from constants.url_constants import DEFAULT_COLOSSUS_API_URL
-
-COLOSSUS_API_URL = os.environ.get("COLOSSUS_API_URL", DEFAULT_COLOSSUS_API_URL)
-
+from dbclients.utils.dbclients_utils import get_colossus_api_url
 
 class ColossusApi(BasicAPIClient):
     """ Colossus API class. """
@@ -15,16 +11,17 @@ class ColossusApi(BasicAPIClient):
     # Parameters used for pagination
     pagination_param_names = ("page",)
 
-    def __init__(self):
+    def __init__(self, mode="production"):
         """ Set up authentication using basic authentication.
 
         Expects to find valid environment variables
         COLOSSUS_API_USERNAME and COLOSSUS_API_PASSWORD. Also looks for
         an optional COLOSSUS_API_URL.
         """
+        COLOSSUS_API_URL = get_colossus_api_url(mode)
 
         super(ColossusApi, self).__init__(
-            os.environ.get("COLOSSUS_API_URL", COLOSSUS_API_URL),
+            COLOSSUS_API_URL,
             username=os.environ.get("COLOSSUS_API_USERNAME"),
             password=os.environ.get("COLOSSUS_API_PASSWORD"),
         )
