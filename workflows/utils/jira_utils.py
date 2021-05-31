@@ -1,4 +1,5 @@
 import os
+import settings
 import logging
 from jira import JIRA, JIRAError
 
@@ -204,11 +205,13 @@ def create_ticket(key, summary):
     Returns:
         str -- created ticket id
     """
+    mode = settings.mode.lower()
     jira_user = os.environ['JIRA_USERNAME']
+    jira_key = 'SC' if mode == 'production' else 'MIS'
 
     task = {
         'project': {
-            'key': 'SC'
+            'key': jira_key
         },
         'summary': summary,
         'issuetype': {
@@ -231,7 +234,9 @@ def create_jira_ticket_from_library(library_id):
     Returns:
         analysis_jira_ticket: jira ticket id (ex. SC-1234)
     """
+    mode = settings.mode.lower()
     jira_user = os.environ['JIRA_USERNAME']
+    jira_key = 'SC' if mode == 'production' else 'MIS'
 
     library = colossus_api.get('library', pool_id=library_id)
     sample_id = library['sample']['sample_id']
@@ -245,7 +250,7 @@ def create_jira_ticket_from_library(library_id):
     # Jira ticket must include spaces
     sub_task = {
         'project': {
-            'key': 'SC'
+            'key': jira_key
         },
         'summary': 'Analysis of {} - {}'.format(sample_id, library_id),
         'issuetype': {

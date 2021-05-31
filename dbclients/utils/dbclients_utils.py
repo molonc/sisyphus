@@ -1,5 +1,4 @@
-import os
-
+import settings
 from constants.url_constants import (
 	DEFAULT_TANTALUS_BASE_URL,
 	DEFAULT_TANTALUS_API_URL,
@@ -19,16 +18,13 @@ from constants.url_constants import (
 	STAGING_COLOSSUS_API_URL,
 )
 
-# get mode from environment variable. Production by default
-mode = os.environ.get("MODE", "production")
-mode = mode.lower()
-
 def get_tantalus_base_url():
 	"""
 	Get Tantalus base URL based on the mode.
 	Mode can be one of 'development', 'testing', 'staging', and 'production'
 	"""
 	# by default, use production server
+	mode = settings.mode.lower()
 	if(mode not in ["production", "staging", "development", "testing"]):
 		raise ValueError("Invalid mode. Must be one of development, testing, staging, or production!")
 
@@ -52,6 +48,7 @@ def get_tantalus_api_url():
 	Mode can be one of 'development', 'testing', 'staging', and 'production'
 	"""
 	# by default, use production server
+	mode = settings.mode.lower()
 	if(mode not in ["production", "staging", "development", "testing"]):
 		raise ValueError("Invalid mode. Must be one of development, testing, staging, or production!")
 
@@ -75,6 +72,7 @@ def get_colossus_base_url():
 	Mode can be one of 'development', 'testing', 'staging', and 'production'
 	"""
 	# by default, use production server
+	mode = settings.mode.lower()
 	if(mode not in ["production", "staging", "development", "testing"]):
 		raise ValueError("Invalid mode. Must be one of development, testing, staging, or production!")
 
@@ -98,6 +96,7 @@ def get_colossus_api_url():
 	Mode can be one of 'development', 'testing', 'staging', and 'production'
 	"""
 	# by default, use production server
+	mode = settings.mode.lower()
 	if(mode not in ["production", "staging", "development", "testing"]):
 		raise ValueError("Invalid mode. Must be one of development, testing, staging, or production!")
 
