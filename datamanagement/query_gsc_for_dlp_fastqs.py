@@ -32,6 +32,8 @@ from workflows.utils.tantalus_utils import create_qc_analyses_from_library
 
 from constants.url_constants import DEFAULT_COLOSSUS_BASE_URL
 
+from utils.utils import get_today
+
 SOLEXA_RUN_TYPE_MAP = {"Paired": "P"}
 
 # Mapping from filename pattern to read end, pass/fail
@@ -205,10 +207,10 @@ def map_index_sequence_to_cell_id(cell_samples, gsc_index_sequence, gsc_library_
     Return:
         valid_indexes (dict): dictionary of valid GSC index sequence to Colossus cell ID.
         invalid_indexes (list): list of GSC indexes sequences not matching with Colossus index sequences.
-        is_internal (bool): True if internal GSC ID is used, False otherwise.
+        should_skip (bool): True if internal GSC ID is used, False otherwise.
     """
     # get sample id of index
-    is_internal = False
+    should_skip = False
     try:
         cell_sample_id = cell_samples[gsc_index_sequence]
 
@@ -222,11 +224,12 @@ def map_index_sequence_to_cell_id(cell_samples, gsc_index_sequence, gsc_library_
         # if index is not found, check if library being imported is an internal library i.e beginning with IX
         # if so, we can skip this fastq
         if gsc_library_id.startswith("IX"):
-            is_internal = True
+            should_skip = True
         else:
             invalid_indexes.append(gsc_index_sequence)
+            should_skip = True
     finally:
-        return (valid_indexes, invalid_indexes, is_internal)
+        return (valid_indexes, invalid_indexes, should_skip)
 
 def validate_fastq_from_filename(filename_pattern):
     """
@@ -618,8 +621,6 @@ def import_gsc_dlp_paired_fastqs(
                 continue
 
             sequencing_instrument = get_sequencing_instrument(fastq_info["libcore"]["run"]["machine"])
-            # get read end of fastq
-            read_end, passed = FILENAME_PATTERN_MAP.get(filename_pattern, (None, None))
 
             solexa_run_type = fastq_info["libcore"]["run"]["solexarun_type"]
             read_type = SOLEXA_RUN_TYPE_MAP[solexa_run_type]
@@ -658,10 +659,10 @@ def import_gsc_dlp_paired_fastqs(
 
             # map GSC index to Colossus sample ID
             # TODO: forward and reverse fastqs have different IDs but same index sequence. Deal with it.
-            valid_indexes, invalid_indexes, is_internal = map_index_sequence_to_cell_id(cell_samples, index_sequence, gsc_library_id, valid_indexes, invalid_indexes)
+            valid_indexes, invalid_indexes, should_skip = map_index_sequence_to_cell_id(cell_samples, index_sequence, gsc_library_id, valid_indexes, invalid_indexes)
 
-            # skip if GSC internal id is used
-            if(is_internal):
+            # skip if GSC internal id is used or invalid index is found
+            if(should_skip):
                 continue
 
             is_gzipped = check_gzipped(fastq_path, check_library)
@@ -673,11 +674,13 @@ def import_gsc_dlp_paired_fastqs(
             extension = validate_file_extension(fastq_path)
 
             # format filename for tantalus
+            # get read end of fastq
+            read_end, _ = FILENAME_PATTERN_MAP.get(filename_pattern, (None, None))
             tantalus_filename = templates.SC_WGS_FQ_TEMPLATE.format(
                 dlp_library_id=dlp_library_id,
                 flowcell_id=flowcell_id,
                 lane_number=lane_number,
-                cell_sample_id=cell_sample_id,
+                cell_sample_id=cell_samples[index_sequence],
                 index_sequence=index_sequence,
                 read_end=read_end,
                 extension=extension,
@@ -688,7 +691,7 @@ def import_gsc_dlp_paired_fastqs(
             fastq_file_info.append(
                 dict(
                     dataset_type="FQ",
-                    sample_id=cell_sample_id,
+                    sample_id=cell_samples[index_sequence],
                     library_id=dlp_library_id,
                     library_type="SC_WGS",
                     index_format="D",
@@ -709,6 +712,7 @@ def import_gsc_dlp_paired_fastqs(
 
             # upload fastq file to local server or remote blob storage
             if not (check_library):
+                print("MIN")
                 upload_file(
                     fastq_path,
                     tantalus_filename,
@@ -845,15 +849,17 @@ def check_lanes(colossus_api, sequencing, num_lanes):
             sequencing['number_of_lanes_requested'], num_lanes))
 
 
-def write_import_statuses(successful_libs, failed_libs):
+def write_import_statuses(successful_libs, recent_failed_libs, old_failed_libs):
     """
     Writes text file regarding successful and failed imports
 
     Args:
-        successful_libs:    (dict)
-        failed_libs:        (dict)
+        successful_libs (list): successful libs
+        recent_failed_libs (list): recently failed libs.
+        old_failed_libs (list): failed libs that are at least 'x' days old.
     """
-    import_status_path = os.path.join(os.environ['DATAMANAGEMENT_DIR'], 'import_statuses.txt')
+    datamanagement_dir = os.environ.get('DATAMANAGEMENT_DIR', '.')
+    import_status_path = os.path.join(datamanagement_dir, 'import_statuses.txt')
 
     if os.path.exists(import_status_path):
         os.remove(import_status_path)
@@ -862,26 +868,39 @@ def write_import_statuses(successful_libs, failed_libs):
     file.write("Date: {}\n\n".format(str(datetime.date.today())))
 
     file.write("Successful imports: \n")
-
     for successful_lib in successful_libs:
-        file.write('\n{}, {} \n'.format(successful_lib['dlp_library_id'], successful_lib['gsc_library_id']))
-        for lane in successful_lib['lanes']:
-            flowcell = "{}_{}".format(lane['flowcell_id'], lane['lane_number'])
-            lane_message = "Flowcell: {}, Sequencing Date: {} \n".format(flowcell, lane['sequencing_date'])
-            file.write(lane_message)
-        file.write('Latest lane requested on {}'.format(successful_lib['lane_requested_date']))
+        file.write(f"{successful_lib['dlp_library_id']}, {successful_lib['gsc_library_id']} \n")
 
-    failed_libs.sort(key=lambda x: x['error'], reverse=True)
+    old_failed_libs.sort(key=lambda x: x['error'], reverse=True)
     file.write("\n\nFailed imports: \n")
-    for failed_lib in failed_libs:
-        file.write("{}, {}: {}; latest lane requested on {}\n".format(
-            failed_lib['dlp_library_id'],
-            failed_lib['gsc_library_id'],
-            failed_lib['error'],
-            failed_lib['lane_requested_date'],
-        ))
+    for failed_lib in old_failed_libs:
+        file.write(f"{failed_lib['dlp_library_id']}, {failed_lib['gsc_library_id']}: {failed_lib['error']}\n")
+
+    file.write("\n\nLibraries expected from GSC (submitted < 10 days): \n")
+    for recent_lib in recent_failed_libs:
+        file.write(f"{recent_lib['dlp_library_id']}, {recent_lib['gsc_library_id']}\n")
+
     file.close()
 
+def filter_failed_libs_by_date(failed_libs, days=10):
+    """
+    Import sometimes fails because library has recently been loaded.
+    Filter these libraries based on date.
+
+    Args:
+        failed_libs (list): list of dicts that have failed libraries
+        days: days to filter by; subset failed_libs by libraries older/later than this day
+
+    Return:
+        recent_failed_libs (list): recently failed libs as filtered by days arg
+        old_failed_libs (list): old failed libs as filtered by days arg
+    """
+    filter_date = get_today() - datetime.timedelta(days=days)
+
+    recent_failed_libs = [lib for lib in failed_libs if lib['lane_requested_date'] >= filter_date]
+    old_failed_libs = [lib for lib in failed_libs if lib['lane_requested_date'] < filter_date]
+
+    return (recent_failed_libs, old_failed_libs)
 
 def create_tickets_and_analyses(import_info):
     """
@@ -1034,19 +1053,18 @@ def main(storage_name,
             logging.exception(f"Library {sequencing['library']} failed to import: {e}")
             continue
 
-    # Only write import statuses for bulk imports
-    if all or dlp_library_id is None:
-        # Sort lists by date in descending order
-        successful_libs.sort(
-            key=lambda x: datetime.datetime.strptime(x['lane_requested_date'], '%Y-%m-%d'),
-            reverse=True,
-        )
-        failed_libs.sort(
-            key=lambda x: datetime.datetime.strptime(x['lane_requested_date'], '%Y-%m-%d'),
-            reverse=True,
-        )
-        # write import report
-        write_import_statuses(successful_libs, failed_libs)
+    # Sort lists by date in descending order
+    successful_libs.sort(
+        key=lambda x: datetime.datetime.strptime(x['lane_requested_date'], '%Y-%m-%d'),
+        reverse=True,
+    )
+    failed_libs.sort(
+        key=lambda x: datetime.datetime.strptime(x['lane_requested_date'], '%Y-%m-%d'),
+        reverse=True,
+    )
+    recent_failed_libs, old_failed_libs = filter_failed_libs_by_date(failed_libs)
+    # write import report
+    write_import_statuses(successful_libs, recent_failed_libs, old_failed_libs)
 
 
 if __name__ == "__main__":

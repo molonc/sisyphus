@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime
 
 @pytest.fixture
 def i5_sequence_upper():
@@ -104,3 +105,78 @@ def index_errors():
 	}
 
 	return errors
+
+@pytest.fixture
+def successful_libs():
+	return [
+		{
+			'lane_requested_date': datetime(2021, 5, 1),
+			'dlp_library_id': 'A11111',
+			'gsc_library_id': 'PX11111',
+			'lanes': [
+				{'flowcell_id': 'flowcell_1', 'lane_number': 'lane_1', 'sequencing_date': datetime(2021, 5, 5)},
+				{'flowcell_id': 'flowcell_1', 'lane_number': 'lane_2', 'sequencing_date': datetime(2021, 5, 5)},
+			],
+		},
+		{
+			'lane_requested_date': datetime(2021, 5, 2),
+			'dlp_library_id': 'A22222',
+			'gsc_library_id': 'PX22222',
+			'lanes': [
+				{'flowcell_id': 'flowcell_2', 'lane_number': 'lane_1', 'sequencing_date': datetime(2021, 5, 5)},
+				{'flowcell_id': 'flowcell_2', 'lane_number': 'lane_2', 'sequencing_date': datetime(2021, 5, 5)},
+			],
+		},
+	]
+
+@pytest.fixture
+def failed_libs():
+	return [
+		{
+			'lane_requested_date': datetime(2021, 5, 1),
+			'dlp_library_id': 'A11111',
+			'gsc_library_id': 'PX11111',
+			'error': 'error',
+		},
+		{
+			'lane_requested_date': datetime(2021, 5, 2),
+			'dlp_library_id': 'A22222',
+			'gsc_library_id': 'PX22222',
+			'error': 'error',
+		},
+		{
+			'lane_requested_date': datetime(2021, 5, 3),
+			'dlp_library_id': 'A33333',
+			'gsc_library_id': 'PX33333',
+			'error': 'error',
+		},
+		{
+			'lane_requested_date': datetime(2021, 5, 4),
+			'dlp_library_id': 'A44444',
+			'gsc_library_id': 'PX44444',
+			'error': 'error',
+		},
+		{
+			'lane_requested_date': datetime(2021, 5, 5),
+			'dlp_library_id': 'A55555',
+			'gsc_library_id': 'PX55555',
+			'error': 'error',
+		},
+	]
+
+@pytest.fixture
+def recently_failed_libs():
+	return [
+		{
+			'lane_requested_date': datetime(2021, 5, 20),
+			'dlp_library_id': 'A88888',
+			'gsc_library_id': 'PX88888',
+			'error': 'error',
+		},
+		{
+			'lane_requested_date': datetime(2021, 5, 21),
+			'dlp_library_id': 'A99999',
+			'gsc_library_id': 'PX99999',
+			'error': 'error',
+		},
+	]
