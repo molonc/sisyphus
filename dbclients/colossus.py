@@ -11,14 +11,14 @@ class ColossusApi(BasicAPIClient):
     # Parameters used for pagination
     pagination_param_names = ("page",)
 
-    def __init__(self, mode="production"):
+    def __init__(self):
         """ Set up authentication using basic authentication.
 
         Expects to find valid environment variables
         COLOSSUS_API_USERNAME and COLOSSUS_API_PASSWORD. Also looks for
         an optional COLOSSUS_API_URL.
         """
-        COLOSSUS_API_URL = get_colossus_api_url(mode)
+        COLOSSUS_API_URL = get_colossus_api_url()
 
         super(ColossusApi, self).__init__(
             COLOSSUS_API_URL,

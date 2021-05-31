@@ -304,14 +304,14 @@ class DataNotOnStorageError(Exception):
 class TantalusApi(BasicAPIClient):
     """Tantalus API class."""
 
-    def __init__(self, mode="production"):
+    def __init__(self):
         """Set up authentication using basic authentication.
 
         Expects to find valid environment variables
         TANTALUS_API_USERNAME and TANTALUS_API_PASSWORD. Also looks for
         an optional TANTALUS_API_URL.
         """
-        TANTALUS_API_URL = get_tantalus_api_url(mode)
+        TANTALUS_API_URL = get_tantalus_api_url()
 
         super(TantalusApi, self).__init__(
             TANTALUS_API_URL,

@@ -28,10 +28,14 @@ from datamanagement.utils.qsub_jobs import Bcl2FastqJob
 from datamanagement.utils.constants import DEFAULT_NATIVESPEC
 import datetime
 
-from constants.url_constants import DEFAULT_COLOSSUS_BASE_URL
+from dbclients.utils.dbclients_utils import (
+    get_colossus_base_url,
+)
 
 # Set up the root logger
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
+
+COLOSSUS_BASE_URL = get_colossus_base_url()
 
 # Hard coded BRC details
 BRC_INSTRUMENT = "NextSeq550"
@@ -110,7 +114,7 @@ def update_ticket(flowcell_id):
     library = colossus_api.get("library", pool_id=library_id)
     jira_ticket = library["jira_ticket"]
 
-    sequencing_url = f"{DEFAULT_COLOSSUS_BASE_URL}/dlp/sequencing/{sequencing_id}"
+    sequencing_url = f"{COLOSSUS_BASE_URL}/dlp/sequencing/{sequencing_id}"
     comment = "Import successful: \n\nLane: {} \n{}".format(
         flowcell_id,
         sequencing_url,
@@ -333,7 +337,7 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
 def get_samplesheet(destination, lane_id):
 
     r = requests.get(
-        f'{DEFAULT_COLOSSUS_BASE_URL}/api/samplesheet_query/{lane_id}',
+        f'{COLOSSUS_BASE_URL}/api/samplesheet_query/{lane_id}',
         auth=(
             os.environ["COLOSSUS_API_USERNAME"],
             os.environ["COLOSSUS_API_PASSWORD"],

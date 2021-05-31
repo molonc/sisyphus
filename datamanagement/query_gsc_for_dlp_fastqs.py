@@ -30,9 +30,13 @@ from workflows.utils.colossus_utils import create_colossus_analysis
 from workflows.utils.file_utils import load_json
 from workflows.utils.tantalus_utils import create_qc_analyses_from_library
 
-from constants.url_constants import DEFAULT_COLOSSUS_BASE_URL
+from dbclients.utils.dbclients_utils import (
+    get_colossus_base_url,
+)
 
 from utils.utils import get_today
+
+COLOSSUS_BASE_URL = get_colossus_base_url()
 
 SOLEXA_RUN_TYPE_MAP = {"Paired": "P"}
 
@@ -419,7 +423,7 @@ def import_gsc_dlp_paired_fastqs(
     library_info = colossus_api.query_libraries_by_library_id(dlp_library_id)
     jira_ticket = library_info["jira_ticket"]
 
-    sequencing_colossus_path = f"{DEFAULT_COLOSSUS_BASE_URL}/dlp/sequencing/{sequencing['id']}"
+    sequencing_colossus_path = f"{COLOSSUS_BASE_URL}/dlp/sequencing/{sequencing['id']}"
 
     if library_info["exclude_from_analysis"]:
         logging.info("{} is excluded from analysis; skipping check for lanes.".format(dlp_library_id))
