@@ -34,7 +34,7 @@ from dbclients.utils.dbclients_utils import (
     get_colossus_base_url,
 )
 
-from utils.utils import get_today
+from common_utils.utils import get_today
 
 COLOSSUS_BASE_URL = get_colossus_base_url()
 
@@ -716,7 +716,6 @@ def import_gsc_dlp_paired_fastqs(
 
             # upload fastq file to local server or remote blob storage
             if not (check_library):
-                print("MIN")
                 upload_file(
                     fastq_path,
                     tantalus_filename,
