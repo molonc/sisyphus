@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 import os
 from dbclients.basicclient import BasicAPIClient
-from dbclients.utils.dbclients_utils import get_colossus_api_url
+from dbclients.utils.dbclients_utils import get_colossus_base_url
 
 class ColossusApi(BasicAPIClient):
     """ Colossus API class. """
@@ -18,10 +18,10 @@ class ColossusApi(BasicAPIClient):
         COLOSSUS_API_USERNAME and COLOSSUS_API_PASSWORD. Also looks for
         an optional COLOSSUS_API_URL.
         """
-        COLOSSUS_API_URL = get_colossus_api_url()
+        COLOSSUS_BASE_URL = get_colossus_base_url()
 
         super(ColossusApi, self).__init__(
-            COLOSSUS_API_URL,
+            COLOSSUS_BASE_URL,
             username=os.environ.get("COLOSSUS_API_USERNAME"),
             password=os.environ.get("COLOSSUS_API_PASSWORD"),
         )

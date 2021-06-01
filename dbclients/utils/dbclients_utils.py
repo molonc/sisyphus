@@ -30,13 +30,13 @@ def get_tantalus_base_url():
 
 	# use different api endpoint depending on mode
 	if(mode == "development"):
-		TANTALUS_BASE_URL = DEVELOPMENT_TANTALUS_API_URL 
+		TANTALUS_BASE_URL = DEVELOPMENT_TANTALUS_BASE_URL 
 	elif(mode == "testing"):
-		TANTALUS_BASE_URL = TESTING_TANTALUS_API_URL
+		TANTALUS_BASE_URL = TESTING_TANTALUS_BASE_URL
 	elif(mode == "staging"):
-		TANTALUS_BASE_URL = STAGING_TANTALUS_API_URL
+		TANTALUS_BASE_URL = STAGING_TANTALUS_BASE_URL
 	elif(mode == "production"):
-		TANTALUS_BASE_URL = DEFAULT_TANTALUS_API_URL
+		TANTALUS_BASE_URL = DEFAULT_TANTALUS_BASE_URL
 	else:
 		raise ValueError("Invalid mode. Must be one of development, testing, staging, or production!")
 

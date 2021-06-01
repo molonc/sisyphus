@@ -30,7 +30,7 @@ from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from datamanagement.utils.utils import make_dirs
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
 
-from dbclients.utils.dbclients_utils import get_tantalus_api_url
+from dbclients.utils.dbclients_utils import get_tantalus_base_url
 
 log = logging.getLogger('sisyphus')
 
@@ -311,10 +311,10 @@ class TantalusApi(BasicAPIClient):
         TANTALUS_API_USERNAME and TANTALUS_API_PASSWORD. Also looks for
         an optional TANTALUS_API_URL.
         """
-        TANTALUS_API_URL = get_tantalus_api_url()
+        TANTALUS_BASE_URL = get_tantalus_base_url()
 
         super(TantalusApi, self).__init__(
-            TANTALUS_API_URL,
+            TANTALUS_BASE_URL,
             username=os.environ.get("TANTALUS_API_USERNAME"),
             password=os.environ.get("TANTALUS_API_PASSWORD"),
         )
