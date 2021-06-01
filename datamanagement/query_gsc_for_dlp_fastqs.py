@@ -900,8 +900,8 @@ def filter_failed_libs_by_date(failed_libs, days=10):
     """
     filter_date = get_today() - datetime.timedelta(days=days)
 
-    recent_failed_libs = [lib for lib in failed_libs if lib['lane_requested_date'] >= filter_date]
-    old_failed_libs = [lib for lib in failed_libs if lib['lane_requested_date'] < filter_date]
+    recent_failed_libs = [lib for lib in failed_libs if datetime.datetime.strptime(lib['lane_requested_date']) >= filter_date]
+    old_failed_libs = [lib for lib in failed_libs if datetime.datetime.strptime(lib['lane_requested_date']) < filter_date]
 
     return (recent_failed_libs, old_failed_libs)
 
