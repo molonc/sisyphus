@@ -74,7 +74,7 @@ class BasicAPIClient(object):
             try:
                 if retry != 0:
                     wait_time = random.randint(10,60)
-                    log.info("Waiting {} seconds before connecting to {}".format(wait_time, api_url))
+                    log.info("Waiting {} seconds before connecting to {}".format(wait_time, self.base_api_url))
                     time.sleep(wait_time)
                     
                 self.coreapi_schema = self.coreapi_client.get(
@@ -82,7 +82,7 @@ class BasicAPIClient(object):
                 )
                 break
             except Exception:
-                log.error("Connecting to {} failed. Retrying.".format(api_url))
+                log.error("Connecting to {} failed. Retrying.".format(self.base_api_url))
 
                 if retry < retries - 1:
                     traceback.print_exc()
