@@ -669,11 +669,11 @@ def import_gsc_dlp_paired_fastqs(
             if(should_skip):
                 continue
 
-            is_gzipped = check_gzipped(fastq_path, check_library)
-
-            # skip sample if not gzipped
-            if not(is_gzipped):
-                continue
+#            is_gzipped = check_gzipped(fastq_path, check_library)
+#
+#            # skip sample if not gzipped
+#            if not(is_gzipped):
+#                continue
 
             extension = validate_file_extension(fastq_path)
 
@@ -715,14 +715,14 @@ def import_gsc_dlp_paired_fastqs(
                 ))
 
             # upload fastq file to local server or remote blob storage
-            if not (check_library):
-                upload_file(
-                    fastq_path,
-                    tantalus_filename,
-                    tantalus_path,
-                    storage,
-                    update,
-                )
+#            if not (check_library):
+#                upload_file(
+#                    fastq_path,
+#                    tantalus_filename,
+#                    tantalus_path,
+#                    storage,
+#                    update,
+#                )
 
     # if there is at least one mismatching index, throw exception
     if(len(invalid_indexes) > 0):
@@ -900,8 +900,8 @@ def filter_failed_libs_by_date(failed_libs, days=10):
     """
     filter_date = get_today() - datetime.timedelta(days=days)
 
-    recent_failed_libs = [lib for lib in failed_libs if datetime.datetime.strptime(lib['lane_requested_date']) >= filter_date]
-    old_failed_libs = [lib for lib in failed_libs if datetime.datetime.strptime(lib['lane_requested_date']) < filter_date]
+    recent_failed_libs = [lib for lib in failed_libs if datetime.datetime.strptime(lib['lane_requested_date'], '%Y-%m-%d') >= filter_date]
+    old_failed_libs = [lib for lib in failed_libs if datetime.datetime.strptime(lib['lane_requested_date'], '%Y-%m-%d') < filter_date]
 
     return (recent_failed_libs, old_failed_libs)
 
