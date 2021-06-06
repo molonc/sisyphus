@@ -172,6 +172,7 @@ def import_tenx_fastqs(storage_name, sequencing, no_comments=False, update=False
     for library in pool["libraries"]:
         # get colossus tenx library
         tenxlib = colossus_api.get("tenxlibrary", id=library)
+        print(library)
         library = tenxlib['name']
 
         pool_libraries.append(library)

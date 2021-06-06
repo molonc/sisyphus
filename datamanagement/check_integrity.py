@@ -81,7 +81,7 @@ def main(
     for file_resource in file_resources:
         try:
             file_instance = tantalus_api.get('file_instance', file_resource=file_resource['id'], storage__name=storage_name)
-        except NotFoundError:
+        except:
             logging.exception(f'file {file_resource["filename"]} not on storage')
             continue
 
