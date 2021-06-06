@@ -39,15 +39,6 @@ config = file_utils.load_json(
 
 
 def attach_qc_report(jira, library_id, storages):
-    """ 
-    Adds qc report to library jira ticket
-
-    Arguments:
-        jira {str} -- id of jira ticket e.g SC-1234
-        library_id {str} -- library name
-        storages {dict} -- dictionary of storages names for results and inputs
-    """
-
     storage_client = tantalus_api.get_storage_client(storages["remote_results"])
     results_dataset = tantalus_api.get(
         "resultsdataset",
@@ -56,34 +47,22 @@ def attach_qc_report(jira, library_id, storages):
             library_id,
         ),
     )
-
     qc_filename = "{}_QC_report.html".format(library_id)
     jira_qc_filename = "{}_{}_QC_report.html".format(library_id, jira)
-
     qc_report = list(
         tantalus_api.get_dataset_file_resources(
             results_dataset["id"],
             "resultsdataset",
             {"filename__endswith": qc_filename},
         ))
-
     blobname = qc_report[0]["filename"]
     local_dir = os.path.join("qc_reports", jira)
     local_path = os.path.join(local_dir, jira_qc_filename)
     if not os.path.exists(local_dir):
         os.makedirs(local_dir)
-
-    # Download blob
-    blob = storage_client.blob_service.get_blob_to_path(
-        container_name="results",
-        blob_name=blobname,
-        file_path=local_path,
-    )
-
-    # Get library ticket
+    #blob = storage_client.blob_service.get_blob_to_path(container_name="results",blob_name=blobname,file_path=local_path)
     analysis = colossus_api.get("analysis_information", analysis_jira_ticket=jira)
     library_ticket = analysis["library"]["jira_ticket"]
-
     log.info("Adding report to parent ticket of {}".format(jira))
     add_attachment(library_ticket, local_path, jira_qc_filename)
 
@@ -114,35 +93,19 @@ def load_data_to_montage(jira):
 
 
 def run_viz():
-    """
-    Update jira ticket, add QC report, and load data on Montage
-    """
-    # get completed analyses that need montage loading
     analyses = colossus_api.list(
         "analysis_information",
         montage_status="Pending",
         analysis_run__run_status="complete",
     )
-
     for analysis in analyses:
-        # get library id
         library_id = analysis["library"]["pool_id"]
-
-        # skip analyses older than this year
-        # parse off ending time range
         last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < datetime(2020, 1, 1):
+        if last_updated_date > datetime(2020, 1, 1):
             continue
-
         jira_ticket = analysis["analysis_jira_ticket"]
-
-        # close jira ticket and update ticket description
         update_jira_dlp(jira_ticket, analysis["aligner"])
-
-        # upload qc report to jira ticket
         attach_qc_report(jira_ticket, library_id, config["storages"])
-
-        # load analysis into montage
         load_data_to_montage(jira_ticket)
 
 
@@ -341,59 +304,70 @@ def run_qc(aligner):
         aligner=aligner if aligner else config["default_aligner"],
     )
 
+    problem_libraries = []
     for analysis in analyses:
-        # get library id
-        library_id = analysis["library"]["pool_id"]
+        try:
+            # get library id
+            library_id = analysis["library"]["pool_id"]
 
-        # skip analyses older than this year
-        # parse off ending time range
-        last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < datetime(2020, 1, 1):
-            continue
+            # skip analyses older than this year
+            # parse off ending time range
+            last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
+            if last_updated_date > datetime(2021, 1, 1):
+                continue
 
-        # get jira ticket
-        jira = analysis["analysis_jira_ticket"]
+            # get jira ticket
+            jira = analysis["analysis_jira_ticket"]
 
-        # init args for analysis
-        args = {
-            'library_id': library_id,
-            'aligner': "BWA_MEM" if analysis['aligner'] == "M" else "BWA_ALN",
-            'ref_genome': colossus_utils.get_ref_genome(analysis["library"]),
-        }
+            # init args for analysis
+            args = {
+                'library_id': library_id,
+                'aligner': "BWA_MEM" if analysis['aligner'] == "M" else "BWA_ALN",
+                'ref_genome': colossus_utils.get_ref_genome(analysis["library"]),
+            }
 
-        log.info(f"checking ticket {jira} library {library_id}")
+            log.info(f"checking ticket {jira} library {library_id}")
 
-        # track qc analyses
-        statuses = {
-            "align": False,
-            "hmmcopy": False,
-            "annotation": False,
-        }
-        statuses["align"] = run_align(jira, args)
+            # track qc analyses
+            statuses = {
+                "align": False,
+                "hmmcopy": False,
+                "annotation": False,
+            }
+            statuses["align"] = run_align(jira, args)
 
-        # check align is complete
-        if statuses["align"]:
-            # run hmmcopy
-            statuses["hmmcopy"] = run_hmmcopy(jira, args)
+            # check align is complete
+            if statuses["align"]:
+                # run hmmcopy
+                statuses["hmmcopy"] = run_hmmcopy(jira, args)
 
-        # check hmmcopy complete
-        if statuses["hmmcopy"]:
-            # run annotation
-            statuses["annotation"] = run_annotation(jira, args)
+            # check hmmcopy complete
+            if statuses["hmmcopy"]:
+                # run annotation
+                statuses["annotation"] = run_annotation(jira, args)
 
-        # check annotation complete
-        if statuses["annotation"]:
-            # update status on colossus
-            analysis_run_id = analysis["analysis_run"]["id"]
-            analysis_run = colossus_api.get(
-                "analysis_run",
-                id=analysis_run_id,
-            )
-            colossus_api.update(
-                "analysis_run",
-                id=analysis_run_id,
-                run_status="complete",
-            )
+            # check annotation complete
+            if statuses["annotation"]:
+                # update status on colossus
+                analysis_run_id = analysis["analysis_run"]["id"]
+                analysis_run = colossus_api.get(
+                    "analysis_run",
+                    id=analysis_run_id,
+                )
+                colossus_api.update(
+                    "analysis_run",
+                    id=analysis_run_id,
+                    run_status="complete",
+                )
+        except Exception as e:
+            problem_libraries += [e]
+
+    if len(problem_libraries) > 0:
+        os.system('touch /home/sbeatty/myfile.txt')
+        file1 = open('/home/sbeatty/myfile.txt', 'w')
+        for line_i in problem_libraries:
+            file1.writelines(f"{line_i}")
+        file1.close()
 
     # get annotation analysis completed in last week
     analyses = tantalus_api.list(
