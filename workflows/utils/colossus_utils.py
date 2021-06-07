@@ -14,6 +14,63 @@ stream_handler.setFormatter(formatter)
 log.addHandler(stream_handler)
 log.propagate = False
 
+def get_projects_from_library_id(library_id):
+    """
+    Given library id (str), return the associated projects.
+
+    Args:
+        library_id: DLP or TenX library ID
+
+    Return:
+        projects: list of dict {'id': project_id, 'name': project_name}
+    """
+    library = colossus_api.get('library', pool_id=library_id)
+
+    projects = library['projects']
+
+    return projects
+
+def get_projects_from_jira_id(jira_id):
+    """
+    Given jira id, return the associated projects.
+
+    Args:
+        jira_id: Jira ticket id (e.g. SC-1234)
+
+    Return:
+        projects: list of dict {'id': project_id, 'name': project_name}
+    """
+    # try both 'library' and 'analysis_information' tables
+    try:
+        library = colossus_api.get('library', jira_ticket=jira_id)
+    except NotFoundError:
+        analysis_information = colossus_api.get('analysis_information', analysis_jira_ticket=jira_id)
+        library = analysis_information['library']
+
+    projects = library['projects']
+
+    return projects
+
+def get_library_id_from_jira_id(jira_id):
+    """
+    Get library ID from JIRA ID.
+
+    Args:
+        jira_id: Jira ticket id (e.g. SC-1234)
+
+    Return:
+        library_id: Colossus library ID
+    """
+    # try both 'library' and 'analysis_information' tables
+    try:
+        library = colossus_api.get('library', jira_ticket=jira_id)
+    except NotFoundError:
+        analysis_information = colossus_api.get('analysis_information', analysis_jira_ticket=jira_id)
+        library = analysis_information['library']
+
+    library_id = library['pool_id']
+
+    return library_id
 
 def get_sequencing_ids(library_info):
     """

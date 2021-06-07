@@ -14,6 +14,7 @@ import time
 import logging
 import traceback
 import random
+from common_utils.utils import build_url
 
 log = logging.getLogger('sisyphus')
 
@@ -36,7 +37,7 @@ class BasicAPIClient(object):
     # Parameters used for pagination. Change this in subclasses.
     pagination_param_names = ()
 
-    def __init__(self, api_url, username=None, password=None):
+    def __init__(self, base_url, username=None, password=None):
         """ Set up authentication using basic authentication.
         """
 
@@ -48,10 +49,16 @@ class BasicAPIClient(object):
         # Tell Tantalus we're sending JSON
         self.session.headers.update({"content-type": "application/json"})
 
-        # Record the base API URL
-        self.base_api_url = api_url
+        # Record the base URL
+        self.base_url = base_url
 
-        self.document_url = self.base_api_url + "swagger/?format=openapi"
+        # Record the base API URL
+        api_path = 'api'
+        self.base_api_url = build_url(base_url, api_path)
+
+        openapi_document_path = self.join_urls('api', 'swagger')
+        query = {'format': 'openapi'}
+        self.document_url = build_url(base_url, openapi_document_path, query)
 
         auth = None
         if username is not None and password is not None:
@@ -67,7 +74,7 @@ class BasicAPIClient(object):
             try:
                 if retry != 0:
                     wait_time = random.randint(10,60)
-                    log.info("Waiting {} seconds before connecting to {}".format(wait_time, api_url))
+                    log.info("Waiting {} seconds before connecting to {}".format(wait_time, self.base_api_url))
                     time.sleep(wait_time)
                     
                 self.coreapi_schema = self.coreapi_client.get(
@@ -75,7 +82,7 @@ class BasicAPIClient(object):
                 )
                 break
             except Exception:
-                log.error("Connecting to {} failed. Retrying.".format(api_url))
+                log.error("Connecting to {} failed. Retrying.".format(self.base_api_url))
 
                 if retry < retries - 1:
                     traceback.print_exc()
@@ -391,7 +398,8 @@ class BasicAPIClient(object):
         if id is None:
             raise ValueError('must specify id of existing model')
 
-        endpoint_url = self.join_urls(self.base_api_url, table_name, str(id))
+        path = self.join_urls('api', table_name, str(id))
+        endpoint_url = build_url(self.base_url, path)
 
         payload = json.dumps(fields, cls=DjangoJSONEncoder)
 
@@ -409,7 +417,8 @@ class BasicAPIClient(object):
         if id is None:
             raise ValueError('must specify id of existing model')
 
-        endpoint_url = self.join_urls(self.base_api_url, table_name, str(id))
+        path = self.join_urls('api', table_name, str(id))
+        endpoint_url = build_url(self.base_url, path)
 
         r = self.session.delete(
             endpoint_url)

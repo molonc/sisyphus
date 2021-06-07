@@ -31,6 +31,12 @@ from datamanagement.utils.comment_jira import comment_jira
 
 from workflows.utils.tantalus_utils import create_tenx_analysis_from_library
 
+from dbclients.utils.dbclients_utils import (
+    get_colossus_base_url,
+)
+
+COLOSSUS_BASE_URL = get_colossus_base_url()
+
 gsc_api = GSCAPI()
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
@@ -342,7 +348,7 @@ def import_tenx_fastqs(storage_name, sequencing, no_comments=False, update=False
 
             dataset_ids.append(sequence_dataset)
 
-            url = f"https://colossus.canadacentral.cloudapp.azure.com/tenx/sequencing/{sequencing_id}"
+            url = f"https://{COLOSSUS_BASE_URL}/tenx/sequencing/{sequencing_id}"
             comment = f"Import successful:\n\nLane: {flowcell_lane}\nGSC Library ID: {gsc_library_id}\n{url}"
 
             comments = jira_api.comments(tenxlib["jira_ticket"])

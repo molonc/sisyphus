@@ -162,6 +162,8 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
                 'img_col': int(row['img_col']),
                 'column': int(row['column']),
                 'row': int(row['row']),
+                'sample_id': str(row['sample_id']),
+                'library_id': str(row['library_id']),
                 'sample_type': 'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
             }
 
@@ -250,7 +252,7 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
     @classmethod
     def create_analysis_cli(cls):
         cls.create_cli([
-            'sample_id',
+        #    'sample_id',
             'library_id',
             'aligner',
             'ref_genome',

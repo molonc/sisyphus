@@ -1,0 +1,41 @@
+{
+    "_comment": "Daniel Min's SCPipeline config. 2021 04 12", 
+    "email": "dmin@bccrc.ca", 
+    "headnode_task_queue": "dmin-scdna",
+    "analysis_directory": "/home/dmin/projects/sc_runs",
+    "storages": {
+        "local_results": "dmin_headnode_run",
+        "working_inputs": "singlecellblob", 
+        "working_results": "singlecellresults",
+        "remote_results": "singlecellresults", 
+        "remote_inputs": "singlecellblob"
+    },
+    "context_config_file": {
+        "saltant" : "/home/dmin/projects/saltant-py/context_config.yaml",
+        "sisyphus" : "/home/dmin/projects/sisyphus/workflows/config/context_config.yaml"
+    },
+    "context_config_file": {
+        "saltant" : {
+            "align": "/home/dmin/projects/saltant-py/context_config_alignment.yaml",
+	    "hmmcopy": "/home/dmin/projects/saltant-py/context_config_hmmcopy.yaml",
+	    "annotation": "/home/dmin/projects/saltant-py/context_config_annotation.yaml",
+	    "breakpoint_calling": "/home/dmin/projects/saltant-py/context_config_breakpoint.yaml"
+	},
+        "sisyphus" : {	
+            "align": "/home/dmin/projects/sisyphus/workflows/config/context_config_alignment.yaml",
+	    "hmmcopy": "/home/dmin/projects/sisyphus/workflows/config/context_config_hmmcopy.yaml",
+	    "annotation": "/home/dmin/projects/sisyphus/workflows/config/context_config_annotation.yaml",
+	    "breakpoint_calling": "/home/dmin/projects/sisyphus/workflows/config/context_config_breakpoint.yaml"
+	}
+    },
+    "docker_env_file": "/home/dmin/set-docker-credentials.sh",
+    "tenx_env_file": "/home/dmin/set_10x_credentials.sh", 
+    "user": "dmin",
+    "docker_server": "DOCKER_IMAGE_PLACEHODER",
+    "docker_sock_path": "/var/run/docker.sock",
+    "docker_path": "/usr/bin/docker",
+    "refdata_path": "/refdata",
+    "scp_version": "v0.8.0",
+    "default_aligner": "M"
+}
+

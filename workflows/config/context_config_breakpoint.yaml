@@ -1,0 +1,11 @@
+docker:
+    image: scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_breakpoint:v0.8.0
+    mounts:
+      refdata: /refdata
+      datadrive: /datadrive
+      mnt: /mnt    
+context:
+  alljobs:
+    name_match: '*destruct*'
+    ctx:
+      disk: 200

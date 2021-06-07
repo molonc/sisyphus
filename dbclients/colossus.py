@@ -3,10 +3,7 @@ from __future__ import division
 from __future__ import print_function
 import os
 from dbclients.basicclient import BasicAPIClient
-
-
-COLOSSUS_API_URL = os.environ.get("COLOSSUS_API_URL", "https://colossus.canadacentral.cloudapp.azure.com/api/")
-
+from dbclients.utils.dbclients_utils import get_colossus_base_url
 
 class ColossusApi(BasicAPIClient):
     """ Colossus API class. """
@@ -21,11 +18,12 @@ class ColossusApi(BasicAPIClient):
         COLOSSUS_API_USERNAME and COLOSSUS_API_PASSWORD. Also looks for
         an optional COLOSSUS_API_URL.
         """
+        COLOSSUS_BASE_URL = get_colossus_base_url()
 
         super(ColossusApi, self).__init__(
-            "https://colossus.canadacentral.cloudapp.azure.com/api/",
-            username="sbeatty",
-            password="colmeQ!@3"
+            COLOSSUS_BASE_URL,
+            username=os.environ.get("COLOSSUS_API_USERNAME"),
+            password=os.environ.get("COLOSSUS_API_PASSWORD"),
         )
 
     def get_colossus_sublibraries_from_library_id(self, library_id, brief=False):
