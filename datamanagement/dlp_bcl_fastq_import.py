@@ -16,12 +16,12 @@ import requests
 from dbclients.colossus import get_colossus_sublibraries_from_library_id
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
-from utils.constants import LOGGING_FORMAT
-from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check, fastq_dlp_index_check
-from utils.runtime_args import parse_runtime_args
-from utils.filecopy import rsync_file
-from utils.utils import make_dirs
-from utils.comment_jira import comment_jira
+from datamanagement.utils.constants import LOGGING_FORMAT
+from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check, fastq_dlp_index_check
+from datamanagement.utils.runtime_args import parse_runtime_args
+from datamanagement.utils.filecopy import rsync_file
+from datamanagement.utils.utils import make_dirs
+from datamanagement. utils.comment_jira import comment_jira
 import datamanagement.templates as templates
 from datamanagement.utils.qsub_job_submission import submit_qsub_job
 from datamanagement.utils.qsub_jobs import Bcl2FastqJob
