@@ -150,7 +150,7 @@ def check_fastqs(library_id, fastq_file_info, threshold):
 
     for index in index_sequences:
         fastqs_containing_index = [fastq for fastq in fastq_file_info if fastq["index_sequence"] == index]
-        fastq_lane_numbers_to_be_generated = set(range(1, 5))
+        fastq_lane_numbers_to_be_generated = set(range(1, 3))
         for fastq in fastqs_containing_index:
             sequence_lane = fastq["sequence_lanes"][0]
             lane_number = sequence_lane["lane_number"]
