@@ -1,4 +1,5 @@
 import os
+import settings
 import time
 import logging
 import contextlib
@@ -177,7 +178,13 @@ def run_analysis(
     if update:
         args['update'] = update
 
-    task_type_id = get_task_type_id("Run Analysis")
+    mode = settings.mode.lower()
+    if (mode == 'production'):
+        task_type_id = get_task_type_id("Run Analysis")
+    elif (mode in ["development", "testing", "staging"]):
+        task_type_id = get_task_type_id("Run Analysis - Test")
+    else:
+        raise ValueError("Invalid mode. Must be one of development, testing, staging, or production!")
 
     get_or_create_task_instance(name, config['user'], args, task_type_id, queue_name)
 

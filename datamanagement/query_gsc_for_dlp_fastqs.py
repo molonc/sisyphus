@@ -669,11 +669,11 @@ def import_gsc_dlp_paired_fastqs(
             if(should_skip):
                 continue
 
-#            is_gzipped = check_gzipped(fastq_path, check_library)
-#
-#            # skip sample if not gzipped
-#            if not(is_gzipped):
-#                continue
+            is_gzipped = check_gzipped(fastq_path, check_library)
+
+            # skip sample if not gzipped
+            if not(is_gzipped):
+                continue
 
             extension = validate_file_extension(fastq_path)
 
@@ -715,14 +715,14 @@ def import_gsc_dlp_paired_fastqs(
                 ))
 
             # upload fastq file to local server or remote blob storage
-#            if not (check_library):
-#                upload_file(
-#                    fastq_path,
-#                    tantalus_filename,
-#                    tantalus_path,
-#                    storage,
-#                    update,
-#                )
+            if not (check_library):
+                upload_file(
+                    fastq_path,
+                    tantalus_filename,
+                    tantalus_path,
+                    storage,
+                    update,
+                )
 
     # if there is at least one mismatching index, throw exception
     if(len(invalid_indexes) > 0):

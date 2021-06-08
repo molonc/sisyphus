@@ -2,7 +2,7 @@ import os
 import re
 
 LANE_ID_RE = re.compile("^.*_\\d$")
-JIRA_ID_RE = re.compile('^SC-[0-9]+$')
+JIRA_ID_RE = re.compile('^(SC|MIS)-[0-9]+$')
 
 ALIGNMENT_METRICS = os.path.join('{results_dir}', 'results', 'alignment', '{library_id}_alignment_metrics.csv.gz')
 
