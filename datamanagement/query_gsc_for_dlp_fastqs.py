@@ -13,6 +13,8 @@ import pandas as pd
 import datetime
 from collections import defaultdict
 
+import settings
+
 from datamanagement.utils.constants import LOGGING_FORMAT
 from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check
 from datamanagement.utils.comment_jira import comment_jira
@@ -34,8 +36,10 @@ from dbclients.utils.dbclients_utils import (
     get_colossus_base_url,
 )
 
-from common_utils.utils import get_today
-
+from common_utils.utils import (
+    get_today,
+    validate_mode,
+)
 COLOSSUS_BASE_URL = get_colossus_base_url()
 
 SOLEXA_RUN_TYPE_MAP = {"Paired": "P"}
@@ -60,7 +64,50 @@ FILENAME_PATTERN_MAP = {
     "*_2_*_adapter_trimmed_*.fastq.gz": (2, True),
 }
 
-def upload_file(fastq_path, tantalus_filename, tantalus_path, storage, update):
+def get_data_from_GSC(gsc_library_id, dlp_library_id, external_identifier, colossus_api, jira_ticket, sequencing, update):
+    """
+    Query data from GSC and return it
+    """
+    mode = settings.mode
+    validate_mode(mode)
+
+    if(mode == 'production'):
+        gsc_api = GSCAPI()
+        gsc_fastq_infos = gsc_api.query(f"concat_fastq?parent_library={gsc_library_id}")
+        gsc_library_infos = gsc_api.query(f"library?external_identifier={external_identifier}")
+        if not gsc_library_infos:
+            logging.info("searching by library id")
+            gsc_library_infos = gsc_api.query(f"library?external_identifier={dlp_library_id}")
+
+        gsc_library_info = get_gsc_library_info(gsc_library_infos, external_identifier)
+
+        if len(gsc_fastq_infos) == 0:
+            logging.warning(f"no fastqs available in gsc database under parent library {gsc_library_id}")
+
+            if gsc_library_info is None:
+                return None
+
+        if gsc_library_info is not None:
+            external_identifier = gsc_library_info["external_identifier"]
+            gsc_library_id = check_colossus_gsc_library_id(
+                colossus_api,
+                jira_ticket,
+                sequencing,
+                gsc_library_id,
+                gsc_library_info["name"],
+                external_identifier,
+                update=update,
+            )
+            gsc_library_id = gsc_library_info["name"]
+            gsc_fastq_infos = gsc_api.query(f"concat_fastq?parent_library={gsc_library_id}")
+
+        return gsc_fastq_infos    
+    # for non-production usage, import test data
+    else:
+        pass
+
+
+def upload_file(fastq_path, tantalus_filename, tantalus_path, storage, storage_client, update):
     """
     Transfer fastq path to local server or blob storage.
 
@@ -69,6 +116,7 @@ def upload_file(fastq_path, tantalus_filename, tantalus_path, storage, update):
         tantalus_filename: formatted Tantalus compatible filename
         tantalus_path (str): system path to tantalus_filename
         storage: (str) to storage details for transfer
+        storage_client (BlobStorageClient): BlobStorageClient object 
         update (bool): update an existing dataset
     """
     # transfer fastq if destination storage is server type
@@ -77,7 +125,6 @@ def upload_file(fastq_path, tantalus_filename, tantalus_path, storage, update):
 
     # create blob if destination storage blob type
     elif storage['storage_type'] == 'blob':
-        storage_client = TantalusApi().get_storage_client(storage['name'])
         storage_client.create(tantalus_filename, fastq_path, update=update)
 
 def validate_file_extension(fastq_path):
@@ -582,6 +629,7 @@ def import_gsc_dlp_paired_fastqs(
     valid_indexes = {}
     invalid_indexes = []
     read_end_errors = []
+    storage_client = tantalus_api.get_storage_client(storage['name'])
     for (flowcell_id, lane_number, sequencing_date, sequencing_instrument) in gsc_lane_fastq_file_infos.keys():
 
         # check if lane already imported to tantalus
@@ -721,6 +769,7 @@ def import_gsc_dlp_paired_fastqs(
                     tantalus_filename,
                     tantalus_path,
                     storage,
+                    storage_client,
                     update,
                 )
 

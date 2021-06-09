@@ -23,3 +23,11 @@ def build_url(base_url, path, args_dict=None):
 		url_parts[4] = urllib.parse.urlencode(args_dict)
 
 	return urllib.parse.urlunparse(url_parts)
+
+def validate_mode(mode):
+	"""
+	Validate user specified mode is valid.
+	Mode must be one of development, testing, staging, or production.
+	"""
+	if not (mode in ['development', 'testing', 'staging', 'production']):
+		raise ValueError("Invalid mode. Must be one of development, testing, staging, or production!")
