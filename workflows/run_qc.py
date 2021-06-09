@@ -440,31 +440,47 @@ def run_qc(aligner):
             "hmmcopy": False,
             "annotation": False,
         }
-        statuses["align"] = run_align(jira, args)
+        try:
+            statuses["align"] = run_align(jira, args)
+        except Exception as e:
+            traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
+            log.error(f"Alignment failed...\n {str(traceback_str)}")
 
         # check align is complete
         if statuses["align"]:
             # run hmmcopy
-            statuses["hmmcopy"] = run_hmmcopy(jira, args)
+            try:
+                statuses["hmmcopy"] = run_hmmcopy(jira, args)
+            except Exception as e:
+                traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
+                log.error(f"HMMcopy failed...\n {str(traceback_str)}")
 
         # check hmmcopy complete
         if statuses["hmmcopy"]:
             # run annotation
-            statuses["annotation"] = run_annotation(jira, args)
+            try:
+                statuses["annotation"] = run_annotation(jira, args)
+            except Exception as e:
+                traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
+                log.error(f"Annotation failed...\n {str(traceback_str)}")
 
         # check annotation complete
         if statuses["annotation"]:
             # update status on colossus
-            analysis_run_id = analysis["analysis_run"]["id"]
-            analysis_run = colossus_api.get(
-                "analysis_run",
-                id=analysis_run_id,
-            )
-            colossus_api.update(
-                "analysis_run",
-                id=analysis_run_id,
-                run_status="complete",
-            )
+            try:
+                analysis_run_id = analysis["analysis_run"]["id"]
+                analysis_run = colossus_api.get(
+                    "analysis_run",
+                    id=analysis_run_id,
+                )
+                colossus_api.update(
+                    "analysis_run",
+                    id=analysis_run_id,
+                    run_status="complete",
+                )
+            except Exception as e:
+                traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
+                log.error(f"Updating colossus failed...\n {str(traceback_str)}")
 
 #    # get annotation analysis completed in last week
 #    analyses = tantalus_api.list(
