@@ -21,6 +21,8 @@ from workflows import run_pseudobulk
 from workflows.utils import saltant_utils, file_utils, tantalus_utils, colossus_utils
 from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira, update_jira_alhena
 
+from common_utils.utils import get_last_n_days
+
 from constants.workflows_constants import ALHENA_VALID_PROJECTS
 
 log = logging.getLogger('sisyphus')
@@ -167,7 +169,7 @@ def run_viz():
         # skip analyses older than this year
         # parse off ending time range
         last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < datetime(2020, 2, 2):
+        if last_updated_date < get_last_n_days(90):
             continue
 
         jira_ticket = analysis["analysis_jira_ticket"]
@@ -200,7 +202,7 @@ def run_viz_alhena():
         # skip analyses older than this year
         # parse off ending time range
         last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < datetime(2020, 2, 2):
+        if last_updated_date < get_last_n_days(90):
             continue
 
         jira_ticket = analysis["analysis_jira_ticket"]
@@ -419,7 +421,7 @@ def run_qc(aligner):
         # skip analyses older than this year
         # parse off ending time range
         last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < datetime(2021, 2, 2):
+        if last_updated_date < get_last_n_days(90):
             continue
 
         # get jira ticket
