@@ -9,6 +9,7 @@ from dateutil import parser
 
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
+from dbclients.slack import SlackClient
 
 from workflows.analysis.dlp import (
     alignment,
@@ -32,6 +33,7 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 
 tantalus_api = TantalusApi()
 colossus_api = ColossusApi()
+slack_client = SlackClient()
 
 # load config file
 config = file_utils.load_json(
@@ -446,7 +448,10 @@ def run_qc(aligner):
             statuses["align"] = run_align(jira, args)
         except Exception as e:
             traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
-            log.error(f"Alignment failed...\n {str(traceback_str)}")
+            message = f"Alignment failed...\n {str(traceback_str)}"
+            log.error(message)
+            slack_client.post(f"An error occurred while running run_qc.py..., library ID: {library_id}, JIRA: {jira}")
+            continue
 
         # check align is complete
         if statuses["align"]:
@@ -455,7 +460,10 @@ def run_qc(aligner):
                 statuses["hmmcopy"] = run_hmmcopy(jira, args)
             except Exception as e:
                 traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
-                log.error(f"HMMcopy failed...\n {str(traceback_str)}")
+                message = f"HMMcopy failed...\n {str(traceback_str)}"
+                log.error(message)
+                slack_client.post(f"An error occurred while running run_qc.py..., library ID: {library_id}, JIRA: {jira}")
+                continue
 
         # check hmmcopy complete
         if statuses["hmmcopy"]:
@@ -464,7 +472,10 @@ def run_qc(aligner):
                 statuses["annotation"] = run_annotation(jira, args)
             except Exception as e:
                 traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
-                log.error(f"Annotation failed...\n {str(traceback_str)}")
+                message = f"Annotation failed...\n {str(traceback_str)}"
+                log.error(message)
+                slack_client.post(f"An error occurred while running run_qc.py..., library ID: {library_id}, JIRA: {jira}")
+                continue
 
         # check annotation complete
         if statuses["annotation"]:
@@ -482,7 +493,10 @@ def run_qc(aligner):
                 )
             except Exception as e:
                 traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
-                log.error(f"Updating colossus failed...\n {str(traceback_str)}")
+                message = f"Updating colossus failed...\n {str(traceback_str)}"
+                log.error(message)
+                slack_client.post(f"An error occurred while running run_qc.py..., library ID: {library_id}, JIRA: {jira}")
+                continue
 
 #    # get annotation analysis completed in last week
 #    analyses = tantalus_api.list(
@@ -508,10 +522,13 @@ def run_qc(aligner):
 @click.option("--aligner", type=click.Choice(['A', 'M']))
 def main(aligner):
     # run qcs
-    run_qc(aligner)
+    try:
+        run_qc(aligner)
 
-    # update ticket and load to montage
-    run_viz_alhena()
+        # update ticket and load to montage
+        run_viz_alhena()
+    except Exception as e:
+        slack_client.post(f"An error occurred while running run_qc.py...")
 
 
 if __name__ == "__main__":
