@@ -92,7 +92,7 @@ def load_data_to_montage(jira):
         subprocess.call([
             'ssh',
             '-t',
-            'loader',
+            'loader_montage',
             f"bash /home/uu/montageloader2_flora/load_ticket.sh {jira}",
         ])
     except Exception as e:
@@ -527,6 +527,8 @@ def main(aligner):
 
         # update ticket and load to montage
         run_viz_alhena()
+
+        run_viz()
     except Exception as e:
         slack_client.post(f"An error occurred while running run_qc.py...")
 
