@@ -131,7 +131,7 @@ def update_jira_dlp(jira_id, aligner):
             # assign parent ticket to justina
             parent_jira_id = get_parent_issue(jira_id)
             parent_issue = jira_api.issue(parent_jira_id)
-            parent_issue.update(assignee={"name": "jbiele"})
+            parent_issue.update(assignee={"name": "jbwang"})
 
         update_description(jira_id, description, jira_user, remove_watcher=True)
         close_ticket(jira_id)
