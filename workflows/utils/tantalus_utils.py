@@ -155,3 +155,73 @@ def create_tenx_analysis_from_library(jira, library):
     )
 
     return analysis.analysis
+
+def get_analyses_from_jira(jira):
+    """
+    Get all the analyses associated with JIRA ID.
+
+    Args:
+        jira (str): JIRA ID (e.g. SC-1234)
+
+    Returns:
+        analyses (generator): generator of analysis linked with specified JIRA ID
+    """
+    analyses = tantalus_api.list("analysis", jira_ticket=jira)
+
+    return analyses
+
+def get_resultsdataset_from_analysis(analysis):
+    """
+    Get all the output resultsdataset associated with analysis ID.
+
+    Args:
+        analysis (int): analysis ID (e.g. 1234)
+
+    Returns:
+        resultsdataset (generator): generator of resultsdataset linked with specific analysis 
+    """
+    resultsdataset = tantalus_api.list("resultsdataset", analysis=analysis)
+
+    return resultsdataset
+
+def get_sequencedataset_from_analysis(analysis):
+    """
+    Get all the output sequencedataset associated with analysis ID.
+
+    Args:
+        analysis (int): analysis ID (e.g. 1234)
+
+    Returns:
+        sequencedataset (generator): generator of sequencedataset linked with specific analysis 
+    """
+    sequencedataset = tantalus_api.list("sequencedataset", analysis=analysis)
+
+    return sequencedataset
+
+def get_sequencedataset_from_library_id(library_id):
+    """
+    Get all the output sequencedataset associated with library ID.
+
+    Args:
+        library_id (int): library ID (e.g. A12345A)
+
+    Returns:
+        sequencedataset (generator): generator of sequencedataset linked with specific analysis 
+    """
+    sequencedataset = tantalus_api.list("sequencedataset", library__library_id=library_id)
+
+    return sequencedataset
+
+def get_sequencing_lane_from_library_id(library_id):
+    """
+    Get all the output sequencing_lane associated with library ID.
+
+    Args:
+        library_id (int): library ID (e.g. A12345A)
+
+    Returns:
+        sequencing_lane (generator): generator of sequencing_lane linked with specific library ID 
+    """
+    sequencing_lane = tantalus_api.list("sequencing_lane", dna_library__library_id=library_id)
+
+    return sequencing_lane
