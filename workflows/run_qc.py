@@ -116,7 +116,7 @@ def generate_alhena_loader_projects_cli_args(projects):
         project_name = project['name']
 
         if(project_name in ALHENA_VALID_PROJECTS):
-            project_args_list.append(f'--project {project_name}')
+            project_args_list.append(f'--project {ALHENA_VALID_PROJECTS[project_name]}')
 
     project_args = ' '.join(project_args_list)
 
