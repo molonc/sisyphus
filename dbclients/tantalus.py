@@ -26,6 +26,11 @@ try:
 except ImportError:
     from urllib2 import urlopen
 
+# async packages
+import asyncio
+from azure.storage.blob.aio import BlobServiceClient as AsyncBlobServiceClient
+from azure.identity.aio import ClientSecretCredential as AsyncClientSecretCredential
+
 from datamanagement.utils.django_json_encoder import DjangoJSONEncoder
 from datamanagement.utils.utils import make_dirs
 from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundError
@@ -33,6 +38,153 @@ from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundEr
 from dbclients.utils.dbclients_utils import get_tantalus_base_url
 
 log = logging.getLogger('sisyphus')
+
+class AsyncBlobServiceClient(object):
+    def __init__(self, storage_account, storage_container, concurrency=3):
+        self.storage_account = storage_account
+        self.storage_container = storage_container
+
+        self.storage_account_url = "https://{}.blob.core.windows.net".format(
+            self.storage_account
+        )
+
+        self.queue = asyncio.Queue()
+        # used to control number of concurrent tasks
+        self.concurrency = concurrency
+
+    async def get_secret_token(self):
+        client_id = os.environ["CLIENT_ID"]
+        secret_key = os.environ["SECRET_KEY"]
+        tenant_id = os.environ["TENANT_ID"]
+
+        return AsyncClientSecretCredential(tenant_id, client_id, secret_key)
+
+    async def upload_blob(self, blob_service_client, update=False):
+        while not self.queue.empty():
+            data = await self.queue.get()
+            blobname = data[0]
+            source_file = data[1]
+
+            # check if blob already exists
+            if(await self.exists(blob_service_client, blob_name)):
+                log.info(f"{blob_name} already exists... skipping")
+
+                blobsize = await self.get_size(blobname)
+                filesize = os.path.getsize(source_file)
+
+                if blobsize == filesize:
+                    log.info(f"{blobname} has the same size as {source_file}")
+                    self.queue.task_done()
+                    continue
+                elif update:
+                    log.info(f"{blobname} updating from {source_file}")
+                else:
+                    raise Exception(f"blob size is {blobsize} but local file size is {filesize}")
+
+            # Instantiate a new BlobClient
+            blob_client = blob_service_client.get_blob_client(self.storage_container, blobname)
+
+            try:
+                print(f"starting upload for {source_file}")
+                async with blob_client:
+                    with open(source_file, 'rb') as data:
+                        await blob_client.upload_blob(data, overwrite=True)
+                print(f"upload done for {source_file}!")
+            except KeyboardInterrupt:
+                raise
+            except:
+                raise
+                # await self.queue.put(source_file)
+            finally:
+                self.queue.task_done()
+
+    async def delete_blob(self, blob_service_client):
+        while not self.queue.empty():
+            blobname = await self.queue.get()
+            # Instantiate a new BlobClient
+            blob_client = blob_service_client.get_blob_client(self.storage_container, blobname)
+
+            try:
+                print(f"starting delete for {blobname}")
+                async with blob_client:
+                    await blob_client.delete_blob()
+                print(f"delete done for {blobname}!")
+            except KeyboardInterrupt:
+                raise
+            except:
+                raise
+                # await self.queue.put(source_file)
+            finally:
+                self.queue.task_done()
+
+    async def exists(self, blob_service_client, blobname):
+        blob_client = blob_service_client.get_blob_client(self.storage_container, blobname)
+
+        try:
+            async with blob_client:
+                await blob_client.get_blob_properties()
+                return True
+        except ResourceNotFoundError:
+            return False
+
+    async def get_size(self,blob_service_client, blobname):
+        blob_client = blob_service_client.get_blob_client(self.storage_container, blobname)
+
+        async with blob_client:
+            blob = await blob_client.get_blob_properties()
+
+        return blob.size
+
+    async def batch_upload_files(self, data):
+        """
+        Batch upload files to Blob storage account asynchronously
+
+        Args:
+            data (list of tuple): list of tuple containing (blobname, source_file)
+        """
+        credential_token = await self.get_secret_token()
+
+        blob_service_client = AsyncBlobServiceClient(
+            self.storage_account_url,
+            credential_token,
+        )
+
+        # set max size to be 64MB
+        blob_service_client.MAX_BLOCK_SIZE = 64 * 1024 * 1024
+
+        for upload_info in data:
+            await self.queue.put(upload_info)
+
+        # create concurrent tasks
+        tasks = [asyncio.create_task(self.upload_blob(blob_service_client)) for _ in range(self.concurrency)]
+        # execute tasks
+        await asyncio.gather(*tasks)
+        # close secret credential client connection
+        await blob_service_client.close()
+        await credential_token.close()
+
+    async def batch_delete_files(self, data_dir):
+        credential_token = await self.get_secret_token()
+
+        blob_service_client = AsyncBlobServiceClient(
+            self.storage_account_url,
+            credential_token,
+        )
+
+        # set max size to be 64MB
+        blob_service_client.MAX_BLOCK_SIZE = 64 * 1024 * 1024
+
+        for f in os.listdir(data_dir):
+            blobname = os.path.join("async", f)
+            await self.queue.put(blobname)
+
+        # create concurrent tasks
+        tasks = [asyncio.create_task(self.delete_blob(blob_service_client)) for _ in range(self.concurrency)]
+        # execute tasks
+        await asyncio.gather(*tasks)
+        # close secret credential client connection
+        await blob_service_client.close()
+        await credential_token.close()
 
 class BlobStorageClient(object):
     def __init__(self, storage_account, storage_container, prefix):
