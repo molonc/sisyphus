@@ -39,10 +39,11 @@ from dbclients.utils.dbclients_utils import get_tantalus_base_url
 
 log = logging.getLogger('sisyphus')
 
-class AsyncBlobServiceClient(object):
-    def __init__(self, storage_account, storage_container, concurrency=3):
+class AsyncBlobStorageClient(object):
+    def __init__(self, storage_account, storage_container, prefix, concurrency=3):
         self.storage_account = storage_account
         self.storage_container = storage_container
+        self.prefix = prefix
 
         self.storage_account_url = "https://{}.blob.core.windows.net".format(
             self.storage_account
@@ -66,10 +67,10 @@ class AsyncBlobServiceClient(object):
             source_file = data[1]
 
             # check if blob already exists
-            if(await self.exists(blob_service_client, blob_name)):
-                log.info(f"{blob_name} already exists... skipping")
+            if(await self.exists(blob_service_client, blobname)):
+                log.info(f"{blobname} already exists on {self.prefix}")
 
-                blobsize = await self.get_size(blobname)
+                blobsize = await self.get_size(blob_service_client, blobname)
                 filesize = os.path.getsize(source_file)
 
                 if blobsize == filesize:
@@ -85,11 +86,11 @@ class AsyncBlobServiceClient(object):
             blob_client = blob_service_client.get_blob_client(self.storage_container, blobname)
 
             try:
-                print(f"starting upload for {source_file}")
+                log.info(f"starting upload for {source_file}")
                 async with blob_client:
                     with open(source_file, 'rb') as data:
                         await blob_client.upload_blob(data, overwrite=True)
-                print(f"upload done for {source_file}!")
+                log.info(f"upload done for {source_file}!")
             except KeyboardInterrupt:
                 raise
             except:
@@ -105,10 +106,10 @@ class AsyncBlobServiceClient(object):
             blob_client = blob_service_client.get_blob_client(self.storage_container, blobname)
 
             try:
-                print(f"starting delete for {blobname}")
+                log.info(f"starting delete for {blobname}")
                 async with blob_client:
                     await blob_client.delete_blob()
-                print(f"delete done for {blobname}!")
+                log.info(f"delete done for {blobname}!")
             except KeyboardInterrupt:
                 raise
             except:
@@ -163,7 +164,13 @@ class AsyncBlobServiceClient(object):
         await blob_service_client.close()
         await credential_token.close()
 
-    async def batch_delete_files(self, data_dir):
+    async def batch_delete_files(self, data):
+        """
+        Batch upload files to Blob storage account asynchronously
+
+        Args:
+            data (list): list containing blobnames to delete
+        """
         credential_token = await self.get_secret_token()
 
         blob_service_client = AsyncBlobServiceClient(
@@ -174,8 +181,7 @@ class AsyncBlobServiceClient(object):
         # set max size to be 64MB
         blob_service_client.MAX_BLOCK_SIZE = 64 * 1024 * 1024
 
-        for f in os.listdir(data_dir):
-            blobname = os.path.join("async", f)
+        for blobname in data:
             await self.queue.put(blobname)
 
         # create concurrent tasks
@@ -566,7 +572,7 @@ class TantalusApi(BasicAPIClient):
         """
         return ServerStorageClient(storage_directory, storage_directory)
 
-    def get_storage_client(self, storage_name):
+    def get_storage_client(self, storage_name, is_async=False, concurrency=3):
         """ Retrieve a client for the given storage
 
         Args:
@@ -581,7 +587,10 @@ class TantalusApi(BasicAPIClient):
         storage = self.get_storage(storage_name)
 
         if storage['storage_type'] == 'blob':
-            client = BlobStorageClient(storage['storage_account'], storage['storage_container'], storage['prefix'])
+            if(is_async):
+                client = AsyncBlobStorageClient(storage['storage_account'], storage['storage_container'], storage['prefix'], concurrency)
+            else:
+                client = BlobStorageClient(storage['storage_account'], storage['storage_container'], storage['prefix'])
         elif storage['storage_type'] == 'server':
             client = ServerStorageClient(storage['storage_directory'], storage['prefix'])
         else:
