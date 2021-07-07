@@ -97,13 +97,13 @@ def delete_analyses(
         analysis_id (int): analysis ID
     """
     for _id in analysis_id:
-        delete_analysis(
+        delete_analysis_and_outputs(
             analysis_id=_id,
             result_storage_name=result_storage_name,
             data_storage_name=data_storage_name,
         )
 
-def delete_analysis(
+def delete_analysis_and_outputs(
     analysis_id,
     result_storage_name,
     data_storage_name,
