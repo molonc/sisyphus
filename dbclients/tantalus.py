@@ -596,7 +596,7 @@ class TantalusApi(BasicAPIClient):
         else:
             return ValueError('unsupported storage type {}'.format(storage['storage_type']))
 
-        self.cached_storage_clients[storage_name] = client
+        self.cached_storage_clients[(storage_name, is_async)] = client
 
         return client
 
