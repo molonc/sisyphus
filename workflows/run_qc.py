@@ -190,12 +190,12 @@ def run_viz_alhena():
     Update jira ticket, add QC report, and load data on Montage
     """
     # get completed analyses that need montage loading
-    #analyses = colossus_api.list(
-    #    "analysis_information",
-    #    montage_status="Pending",
-    #    analysis_run__run_status="complete",
-    #)
-    analyses = colossus_api.list("analysis_information", library__pool_id='A118340A')
+    analyses = colossus_api.list(
+        "analysis_information",
+        montage_status="Pending",
+        analysis_run__run_status="complete",
+    )
+    #analyses = colossus_api.list("analysis_information", library__pool_id='A118340A')
 
     for analysis in analyses:
         # get library id
