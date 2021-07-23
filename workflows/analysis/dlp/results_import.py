@@ -2,6 +2,10 @@ import os
 import yaml
 import logging
 
+from workflows.scripts.low_complexity_filter import filter_reads
+import gzip
+from io import BytesIO
+#import pandas as pd
 
 qc_results_name_template = '{jira_ticket}_{analysis_type}_{library_id}'
 
@@ -63,3 +67,46 @@ def create_dlp_results(
 
     return results
 
+def filter_low_complexity_region(
+    tantalus_api,
+    results_dir,
+    library_id,
+    storage_name,
+    ):
+    """
+    Filter "low complexity region" in reads.csv file
+    """
+    blacklist_file = '/home/dmin/blacklist_2018.10.23.txt'
+
+    storage_client = tantalus_api.get_storage_client(storage_name)
+
+    reads_filename = os.path.join(results_dir, "_".join([library_id, "reads.csv.gz"]))
+    blob_client = storage_client.blob_service.get_blob_client(storage_client.storage_container, reads_filename)
+    reads_data_raw = blob_client.download_blob()
+    reads_bytes_io = BytesIO(reads_data_raw.content_as_bytes())
+
+    with gzip.open(reads_bytes_io) as reads_file:
+        filtered_masked_df, filtered_mseg_df = filter_reads(reads_file, blacklist_file)
+
+    filtered_mseg_out = filtered_mseg_df.to_csv(index=False, encoding='utf-8')
+    filtered_masked_out = filtered_masked_df.to_csv(index=False, encoding="utf-8")
+
+    # gzip output
+    gzipped_filtered_mseg = gzip.compress(bytes(filtered_mseg_out, 'utf-8'))
+    gzipped_filtered_masked = gzip.compress(bytes(filtered_masked_out, 'utf-8'))
+
+    filtered_mseg_blobname = os.path.join(results_dir, "_".join([library_id, "filtered_segments.csv.gz"]))
+    filtered_masked_blobname = os.path.join(results_dir, "_".join([library_id, "filtered_reads.csv.gz"]))
+
+    # upload to Azure
+    storage_client.write_data_raw(filtered_mseg_blobname, gzipped_filtered_mseg)
+    storage_client.write_data_raw(filtered_masked_blobname, gzipped_filtered_masked)
+
+    # update metadata entries
+    metadata_filename = os.path.join(results_dir, "metadata.yaml")
+    metadata = yaml.safe_load(storage_client.open_file(metadata_filename))
+
+    filenames_to_add = [os.path.basename(filtered_mseg_blobname), os.path.basename(filtered_masked_blobname)]
+    metadata["filenames"].extend(filenames_to_add)
+    stream = yaml.dump(metadata)
+    storage_client.write_data_raw(metadata_filename, stream)

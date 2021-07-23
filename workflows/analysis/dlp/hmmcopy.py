@@ -15,7 +15,6 @@ from datamanagement.utils.constants import LOGGING_FORMAT
 import workflows.analysis.dlp.results_import as results_import
 from workflows.generate_inputs import generate_sample_info
 
-
 class HMMCopyAnalysis(workflows.analysis.base.Analysis):
     analysis_type_ = 'hmmcopy'
 
@@ -235,6 +234,9 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
             library_id=self.args['library_id'],
         )
 
+        # filter low complexity region
+        self.filter_low_complexity_region(storages)
+
         results = results_import.create_dlp_results(
             self.tantalus_api,
             self.out_dir,
@@ -248,6 +250,22 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
         )
 
         return [results['id']]
+
+    def filter_low_complexity_region(self, storages):
+        """
+        Filter "low complexity region" in reads.csv file
+        """
+        # TODO: filter low complexity region
+        library_id = self.args['library_id']
+
+        results_import.filter_low_complexity_region(
+            tantalus_api=self.tantalus_api,
+            results_dir=self.out_dir,
+            library_id=library_id,
+            storage_name=storages['working_results']
+        )
+        # TODO: edit metadata.yml file
+        
 
     @classmethod
     def create_analysis_cli(cls):
