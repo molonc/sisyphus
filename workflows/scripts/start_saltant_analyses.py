@@ -1,4 +1,5 @@
 import os
+import settings
 import logging
 import io
 import yaml
@@ -8,7 +9,7 @@ import pandas as pd
 
 import dbclients.tantalus
 import dbclients.basicclient
-import workflows.utils.saltant_utils
+from workflows.utils import saltant_utils
 from datamanagement.utils.constants import LOGGING_FORMAT
 
 
@@ -38,11 +39,19 @@ def run_analysis(saltant_user, saltant_queue, analysis, delay=None, update=False
     if rerun:
         args['rerun'] = rerun
 
-    workflows.utils.saltant_utils.get_or_create_task_instance(
+    mode = settings.mode.lower()
+    if (mode == 'production'):
+        task_type_id = saltant_utils.get_task_type_id("Run Analysis")
+    elif (mode in ["development", "testing", "staging"]):
+        task_type_id = saltant_utils.get_task_type_id("Run Analysis - Test")
+    else:
+        raise ValueError("Invalid mode. Must be one of development, testing, staging, or production!")
+
+    saltant_utils.get_or_create_task_instance(
         'run_{}'.format(analysis_id),
         saltant_user,
         args,
-        14, # TODO: by name, cli
+        task_type_id, # TODO: by name, cli
         saltant_queue,
     )
 
