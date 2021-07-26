@@ -1,32 +1,31 @@
-import unittest
+import pytest
 
 from workflows.run_qc import (
 	generate_alhena_loader_projects_cli_args,
+	generate_loader_command,
 )
 
-class RunQCTestCase(unittest.TestCase):
-	def test_generate_alhena_cli_args(self):
-		empty_args = [
-			{'id': 1, 'name': 'foo'},
-			{'id': 2, 'name': 'bar'},
-			{'id': 3, 'name': 'doe'},
-		]
+from tests.workflows.fixtures.run_qc_fixtures import (
+	invalid_alhena_project_args,
+	valid_loader_args,
+	empty_loader_args,
+	jira,
+)
 
-		valid_args = [
-			{'id': 1, 'name': 'DLP'},
-			{'id': 2, 'name': 'fitness'},
-			{'id': 3, 'name': 'doe'},
-		]
+def test_generate_alhena_cli_args_empty(invalid_alhena_project_args):
+	empty_expected = ''
+	empty_obs = generate_alhena_loader_projects_cli_args(invalid_alhena_project_args)
 
-		empty_expected = ''
+	assert (empty_obs == empty_expected)
 
-		valid_expected = '--project DLP --project fitness'
+def test_generate_loader_command(jira, valid_loader_args):
+	obs = generate_loader_command(jira, valid_loader_args)
+	expected = 'bash /home/spectrum/alhena-loader/load_ticket.sh SC-1111 10.1.0.8 "--project DLP --project Brugge"'
 
-		empty_obs = generate_alhena_loader_projects_cli_args(empty_args)
-		valid_obs = generate_alhena_loader_projects_cli_args(valid_args)
+	assert (obs == expected)
 
-		self.assertEqual(empty_obs, empty_expected)
-		self.assertEqual(valid_obs, valid_expected)
+def test_generate_loader_command_empty_projects(jira, empty_loader_args):
+	obs = generate_loader_command(jira, empty_loader_args)
+	expected = 'bash /home/spectrum/alhena-loader/load_ticket.sh SC-1111 10.1.0.8'
 
-if __name__ == '__main__':
-	unittest.main()
+	assert (obs == expected)
