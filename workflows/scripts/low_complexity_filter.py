@@ -39,7 +39,16 @@ def rle(seq):
 	prev = 0
 	curr = 0
 	while curr < len(seq):
-		if(seq[curr] == seq[prev]):
+		# Deal with NaN and None type
+		if(all([pd.isna(seq[curr]), pd.isna(seq[prev])])):
+			result['lengths'].append(1)
+			result['values'].append(seq[curr])
+
+			# move to the next value
+			prev = curr
+			count = 0
+			curr += 1
+		elif(seq[curr] == seq[prev]):
 			count += 1
 			curr += 1
 		else:
@@ -50,8 +59,9 @@ def rle(seq):
 			prev = curr
 			count = 0
 
-	result['lengths'].append(count)
-	result['values'].append(seq[prev])
+	if(count != 0):
+		result['lengths'].append(count)
+		result['values'].append(seq[prev])
 
 	return result
 
@@ -152,8 +162,14 @@ def filter_reads(reads_file, blacklist_file):
 
 	mseg = pd.concat(msegs, ignore_index=True)
 
-	filtered_mseg_df = mseg[ mseg['state'] >= 0 ]
-	filtered_masked_df = masked_df[ masked_df['state'] >= 0 ]
+	# Drop rows with state == NA
+	filtered_mseg_df = mseg[ ~pd.isna(mseg['state']) ]
+	filtered_masked_df = masked_df[ ~pd.isna(masked_df['state']) ]
+
+	# Drop rows with state < 0 ?
+	#filtered_mseg_df = mseg[ mseg['state'] >= 0 ]
+	#filtered_masked_df = masked_df[ masked_df['state'] >= 0 ]
+
 	# drop id column
 	filtered_masked_df = filtered_masked_df.drop(columns=['id'])
 
