@@ -98,6 +98,8 @@ def reads_to_segs(df):
 	shortseg['chr'] = pd.Categorical(shortseg['chr'], categories=chr_categories, ordered=True)
 	shortseg['start'] = shortseg['start'].astype('int64')
 	shortseg['end'] = shortseg['end'].astype('int64')
+	shortseg['state'] = shortseg['state'].astype('int64')
+	shortseg['multiplier'] = shortseg['multiplier'].astype('int64')
 	shortseg = shortseg.sort_values(by=['cell_id', 'chr', 'start', 'end'])
 
 	return shortseg
