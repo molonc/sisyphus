@@ -118,10 +118,10 @@ def prepare_reads_df(reads_file):
 def change_to_bccrc_column_types(df):
 	chr_categories = get_human_chr_category()
 	df['chr'] = pd.Categorical(df['chr'], categories=chr_categories, ordered=True)
-	df['start'] = df['start'].astype('int64')
-	df['end'] = df['end'].astype('int64')
-	df['state'] = df['state'].astype('int64')
-	df['multiplier'] = df['multiplier'].astype('int64')
+	df['start'] = df['start'].astype('Int64')
+	df['end'] = df['end'].astype('Int64')
+	df['state'] = df['state'].astype('Int64')
+#	df['multiplier'] = df['multiplier'].astype('Int64')
 
 	return df
 
@@ -161,7 +161,6 @@ def filter_reads(reads_file, blacklist_file):
 	# mimic readsToSegs
 	masked_df = rename_to_bccrc_compatible_columns(reads_df)
 	masked_df.loc[ masked_df['id'].isin(overlaps_ids), 'state' ] = -1
-	masekd_df = masked_df[ ~pd.isna(masked_df['state']) ]
 	masked_df = change_to_bccrc_column_types(masked_df)
 	cell_ids = pd.unique(masked_df['cell_id'])
 
