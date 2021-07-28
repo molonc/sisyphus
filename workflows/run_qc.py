@@ -158,10 +158,10 @@ def load_data_to_alhena(jira, es_host="10.1.0.8"):
             'loader',
             loader_command,
         ])
-    except Exception as e:
-        raise Exception(f"failed to load ticket: {e}")
 
-    log.info(f"Successfully loaded {jira} into Alhena")
+        log.info(f"Successfully loaded {jira} into Alhena")
+    except Exception as e:
+        raise Exception(f"failed to load ticket: {e}") 
 
 def run_viz(
     tantalus_api,
