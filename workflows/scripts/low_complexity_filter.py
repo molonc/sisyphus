@@ -94,12 +94,7 @@ def reads_to_segs(df):
 	shortseg = shortseg[["chr", "start", "end", "state", "median", "multiplier", "cell_id"]]
 	
 	# change data type
-	chr_categories = get_human_chr_category()
-	shortseg['chr'] = pd.Categorical(shortseg['chr'], categories=chr_categories, ordered=True)
-	shortseg['start'] = shortseg['start'].astype('int64')
-	shortseg['end'] = shortseg['end'].astype('int64')
-	shortseg['state'] = shortseg['state'].astype('int64')
-	shortseg['multiplier'] = shortseg['multiplier'].astype('int64')
+	shortseg = change_to_bccrc_column_types(shortseg)
 	shortseg = shortseg.sort_values(by=['cell_id', 'chr', 'start', 'end'])
 
 	return shortseg
@@ -119,6 +114,16 @@ def prepare_reads_df(reads_file):
 	renamed_reads_df = rename_to_pyrange_compatible_columns(reads_df)
 
 	return renamed_reads_df
+
+def change_to_bccrc_column_types(df):
+	chr_categories = get_human_chr_category()
+	df['chr'] = pd.Categorical(df['chr'], categories=chr_categories, ordered=True)
+	df['start'] = df['start'].astype('int64')
+	df['end'] = df['end'].astype('int64')
+	df['state'] = df['state'].astype('int64')
+	df['multiplier'] = df['multiplier'].astype('int64')
+
+	return df
 
 def rename_to_pyrange_compatible_columns(df):
 	cols_to_rename = {
@@ -156,6 +161,7 @@ def filter_reads(reads_file, blacklist_file):
 	# mimic readsToSegs
 	masked_df = rename_to_bccrc_compatible_columns(reads_df)
 	masked_df.loc[ masked_df['id'].isin(overlaps_ids), 'state' ] = -1
+	masked_df = change_to_bccrc_column_types(masked_df)
 	cell_ids = pd.unique(masked_df['cell_id'])
 
 	msegs = []
