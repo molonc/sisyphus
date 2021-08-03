@@ -13,6 +13,9 @@ import pandas as pd
 import datetime
 from collections import defaultdict
 
+# for async blob upload
+import asyncio
+
 import settings
 
 from datamanagement.utils.constants import LOGGING_FORMAT
@@ -40,6 +43,8 @@ from common_utils.utils import (
     get_today,
     validate_mode,
 )
+# temp
+import time
 COLOSSUS_BASE_URL = get_colossus_base_url()
 
 SOLEXA_RUN_TYPE_MAP = {"Paired": "P"}
@@ -64,7 +69,32 @@ FILENAME_PATTERN_MAP = {
     "*_2_*_adapter_trimmed_*.fastq.gz": (2, True),
 }
 
-def get_data_from_GSC(gsc_library_id, dlp_library_id, external_identifier, colossus_api, jira_ticket, sequencing, update):
+def upload_blob_async(blob_infos, storage, tantalus_api):
+    """
+    Asynchronously upload blob to Azure
+
+    Args:
+        storage: (str) to storage details for transfer
+        blob_infos (list of tuple): list of tuple (fastq_path, tantalus_filename, tantalus_path)
+    """
+    concurrency = 3
+    async_blob_client = tantalus_api.get_storage_client(storage['name'], is_async=True, concurrency=concurrency)
+
+    async_blob_upload_data = []
+    for fastq_path, tantalus_filename, tantalus_path in blob_infos:
+        if(storage['storage_type'] == 'server'):
+            continue
+        elif storage['storage_type'] == 'blob':
+            async_blob_upload_data.append((tantalus_filename, fastq_path))
+        else:
+            raise ValueError("Unexpected storage type. Must be one of 'server' or 'blob'!")
+
+    if(storage['storage_type'] == 'blob'):
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(async_blob_client.batch_upload_files(async_blob_upload_data))
+
+
+def get_data_from_GSC(gsc_library_id, dlp_library_id, external_identifier, colossus_api, sequencing, update):
     """
     Query data from GSC and return it
     """
@@ -91,7 +121,6 @@ def get_data_from_GSC(gsc_library_id, dlp_library_id, external_identifier, colos
             external_identifier = gsc_library_info["external_identifier"]
             gsc_library_id = check_colossus_gsc_library_id(
                 colossus_api,
-                jira_ticket,
                 sequencing,
                 gsc_library_id,
                 gsc_library_info["name"],
@@ -404,7 +433,6 @@ def get_gsc_library_info(library_infos, external_identifier):
 
 def check_colossus_gsc_library_id(
         colossus_api,
-        jira_ticket,
         sequencing,
         colossus_gsc_id,
         gsc_id,
@@ -542,7 +570,6 @@ def import_gsc_dlp_paired_fastqs(
         external_identifier = gsc_library_info["external_identifier"]
         gsc_library_id = check_colossus_gsc_library_id(
             colossus_api,
-            jira_ticket,
             sequencing,
             gsc_library_id,
             gsc_library_info["name"],
@@ -629,7 +656,7 @@ def import_gsc_dlp_paired_fastqs(
     valid_indexes = {}
     invalid_indexes = []
     read_end_errors = []
-    storage_client = tantalus_api.get_storage_client(storage['name'])
+    blob_infos = []
     for (flowcell_id, lane_number, sequencing_date, sequencing_instrument) in gsc_lane_fastq_file_infos.keys():
 
         # check if lane already imported to tantalus
@@ -762,16 +789,9 @@ def import_gsc_dlp_paired_fastqs(
                     filepath=tantalus_path,
                 ))
 
-            # upload fastq file to local server or remote blob storage
-            if not (check_library):
-                upload_file(
-                    fastq_path,
-                    tantalus_filename,
-                    tantalus_path,
-                    storage,
-                    storage_client,
-                    update,
-                )
+            blob_infos.append(
+                (fastq_path, tantalus_filename, tantalus_path)
+            )
 
     # if there is at least one mismatching index, throw exception
     if(len(invalid_indexes) > 0):
@@ -795,6 +815,8 @@ def import_gsc_dlp_paired_fastqs(
     fastq_lane_index_sequences = collections.defaultdict(set)
 
     # Check that all fastq files refer to indices known in colossus
+    # Need index sequence from GSC API and index sequences in Colossus
+    # Need flowcell id and lane number
     for info in fastq_file_info:
         if info['index_sequence'] not in cell_index_sequences:
             raise Exception('fastq {} with index {}, flowcell {}, lane {} with index not in colossus'.format(
@@ -816,6 +838,9 @@ def import_gsc_dlp_paired_fastqs(
     logging.info('all indices in colossus have fastq files')
 
     if not check_library:
+        # upload file to Azure blob
+        upload_blob_async(blob_infos, storage, tantalus_api)
+
         # create dataset to track fastqs on tantalus
         dataset_ids = create_sequence_dataset_models(
             fastq_file_info,
