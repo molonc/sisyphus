@@ -161,7 +161,6 @@ def filter_reads(reads_file, blacklist_file):
 	# mimic readsToSegs
 	masked_df = rename_to_bccrc_compatible_columns(reads_df)
 	masked_df.loc[ masked_df['id'].isin(overlaps_ids), 'state' ] = -1
-	masked_df = change_to_bccrc_column_types(masked_df)
 	cell_ids = pd.unique(masked_df['cell_id'])
 
 	msegs = []
@@ -171,6 +170,7 @@ def filter_reads(reads_file, blacklist_file):
 	mseg = pd.concat(msegs, ignore_index=True)
 
 	# Drop rows with state == NA
+	masked_df = change_to_bccrc_column_types(masked_df)
 	filtered_mseg_df = mseg[ ~pd.isna(mseg['state']) ]
 	filtered_masked_df = masked_df[ ~pd.isna(masked_df['state']) ]
 

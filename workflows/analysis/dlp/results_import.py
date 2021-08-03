@@ -95,8 +95,8 @@ def filter_low_complexity_region(
     gzipped_filtered_mseg = gzip.compress(bytes(filtered_mseg_out, 'utf-8'))
     gzipped_filtered_masked = gzip.compress(bytes(filtered_masked_out, 'utf-8'))
 
-    filtered_mseg_blobname = os.path.join(results_dir, "_".join([library_id, "filtered_segments.csv.gz"]))
-    filtered_masked_blobname = os.path.join(results_dir, "_".join([library_id, "filtered_reads.csv.gz"]))
+    filtered_mseg_blobname = os.path.join(results_dir, "_".join([library_id, "segments_filtered.csv.gz"]))
+    filtered_masked_blobname = os.path.join(results_dir, "_".join([library_id, "reads_filtered.csv.gz"]))
 
     # upload to Azure
     storage_client.write_data_raw(filtered_mseg_blobname, gzipped_filtered_mseg)
