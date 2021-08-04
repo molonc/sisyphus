@@ -77,6 +77,89 @@ FILENAME_PATTERN_MAP = {
     "*_2_*_adapter_trimmed_*.fastq.gz": (2, True),
 }
 
+def map_flowcell_to_fastq_info(gsc_library_id, gsc_fastq_infos):
+    """
+    Initialize flowcell mapping where key will be  flowcell id and value is flowcell code
+
+    Args:
+        gsc_library_id (str): GSC internal library ID
+        gsc_fastq_infos (list): raw fastq data as returned by GSC API query
+
+    Return:
+        gsc_lane_fastq_file_infos (dict): dictionary with flowcell information as key and fastq info as value
+        primer_libcore (dict): dictionary with primer ID as key and libcore ID as value.
+    """
+    flowcell_id_mapping = {}
+    gsc_lane_fastq_file_infos = defaultdict(list)
+
+    # To avoid multiple calls to fetch primer, create dictionary keyed by primer_id
+    # with set of libcore ids as expected value. This way we can make a single batch call
+    # to fetch primers
+    primer_libcore = defaultdict(set)
+
+    for fastq_info in gsc_fastq_infos:
+        # check if cell condition start with GSC as we do not have permission to these
+        if gsc_library_id.startswith("IX") and fastq_info["libcore"]["library"]["cell_condition"].startswith("GSC-"):
+            continue
+
+        # get flowcell id
+        flowcell_id = str(fastq_info['libcore']['run']['flowcell_id'])
+
+        # check if flowcell id hasnt already been added to mapping
+        if flowcell_id not in flowcell_id_mapping:
+            # query for flowcell info
+            flowcell_info = gsc_api.query("flowcell?id={}".format(flowcell_id))
+            # get flowcell code name
+            flowcell_code = str(flowcell_info[0]['lims_flowcell_code'])
+            # add to flowcell id mapping
+            flowcell_id_mapping[flowcell_id] = flowcell_code
+            # use flowecell code as flowcell id
+            flowcell_id = flowcell_code
+
+        else:
+            flowcell_id = flowcell_id_mapping[flowcell_id]
+
+        # get flowcell lane number
+        lane_number = str(fastq_info['libcore']['run']['lane_number'])
+
+        # get sequencing date
+        sequencing_date = str(fastq_info["libcore"]["run"]["run_datetime"])
+
+        # get sequencing instrument
+        sequencing_instrument = get_sequencing_instrument(fastq_info["libcore"]["run"]["machine"])
+        sequencing_instrument = sequencing_instrument_map[sequencing_instrument]
+
+        # link libcore ids to primer id
+        primer_libcore[str(fastq_info['libcore']['primer_id'])].add(fastq_info['libcore']['id'])
+
+        # add fastq information to dictionary keyed by set of sequencing information collected above
+        gsc_lane_fastq_file_infos[(flowcell_id, lane_number, sequencing_date, sequencing_instrument)].append(fastq_info)
+
+    return (gsc_lane_fastq_file_infos, primer_libcore)
+
+def map_libcore_id_to_primer(primer_infos, primer_libcore):
+    """
+    Map libcore ID to primer.
+
+    Args:
+        primer_infos: primers as returned by GSC API given primer IDs
+        primer_libcore: dictionary with primer ID as key and libcore ID as value
+
+    Return:
+        libcore_primers (dict): dictionary with libcore ID as key and primer as value 
+    """
+    # create dictionary keyed by libcore id with primer info as expected value
+    libcore_primers = {}
+    for primer in primer_infos:
+        # fetch libcore id from previously constructed primer libcore mapping
+        libcore_ids = primer_libcore[str(primer['id'])]
+
+        for libcore_id in libcore_ids:
+            # link primer info to libcore id
+            libcore_primers[libcore_id] = primer
+
+    return libcore_primers
+
 def upload_blob_async(blob_infos, storage, tantalus_api):
     """
     Asynchronously upload blob to Azure
@@ -441,57 +524,11 @@ def import_gsc_dlp_paired_fastqs(
         logging.info(f'Importing data for {dlp_library_id}, {gsc_library_id}')
 
     fastq_file_info = []
-
     lanes = []
-
-    gsc_lane_fastq_file_infos = defaultdict(list)
 
     sequencing_instrument_map = {'HiSeqX': 'HX', 'HiSeq2500': 'H2500'}
 
-    # To avoid multiple calls to fetch primer, create dictionary keyed by primer_id
-    # with set of libcore ids as expected value. This way we can make a single batch call
-    # to fetch primers
-    primer_libcore = collections.defaultdict(set)
-
-    # initialize flowcell mapping where key will be  flowcell id and value is flowcell code
-    flowcell_id_mapping = {}
-    for fastq_info in gsc_fastq_infos:
-        # check if cell condition start with GSC as we do not have permission to these
-        if gsc_library_id.startswith("IX") and fastq_info["libcore"]["library"]["cell_condition"].startswith("GSC-"):
-            continue
-
-        # get flowcell id
-        flowcell_id = str(fastq_info['libcore']['run']['flowcell_id'])
-
-        # check if flowcell id hasnt already been added to mapping
-        if flowcell_id not in flowcell_id_mapping:
-            # query for flowcell info
-            flowcell_info = gsc_api.query("flowcell?id={}".format(flowcell_id))
-            # get flowcell code name
-            flowcell_code = str(flowcell_info[0]['lims_flowcell_code'])
-            # add to flowcell id mapping
-            flowcell_id_mapping[flowcell_id] = flowcell_code
-            # use flowecell code as flowcell id
-            flowcell_id = flowcell_code
-
-        else:
-            flowcell_id = flowcell_id_mapping[flowcell_id]
-
-        # get flowcell lane number
-        lane_number = str(fastq_info['libcore']['run']['lane_number'])
-
-        # get sequencing date
-        sequencing_date = str(fastq_info["libcore"]["run"]["run_datetime"])
-
-        # get sequencing instrument
-        sequencing_instrument = get_sequencing_instrument(fastq_info["libcore"]["run"]["machine"])
-        sequencing_instrument = sequencing_instrument_map[sequencing_instrument]
-
-        # link libcore ids to primer id
-        primer_libcore[str(fastq_info['libcore']['primer_id'])].add(fastq_info['libcore']['id'])
-
-        # add fastq information to dictionary keyed by set of sequencing information collected above
-        gsc_lane_fastq_file_infos[(flowcell_id, lane_number, sequencing_date, sequencing_instrument)].append(fastq_info)
+    gsc_lane_fastq_file_infos, primer_libcore = map_flowcell_to_fastq_info(gsc_library_id, gsc_fastq_infos)
 
     # get primer ids
     primer_ids = list(primer_libcore.keys())
@@ -499,14 +536,7 @@ def import_gsc_dlp_paired_fastqs(
     primer_infos = gsc_api.query("primer?id={}".format(",".join(primer_ids)))
 
     # create dictionary keyed by libcore id with primer info as expected value
-    libcore_primers = dict()
-    for primer in primer_infos:
-        # fetch libcore id from previously constructed primer libcore mapping
-        libcore_ids = primer_libcore[str(primer['id'])]
-
-        for libcore_id in libcore_ids:
-            # link primer info to libcore id
-            libcore_primers[libcore_id] = primer
+    libcore_primers = map_libcore_id_to_primer(primer_infos, primer_libcore)
 
     valid_indexes = {}
     invalid_indexes = []
@@ -860,7 +890,7 @@ def create_tickets_and_analyses(import_info):
 @click.option('--tag_name')
 @click.option('--all', is_flag=True)
 @click.option('--update', is_flag=True)
-@click.option('--check_library', is_flag=True)
+@click.option('--check_colossus_gsc_library_id', is_flag=True)
 @click.option('--dry_run', is_flag=True)
 def main(storage_name,
          dlp_library_id=None,
