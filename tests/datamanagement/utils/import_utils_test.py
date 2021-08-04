@@ -1,18 +1,17 @@
 import pytest
 from datetime import datetime
 
-from datamanagement.query_gsc_for_dlp_fastqs import (
+from datamanagement.utils.import_utils import (
 	reverse_complement,
 	decode_raw_index_sequence,
 	map_index_sequence_to_cell_id,
 	summarize_index_errors,
 	raise_index_error,
 	filter_failed_libs_by_date,
-	write_import_statuses,
 )
 
 # import fixtures
-from tests.datamanagement.fixtures.query_gsc_for_dlp_fastqs_fixtures import (
+from tests.datamanagement.fixtures.import_utils_fixtures import (
 	i5_sequence_upper,
 	i7_sequence_upper,
 	i5_sequence_lower,
@@ -40,19 +39,19 @@ from tests.dbclients.fixtures.colossus import (
 
 class TestStatus():
 	def test_filter_failed_libs_by_date(self, failed_libs, mocker):
-		mocker.patch('datamanagement.query_gsc_for_dlp_fastqs.get_today', return_value=datetime(2021, 5, 14))
+		mocker.patch('datamanagement.utils.import_utils.get_today', return_value=datetime(2021, 5, 14))
 
 		obs_recent_libs, obs_old_libs = filter_failed_libs_by_date(failed_libs, days=10)
 
 		expected_recent_libs = [
 			{
-				'lane_requested_date': datetime(2021, 5, 4),
+				'lane_requested_date': '2021-05-04',
 				'dlp_library_id': 'A44444',
 				'gsc_library_id': 'PX44444',
 				'error': 'error',
 			},
 			{
-				'lane_requested_date': datetime(2021, 5, 5),
+				'lane_requested_date': '2021-05-05',
 				'dlp_library_id': 'A55555',
 				'gsc_library_id': 'PX55555',
 				'error': 'error',
@@ -61,19 +60,19 @@ class TestStatus():
 
 		expected_old_libs = [
 			{
-				'lane_requested_date': datetime(2021, 5, 1),
+				'lane_requested_date': '2021-05-01',
 				'dlp_library_id': 'A11111',
 				'gsc_library_id': 'PX11111',
 				'error': 'error',
 			},
 			{
-				'lane_requested_date': datetime(2021, 5, 2),
+				'lane_requested_date': '2021-05-02',
 				'dlp_library_id': 'A22222',
 				'gsc_library_id': 'PX22222',
 				'error': 'error',
 			},
 			{
-				'lane_requested_date': datetime(2021, 5, 3),
+				'lane_requested_date': '2021-05-03',
 				'dlp_library_id': 'A33333',
 				'gsc_library_id': 'PX33333',
 				'error': 'error',
@@ -83,12 +82,12 @@ class TestStatus():
 		assert (obs_recent_libs == expected_recent_libs)
 		assert (obs_old_libs == expected_old_libs)
 
-	def test_write_import_statuses(self, successful_libs, recently_failed_libs, failed_libs):
-		write_import_statuses(successful_libs, recently_failed_libs, failed_libs)
+#	def test_write_import_statuses(self, successful_libs, recently_failed_libs, failed_libs):
+#		write_import_statuses(successful_libs, recently_failed_libs, failed_libs)
 
 class TestIndexErrors():
 	def test_summarize_index_errors(self, colossus_library_id, valid_indexes, invalid_indexes, colossus_list_sublibraries, mocker):
-		mocker.patch('datamanagement.query_gsc_for_dlp_fastqs.ColossusApi.list', return_value=colossus_list_sublibraries)
+		mocker.patch('datamanagement.utils.import_utils.get_sublibraries_from_library_id', return_value=colossus_list_sublibraries)
 
 		obs_errors = summarize_index_errors(colossus_library_id, valid_indexes, invalid_indexes)
 

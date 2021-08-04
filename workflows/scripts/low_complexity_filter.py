@@ -121,7 +121,6 @@ def change_to_bccrc_column_types(df):
 	df['start'] = df['start'].astype('Int64')
 	df['end'] = df['end'].astype('Int64')
 	df['state'] = df['state'].astype('Int64')
-#	df['multiplier'] = df['multiplier'].astype('Int64')
 
 	return df
 

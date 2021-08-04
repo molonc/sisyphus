@@ -1,5 +1,4 @@
 import pytest
-from datetime import datetime
 
 @pytest.fixture
 def i5_sequence_upper():
@@ -110,7 +109,7 @@ def index_errors():
 def successful_libs():
 	return [
 		{
-			'lane_requested_date': datetime(2021, 5, 1),
+			'lane_requested_date': '2021-05-01',
 			'dlp_library_id': 'A11111',
 			'gsc_library_id': 'PX11111',
 			'lanes': [
@@ -119,7 +118,7 @@ def successful_libs():
 			],
 		},
 		{
-			'lane_requested_date': datetime(2021, 5, 2),
+			'lane_requested_date': '2021-05-02',
 			'dlp_library_id': 'A22222',
 			'gsc_library_id': 'PX22222',
 			'lanes': [
@@ -133,31 +132,31 @@ def successful_libs():
 def failed_libs():
 	return [
 		{
-			'lane_requested_date': datetime(2021, 5, 1),
+			'lane_requested_date': '2021-05-01',
 			'dlp_library_id': 'A11111',
 			'gsc_library_id': 'PX11111',
 			'error': 'error',
 		},
 		{
-			'lane_requested_date': datetime(2021, 5, 2),
+			'lane_requested_date': '2021-05-02',
 			'dlp_library_id': 'A22222',
 			'gsc_library_id': 'PX22222',
 			'error': 'error',
 		},
 		{
-			'lane_requested_date': datetime(2021, 5, 3),
+			'lane_requested_date': '2021-05-03',
 			'dlp_library_id': 'A33333',
 			'gsc_library_id': 'PX33333',
 			'error': 'error',
 		},
 		{
-			'lane_requested_date': datetime(2021, 5, 4),
+			'lane_requested_date': '2021-05-04',
 			'dlp_library_id': 'A44444',
 			'gsc_library_id': 'PX44444',
 			'error': 'error',
 		},
 		{
-			'lane_requested_date': datetime(2021, 5, 5),
+			'lane_requested_date': '2021-05-05',
 			'dlp_library_id': 'A55555',
 			'gsc_library_id': 'PX55555',
 			'error': 'error',
@@ -168,13 +167,13 @@ def failed_libs():
 def recently_failed_libs():
 	return [
 		{
-			'lane_requested_date': datetime(2021, 5, 20),
+			'lane_requested_date': '2021-05-20',
 			'dlp_library_id': 'A88888',
 			'gsc_library_id': 'PX88888',
 			'error': 'error',
 		},
 		{
-			'lane_requested_date': datetime(2021, 5, 21),
+			'lane_requested_date': '2021-05-21',
 			'dlp_library_id': 'A99999',
 			'gsc_library_id': 'PX99999',
 			'error': 'error',

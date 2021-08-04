@@ -14,6 +14,20 @@ stream_handler.setFormatter(formatter)
 log.addHandler(stream_handler)
 log.propagate = False
 
+def get_sublibraries_from_library_id(library_id):
+    """
+    Given library id (str), return the associated sublibraries.
+
+    Args:
+        library_id: DLP or TenX library ID
+
+    Return:
+        sublibraries: list of dict {'id': project_id, 'name': project_name}
+    """
+    sublibraries = colossus_api.list('sublibraries', library__pool_id=library_id)
+
+    return sublibraries
+
 def get_projects_from_library_id(library_id):
     """
     Given library id (str), return the associated projects.
