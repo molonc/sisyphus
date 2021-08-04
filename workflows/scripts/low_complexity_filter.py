@@ -15,12 +15,6 @@ def upload_data_to_azure(tantalus_api, data, storage_name, blobname):
 	storage_client = tantalus_api.get_storage_client(storage_name)
 	storage_client.write_data_raw(blobname, data)
 
-def string_to_io(s):
-	"""
-	Return file like string object
-	"""
-	return StringIO(s)
-
 def rle(seq):
 	"""
 	run length encoding
