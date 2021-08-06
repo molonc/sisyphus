@@ -170,7 +170,8 @@ class BlobStorageClient(object):
         blob_client = self.blob_service.get_blob_client(self.storage_container, new_blobname)
         copy_props = blob_client.start_copy_from_url(url)
         if wait:
-            while copy_props.status != 'success':
+            while copy_props['copy_status'] != 'success':
+                # ALERT: not sure this code path is ever used, may not work
                 time.sleep(1)
                 blob = blob_client.get_blob_properties(self.storage_container, new_blobname)
                 copy_props = blob.properties.copy
