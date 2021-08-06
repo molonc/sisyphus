@@ -39,7 +39,7 @@ isodate==0.6.0
 itables==0.3.0
 itypes==1.1.0
 jedi==0.16.0
-Jinja2==2.10.3
+Jinja2==2.11.3
 jira==2.0.0
 jsonschema==3.2.0
 jupyter==1.0.0
