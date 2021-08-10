@@ -121,7 +121,7 @@ pytz==2018.4
 PyVCF==0.6.8
 PyYAML==3.12
 remixt==0.5.5
-requests==2.19.1
+requests==2.20.0
 requests-oauthlib==1.0.0
 scikit-learn==0.19.1
 scipy==1.1.0
