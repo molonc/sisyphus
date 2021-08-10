@@ -2,7 +2,9 @@ DOCKER_IMAGES = {
 	'align': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_alignment',
 	'hmmcopy': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_hmmcopy',
 	'annotation': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_annotation',
-	'breakpoint_calling': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_breakpoint:v0.8.0',
+	'breakpoint_calling': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_breakpoint',
+	'variant_calling': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_variant',
+	'infer_haps': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_haplotypes',
 }
 
 # valid projects were obtained from loader VM (bccrc-pr-loader-vm)
