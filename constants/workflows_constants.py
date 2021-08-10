@@ -1,10 +1,21 @@
+ALIGNMENT_IMAGE = 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_alignment'
+HMMCOPY_IMAGE = 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_hmmcopy'
+ANNOTATION_IMAGE = 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_annotation'
+BREAKPOINT_IMAGE = 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_breakpoint'
+VARIANT_IMAGE = 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_variant'
+HAPLOTYPES_IMAGE = 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_haplotypes'
+
 DOCKER_IMAGES = {
-	'align': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_alignment',
-	'hmmcopy': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_hmmcopy',
-	'annotation': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_annotation',
-	'breakpoint_calling': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_breakpoint',
-	'variant_calling': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_variant',
-	'infer_haps': 'scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_haplotypes',
+	'align': ALIGNMENT_IMAGE,
+	'merge_cell_bams': ALIGNMENT_IMAGE,
+	'split_wgs_bam': ALIGNMENT_IMAGE,
+	'hmmcopy': HMMCOPY_IMAGE,
+	'annotation': ANNOTATION_IMAGE,
+	'breakpoint_calling': BREAKPOINT_IMAGE,
+	'variant_calling': VARIANT_IMAGE,
+	'snv_genotyping': VARIANT_IMAGE,
+	'infer_haps': HAPLOTYPES_IMAGE,
+	'count_haps': HAPLOTYPES_IMAGE,
 }
 
 # valid projects were obtained from loader VM (bccrc-pr-loader-vm)

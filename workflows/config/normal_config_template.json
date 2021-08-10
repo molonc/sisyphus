@@ -17,19 +17,27 @@
     "context_config_file": {
         "saltant" : {
             "align": "/home/dmin/projects/saltant-py/context_config_alignment.yaml",
+            "merge_cell_bams": "/home/dmin/projects/saltant-py/context_config_alignment.yaml",
+            "split_wgs_bam": "/home/dmin/projects/saltant-py/context_config_alignment.yaml",
             "hmmcopy": "/home/dmin/projects/saltant-py/context_config_hmmcopy.yaml",
             "annotation": "/home/dmin/projects/saltant-py/context_config_annotation.yaml",
             "breakpoint_calling": "/home/dmin/projects/saltant-py/context_config_breakpoint.yaml",
             "variant_calling": "/home/dmin/projects/saltant-py/context_config_variant.yaml",
-            "infer_haps": "/home/dmin/projects/saltant-py/context_config_haplotypes.yaml"
+            "snv_genotyping": "/home/dmin/projects/saltant-py/context_config_variant.yaml",
+            "infer_haps": "/home/dmin/projects/saltant-py/context_config_haplotypes.yaml",
+            "count_haps": "/home/dmin/projects/saltant-py/context_config_haplotypes.yaml"
         },
         "sisyphus" : {  
             "align": "/home/dmin/projects/sisyphus/workflows/config/context_config_alignment.yaml",
+            "merge_cell_bams": "/home/dmin/projects/sisyphus/workflows/config/context_config_alignment.yaml",
+            "split_wgs_bam": "/home/dmin/projects/sisyphus/workflows/config/context_config_alignment.yaml",
             "hmmcopy": "/home/dmin/projects/sisyphus/workflows/config/context_config_hmmcopy.yaml",
             "annotation": "/home/dmin/projects/sisyphus/workflows/config/context_config_annotation.yaml",
             "breakpoint_calling": "/home/dmin/projects/sisyphus/workflows/config/context_config_breakpoint.yaml",
             "variant_calling": "/home/dmin/projects/sisyphus/workflows/config/context_config_variant.yaml",
-            "infer_haps": "/home/dmin/projects/sisyphus/workflows/config/context_config_haplotypes.yaml"
+            "snv_genotyping": "/home/dmin/projects/sisyphus/workflows/config/context_config_variant.yaml",
+            "infer_haps": "/home/dmin/projects/sisyphus/workflows/config/context_config_haplotypes.yaml",
+            "count_haps": "/home/dmin/projects/sisyphus/workflows/config/context_config_haplotypes.yaml"
         }
     },
     "docker_env_file": "/home/dmin/set-docker-credentials.sh",
