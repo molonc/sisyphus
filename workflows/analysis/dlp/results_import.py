@@ -5,12 +5,11 @@ import logging
 from workflows.scripts.low_complexity_filter import filter_reads
 import gzip
 from io import BytesIO
-#import pandas as pd
+from pathlib import Path
 
 qc_results_name_template = '{jira_ticket}_{analysis_type}_{library_id}'
 
 pseudobulk_results_name_template = '{jira_ticket}_{analysis_type}_{library_id}_{sample_id}'
-
 
 def create_dlp_results(
         tantalus_api,
@@ -76,7 +75,7 @@ def filter_low_complexity_region(
     """
     Filter "low complexity region" in reads.csv file
     """
-    blacklist_file = '/home/dmin/blacklist_2018.10.23.txt'
+    blacklist_file = Path(__file__).parent.parent.parent.joinpath("scripts", "blacklist_2018.10.23.txt")
 
     storage_client = tantalus_api.get_storage_client(storage_name)
 
@@ -106,7 +105,10 @@ def filter_low_complexity_region(
     metadata_filename = os.path.join(results_dir, "metadata.yaml")
     metadata = yaml.safe_load(storage_client.open_file(metadata_filename))
 
-    filenames_to_add = [os.path.basename(filtered_mseg_blobname), os.path.basename(filtered_masked_blobname)]
-    metadata["filenames"].extend(filenames_to_add)
+    if(os.path.basename(filtered_mseg_blobname) not in metadata["filenames"]):
+        metadata["filenames"].append(os.path.basename(filtered_mseg_blobname))
+    if(os.path.basename(filtered_masked_blobname) not in metadata["filenames"]):
+        metadata["filenames"].append(os.path.basename(filtered_masked_blobname))
+
     stream = yaml.dump(metadata)
     storage_client.write_data_raw(metadata_filename, stream)

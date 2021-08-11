@@ -115,7 +115,7 @@ def generate_alhena_loader_projects_cli_args(projects):
 
     return project_args if project_args else ''
 
-def generate_loader_command(jira, project_args, es_host="10.1.0.8"):
+def generate_loader_command(jira, project_args, _reload, _filter, es_host="10.1.0.8"):
     """
     Generate loader script command and arguments
 
@@ -124,15 +124,30 @@ def generate_loader_command(jira, project_args, es_host="10.1.0.8"):
         args {str} -- project args to be fed into the loader script
         es_host {str} -- elasticsearch VM host IP address
     """
+    extra_args = ''
+    base_command = f'bash /home/spectrum/alhena-loader/load_ticket.sh {jira} {es_host}'
+
+    # handle reload
+    if(_reload):
+        extra_args = ' '.join([extra_args, "true"])
+    else:
+        extra_args = ' '.join([extra_args, "false"])
+
+    # handle filter
+    if(_filter):
+        extra_args = ' '.join([extra_args, "true"])
+    else:
+        extra_args = ' '.join([extra_args, "false"])
+
     # handle invalid project args
     if(project_args):
-        command = f'bash /home/spectrum/alhena-loader/load_ticket.sh {jira} {es_host} "{project_args}"'
-    else:
-        command = f'bash /home/spectrum/alhena-loader/load_ticket.sh {jira} {es_host}'
+        extra_args = ' '.join([extra_args, f'"{project_args}"'])
+
+    command = base_command + extra_args
 
     return command
 
-def load_data_to_alhena(jira, es_host="10.1.0.8"):
+def load_data_to_alhena(jira, _reload=False, _filter=False, es_host="10.1.0.8"):
     """
     SSH into loader machine and triggers import into Alhena
     
@@ -148,7 +163,13 @@ def load_data_to_alhena(jira, es_host="10.1.0.8"):
     projects = colossus_utils.get_projects_from_jira_id(jira)
 
     projects_cli_args = generate_alhena_loader_projects_cli_args(projects)
-    loader_command = generate_loader_command(jira, projects_cli_args, es_host)
+    loader_command = generate_loader_command(
+        jira=jira,
+        project_args=projects_cli_args,
+        _reload=_reload,
+        _filter=_filter,
+        es_host=es_host,
+    )
 
     try:
         # TODO: add directory in config
@@ -191,16 +212,6 @@ def run_viz(
 
         jira_ticket = analysis["analysis_jira_ticket"]
 
-        # close jira ticket and update ticket description
-        try:
-            update_jira_dlp(jira_ticket, analysis["aligner"])
-        except Exception as e:
-            traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
-            message = f"Updating JIRA failed for {library_id}, {jira_ticket}.\n {str(traceback_str)}"
-            log.error(message)
-            failed.append(f"{library_id}, {jira_ticket}")
-            continue
-
         # upload qc report to jira ticket
         # upload qc report to jira ticket
         try:
@@ -228,6 +239,16 @@ def run_viz(
             failed.append(f"{library_id}, {jira_ticket}")
             continue
 
+        # close jira ticket and update ticket description
+        try:
+            update_jira_dlp(jira_ticket, analysis["aligner"])
+        except Exception as e:
+            traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
+            message = f"Updating JIRA failed for {library_id}, {jira_ticket}.\n {str(traceback_str)}"
+            log.error(message)
+            failed.append(f"{library_id}, {jira_ticket}")
+            continue
+
     # propagate error after the loop
     if(failed):
         base = f"An error occurred while uploading to Montage in run_qc.py.\n"
@@ -239,6 +260,8 @@ def run_viz_alhena(
     tantalus_api,
     colossus_api,
     storage_name,
+    _reload=False,
+    _filter=False,
     ):
     """
     Update jira ticket, add QC report, and load data on Montage
@@ -249,7 +272,7 @@ def run_viz_alhena(
         montage_status="Pending",
         analysis_run__run_status="complete",
     )
-    #analyses = colossus_api.list("analysis_information", library__pool_id='A118340A')
+    analyses = colossus_api.list("analysis_information", library__pool_id='A118419A')
     failed = []
     for analysis in analyses:
         # get library id
@@ -281,7 +304,7 @@ def run_viz_alhena(
 
         try:
             # load analysis into alhena
-            load_data_to_alhena(jira_ticket)
+            load_data_to_alhena(jira=jira_ticket, _reload=_reload, _filter=_filter)
         except Exception as e:
             traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
             message = f"Alhena loading failed for {library_id}, {jira_ticket}.\n {str(traceback_str)}"
