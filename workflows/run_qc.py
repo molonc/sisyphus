@@ -685,6 +685,7 @@ def main(aligner):
             tantalus_api,
             colossus_api,
             storage_name,
+            _filter=True,
         )
 
         run_viz(
