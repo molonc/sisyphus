@@ -30,6 +30,7 @@ ALHENA_VALID_PROJECTS = {
 	'HGSC-Multisite': 'HGSC-Multisite',
 	'Collab-Crick': 'Crick',
 	'Collab-Brugge': 'Brugge',
+	'Collab-Leeds': 'Leeds',
 	'Structure-Variation': 'Structure-Variation',
 	'Xeno-Organoids': 'Xeno-Organoids',
 }
