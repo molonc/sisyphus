@@ -376,6 +376,7 @@ class TenXAnalysis(Analysis):
         datasets = tantalus_api.list(
             "sequence_dataset",
             library__library_id=args["library_id"],
+            reference_genome=args["ref_genome"],
             dataset_type="FQ",
         )
 

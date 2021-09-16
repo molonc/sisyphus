@@ -117,7 +117,7 @@ def create_qc_analyses_from_library(library_id, jira_ticket, version, analysis_t
             raise Exception(f"{analysis_type} is an invalid analysis type")
 
 
-def create_tenx_analysis_from_library(jira, library):
+def create_tenx_analysis_from_library(jira, library, taxonomy_id=None):
     """Creates tenx analysis on Tantalus
 
     Args:
@@ -139,7 +139,7 @@ def create_tenx_analysis_from_library(jira, library):
     args = {}
     args['library_id'] = library
     library_info = colossus_api.get('tenxlibrary', name=library)
-    args['ref_genome'] = get_ref_genome(library_info, is_tenx=True)
+    args['ref_genome'] = get_ref_genome(library_info, is_tenx=True, taxonomy_id=taxonomy_id)
     args['version'] = config["version"]
 
     # get list of storages

@@ -107,7 +107,7 @@ def get_lanes_from_sequencings(sequencing_id_list):
     return list(lanes)
 
 
-def get_ref_genome(library_info, is_tenx=False):
+def get_ref_genome(library_info, is_tenx=False, taxonomy_id=None):
     """
     Get reference genome from taxonomy id
 
@@ -132,7 +132,12 @@ def get_ref_genome(library_info, is_tenx=False):
             '3702': 'AT10'
         }
 
-    taxonomy_id = library_info['sample']['taxonomy_id']
+    if(taxonomy_id is None):
+        taxonomy_id = library_info['sample']['taxonomy_id']
+    else:
+        if(taxonomy_id not in taxonomy_id_map):
+            raise ValueError("User specified taxonomy id must be one of 9606, 10090 for TenX or 9606, 10090, 3702 for DLP")
+
     reference_genome = taxonomy_id_map[taxonomy_id]
 
     return reference_genome

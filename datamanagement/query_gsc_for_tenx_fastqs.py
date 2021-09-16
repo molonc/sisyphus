@@ -34,6 +34,14 @@ from workflows.utils.tantalus_utils import create_tenx_analysis_from_library
 from dbclients.utils.dbclients_utils import (
     get_colossus_base_url,
 )
+import settings
+
+from common_utils.utils import (
+    validate_mode,
+)
+
+# make sure we are using correct mode (i.e. prod, dev, staging, etc.)
+validate_mode(settings.mode)
 
 COLOSSUS_BASE_URL = get_colossus_base_url()
 
@@ -60,6 +68,10 @@ sequencing_instrument_map = {
 }
 storage_client = tantalus_api.get_storage_client("scrna_fastq")
 
+TAXONOMY_MAP = {
+    '9606': 'HG38',
+    '10090': 'MM10',
+}
 
 def get_existing_fastq_data(tantalus_api, library):
     ''' Get the current set of fastq data in tantalus.
@@ -81,7 +93,7 @@ def get_existing_fastq_data(tantalus_api, library):
     return set(existing_flowcell_ids)
 
 
-def create_analysis_jira_ticket(library_id, sample, library_ticket):
+def create_analysis_jira_ticket(library_id, sample, library_ticket, reference_genome):
     '''
     Create analysis jira ticket as subtask of library jira ticket
 
@@ -100,11 +112,15 @@ def create_analysis_jira_ticket(library_id, sample, library_ticket):
 
     # In order to search for library on Jira,
     # Jira ticket must include spaces
+
+    # JIRA project key: use 'SC' for production, 'MIS' for all other modes
+    project_key = 'SC' if (settings.mode.lower() == 'production') else 'MIS'
+
     sub_task = {
         'project': {
-            'key': 'SC'
+            'key': project_key
         },
-        'summary': '{} - {} TenX Analysis'.format(sample, library_id),
+        'summary': '{} - {} - {} TenX Analysis'.format(sample, library_id, reference_genome),
         'issuetype': {
             'name': 'Sub-task'
         },
@@ -128,7 +144,16 @@ def create_analysis_jira_ticket(library_id, sample, library_ticket):
     return analysis_jira_ticket
 
 
-def import_tenx_fastqs(storage_name, sequencing, no_comments=False, update=False):
+def import_tenx_fastqs(
+    storage_name,
+    sequencing,
+    taxonomy_id=None,
+    skip_upload=False,
+    ignore_existing=False,
+    skip_jira=False,
+    no_comments=False,
+    update=False,
+    ):
     storage_client = tantalus_api.get_storage_client(storage_name)
 
     # get colossus sequencing id
@@ -229,18 +254,22 @@ def import_tenx_fastqs(storage_name, sequencing, no_comments=False, update=False
             flowcell_id = str(flowcell[0]['lims_flowcell_code'])
             lane_number = str(lib['run']['lane_number'])
             sequencing_date = str(lib["run"]["run_datetime"])
+            # format sequencing date to be compatible with Colossus?
+            #sequencing_date = sequencing_date.split('T')[0]
             sequencing_instrument = get_sequencing_instrument(lib["run"]["machine"])
             sequencing_instrument = sequencing_instrument_map[sequencing_instrument]
 
             flowcell_lane = f"{flowcell_id}_{lane_number}"
             # get existing data
-            existing_data = get_existing_fastq_data(tantalus_api, library)
-            if flowcell_lane in existing_data:
-                logging.info(f"skipping {flowcell_lane} since already imported")
-                continue
+            if not (ignore_existing):
+                existing_data = get_existing_fastq_data(tantalus_api, library)
+                if flowcell_lane in existing_data:
+                    logging.info(f"skipping {flowcell_lane} since already imported")
+                    continue
 
             # get internal gsc library name
             gsc_library_id = lib["library"]["name"]
+            print(f"internal GSC id is {gsc_library_id}")
             # update library's gsc name
             colossus_api.update("tenxlibrary", id=tenxlib["id"], gsc_library_id=gsc_library_id)
 
@@ -248,7 +277,7 @@ def import_tenx_fastqs(storage_name, sequencing, no_comments=False, update=False
 
             # query for fastqs of the library
             fastqs = gsc_api.query(f"concat_fastq?libcore_id={lib['id']}")
-            print(fastqs)
+            #print(fastqs)
 
             for fastq in fastqs:
                 filename_pattern = fastq["file_type"]["filename_pattern"]
@@ -265,11 +294,12 @@ def import_tenx_fastqs(storage_name, sequencing, no_comments=False, update=False
                 filenames.append(fullpath)
 
                 # add fastq to cloud storage
-                storage_client.create(
-                    os.path.join(library, flowcell_lane, new_filename),
-                    fastq["data_path"],
-                    update=True,
-                )
+                if not(skip_upload):
+                    storage_client.create(
+                        os.path.join(library, flowcell_lane, new_filename),
+                        fastq["data_path"],
+                        update=True,
+                    )
 
             # if no files were found move onto next library
             if not filenames:
@@ -331,6 +361,7 @@ def import_tenx_fastqs(storage_name, sequencing, no_comments=False, update=False
                 sample_id=sample,
                 library_type="SC_RNASEQ",
                 library_id=library,
+                taxonomy=TAXONOMY_MAP[taxonomy_id],
                 lanes_hash=get_lanes_hash(lanes),
             )
             sequence_dataset = add_generic_dataset(
@@ -341,13 +372,13 @@ def import_tenx_fastqs(storage_name, sequencing, no_comments=False, update=False
                 dataset_name=dataset_name,
                 dataset_type="FQ",
                 sequence_lane_pks=lane_pks,
-                reference_genome="HG38",
+                reference_genome=TAXONOMY_MAP[taxonomy_id],
                 update=True,
             )
 
             dataset_ids.append(sequence_dataset)
 
-            url = f"https://{COLOSSUS_BASE_URL}/tenx/sequencing/{sequencing_id}"
+            url = f"{COLOSSUS_BASE_URL}/tenx/sequencing/{sequencing_id}"
             comment = f"Import successful:\n\nLane: {flowcell_lane}\nGSC Library ID: {gsc_library_id}\n{url}"
 
             comments = jira_api.comments(tenxlib["jira_ticket"])
@@ -361,22 +392,28 @@ def import_tenx_fastqs(storage_name, sequencing, no_comments=False, update=False
                 comment_jira(tenxlib["jira_ticket"], comment)
 
             # create jira ticket
-            jira_ticket = create_analysis_jira_ticket(library, sample, tenxlib['jira_ticket'])
-            # create colossus analysis
-            analysis, _ = colossus_api.create(
-                "tenxanalysis",
-                fields={
-                    "version": "vm",
-                    "jira_ticket": jira_ticket,
-                    "run_status": "idle",
-                    "tenx_library": tenxlib["id"],
-                    "submission_date": str(datetime.date.today()),
-                    "tenxsequencing_set": [],
-                },
-                keys=["jira_ticket"],
-            )
-            # create tantalus analysis
-            create_tenx_analysis_from_library(jira_ticket, library)
+            if not(skip_jira):
+                jira_ticket = create_analysis_jira_ticket(
+                    library_id=library,
+                    sample=sample,
+                    library_ticket=tenxlib['jira_ticket'],
+                    reference_genome=TAXONOMY_MAP[taxonomy_id],
+                )
+                # create colossus analysis
+                analysis, _ = colossus_api.create(
+                    "tenxanalysis",
+                    fields={
+                        "version": "vm",
+                        "jira_ticket": jira_ticket,
+                        "run_status": "idle",
+                        "tenx_library": tenxlib["id"],
+                        "submission_date": str(datetime.date.today()),
+                        "tenxsequencing_set": [],
+                    },
+                    keys=["jira_ticket"],
+                )
+                # create tantalus analysis
+                create_tenx_analysis_from_library(jira_ticket, library, taxonomy_id=taxonomy_id)
 
         # check if data has been imported
         if filenames:
@@ -451,12 +488,33 @@ def write_import_log(successful_pools, failed_pools):
 @click.command()
 @click.argument('storage_name', nargs=1)
 @click.option('--pool_id', type=int)
+@click.option('--taxonomy_id', type=click.Choice(['9606', '10090']))
+@click.option('--skip_upload', is_flag=True)
+@click.option('--ignore_existing', is_flag=True)
+@click.option('--skip_jira', is_flag=True)
 @click.option('--all', is_flag=True)
 @click.option('--no_comments', is_flag=True)
 @click.option('--update', is_flag=True)
-def main(storage_name, pool_id=None, all=False, no_comments=False, update=False):
+def main(
+    storage_name,
+    pool_id=None,
+    taxonomy_id='9606',
+    skip_upload=False,
+    ignore_existing=False,
+    skip_jira=False,
+    all=False,
+    no_comments=False,
+    update=False,
+    ):
     successful_pools = []
     failed_pools = []
+
+    # make sure it is a valid taxonomy ID
+    if taxonomy_id is not None:
+        # As of 2021, only two reference genomes for TenX libraries
+        # 9606: HG38, 10090: MM10
+        if (taxonomy_id not in TAXONOMY_MAP):
+            raise ValueError('Taxonomy ID must be one of 9606 or 10090 for TenX libraries!')
 
     # check if specific pool passed
     if pool_id is not None:
@@ -481,7 +539,16 @@ def main(storage_name, pool_id=None, all=False, no_comments=False, update=False)
             continue
 
         try:
-            import_info = import_tenx_fastqs(storage_name, sequencing, no_comments=no_comments, update=update)
+            import_info = import_tenx_fastqs(
+                storage_name,
+                sequencing,
+                taxonomy_id=taxonomy_id,
+                skip_upload=skip_upload,
+                ignore_existing=ignore_existing,
+                skip_jira=skip_jira,
+                no_comments=no_comments,
+                update=update,
+            )
 
             # check if information does not exists on gsc
             if import_info is None:
