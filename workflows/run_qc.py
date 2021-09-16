@@ -272,7 +272,7 @@ def run_viz_alhena(
         montage_status="Pending",
         analysis_run__run_status="complete",
     )
-    analyses = colossus_api.list("analysis_information", library__pool_id='A118419A')
+
     failed = []
     for analysis in analyses:
         # get library id
@@ -685,13 +685,14 @@ def main(aligner):
             tantalus_api,
             colossus_api,
             storage_name,
+            _filter=True,
         )
 
-        run_viz(
-            tantalus_api,
-            colossus_api,
-            storage_name,
-        )
+#        run_viz(
+#            tantalus_api,
+#            colossus_api,
+#            storage_name,
+#        )
     except Exception as e:
         slack_client.post(f"{e}")
 

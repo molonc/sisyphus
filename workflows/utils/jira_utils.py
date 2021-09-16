@@ -116,22 +116,13 @@ def update_jira_dlp(jira_id, aligner):
         '{noformat}Container: singlecellresults\nresults/' + jira_id + '{noformat}',
     ]
 
-    parent_ticket = get_parent_issue(jira_id)
+    issue = jira_api.issue(jira_id)
 
-    library = colossus_api.get("library", jira_ticket=parent_ticket)
-    sample = library["sample"]["sample_id"]
-
-    if sample.startswith("TFRI"):
-        update_description(jira_id, description, "shwu", remove_watcher=True)
-
-    elif sample.startswith("SA"):
-        issue = jira_api.issue(jira_id)
-
-        if issue.fields.status.name != "Closed":
-            # assign parent ticket to justina
-            parent_jira_id = get_parent_issue(jira_id)
-            parent_issue = jira_api.issue(parent_jira_id)
-            parent_issue.update(assignee={"name": "jbwang"})
+    if issue.fields.status.name != "Closed":
+        # assign parent ticket to justina
+        parent_jira_id = get_parent_issue(jira_id)
+        parent_issue = jira_api.issue(parent_jira_id)
+        parent_issue.update(assignee={"name": "jbwang"})
 
         update_description(jira_id, description, jira_user, remove_watcher=True)
         close_ticket(jira_id)
