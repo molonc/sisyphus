@@ -106,6 +106,8 @@ venv.bak/
 # context and normal config
 context_config.yaml
 normal_config.json
+normal_config_tenx.json
+normal_config_tenx.json
 
 # qc reports
 qc_reports
