@@ -45,6 +45,33 @@ def main():
 
 @main.command()
 @click.argument('storage_name')
+@click.option('--dataset-id', '-id', type=int, required=True, multiple=True)
+def delete_sequencedataset_recursive(
+    storage_name,
+    dataset_id,
+):
+    """
+    Given sequencedataset ID delete the dataset and associated file resources
+    """
+    storage_client = tantalus_api.get_storage_client(storage_name)
+
+    # output result dataset
+    for _id in dataset_id:
+        sequence_dataset = tantalus_api.get("sequencedataset", id=_id)
+        dataset_type = 'sequencedataset'
+
+        file_resource_ids = sequence_dataset['file_resources']
+
+        for file_resource_id in file_resource_ids:
+            delete_file_instances(file_resource_id)
+            delete_blob(storage_client, file_resource_id)
+            delete_file_resource(file_resource_id)
+
+        delete_dataset(dataset_type, _id)
+
+
+@main.command()
+@click.argument('storage_name')
 @click.option('--library-id', type=str, required=True)
 @click.option('--dry-run', is_flag=True)
 def delete_lanes_by_library(

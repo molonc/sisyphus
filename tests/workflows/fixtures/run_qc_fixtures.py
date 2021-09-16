@@ -9,13 +9,28 @@ def invalid_alhena_project_args():
 	]
 
 @pytest.fixture
-def valid_loader_args():
+def project_args():
 	return '--project DLP --project Brugge'
 
 @pytest.fixture
-def empty_loader_args():
+def empty_project_args():
 	return ""
 
+@pytest.fixture
+def reload_args():
+	return True
+
+@pytest.fixture
+def no_reload_args():
+	return False
+
+@pytest.fixture
+def filter_args():
+	return True
+
+@pytest.fixture
+def no_filter_args():
+	return False
 
 @pytest.fixture
 def jira():
