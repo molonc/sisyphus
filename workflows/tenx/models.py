@@ -373,12 +373,17 @@ class TenXAnalysis(Analysis):
     def search_input_datasets(args):
 
         # Double check this
-        datasets = tantalus_api.list(
+        datasets = list(tantalus_api.list(
             "sequence_dataset",
             library__library_id=args["library_id"],
-            reference_genome=args["ref_genome"],
+            sequence_lanes__flowcell_id=args['flowcell_id'],
+            sequence_lanes__lane_number=args['lane_number'],
             dataset_type="FQ",
-        )
+        ))
+
+        if not(datasets):
+            detail = '\n'.join([f"{str(k)}: {str(args[k])}" for k in args])
+            raise ValueError(f"No matching input dataset with the following args:\n{detail}")
 
         dataset_ids = [dataset["id"] for dataset in datasets]
 

@@ -155,6 +155,5 @@ TENX_SCRNA_DATASET_TEMPLATE = "-".join([
     "{sample_id}",
     "{library_type}",
     "{library_id}",
-    "{taxonomy}",
     "lanes_{lanes_hash}",
 ])

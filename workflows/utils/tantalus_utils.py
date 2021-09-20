@@ -117,7 +117,7 @@ def create_qc_analyses_from_library(library_id, jira_ticket, version, analysis_t
             raise Exception(f"{analysis_type} is an invalid analysis type")
 
 
-def create_tenx_analysis_from_library(jira, library, taxonomy_id=None):
+def create_tenx_analysis_from_library(jira, library, flowcell, lane_number, taxonomy_id=None):
     """Creates tenx analysis on Tantalus
 
     Args:
@@ -141,6 +141,8 @@ def create_tenx_analysis_from_library(jira, library, taxonomy_id=None):
     library_info = colossus_api.get('tenxlibrary', name=library)
     args['ref_genome'] = get_ref_genome(library_info, is_tenx=True, taxonomy_id=taxonomy_id)
     args['version'] = config["version"]
+    args['flowcell_id'] = flowcell
+    args['lane_number'] = lane_number
 
     # get list of storages
     storages = config["storages"]
@@ -170,7 +172,7 @@ def get_analyses_from_jira(jira):
 
     return analyses
 
-def get_resultsdataset_from_analysis(analysis):
+def get_output_resultsdataset_from_analysis(analysis):
     """
     Get all the output resultsdataset associated with analysis ID.
 
@@ -184,7 +186,7 @@ def get_resultsdataset_from_analysis(analysis):
 
     return resultsdataset
 
-def get_sequencedataset_from_analysis(analysis):
+def get_output_sequencedataset_from_analysis(analysis):
     """
     Get all the output sequencedataset associated with analysis ID.
 
@@ -198,7 +200,7 @@ def get_sequencedataset_from_analysis(analysis):
 
     return sequencedataset
 
-def get_sequencedataset_from_library_id(library_id):
+def get_output_sequencedataset_from_library_id(library_id):
     """
     Get all the output sequencedataset associated with library ID.
 
@@ -212,7 +214,7 @@ def get_sequencedataset_from_library_id(library_id):
 
     return sequencedataset
 
-def get_sequencing_lane_from_library_id(library_id):
+def get_output_sequencing_lane_from_library_id(library_id):
     """
     Get all the output sequencing_lane associated with library ID.
 

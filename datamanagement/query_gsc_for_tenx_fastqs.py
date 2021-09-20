@@ -73,6 +73,24 @@ TAXONOMY_MAP = {
     '10090': 'MM10',
 }
 
+def upload_to_azure(storage_client, blobname, filepath, update=False):
+    if(storage_client.exists(blobname)):
+        if(storage_client.get_size(blobname) == os.path.getsize(filepath)):
+            logging.info(f"{blobname} already exists and is the same size. Skipping...")
+
+            return
+        else:
+            if not(update):
+                message = f"{blobname} has different size from {filepath}. Please specify --update option to overwrite."
+                logging.error(message)
+                raise ValueError(message)
+
+    storage_client.create(
+        blobname,
+        filepath,
+        update=update,
+    )
+
 def get_existing_fastq_data(tantalus_api, library):
     ''' Get the current set of fastq data in tantalus.
 
@@ -148,7 +166,6 @@ def import_tenx_fastqs(
     storage_name,
     sequencing,
     taxonomy_id=None,
-    skip_upload=False,
     ignore_existing=False,
     skip_jira=False,
     no_comments=False,
@@ -294,12 +311,12 @@ def import_tenx_fastqs(
                 filenames.append(fullpath)
 
                 # add fastq to cloud storage
-                if not(skip_upload):
-                    storage_client.create(
-                        os.path.join(library, flowcell_lane, new_filename),
-                        fastq["data_path"],
-                        update=True,
-                    )
+                upload_to_azure(
+                    storage_client=storage_client,
+                    blobname=os.path.join(library, flowcell_lane, new_filename),
+                    filepath=fastq["data_path"],
+                    update=update,
+                )
 
             # if no files were found move onto next library
             if not filenames:
@@ -361,7 +378,6 @@ def import_tenx_fastqs(
                 sample_id=sample,
                 library_type="SC_RNASEQ",
                 library_id=library,
-                taxonomy=TAXONOMY_MAP[taxonomy_id],
                 lanes_hash=get_lanes_hash(lanes),
             )
             sequence_dataset = add_generic_dataset(
@@ -372,7 +388,7 @@ def import_tenx_fastqs(
                 dataset_name=dataset_name,
                 dataset_type="FQ",
                 sequence_lane_pks=lane_pks,
-                reference_genome=TAXONOMY_MAP[taxonomy_id],
+                reference_genome='HG38',
                 update=True,
             )
 
@@ -413,7 +429,13 @@ def import_tenx_fastqs(
                     keys=["jira_ticket"],
                 )
                 # create tantalus analysis
-                create_tenx_analysis_from_library(jira_ticket, library, taxonomy_id=taxonomy_id)
+                create_tenx_analysis_from_library(
+                    jira=jira_ticket,
+                    library=library,
+                    flowcell=flowcell_id,
+                    lane_number=lane_number,
+                    taxonomy_id=taxonomy_id,
+                )
 
         # check if data has been imported
         if filenames:
@@ -488,8 +510,7 @@ def write_import_log(successful_pools, failed_pools):
 @click.command()
 @click.argument('storage_name', nargs=1)
 @click.option('--pool_id', type=int)
-@click.option('--taxonomy_id', type=click.Choice(['9606', '10090']))
-@click.option('--skip_upload', is_flag=True)
+@click.option('--taxonomy_id', type=click.Choice(['9606', '10090']), default='9606')
 @click.option('--ignore_existing', is_flag=True)
 @click.option('--skip_jira', is_flag=True)
 @click.option('--all', is_flag=True)
@@ -499,7 +520,6 @@ def main(
     storage_name,
     pool_id=None,
     taxonomy_id='9606',
-    skip_upload=False,
     ignore_existing=False,
     skip_jira=False,
     all=False,
@@ -543,7 +563,6 @@ def main(
                 storage_name,
                 sequencing,
                 taxonomy_id=taxonomy_id,
-                skip_upload=skip_upload,
                 ignore_existing=ignore_existing,
                 skip_jira=skip_jira,
                 no_comments=no_comments,
