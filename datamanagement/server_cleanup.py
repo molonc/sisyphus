@@ -10,10 +10,10 @@ import pandas as pd
 
 from workflows.utils.tantalus_utils import (
     get_analyses_from_jira,
-    get_resultsdataset_from_analysis,
-    get_sequencedataset_from_analysis,
-    get_sequencedataset_from_library_id,
-    get_sequencing_lane_from_library_id,
+    get_output_resultsdataset_from_analysis,
+    get_output_sequencedataset_from_analysis,
+    get_output_sequencedataset_from_library_id,
+    get_output_sequencing_lane_from_library_id,
 )
 
 tantalus_api = TantalusApi()
@@ -46,15 +46,15 @@ def main():
 @main.command()
 @click.argument('storage_name')
 @click.option('--dataset-id', '-id', type=int, required=True, multiple=True)
+@click.option('--clean-azure', is_flag=True)
 def delete_sequencedataset_recursive(
     storage_name,
     dataset_id,
+    clean_azure=False,
 ):
     """
     Given sequencedataset ID delete the dataset and associated file resources
     """
-    storage_client = tantalus_api.get_storage_client(storage_name)
-
     # output result dataset
     for _id in dataset_id:
         sequence_dataset = tantalus_api.get("sequencedataset", id=_id)
@@ -64,7 +64,9 @@ def delete_sequencedataset_recursive(
 
         for file_resource_id in file_resource_ids:
             delete_file_instances(file_resource_id)
-            delete_blob(storage_client, file_resource_id)
+            if(clean_azure):
+                storage_client = tantalus_api.get_storage_client(storage_name)
+                delete_blob(storage_client, file_resource_id)
             delete_file_resource(file_resource_id)
 
         delete_dataset(dataset_type, _id)
@@ -87,8 +89,8 @@ def delete_lanes_by_library(
     """
     storage_client = tantalus_api.get_storage_client(storage_name)
 
-    sequence_datasets = get_sequencedataset_from_library_id(library_id)
-    sequencing_lanes = get_sequencing_lane_from_library_id(library_id)
+    sequence_datasets = get_output_sequencedataset_from_library_id(library_id)
+    sequencing_lanes = get_output_sequencing_lane_from_library_id(library_id)
 
     for sequence_dataset in sequence_datasets:
         dataset_id = sequence_dataset['id']
@@ -112,10 +114,12 @@ def delete_lanes_by_library(
 @click.option('--result-storage-name', '-r', type=str, required=True)
 @click.option('--data-storage-name', '-d', type=str, required=True)
 @click.option('--analysis-id', '-id', type=int, required=True, multiple=True)
+@click.option('--clean-azure', is_flag=True)
 def delete_analyses(
     result_storage_name,
     data_storage_name,
     analysis_id,
+    clean_azure=False,
 ):
     """
     Given list of analysis IDs, hard delete corresponding outputs (SequenceDataset and resultsdataset)
@@ -128,6 +132,7 @@ def delete_analyses(
             analysis_id=_id,
             result_storage_name=result_storage_name,
             data_storage_name=data_storage_name,
+            clean_azure=clean_azure,
         )
 
 def delete_analysis_and_outputs(
@@ -135,20 +140,19 @@ def delete_analysis_and_outputs(
     result_storage_name,
     data_storage_name,
     dry_run=False,
+    clean_azure=False,
 ):
     """
     Given analysis ID, hard delete corresponding output (SequenceDataset and resultsdataset)
 
     Args:
         analysis_id (int): analysis ID
-    """
-    data_storage_client = tantalus_api.get_storage_client(data_storage_name)
-    result_storage_client = tantalus_api.get_storage_client(result_storage_name)
+    """ 
     # output sequence dataset
-    sequence_datasets = get_sequencedataset_from_analysis(analysis_id)
+    sequence_datasets = get_output_sequencedataset_from_analysis(analysis_id)
 
     # output result dataset
-    results_datasets = get_resultsdataset_from_analysis(analysis_id)
+    results_datasets = get_output_resultsdataset_from_analysis(analysis_id)
 
     for sequence_dataset in sequence_datasets:
         dataset_id = sequence_dataset['id']
@@ -158,7 +162,9 @@ def delete_analysis_and_outputs(
 
         for file_resource_id in file_resource_ids:
             delete_file_instances(file_resource_id)
-            delete_blob(data_storage_client, file_resource_id)
+            if(clean_azure):
+                data_storage_client = tantalus_api.get_storage_client(data_storage_name)
+                delete_blob(data_storage_client, file_resource_id)
             delete_file_resource(file_resource_id)
 
         delete_dataset(dataset_type, dataset_id)
@@ -170,7 +176,9 @@ def delete_analysis_and_outputs(
 
         for file_resource_id in file_resource_ids:
             delete_file_instances(file_resource_id)
-            delete_blob(result_storage_client, file_resource_id)
+            if(clean_azure):
+                result_storage_client = tantalus_api.get_storage_client(result_storage_name)
+                delete_blob(result_storage_client, file_resource_id)
             delete_file_resource(file_resource_id)
 
         delete_dataset(dataset_type, dataset_id)
