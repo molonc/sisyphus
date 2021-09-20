@@ -78,7 +78,7 @@ def download_data(storage_account, data_dir, library):
         blob = storage_client.blob_service.get_blob_to_path(container_name="rnaseq", blob_name=blob, file_path=filepath)
 
 
-def add_report(library_pk, jira_ticket, runs_dir, results_dir):
+def add_report(library_pk, jira_ticket, runs_dir, results_dir, ref_genome):
     """
     Attaches cellranger summary and qc reprot to ticket
     """
@@ -96,7 +96,7 @@ def add_report(library_pk, jira_ticket, runs_dir, results_dir):
         "summary.html",
     )
 
-    jira_filename = "{}_summary.html".format(jira_ticket)
+    jira_filename = f"{jira_ticket}_{ref_genome}_summary.html"
     # add summary report from cellranger
     add_attachment(library_ticket, filepath, jira_filename)
 
@@ -113,7 +113,7 @@ def add_report(library_pk, jira_ticket, runs_dir, results_dir):
         library_id,
         f"QC_report_{library_id}.html",
     )
-    jira_filename = "{}_QC_report.html".format(jira_ticket)
+    jira_filename = f"{jira_ticket}_{ref_genome}_QC_report.html"
     add_attachment(library_ticket, filepath, jira_filename)
 
 
@@ -236,7 +236,13 @@ def start_automation(
     if not run_options["is_test_run"]:
         update_jira_tenx(jira, library_pk)
 
-    add_report(library_pk, jira, runs_dir, results_dir)
+    add_report(
+        library_pk=library_pk,
+        jira_ticket=jira,
+        runs_dir=runs_dir,
+        results_dir=results_dir,
+        ref_genome=args['ref_genome'],
+    )
 
     log.info("Done!")
     log.info("------ %s hours ------" % ((time.time() - start) / 60 / 60))

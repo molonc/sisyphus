@@ -169,7 +169,7 @@ def update_description(jira_id, description, assignee, remove_watcher=False):
     issue.update(assignee={"name": assignee}, description=description)
 
 
-def add_attachment(jira_id, attachment_file_path, attachment_filename):
+def add_attachment(jira_id, attachment_file_path, attachment_filename=''):
     """
     Checks if file is already added to jira ticket; attaches if not. 
     """
@@ -182,8 +182,10 @@ def add_attachment(jira_id, attachment_file_path, attachment_filename):
 
     else:
         log.info("Adding {} to {}".format(attachment_filename, jira_id))
-        jira_api.add_attachment(issue=jira_id, attachment=attachment_file_path)
-
+        if(attachment_filename):
+            jira_api.add_attachment(issue=jira_id, attachment=attachment_file_path, filename=attachment_filename)
+        else:
+            jira_api.add_attachment(issue=jira_id, attachment=attachment_file_path)
 
 def create_ticket(key, summary):
     """
