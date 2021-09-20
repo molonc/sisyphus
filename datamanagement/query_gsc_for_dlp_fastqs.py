@@ -77,11 +77,12 @@ FILENAME_PATTERN_MAP = {
     "*_2_*_adapter_trimmed_*.fastq.gz": (2, True),
 }
 
-def map_flowcell_to_fastq_info(gsc_library_id, gsc_fastq_infos):
+def map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos):
     """
     Initialize flowcell mapping where key will be  flowcell id and value is flowcell code
 
     Args:
+        gsc_api (obj): GSC API instance
         gsc_library_id (str): GSC internal library ID
         gsc_fastq_infos (list): raw fastq data as returned by GSC API query
 
@@ -89,6 +90,8 @@ def map_flowcell_to_fastq_info(gsc_library_id, gsc_fastq_infos):
         gsc_lane_fastq_file_infos (dict): dictionary with flowcell information as key and fastq info as value
         primer_libcore (dict): dictionary with primer ID as key and libcore ID as value.
     """
+    sequencing_instrument_map = {'HiSeqX': 'HX', 'HiSeq2500': 'H2500'}
+    
     flowcell_id_mapping = {}
     gsc_lane_fastq_file_infos = defaultdict(list)
 
@@ -526,9 +529,7 @@ def import_gsc_dlp_paired_fastqs(
     fastq_file_info = []
     lanes = []
 
-    sequencing_instrument_map = {'HiSeqX': 'HX', 'HiSeq2500': 'H2500'}
-
-    gsc_lane_fastq_file_infos, primer_libcore = map_flowcell_to_fastq_info(gsc_library_id, gsc_fastq_infos)
+    gsc_lane_fastq_file_infos, primer_libcore = map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos)
 
     # get primer ids
     primer_ids = list(primer_libcore.keys())
@@ -890,7 +891,7 @@ def create_tickets_and_analyses(import_info):
 @click.option('--tag_name')
 @click.option('--all', is_flag=True)
 @click.option('--update', is_flag=True)
-@click.option('--check_colossus_gsc_library_id', is_flag=True)
+#@click.option('--check_colossus_gsc_library_id', is_flag=True)
 @click.option('--dry_run', is_flag=True)
 def main(storage_name,
          dlp_library_id=None,
