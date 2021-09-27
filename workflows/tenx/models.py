@@ -338,6 +338,19 @@ class Analysis(object):
         """
         raise NotImplementedError
 
+    def upload_tenx_result(
+        self,
+        cellranger_filepath,
+        rdata_filepath,
+        rdataraw_filepath,
+        report_filepath,
+        bam_filepath,
+        ):
+        """
+        Upload local TenX results to Azure blob storage.
+        """
+        raise NotImplementedError
+
 
 class TenXAnalysis(Analysis):
     """
@@ -345,6 +358,34 @@ class TenXAnalysis(Analysis):
     """
     def __init__(self, jira, version, args, **kwargs):
         super(TenXAnalysis, self).__init__('tenx', jira, "v1.0.0", args, kwargs["storages"])
+
+        # Tantalus storage name for hg38 TenX analysis
+        self.hg38_cellranger_storage_name = "scrna_cellrangerv3"
+        self.hg38_rdata_storage_name = "scrna_rdatav3"
+        self.hg38_rdataraw_storage_name = "scrna_rdatarawv3"
+        self.hg38_report_storage_name = "scrna_reports"
+        self.hg38_bam_storage_name = "scrna_bams"
+
+        # Tantalus storage name for mm10 TenX analysis
+        self.mm10_cellranger_storage_name = "scrna_cellrangermousev3"
+        self.mm10_rdata_storage_name = "scrna_rdatamousev3"
+        self.mm10_rdataraw_storage_name = "scrna_rdatarawmousev3"
+        self.mm10_report_storage_name = "scrna_mousereports"
+        self.mm10_bam_storage_name = "scrna_mousebams"
+
+        # human reference genome blob name
+        self.hg38_cellranger_blobname = "hg38_{library_id}_cellranger.tar.gz".format(**self.args)
+        self.hg38_rdata_blobname = "hg38_{library_id}_rdata.rdata".format(**self.args)
+        self.hg38_rdataraw_blobname = "rdatarawv3", "hg38_{library_id}_rdataraw.rdata".format(**self.args)
+        self.hg38_report_blobname = "hg38_{library_id}_report.tar.gz".format(**self.args)
+        self.hg38_bam_blobname = os.path.join("{library_id}", "hg38_bams.tar.gz").format(**self.args)
+
+        # mouse reference genome blob names
+        self.mm10_cellranger_blobname = "mm10_{library_id}_cellranger.tar.gz".format(**self.args)
+        self.mm10_rdata_blobname = "mm10_{library_id}_rdata.rdata".format(**self.args)
+        self.mm10_rdataraw_blobname = "mm10_{library_id}_rdataraw.rdata".format(**self.args)
+        self.mm10_report_blobname = "mm10_{library_id}_report.tar.gz".format(**self.args)
+        self.mm10_bam_blobname = os.path.join("{library_id}", "mm10_bams.tar.gz").format(**self.args)
 
     def generate_unique_name(self, jira, version, args, input_datasets, input_results):
         lanes_hashed = get_datasets_lanes_hash(tantalus_api, input_datasets)
@@ -398,6 +439,9 @@ class TenXAnalysis(Analysis):
         library_id = self.args["library_id"]
         ref_genome = self.args["ref_genome"]
 
+        if (ref_genome not in ["MM10", "HG38"]):
+            raise ValueError(f"Unknown reference genome {self.args['ref_genome']}. Expected one of 'HG38' or 'MM10.")
+
         dna_library = tantalus_api.get("dna_library", library_id=library_id)
 
         tenx_library = colossus_api.get("tenxlibrary", name=library_id)
@@ -405,14 +449,15 @@ class TenXAnalysis(Analysis):
         sample_id = tenx_library["sample"]["sample_id"]
         sample = tantalus_api.get("sample", sample_id=sample_id)
 
-        storage_name = "scrna_bams"
+        storage_name = self.hg38_bam_storage_name if ref_genome == "HG38" else self.mm10_bam_storage_name
         storage_client = tantalus_api.get_storage(storage_name)
 
         sequence_lanes = self.get_lane_ids()
 
         lanes_hashed = get_datasets_lanes_hash(tantalus_api, self.analysis["input_datasets"])
 
-        bam_filepath = os.path.join(storage_client["prefix"], library_id, "bams.tar.gz")
+        bam_basename = self.hg38_bam_blobname if ref_genome == "HG38" else self.mm10_bam_blobname
+        bam_filepath = os.path.join(storage_client["prefix"], bam_basename)
         file_resource, file_instance = tantalus_api.add_file(storage_name, bam_filepath, update=True)
 
         name = "BAM-{}-SC_RNASEQ-lanes_{}-{}".format(library_id, lanes_hashed, ref_genome)
@@ -435,17 +480,31 @@ class TenXAnalysis(Analysis):
     def get_results_filenames(self):
 
         results_prefix = "scrnadata"
+        ref_genome = self.args['ref_genome']
 
         # list of pipeline output filenames
-        filenames = [
-            os.path.join("cellrangerv3", "{library_id}.tar.gz"),
-            os.path.join("rdatav3", "{library_id}.rdata"),
-            os.path.join("rdatarawv3", "{library_id}.rdata"),
-            os.path.join("reports", "{library_id}.tar.gz"),
-            os.path.join("bams", "{library_id}", "bams.tar.gz"),
-        ]
+        # For HG38
+        if(ref_genome == 'HG38'):
+            filenames = [
+                os.path.join("cellrangerv3", self.hg38_cellranger_blobname),
+                os.path.join("rdatav3", self.hg38_rdata_blobname),
+                os.path.join("rdatarawv3", self.hg38_rdataraw_blobname),
+                os.path.join("reports", self.hg38_report_blobname),
+                os.path.join("bams", self.hg38_bam_blobname),
+            ]
+        # For MM10
+        elif(ref_genome == 'MM10'):
+            filenames = [
+                os.path.join("cellrangermousev3", self.mm10_cellranger_blobname),
+                os.path.join("rdatamousev3", self.mm10_rdata_blobname),
+                os.path.join("rdatarawmousev3", self.mm10_rdataraw_blobname),
+                os.path.join("mousereports", self.mm10_report_blobname),
+                os.path.join("mousebams", self.mm10_bam_blobname),
+            ]
+        else:
+            raise ValueError(f"Unknown reference genome {self.args['ref_genome']}. Expected one of 'HG38' or 'MM10.")
 
-        return [os.path.join(results_prefix, filename.format(**self.args)) for filename in filenames]
+        return [os.path.join(results_prefix, filename) for filename in filenames]
 
     def run_pipeline(self, version, data_dir, runs_dir, reference_dir, results_dir, library_id, reference_genome):
 
@@ -496,6 +555,64 @@ class TenXAnalysis(Analysis):
         )
 
         return [tantalus_results.get_id()]
+
+    def upload_tenx_result(
+        self,
+        cellranger_filepath,
+        rdata_filepath,
+        rdataraw_filepath,
+        report_filepath,
+        bam_filepath,
+        ):
+        ref_genome = self.args['ref_genome']
+        if (ref_genome not in ["MM10", "HG38"]):
+            raise ValueError(f"Unknown reference genome {self.args['ref_genome']}. Expected one of 'HG38' or 'MM10.")
+
+        cellranger_storage_name = self.hg38_cellranger_storage_name if ref_genome == 'HG38' else self.mm10_cellranger_storage_name
+        rdata_storage_name = self.hg38_rdata_storage_name if ref_genome == 'HG38' else self.mm10_rdata_storage_name
+        rdataraw_storage_name = self.hg38_rdataraw_storage_name if ref_genome == 'HG38' else self.mm10_rdataraw_storage_name
+        report_storage_name = self.hg38_report_storage_name if ref_genome == 'HG38' else self.mm10_report_storage_name
+        bam_storage_name = self.hg38_bam_storage_name if ref_genome == 'HG38' else self.mm10_bam_storage_name
+
+        cellranger_blobname = self.hg38_cellranger_blobname if ref_genome == 'HG38' else self.mm10_cellranger_blobname
+        rdata_blobname = self.hg38_rdata_blobname if ref_genome == 'HG38' else self.mm10_rdata_blobname
+        rdataraw_blobname = self.hg38_rdataraw_blobname if ref_genome == 'HG38' else self.mm10_rdataraw_blobname
+        report_blobname = self.hg38_report_blobname if ref_genome == 'HG38' else self.mm10_report_blobname
+        bam_blobname = self.hg38_bam_blobname if ref_genome == 'HG38' else self.mm10_bam_blobname
+
+        cellranger_storage_client = tantalus_api.get_storage_client(cellranger_storage_name)
+        rdata_storage_client = tantalus_api.get_storage_client(rdata_storage_name)
+        rdataraw_storage_client = tantalus_api.get_storage_client(rdataraw_storage_name)
+        report_storage_client = tantalus_api.get_storage_client(report_storage_name)
+        bam_storage_client = tantalus_api.get_storage_client(bam_storage_name)
+
+        log.info(f"Uploading {ref_genome} results to Azure")
+
+        self.upload_blob(cellranger_storage_client, cellranger_blobname, cellranger_filepath, update=True)
+        self.upload_blob(rdata_storage_client, rdata_blobname, rdata_filepath, update=True)
+        self.upload_blob(rdataraw_storage_client, rdataraw_blobname, rdataraw_filepath, update=True)
+        self.upload_blob(report_storage_client, report_blobname, report_filepath, update=True)
+        self.upload_blob(bam_storage_client, bam_blobname, bam_filepath, update=True)
+
+    def upload_blob(self, storage_client, blobname, filepath, update=False):
+        if(storage_client.exists(blobname)):
+            if(storage_client.get_size(blobname) == os.path.getsize(filepath)):
+                log.info(f"{blobname} already exists and is the same size. Skipping...")
+
+                return
+            else:
+                if not(update):
+                    message = f"{blobname} has different size from {filepath}. Please specify --update option to overwrite."
+                    log.error(message)
+                    raise ValueError(message)
+
+        log.info(f"Uploading {filepath} to {blobname}")
+        storage_client.create(
+            blobname,
+            filepath,
+            update=update,
+        )
+
 
 
 class TenXResults:
@@ -596,6 +713,7 @@ class TenXResults:
             storage_client = tantalus_api.get_storage_client(storage)
             for result_filepath in results_filepaths:
                 if result_filepath.startswith(storage_client.prefix):
+                    print(f"RESULT FILEPATH IS {result_filepath}!!!")
                     result_filename = result_filepath.strip(storage_client.prefix + '/')
 
                     if not storage_client.exists(result_filename) and skip_missing:

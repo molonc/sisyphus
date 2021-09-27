@@ -78,7 +78,7 @@ def download_data(storage_account, data_dir, library):
         blob = storage_client.blob_service.get_blob_to_path(container_name="rnaseq", blob_name=blob, file_path=filepath)
 
 
-def add_report(library_pk, jira_ticket, runs_dir, results_dir, ref_genome):
+def add_report(library_pk, jira_ticket, runs_dir, results_dir, ref_genome, update=False):
     """
     Attaches cellranger summary and qc reprot to ticket
     """
@@ -98,7 +98,7 @@ def add_report(library_pk, jira_ticket, runs_dir, results_dir, ref_genome):
 
     jira_filename = f"{jira_ticket}_{ref_genome}_summary.html"
     # add summary report from cellranger
-    add_attachment(library_ticket, filepath, jira_filename)
+    add_attachment(library_ticket, filepath, jira_filename, update=update)
 
     log.info("Creating QC reports")
     input_dir = os.path.join(runs_dir, ".cache", library_id)
@@ -114,7 +114,7 @@ def add_report(library_pk, jira_ticket, runs_dir, results_dir, ref_genome):
         f"QC_report_{library_id}.html",
     )
     jira_filename = f"{jira_ticket}_{ref_genome}_QC_report.html"
-    add_attachment(library_ticket, filepath, jira_filename)
+    add_attachment(library_ticket, filepath, jira_filename, update=update)
 
 
 def create_analysis_jira_ticket(library_id, sample, library_ticket):
@@ -217,6 +217,21 @@ def start_automation(
 
     tantalus_analysis.set_complete_status()
 
+    library = args['library_id']
+    local_results = {
+        "cellranger_filepath": os.path.join("/datadrive", "runs", library, library, f"{library}.tar.gz"),
+        "rdata_filepath": os.path.join("/datadrive", "runs", library, ".cache", library, f"{library}_qcd.rdata"),
+        "rdataraw_filepath": os.path.join("/datadrive", "runs", library, ".cache", library, f"{library}.rdata"),
+        "report_filepath": os.path.join("/datadrive", "results", library, f"{library}.tar.gz"),
+        "bam_filepath": os.path.join("/datadrive", "runs", library, library, "bams.tar.gz",),
+    }
+
+    log_utils.sentinel(
+        'Uploading results to Azure',
+        tantalus_analysis.upload_tenx_result,
+        **local_results,
+    )
+
     output_dataset_ids = log_utils.sentinel(
         'Creating output datasets',
         tantalus_analysis.create_output_datasets,
@@ -234,6 +249,7 @@ def start_automation(
 
     # Update Jira ticket
     if not run_options["is_test_run"]:
+        print(f"JIRA IS {jira}")
         update_jira_tenx(jira, library_pk)
 
     add_report(
@@ -242,6 +258,7 @@ def start_automation(
         runs_dir=runs_dir,
         results_dir=results_dir,
         ref_genome=args['ref_genome'],
+#        update=run_options['update'],
     )
 
     log.info("Done!")
@@ -413,6 +430,8 @@ def run_all(
 @click.option('--update', is_flag=True)
 @click.option('--sisyphus_interactive', is_flag=True)
 @click.option('--ref_genome', type=click.Choice(['HG38', 'MM10']))
+@click.option('--flowcell_id', type=str, default='')
+@click.option('--lane_number', type=str, default='')
 def run_single(
     analysis_id,
     version,
@@ -506,10 +525,32 @@ def run(
     else:
         ref_genome = get_ref_genome(library, is_tenx=True)
 
+    # get flowcell ID and lane number from analysis
+    # assume only one sequencing dataset?
+    if(run_options["flowcell_id"]):
+        log.info(f"Overwriting flowcell_id using {run_options["flowcell_id"]}")
+        flowcell_id = run_options['flowcell_id']
+    else:
+        try:
+            flowcell_id = analysis['args']['flowcell_id']
+        except KeyError:
+            raise KeyError(f"flowcell_id doesn't exist in Tantalus Analysis object, {analysis_id}. Please specify --flowcell_id flag")
+
+    if(run_options["lane_number"]):
+        log.info(f"Overwriting lane_number using {run_options["lane_number"]}")
+        lane_number = run_options['lane_number']
+    else:
+        try:
+            lane_number = analysis['args']['lane_number']
+        except KeyError:
+            raise KeyError(f"lane_number doesn't exist in Tantalus Analysis object, {analysis_id}. Please specify --lane_number flag")
+    
     args = {}
     args['library_id'] = library_id
     args['ref_genome'] = ref_genome
     args['version'] = version
+    args['flowcell_id'] = flowcell_id
+    args['lane_number'] = lane_number
 
     analysis_info = TenXAnalysisInfo(
         jira_ticket,
