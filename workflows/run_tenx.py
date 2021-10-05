@@ -509,7 +509,7 @@ def run(
 
     # SCNRA pipeline working directories
     if data_dir is None:
-        data_dir = os.path.join("/datadrive", "data")
+        data_dir = os.path.join("/datadrive", "data", library_id)
     if runs_dir is None:
         runs_dir = os.path.join("/datadrive", "runs", library_id)
     if results_dir is None:
