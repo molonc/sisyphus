@@ -75,7 +75,9 @@ def download_data(storage_account, data_dir, library):
 
         # download blob to path
         print(f"downloading {blob} to {filepath}")
-        blob = storage_client.blob_service.get_blob_to_path(container_name="rnaseq", blob_name=blob, file_path=filepath)
+        # blob_service.get_blob_to_path() might be deprecated 
+        #blob = storage_client.blob_service.get_blob_to_path(container_name="rnaseq", blob_name=blob, file_path=filepath)
+        storage_client.download(blob_name=blob, destination_file_path=filepath)
 
 
 def add_report(library_pk, jira_ticket, runs_dir, results_dir, ref_genome, update=False):
