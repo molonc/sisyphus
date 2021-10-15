@@ -45,12 +45,13 @@ def rename_fastqs(dataset_id, storage_name, dry_run=False, check_only=False):
 
         non_conforming = False
         try:
-            assert parts[0] == 'single_cell_indexing'
-            assert parts[1] == 'fastq'
-            assert parts[2] == dataset['library']['library_id']
-            assert parts[3].split('_')[0] == dataset['sequence_lanes'][0]['flowcell_id']
-            assert parts[3].split('_')[1] == dataset['sequence_lanes'][0]['lane_number']
-            assert parts[4] == dataset['sample']['sample_id']
+            assert parts[0] == 'pwalters_tmp'
+            assert parts[1] == 'jobs'
+            assert parts[2] == 'SC-1026'
+            assert parts[3] == 'fastq'
+            assert parts[4].split('_')[-1] == dataset['sequence_lanes'][0]['flowcell_id']
+            assert parts[5].split('-')[0] == 'SA1102'
+            assert parts[5].split('-')[1] == dataset['library']['library_id']
         except AssertionError:
             non_conforming = True
 
@@ -77,7 +78,7 @@ def rename_fastqs(dataset_id, storage_name, dry_run=False, check_only=False):
             if not storage_client.exists(new_filename):
                 storage_client.copy(filename, new_filename, wait=True)
             tantalus_api.swap_file(file_instance, new_filename)
-            storage_client.delete(filename)
+            # storage_client.delete(filename)
 
 
 @click.command()
