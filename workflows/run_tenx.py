@@ -44,8 +44,9 @@ tantalus_api = TantalusApi()
 
 def download_data(storage_account, data_dir, library):
     # check if destination path exists
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
+    sub_data_dir = os.path.join(data_dir, library)
+    if not os.path.exists(sub_data_dir):
+        os.makedirs(sub_data_dir)
 
     # init storage client
     storage_client = tantalus_api.get_storage_client(storage_account)
@@ -63,7 +64,7 @@ def download_data(storage_account, data_dir, library):
         filename = os.path.basename(blob)
 
         # join destination path with flowcell name and create path
-        flowcell_path = os.path.join(data_dir, flowcell)
+        flowcell_path = os.path.join(sub_data_dir, flowcell)
         if not os.path.exists(flowcell_path):
             os.makedirs(flowcell_path)
 
@@ -509,7 +510,7 @@ def run(
 
     # SCNRA pipeline working directories
     if data_dir is None:
-        data_dir = os.path.join("/datadrive", "data", library_id)
+        data_dir = os.path.join("/datadrive", "data")
     if runs_dir is None:
         runs_dir = os.path.join("/datadrive", "runs", library_id)
     if results_dir is None:
@@ -530,7 +531,7 @@ def run(
     # get flowcell ID and lane number from analysis
     # assume only one sequencing dataset?
     if(run_options["flowcell_id"]):
-        log.info(f"Overwriting flowcell_id using {run_options["flowcell_id"]}")
+        log.info(f"Overwriting flowcell_id using {run_options['flowcell_id']}")
         flowcell_id = run_options['flowcell_id']
     else:
         try:
@@ -539,7 +540,7 @@ def run(
             raise KeyError(f"flowcell_id doesn't exist in Tantalus Analysis object, {analysis_id}. Please specify --flowcell_id flag")
 
     if(run_options["lane_number"]):
-        log.info(f"Overwriting lane_number using {run_options["lane_number"]}")
+        log.info(f"Overwriting lane_number using {run_options['lane_number']}")
         lane_number = run_options['lane_number']
     else:
         try:

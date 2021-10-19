@@ -376,7 +376,7 @@ class TenXAnalysis(Analysis):
         # human reference genome blob name
         self.hg38_cellranger_blobname = "hg38_{library_id}_cellranger.tar.gz".format(**self.args)
         self.hg38_rdata_blobname = "hg38_{library_id}_rdata.rdata".format(**self.args)
-        self.hg38_rdataraw_blobname = "rdatarawv3", "hg38_{library_id}_rdataraw.rdata".format(**self.args)
+        self.hg38_rdataraw_blobname = "hg38_{library_id}_rdataraw.rdata".format(**self.args)
         self.hg38_report_blobname = "hg38_{library_id}_report.tar.gz".format(**self.args)
         self.hg38_bam_blobname = os.path.join("{library_id}", "hg38_bams.tar.gz").format(**self.args)
 
@@ -529,6 +529,7 @@ class TenXAnalysis(Analysis):
             '--mount type=bind,source={},target=/data '.format(data_dir),
             '--mount type=bind,source="{}",target=/runs '.format(runs_dir),
             '-w="/runs"',
+            '--rm',
             '-t',
             'nceglia/scrna-pipeline:vm run_vm',
             # '-t', 'nceglia/scrna-pipeline:{} run_vm'.format(version),
@@ -595,6 +596,11 @@ class TenXAnalysis(Analysis):
         self.upload_blob(bam_storage_client, bam_blobname, bam_filepath, update=True)
 
     def upload_blob(self, storage_client, blobname, filepath, update=False):
+        log.info(f"Checking if {filepath} exists locally")
+        if not(os.path.exists(filepath)):
+            raise ValueError(f"{filepath} does not exist locally!")
+
+        log.info(f"Checking if {blobname} exists on Azure")
         if(storage_client.exists(blobname)):
             if(storage_client.get_size(blobname) == os.path.getsize(filepath)):
                 log.info(f"{blobname} already exists and is the same size. Skipping...")
@@ -713,7 +719,6 @@ class TenXResults:
             storage_client = tantalus_api.get_storage_client(storage)
             for result_filepath in results_filepaths:
                 if result_filepath.startswith(storage_client.prefix):
-                    print(f"RESULT FILEPATH IS {result_filepath}!!!")
                     result_filename = result_filepath.strip(storage_client.prefix + '/')
 
                     if not storage_client.exists(result_filename) and skip_missing:
