@@ -1,0 +1,47 @@
+Class for GSC/BRC import for DLP/TenX
+
+Common Aspects
+
+- Querying GSC API and fetching result
+- Upload data to Azure
+- Create/update/track data on Colossus and Tantalus
+
+DLP fastqs
+	1. dna_library
+	dna_library = tantalus_api.get_or_create(
+		"dna_library",
+		library_id=library,
+		library_type="SC_RNASEQ",
+		index_format="TENX",
+	)
+
+	2. sample
+	sample = tantalus_api.get_or_create(
+		"sample",
+		sample_id=infos[0]["sample_id"],
+	)
+
+	3. sequence_dataset = dict(
+			name=dataset_name,
+			dataset_type=infos[0]["dataset_type"],
+			sample=sample_pk,
+			library=library_pk,
+			sequence_lanes=[],
+			file_resources=[],
+		)
+
+	sequence_dataset["analysis"]
+	sequence_dataset["aligner"]
+	sequence_dataset["reference_genome"]
+
+	4. sequence_lane = tantalus_api.get_or_create(
+					"sequencing_lane", **sequence_lane
+				)
+
+	5. sequence_file_info = tantalus_api.get_or_create(
+			"sequence_file_info",
+			file_resource=file_resource["id"],
+			**sequence_file_info
+		)
+
+	6. dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
