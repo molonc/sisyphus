@@ -190,6 +190,12 @@ def main(
             logging.error(
                 "Cannot find library {} in Colossus".format(library_name))
             continue
+
+        if(library['id'] not in pool['libraries']):
+            logging.error(
+                f"Library {library_name} is not part of {pool_name}")
+            continue
+
         jira_ticket = library["jira_ticket"]
         sample = library["sample"]["sample_id"]
 
@@ -289,34 +295,32 @@ def main(
                 tantalus_datasets=dataset_ids
             )
 
-            # create jira ticket
-            if not(skip_jira):
-                analysis_ticket = create_analysis_jira_ticket(
-                    library_id=library_name,
-                    sample=sample,
-                    library_ticket=jira_ticket,
-                    reference_genome=TAXONOMY_MAP[taxonomy_id],
-                )
-                # create colossus analysis
-                analysis, _ = colossus_api.create(
-                    "tenxanalysis",
-                    fields={
-                        "version": "vm",
-                        "jira_ticket": analysis_ticket,
-                        "run_status": "idle",
-                        "tenx_library": library["id"],
-                        "submission_date": str(datetime.date.today()),
-                        "tenxsequencing_set": [],
-                    },
-                    keys=["jira_ticket"],
-                )
-                # create tantalus analysis
-                create_tenx_analysis_from_library(
-                    jira=analysis_ticket,
-                    library=library_name,
-                    flowcell=flowcell,
-                    lane_number=lane_number,
-                    taxonomy_id=taxonomy_id)
+        # create jira ticket
+        if not(skip_jira):
+            analysis_ticket = create_analysis_jira_ticket(
+                library_id=library_name,
+                sample=sample,
+                library_ticket=jira_ticket,
+                reference_genome=TAXONOMY_MAP[taxonomy_id],
+            )
+            # create colossus analysis
+            analysis, _ = colossus_api.create(
+                "tenxanalysis",
+                fields={
+                    "version": "vm",
+                    "jira_ticket": analysis_ticket,
+                    "run_status": "idle",
+                    "tenx_library": library["id"],
+                    "submission_date": str(datetime.date.today()),
+                    "tenxsequencing_set": [],
+                },
+                keys=["jira_ticket"],
+            )
+            # create tantalus analysis
+            create_tenx_analysis_from_library(
+                jira=analysis_ticket,
+                library=library_name,
+                taxonomy_id=taxonomy_id)
 
             logging.info("Succesfully imported {}".format(pool_name))
 

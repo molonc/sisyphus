@@ -432,8 +432,6 @@ def import_tenx_fastqs(
                 create_tenx_analysis_from_library(
                     jira=jira_ticket,
                     library=library,
-                    flowcell=flowcell_id,
-                    lane_number=lane_number,
                     taxonomy_id=taxonomy_id,
                 )
 

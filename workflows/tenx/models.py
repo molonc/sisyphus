@@ -412,13 +412,9 @@ class TenXAnalysis(Analysis):
 
     @staticmethod
     def search_input_datasets(args):
-
-        # Double check this
         datasets = list(tantalus_api.list(
             "sequence_dataset",
             library__library_id=args["library_id"],
-            sequence_lanes__flowcell_id=args['flowcell_id'],
-            sequence_lanes__lane_number=args['lane_number'],
             dataset_type="FQ",
         ))
 
