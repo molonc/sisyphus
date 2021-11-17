@@ -68,13 +68,11 @@ class AsyncBlobStorageClient(object):
 
             # check if blob already exists
             if(await self.exists(blob_service_client, blobname)):
-                log.info(f"{blobname} already exists on {self.prefix}")
-
                 blobsize = await self.get_size(blob_service_client, blobname)
                 filesize = os.path.getsize(source_file)
 
                 if blobsize == filesize:
-                    log.info(f"{blobname} has the same size as {source_file}")
+                    log.info(f"{blobname} already exists on {self.prefix} and has the same size as {source_file}")
                     self.queue.task_done()
                     continue
                 elif update:

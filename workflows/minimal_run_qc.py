@@ -530,6 +530,7 @@ def run_qc(
     colossus_api,
     slack_client,
     config,
+    library_id,
     ):
     """
     Gets all qc (align, hmmcopy, annotation) analyses set to ready 
@@ -543,8 +544,7 @@ def run_qc(
     # get colossus analysis information objects with status not complete
     analyses = colossus_api.list(
         "analysis_information",
-        analysis_run__run_status_ne="complete",
-        aligner=aligner if aligner else config["default_aligner"],
+        library__pool_id=library_id,
     )
 
     failed = []
@@ -554,9 +554,9 @@ def run_qc(
 
         # skip analyses older than this year
         # parse off ending time range
-        last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < get_last_n_days(90):
-            continue
+        #last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
+        #if last_updated_date < get_last_n_days(90):
+        #    continue
 
         # get jira ticket
         jira = analysis["analysis_jira_ticket"]
@@ -681,6 +681,7 @@ def main(library_id, aligner):
 #            colossus_api,
 #            slack_client,
 #            config,
+#            library_id,
 #        )
 
         # update ticket and load to montage

@@ -1,47 +1,40 @@
 Class for GSC/BRC import for DLP/TenX
 
+- GSC DLP import
+- GSC TenX import
+- BRC DLP import
+- BRC TenX import
+
 Common Aspects
 
 - Querying GSC API and fetching result
 - Upload data to Azure
 - Create/update/track data on Colossus and Tantalus
 
-DLP fastqs
-	1. dna_library
-	dna_library = tantalus_api.get_or_create(
-		"dna_library",
-		library_id=library,
-		library_type="SC_RNASEQ",
-		index_format="TENX",
-	)
 
-	2. sample
-	sample = tantalus_api.get_or_create(
-		"sample",
-		sample_id=infos[0]["sample_id"],
-	)
+BRC Import
+Data retrieval (manual):
+	Get email from BRC/collaborators
+	rsync data over
+	BCL to FASTQ with sanity check?  (samplesheet.txt created from colossus, manually creates the mapping, identify library)
+	SANITY CHECK: Confirm with wet lab if any "funny pooling" happened at BRC, i.e. they can pool our pools
+Import
+	BRC specific "Preprocessing"
+	Fill in lanes on sequencing object
+	Split lanes back into libraries (i.e. multiple lanes may be same library)
+	Put data into Azure
+	Create tantalus input dataset objects PER library
 
-	3. sequence_dataset = dict(
-			name=dataset_name,
-			dataset_type=infos[0]["dataset_type"],
-			sample=sample_pk,
-			library=library_pk,
-			sequence_lanes=[],
-			file_resources=[],
-		)
+GSC Import
+Data retrieval (manual)
 
-	sequence_dataset["analysis"]
-	sequence_dataset["aligner"]
-	sequence_dataset["reference_genome"]
+Import
+	GSC specific "Preprocessing"
+	Fill in lanes on sequencing object
+	Split lanes back into libraries (i.e. multiple lanes may be same library)
+	Put data into Azure
+	Create tantalus input dataset objects PER library
 
-	4. sequence_lane = tantalus_api.get_or_create(
-					"sequencing_lane", **sequence_lane
-				)
-
-	5. sequence_file_info = tantalus_api.get_or_create(
-			"sequence_file_info",
-			file_resource=file_resource["id"],
-			**sequence_file_info
-		)
-
-	6. dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
+Almost identical aspects
+	- Data upload to Azure
+	- Tracking on Colossus/Tantalus
