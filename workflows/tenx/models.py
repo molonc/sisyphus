@@ -560,6 +560,7 @@ class TenXAnalysis(Analysis):
         rdataraw_filepath,
         report_filepath,
         bam_filepath,
+        update=False,
         ):
         ref_genome = self.args['ref_genome']
         if (ref_genome not in ["MM10", "HG38"]):
@@ -585,11 +586,11 @@ class TenXAnalysis(Analysis):
 
         log.info(f"Uploading {ref_genome} results to Azure")
 
-        self.upload_blob(cellranger_storage_client, cellranger_blobname, cellranger_filepath, update=True)
-        self.upload_blob(rdata_storage_client, rdata_blobname, rdata_filepath, update=True)
-        self.upload_blob(rdataraw_storage_client, rdataraw_blobname, rdataraw_filepath, update=True)
-        self.upload_blob(report_storage_client, report_blobname, report_filepath, update=True)
-        self.upload_blob(bam_storage_client, bam_blobname, bam_filepath, update=True)
+        self.upload_blob(cellranger_storage_client, cellranger_blobname, cellranger_filepath, update=update)
+        self.upload_blob(rdata_storage_client, rdata_blobname, rdata_filepath, update=update)
+        self.upload_blob(rdataraw_storage_client, rdataraw_blobname, rdataraw_filepath, update=update)
+        self.upload_blob(report_storage_client, report_blobname, report_filepath, update=update)
+        self.upload_blob(bam_storage_client, bam_blobname, bam_filepath, update=update)
 
     def upload_blob(self, storage_client, blobname, filepath, update=False):
         log.info(f"Checking if {filepath} exists locally")

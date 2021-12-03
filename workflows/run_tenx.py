@@ -222,17 +222,18 @@ def start_automation(
 
     library = args['library_id']
     local_results = {
-        "cellranger_filepath": os.path.join("/datadrive", "runs", library, library, f"{library}.tar.gz"),
-        "rdata_filepath": os.path.join("/datadrive", "runs", library, ".cache", library, f"{library}_qcd.rdata"),
-        "rdataraw_filepath": os.path.join("/datadrive", "runs", library, ".cache", library, f"{library}.rdata"),
-        "report_filepath": os.path.join("/datadrive", "results", library, f"{library}.tar.gz"),
-        "bam_filepath": os.path.join("/datadrive", "runs", library, library, "bams.tar.gz",),
+        "cellranger_filepath": os.path.join(runs_dir, library, f"{library}.tar.gz"),
+        "rdata_filepath": os.path.join(runs_dir, ".cache", library, f"{library}_qcd.rdata"),
+        "rdataraw_filepath": os.path.join(runs_dir, ".cache", library, f"{library}.rdata"),
+        "report_filepath": os.path.join(results_dir, f"{library}.tar.gz"),
+        "bam_filepath": os.path.join(runs_dir, library, "bams.tar.gz",),
     }
 
     log_utils.sentinel(
         'Uploading results to Azure',
         tantalus_analysis.upload_tenx_result,
         **local_results,
+        update=run_options['update']
     )
 
     output_dataset_ids = log_utils.sentinel(
@@ -261,7 +262,7 @@ def start_automation(
         runs_dir=runs_dir,
         results_dir=results_dir,
         ref_genome=args['ref_genome'],
-#        update=run_options['update'],
+        update=run_options['update'],
     )
 
     log.info("Done!")
@@ -416,7 +417,7 @@ def run_all(
 
 
 @cli.command("run_single")
-@click.argument('analysis_id', nargs=1, type=int)
+@click.option('--analysis_ids', '-a', type=int, multiple=True, default=[])
 @click.option('--version')
 @click.option('--jira', nargs=1)
 @click.option('--no_download', is_flag=True)
@@ -433,10 +434,10 @@ def run_all(
 @click.option('--update', is_flag=True)
 @click.option('--sisyphus_interactive', is_flag=True)
 @click.option('--ref_genome', type=click.Choice(['HG38', 'MM10']))
-@click.option('--flowcell_id', type=str, default='')
-@click.option('--lane_number', type=str, default='')
+#@click.option('--flowcell_id', type=str, default='')
+#@click.option('--lane_number', type=str, default='')
 def run_single(
-    analysis_id,
+    analysis_ids,
     version,
     jira=None,
     no_download=False,
@@ -446,19 +447,23 @@ def run_single(
     results_dir=None,
     **run_options,
 ):
+    if(len(analysis_ids) == 0):
+        raise ValueError("Specify at least one --analysis_id!")
+
     config = file_utils.load_json(default_config)
 
-    run(
-        analysis_id,
-        config["version"],
-        jira=jira,
-        no_download=no_download,
-        config_filename=config_filename,
-        data_dir=data_dir,
-        runs_dir=runs_dir,
-        results_dir=results_dir,
-        **run_options,
-    )
+    for analysis_id in analysis_ids:
+        run(
+            analysis_id,
+            config["version"],
+            jira=jira,
+            no_download=no_download,
+            config_filename=config_filename,
+            data_dir=data_dir,
+            runs_dir=runs_dir,
+            results_dir=results_dir,
+            **run_options,
+        )
 
 
 def run(
@@ -508,16 +513,6 @@ def run(
     log_file = log_utils.init_log_files(pipeline_dir)
     log_utils.setup_sentinel(run_options['sisyphus_interactive'], os.path.join(pipeline_dir, "tenx"))
 
-    # SCNRA pipeline working directories
-    if data_dir is None:
-        data_dir = os.path.join("/datadrive", "data")
-    if runs_dir is None:
-        runs_dir = os.path.join("/datadrive", "runs", library_id)
-    if results_dir is None:
-        results_dir = os.path.join("/datadrive", "results", library_id)
-
-    reference_dir = os.path.join("/datadrive", "reference")
-
     if run_options["testing"]:
         ref_genome = "test"
 
@@ -528,32 +523,20 @@ def run(
     else:
         ref_genome = get_ref_genome(library, is_tenx=True)
 
-    # get flowcell ID and lane number from analysis
-    # assume only one sequencing dataset?
-    if(run_options["flowcell_id"]):
-        log.info(f"Overwriting flowcell_id using {run_options['flowcell_id']}")
-        flowcell_id = run_options['flowcell_id']
-    else:
-        try:
-            flowcell_id = analysis['args']['flowcell_id']
-        except KeyError:
-            raise KeyError(f"flowcell_id doesn't exist in Tantalus Analysis object, {analysis_id}. Please specify --flowcell_id flag")
+    # SCNRA pipeline working directories
+    if data_dir is None:
+        data_dir = os.path.join("/datadrive", "data")
+    if runs_dir is None:
+        runs_dir = os.path.join("/datadrive", "runs", "_".join([ref_genome, library_id]))
+    if results_dir is None:
+        results_dir = os.path.join("/datadrive", "results", "_".join([ref_genome, library_id]))
 
-    if(run_options["lane_number"]):
-        log.info(f"Overwriting lane_number using {run_options['lane_number']}")
-        lane_number = run_options['lane_number']
-    else:
-        try:
-            lane_number = analysis['args']['lane_number']
-        except KeyError:
-            raise KeyError(f"lane_number doesn't exist in Tantalus Analysis object, {analysis_id}. Please specify --lane_number flag")
+    reference_dir = os.path.join("/datadrive", "reference")
     
     args = {}
     args['library_id'] = library_id
     args['ref_genome'] = ref_genome
     args['version'] = version
-    args['flowcell_id'] = flowcell_id
-    args['lane_number'] = lane_number
 
     analysis_info = TenXAnalysisInfo(
         jira_ticket,

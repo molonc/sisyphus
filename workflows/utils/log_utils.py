@@ -31,9 +31,9 @@ def send_logging_email(email, subject):
 
 
 def setup_sentinel(interactive, pipeline_directory):
-    global modified
-    if modified:
-        raise Exception("Trying to modify singletons again")
+    #global modified
+    #if modified:
+    #    raise Exception("Trying to modify singletons again")
 
     global interactive_mode
     interactive_mode = interactive
