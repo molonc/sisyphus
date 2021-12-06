@@ -270,7 +270,7 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
     @classmethod
     def create_analysis_cli(cls):
         cls.create_cli([
-        #    'sample_id',
+            'sample_id',
             'library_id',
             'aligner',
             'ref_genome',
