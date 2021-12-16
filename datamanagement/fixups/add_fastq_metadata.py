@@ -21,14 +21,14 @@ def create_lane_fastq_metadata(tantalus_api, dataset_id):
     """
     Get meatadata per lane of sequencing for a given dataset.
     """
-    colossus_api = ColossusApi()
-
     dataset = tantalus_api.get("sequencedataset", id=dataset_id)
     library_id = dataset['library']['library_id']
     sample_id = dataset['sample']['sample_id']
     assert len(dataset['sequence_lanes']) == 1
     flowcell_id = dataset['sequence_lanes'][0]['flowcell_id']
     lane_number = dataset['sequence_lanes'][0]['lane_number']
+
+    logging.info(f'retrieving metadata for library {library_id}')
 
     sample_info = generate_inputs.generate_sample_info(library_id)
     index_sequence_cell_id = sample_info.set_index('index_sequence')['cell_id'].to_dict()
@@ -43,6 +43,8 @@ def create_lane_fastq_metadata(tantalus_api, dataset_id):
 
     base_dirs = set()
     cell_ids = set()
+
+    logging.info(f'retrieving file resource info for dataset {dataset["id"]}')
 
     file_resources = list(tantalus_api.list('file_resource', sequencedataset__id=dataset['id']))
 
@@ -75,6 +77,8 @@ def create_lane_fastq_metadata(tantalus_api, dataset_id):
 
     assert not sample_info['cell_id'].duplicated().any()
 
+    logging.info(f'creating metadata')
+
     metadata['meta']['cells'] = {}
     for idx, row in sample_info.iterrows():
         cell_id = row['cell_id']
@@ -96,6 +100,7 @@ def create_lane_fastq_metadata(tantalus_api, dataset_id):
             'primer_i7': row['primer_i7'],
             'index_i7': row['index_i7'],
             'index_sequence': row['index_sequence'],
+            'is_control': row['is_control'],
         }
 
     metadata['meta']['lanes'] = {
@@ -118,7 +123,6 @@ def add_fastq_metadata_yaml(dataset_id, storage_name, dry_run=False):
     """
     tantalus_api = TantalusApi()
 
-    storage = tantalus_api.get_storage(storage_name)
     client = tantalus_api.get_storage_client(storage_name)
 
     metadata, base_dir = create_lane_fastq_metadata(tantalus_api, dataset_id)
