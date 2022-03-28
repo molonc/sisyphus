@@ -36,8 +36,7 @@ def restart_analysis(
 			command = "python /home/prod/sisyphus/workflows/scripts/update_analyses.py  --status ready " + str(analysis_i)
 			os.system(command)
 		except:
-		  print("An error has occured could not update analyis " + str(analysis_i))
-
+			print("An error has occured could not update analyis " + str(analysis_i))
 		try:
 			command = "python /home/prod/sisyphus/workflows/scripts/start_saltant_analyses.py from-ids prod prod " + str(analysis_i) + " --update"
 			os.system(command)
