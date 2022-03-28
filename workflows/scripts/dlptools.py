@@ -11,15 +11,16 @@ def main():
 @main.command()
 @click.argument('analysis_tickets', type=str, nargs=-1)
 def reset_analysis_run(analysis_tickets):
-    for jira_ticket_i in analysis_tickets:
-        print("Setting analysis run for ticket " + jira_ticket_i + " to idle")
-        colossus_api = ColossusApi()
-        analysis = colossus_api.get("analysis_information", analysis_jira_ticket=jira_ticket_i)
-        analysis_run_id = analysis["analysis_run"]["id"]
-        colossus_api.update(
-        "analysis_run",
-        id=analysis_run_id,
-        run_status="idle",
+	""" ANALYSIS_TICKETS are GSC JIRA analysis tickets associated with the analysis run to be reset """
+	for jira_ticket_i in analysis_tickets:
+		print("Setting analysis run for ticket " + jira_ticket_i + " to idle")
+		colossus_api = ColossusApi()
+		analysis = colossus_api.get("analysis_information", analysis_jira_ticket=jira_ticket_i)
+		analysis_run_id = analysis["analysis_run"]["id"]
+		colossus_api.update(
+			"analysis_run",
+			id=analysis_run_id,
+			run_status="idle",
     )
 
 @main.command()
@@ -27,6 +28,7 @@ def reset_analysis_run(analysis_tickets):
 def restart_analysis(
     analysis_ids
 ):
+	""" ANALYSIS_IDS are the tantalus analysis IDs to be reset """
 	for analysis_i in analysis_ids:
 		locks_path = glob.glob("/home/prod/saltant/singlecelllogs/pipeline/analysis_" + str(analysis_i) + "/*/locks")
 		if len(locks_path) > 0:
