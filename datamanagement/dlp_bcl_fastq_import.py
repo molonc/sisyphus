@@ -47,6 +47,10 @@ from datamanagement.utils.import_utils import (
     filter_failed_libs_by_date,
 )
 
+# for async blob upload
+import asyncio
+
+
 
 
 
@@ -286,6 +290,10 @@ def get_fastq_info(output_dir, flowcell_id, storage, storage_client, threshold):
 def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, output_dir, storage, storage_client):
     extension = ".gz"
     logging.info("Transferrings fastq to {}.".format(storage["name"]))
+    concurrency = 3
+    async_blob_client = tantalus_api.get_storage_client(storage['name'], is_async=True, concurrency=concurrency)
+
+    async_blob_upload_data = []
     for filename in filenames:
         # General format is SAMPLE_ID-LIBRARY_ID-ROW-COLUMN-...
         # most file name conventions (e.g. AT9486-A118407A-R60-C23_S131_L001_R1_001.fastq.gz)
@@ -343,7 +351,8 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
             rsync_file(fastq_path, tantalus_path)
 
         elif storage['storage_type'] == 'blob':
-            storage_client.create(tantalus_filename, fastq_path)
+             async_blob_upload_data.append((tantalus_filename, fastq_path))
+            #storage_client.create(tantalus_filename, fastq_path)
 
         fastq_file_info.append(
             dict(
@@ -367,6 +376,10 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
                 compression="GZIP",
                 filepath=tantalus_path,
             ))
+    
+    if(storage['storage_type'] == 'blob'):
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(async_blob_client.batch_upload_files(async_blob_upload_data))
 
     return fastq_file_info
 

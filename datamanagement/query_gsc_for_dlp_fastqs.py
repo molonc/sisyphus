@@ -13,6 +13,7 @@ import pandas as pd
 import datetime
 from collections import defaultdict
 
+
 # for async blob upload
 import asyncio
 
@@ -53,6 +54,11 @@ from datamanagement.utils.import_utils import (
     filter_failed_libs_by_date,
 )
 
+import requests
+import json
+url = "https://monitors.molonc.ca/api/1/flags/"
+
+
 COLOSSUS_BASE_URL = get_colossus_base_url()
 
 SOLEXA_RUN_TYPE_MAP = {"Paired": "P"}
@@ -90,7 +96,7 @@ def map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos):
         gsc_lane_fastq_file_infos (dict): dictionary with flowcell information as key and fastq info as value
         primer_libcore (dict): dictionary with primer ID as key and libcore ID as value.
     """
-    sequencing_instrument_map = {'HiSeqX': 'HX', 'HiSeq2500': 'H2500'}
+    sequencing_instrument_map = {'HiSeqX': 'HX', 'HiSeq2500': 'H2500', 'NovaSeq':'NovaSeq'}
     
     flowcell_id_mapping = {}
     gsc_lane_fastq_file_infos = defaultdict(list)
@@ -921,21 +927,95 @@ def main(storage_name,
 
     # Importing a single library
     if dlp_library_id is not None:
-        sequencing_list = list(
-            colossus_api.list('sequencing', sequencing_center='BCCAGSC', library__pool_id=dlp_library_id))
+        payload = json.dumps({
+            "sFlagName": "list_sequencings_at_colossus",
+            "sProcess": "list_start",
+            "sDetails": " ",
+            "sOutput": " "
+            })
+        headers = {
+            'Content-Type': 'application/json'
+            }
+        response = requests.request("POST", url, headers=headers, data=payload)
+        
+        sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC', library__pool_id=dlp_library_id))
     # importing all libraries from the gsc
+        payload = json.dumps({
+            "sFlagName": "list_sequencings_at_colossus",
+            "sProcess": "list_finish",
+            "sDetails": "",
+            "sOutput": ""
+            })
+        headers = {
+        'Content-Type': 'application/json'
+        }
+        response = requests.request("POST", url, headers=headers, data=payload)
+
     elif all:
+        payload = json.dumps({
+            "sFlagName": "list_sequencings_at_colossus",
+            "sProcess": "list_start",
+            "sDetails": " ",
+            "sOutput": " "
+            })
+        headers = {
+            'Content-Type': 'application/json'
+            }
+        response = requests.request("POST", url, headers=headers, data=payload)
+  
         sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC'))
+
+        payload = json.dumps({
+            "sFlagName": "list_sequencings_at_colossus",
+            "sProcess": "list_finish",
+            "sDetails": " ",
+            "sOutput": " "
+            })
+        headers = {
+            'Content-Type': 'application/json'
+            }
+        response = requests.request("POST", url, headers=headers, data=payload)
 
     # importing only sequencing expecting more lanes
     else:
+        payload = json.dumps({
+            "sFlagName": "list_sequencings_colossus_new_lanes",
+            "sProcess": "list_finish",
+            "sDetails": " ",
+            "sOutput": " "
+            })
+        headers = {
+            'Content-Type': 'application/json'
+            }
+        response = requests.request("POST", url, headers=headers, data=payload)
         sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC'))
         sequencing_list = list(
             filter(lambda s: s['number_of_lanes_requested'] != len(s['dlplane_set']), sequencing_list))
 
+        payload = json.dumps({
+            "sFlagName": "list_sequencings_colossus_new_lanes",
+            "sProcess": "list_finish",
+            "sDetails": " ",
+            "sOutput": " "
+            })
+        headers = {
+            'Content-Type': 'application/json'
+            }
+        response = requests.request("POST", url, headers=headers, data=payload)
     for sequencing in sequencing_list:
         # import library
         try:
+            payload = json.dumps({
+                "sFlagName": "import_1_library",
+                "sProcess": "import_start",
+                "sDetails": str(sequencing["library"]),
+                "sOutput": " "
+            })
+            headers = {
+            'Content-Type': 'application/json'
+            }
+            response = requests.request("POST", url, headers=headers, data=payload)
+            
             import_info = import_gsc_dlp_paired_fastqs(
                 colossus_api,
                 tantalus_api,
@@ -947,6 +1027,18 @@ def main(storage_name,
                 check_library=check_library,
                 dry_run=dry_run,
             )
+
+            payload = json.dumps({
+                "sFlagName": "import_1_library",
+                "sProcess": "import_finish",
+                "sDetails": str(sequencing["library"]),
+                "sOutput": " "
+            })
+            headers = {
+            'Content-Type': 'application/json'
+            }
+            response = requests.request("POST", url, headers=headers, data=payload)
+            
 
             # check if no import information exists, if so, library does not exist on GSC
             if import_info is None:

@@ -296,7 +296,7 @@ class BlobStorageClient(object):
         blob_client = self.blob_service.get_blob_client(self.storage_container, blobname)
         return blob_client.upload_blob(data, overwrite=True)
 
-    def create(self, blobname, filepath, update=False, max_concurrency=None, timeout=None):
+    def create(self, blobname, filepath, update=False, max_concurrency=200, timeout=345600):
         kwargs = {}
         if max_concurrency:
             kwargs['max_concurrency'] = max_concurrency
