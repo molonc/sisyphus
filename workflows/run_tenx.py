@@ -465,6 +465,9 @@ def run_single(
             **run_options,
         )
 
+    os.system("az vm deallocate --resource-group bccrc-pr-cc-scrna-rg --name scrna-pipeline2 --subscription 436b89a7-3b73-4644-a97b-949c4d0f19f5")
+
+
 
 def run(
     analysis_id,
@@ -562,7 +565,6 @@ def run(
         library["id"],
         analysis_id,
     )
-
 
 if __name__ == "__main__":
     cli()
