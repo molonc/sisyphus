@@ -1,5 +1,5 @@
 import pprint
-from datamanagement.utils.gsc import get_sequencing_instrument, GSCAPI
+from utils.gsc import get_sequencing_instrument, GSCAPI
 
 pp = pprint.PrettyPrinter(indent=4)
 
