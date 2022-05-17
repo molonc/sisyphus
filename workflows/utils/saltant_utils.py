@@ -32,8 +32,7 @@ def get_task_instance_status(uuid):
     Get the status of task instance given a unique identifier.
     """
     return get_client().executable_task_instances.get(uuid=uuid).state
-
-
+    
 def get_task_type_id(task_type_name):
     """
     Get the id of a task type given its name.
@@ -57,7 +56,6 @@ def wait_for_finish(task_instance_uuid):
     while True:
         time.sleep(10)
         status = get_task_instance_status(task_instance_uuid)
-
         log.debug('Status of task {}: {}'.format(task_instance_uuid, status))
         print('status: ' + status)
         if status == SUCCESSFUL:
@@ -98,6 +96,7 @@ def get_or_create_task_instance(name, user, args, task_type_id, task_queue_name,
     task_instance_list = executable_task_instances.list(params)
     for task_instance in task_instance_list:
         if get_task_instance_status(task_instance.uuid) == 'running':
+            logging.info(f'terminating {task_instance.uuid} with status {task_instance.uuid} in order to start rerun')
             task_instance.terminate()
 
     new_task_instance = executable_task_instances.create(
