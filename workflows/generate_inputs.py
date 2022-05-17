@@ -46,6 +46,13 @@ def generate_sample_info(library_id, test_run=False):
 
             cell_id = '-'.join([sample_id, library_id, 'R' + row, 'C' + col])
 
+            if sublib['metadata']['is_control'].lower() == 'true':
+                is_control = True
+            elif sublib['metadata']['is_control'].lower() == 'false':
+                is_control = False
+            else:
+                raise ValueError(f"unrecognized is_control value {sublib['metadata']['is_control']}")
+
             row = {
                 'library_id':       library_id,
                 'sample_id':        sample_id,
@@ -61,6 +68,7 @@ def generate_sample_info(library_id, test_run=False):
                 'primer_i7':        sublib['primer_i7'],
                 'index_i7':         sublib['index_i7'],
                 'index_sequence':   sublib['primer_i7'] + '-' + sublib['primer_i5'],
+                'is_control':       is_control,
             }
 
             rows.append(row)
