@@ -23,7 +23,7 @@ def run_pipeline(
         docker_server,
         output_dirs,
         cli_args=(),
-        max_jobs='150',
+        max_jobs='400',
         dirs=(),
 ):
     config_override = run_options.get('config_override')

@@ -6,6 +6,7 @@ import yaml
 import click
 import time
 import pandas as pd
+
 import dbclients.tantalus
 import dbclients.basicclient
 from workflows.utils import saltant_utils
@@ -16,18 +17,10 @@ def run_analysis(saltant_user, saltant_queue, analysis, delay=None, update=False
     analysis_id = analysis['id']
     analysis_status = analysis['status']
     jira_ticket = analysis['jira_ticket']
-    print(rerun)
 
-    if analysis_status in ('complete'):
+    if analysis_status in ('running', 'complete'):
         logging.info(f'skipping analysis {analysis_id} with status {analysis_status}')
         return
-    if analysis_status in ('running'):
-        if rerun:
-            logging.info(f'terminating {analysis_id} with status {analysis_status} in order to start rerun')
-        else:
-            logging.info(f'skipping analysis {analysis_id} with status {analysis_status}')
-            return
-
 
     if delay is not None:
         logging.info(f'sleeping for {delay}s')
@@ -61,6 +54,7 @@ def run_analysis(saltant_user, saltant_queue, analysis, delay=None, update=False
         task_type_id, # TODO: by name, cli
         saltant_queue,
     )
+
 
 @click.group()
 def cli():

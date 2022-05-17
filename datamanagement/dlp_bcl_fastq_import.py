@@ -13,9 +13,7 @@ import subprocess
 import pandas as pd
 import click
 import requests
-import collections
 from dbclients.colossus import get_colossus_sublibraries_from_library_id
-from workflows.utils.jira_utils import create_jira_ticket_from_library
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
 from utils.constants import LOGGING_FORMAT
@@ -24,37 +22,11 @@ from utils.runtime_args import parse_runtime_args
 from utils.filecopy import rsync_file
 from utils.utils import make_dirs
 from utils.comment_jira import comment_jira
-from workflows.utils.file_utils import load_json
 import datamanagement.templates as templates
-#from datamanagement.utils.qsub_job_submission import submit_qsub_job
-#from datamanagement.utils.qsub_jobs import Bcl2FastqJob
+from datamanagement.utils.qsub_job_submission import submit_qsub_job
+from datamanagement.utils.qsub_jobs import Bcl2FastqJob
 from datamanagement.utils.constants import DEFAULT_NATIVESPEC
-from workflows.utils.tantalus_utils import create_qc_analyses_from_library
-from workflows.utils.colossus_utils import create_colossus_analysis
 import datetime
-import asyncio
-import settings
-from common_utils.utils import (
-    get_today,
-    validate_mode,
-)
-from datamanagement.utils.import_utils import (
-    reverse_complement,
-    decode_raw_index_sequence,
-    map_index_sequence_to_cell_id,
-    summarize_index_errors,
-    raise_index_error,
-    filter_failed_libs_by_date,
-)
-
-# for async blob upload
-import asyncio
-
-
-
-
-
-from collections import defaultdict
 
 from dbclients.utils.dbclients_utils import (
     get_colossus_base_url,
@@ -178,7 +150,7 @@ def check_fastqs(library_id, fastq_file_info, threshold):
 
     for index in index_sequences:
         fastqs_containing_index = [fastq for fastq in fastq_file_info if fastq["index_sequence"] == index]
-        fastq_lane_numbers_to_be_generated = set(range(1, 2)) ## adjusting from 1,3
+        fastq_lane_numbers_to_be_generated = set(range(1, 3))
         for fastq in fastqs_containing_index:
             sequence_lane = fastq["sequence_lanes"][0]
             lane_number = sequence_lane["lane_number"]
@@ -290,29 +262,12 @@ def get_fastq_info(output_dir, flowcell_id, storage, storage_client, threshold):
 def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, output_dir, storage, storage_client):
     extension = ".gz"
     logging.info("Transferrings fastq to {}.".format(storage["name"]))
-    concurrency = 3
-    async_blob_client = tantalus_api.get_storage_client(storage['name'], is_async=True, concurrency=concurrency)
-
-    async_blob_upload_data = []
     for filename in filenames:
-        # General format is SAMPLE_ID-LIBRARY_ID-ROW-COLUMN-...
-        # most file name conventions (e.g. AT9486-A118407A-R60-C23_S131_L001_R1_001.fastq.gz)
-        pat1 = r'^(\w+)-(\w+)-R(\d+)-C(\d+)_S(\d+)(_L(\d+))?_R([12])_001.fastq.gz$'
-        # edge cases (e.g. 10375-CL-A118349B-R62-C06_S1066_L002_R2_001.fastq.gz)
-        pat2 = r'^(\w+-\w+)-(\w+)-R(\d+)-C(\d+)_S(\d+)(_L(\d+))?_R([12])_001.fastq.gz$'
+        match = re.match(
+            r"^(\w+)-(\w+)-R(\d+)-C(\d+)_S(\d+)(_L(\d+))?_R([12])_001.fastq.gz$",
+            filename,
+        )
 
-        patterns = [pat1, pat2]
-
-        for pattern in patterns:
-            match = re.match(
-                pattern,
-                filename,
-            )
-            # find the first valid matching pattern
-            if(match is not None):
-                break
-
-        # if all patterns mismatch, raise error
         if match is None:
             raise Exception("unrecognized fastq filename structure for {}".format(filename))
 
@@ -351,8 +306,7 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
             rsync_file(fastq_path, tantalus_path)
 
         elif storage['storage_type'] == 'blob':
-             async_blob_upload_data.append((tantalus_filename, fastq_path))
-            #storage_client.create(tantalus_filename, fastq_path)
+            storage_client.create(tantalus_filename, fastq_path)
 
         fastq_file_info.append(
             dict(
@@ -376,10 +330,6 @@ def transfer_fastq_files(cell_info, flowcell_id, fastq_file_info, filenames, out
                 compression="GZIP",
                 filepath=tantalus_path,
             ))
-    
-    if(storage['storage_type'] == 'blob'):
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(async_blob_client.batch_upload_files(async_blob_upload_data))
 
     return fastq_file_info
 
@@ -458,49 +408,6 @@ def make_slurm_script(bcl_dir, samplesheet_path, output_dir, cores=16):
     logging.info(f"Generated SLURM submission script at {slurm_script_path}")
 
 
-def create_tickets_and_analyses(flowcell_id):
-    """
-    Creates jira ticket and an align analysis on tantalus if new lanes were imported
-
-    Args:
-        import_info (dict): Contains keys dlp_library_id, gsc_library_id, lanes
-    """
-            # add 4 lanes generated by bcl2fastq on colossus in order to be picked up for analysis
-
-    lane_info = colossus_api.get("lane", flow_cell_id=flowcell_id)
-    sequencing_id = lane_info["sequencing"]
-
-    sequencing = colossus_api.get("sequencing", id=sequencing_id)
-    dlp_library_id = sequencing["library"]
-
-    config = load_json(
-        os.path.join(
-            os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-            'workflows',
-            'config',
-            'normal_config.json',
-        ))
-
-    # create analysis jira ticket
-    jira_ticket = create_jira_ticket_from_library(dlp_library_id)
-
-    # create align analysis objects
-    create_qc_analyses_from_library(
-        dlp_library_id,
-        jira_ticket,
-        config["scp_version"],
-        "align",
-        aligner=config["default_aligner"],
-    )
-
-    # create analysis object on colossus
-    create_colossus_analysis(
-        dlp_library_id,
-        jira_ticket,
-        config["scp_version"],
-        config["default_aligner"],
-    )
-
 def add_lanes(flowcell_id):
     # get lane information
     lane = colossus_api.get("lane", flow_cell_id=flowcell_id)
@@ -529,7 +436,6 @@ def add_lanes(flowcell_id):
             get_existing=False,
             do_update=False,
         )
-    create_tickets_and_analyses(flowcell_id)
 
 
 @click.command()

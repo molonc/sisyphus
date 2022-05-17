@@ -1,5 +1,5 @@
 docker:
-    image: scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_annotation:v0.8.16
+    image: scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_annotation:v0.8.0
     mounts:
       refdata: /refdata
       datadrive: /datadrive
