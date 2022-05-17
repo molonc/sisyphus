@@ -35,9 +35,6 @@ def decode_raw_index_sequence(raw_index_sequence, instrument, rev_comp_override)
     elif instrument == "NextSeq550":
         i7 = reverse_complement(i7)
         i5 = reverse_complement(i5)
-    elif instrument == "NovaSeq":
-        i7 = reverse_complement(i7)
-        i5 = reverse_complement(i5)
     else:
         raise Exception("unsupported sequencing instrument {}".format(instrument))
 

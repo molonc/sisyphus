@@ -38,9 +38,9 @@ from dbclients.basicclient import BasicAPIClient, FieldMismatchError, NotFoundEr
 from dbclients.utils.dbclients_utils import get_tantalus_base_url
 
 log = logging.getLogger('sisyphus')
-# changed 3 to 20
+
 class AsyncBlobStorageClient(object):
-    def __init__(self, storage_account, storage_container, prefix, concurrency=20):
+    def __init__(self, storage_account, storage_container, prefix, concurrency=3):
         self.storage_account = storage_account
         self.storage_container = storage_container
         self.prefix = prefix
@@ -296,7 +296,7 @@ class BlobStorageClient(object):
         blob_client = self.blob_service.get_blob_client(self.storage_container, blobname)
         return blob_client.upload_blob(data, overwrite=True)
 
-    def create(self, blobname, filepath, update=False, max_concurrency=200, timeout=345600):
+    def create(self, blobname, filepath, update=False, max_concurrency=None, timeout=None):
         kwargs = {}
         if max_concurrency:
             kwargs['max_concurrency'] = max_concurrency
