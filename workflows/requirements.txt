@@ -110,7 +110,7 @@ patsy==0.5.0
 pyasn1==0.4.3
 pycparser==2.18
 pygenes==0.0.3
-PyJWT==1.6.4
+PyJWT==2.4.0
 PyNaCl==1.1.2
 pyparsing==2.2.0
 PyPDF2==1.26.0
