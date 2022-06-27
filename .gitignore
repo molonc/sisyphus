@@ -114,3 +114,6 @@ qc_reports
 
 #sourceMe
 sourceMe
+
+#Error file
+*.err
