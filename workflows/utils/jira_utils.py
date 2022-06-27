@@ -5,7 +5,7 @@ from jira import JIRA, JIRAError
 
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
-
+from workflows.utils import saltant_utils, file_utils, tantalus_utils, colossus_utils
 from dbclients.utils.dbclients_utils import (
     get_tantalus_base_url,
     get_colossus_base_url,
@@ -122,10 +122,18 @@ def update_jira_dlp(jira_id, aligner):
         # assign parent ticket to justina
         parent_jira_id = get_parent_issue(jira_id)
         parent_issue = jira_api.issue(parent_jira_id)
-        parent_issue.update(assignee={"name": "jbwang"})
+        parent_issue.update(assignee={"name": "mvanvliet"})
 
         update_description(jira_id, description, jira_user, remove_watcher=True)
         close_ticket(jira_id)
+        try:
+            project = colossus_utils.get_projects_from_jira_id(str(parent_jira_id))[0]['name']
+            if project == 'Structure-Variation':
+                comment_jira(str(parent_jira_id),"[~dyap] pipeline completed")
+        except:
+            pass
+
+
 
 
 def update_jira_tenx(jira_id, library_pk):

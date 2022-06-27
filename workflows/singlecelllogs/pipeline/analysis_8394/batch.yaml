@@ -1,0 +1,299 @@
+no_delete_job: false
+no_delete_pool: true
+pools:
+  singlecellgrch37highmem_bigdisk_v3:
+    auto_scale_formula: |
+      $NodeDeallocationOption=taskcompletion;
+      tasksPerNode = 2;
+      numAddMax = 20;
+      numDelMax = 20;
+      startingNumberOfVMs = 1;
+      minNumberofVMs = 0;
+      maxNumberofVMs = 1000;
+      pendingTaskSamplePercent = $PendingTasks.GetSamplePercent(180 * TimeInterval_Second);
+      pendingTaskSamples = pendingTaskSamplePercent < 70 ? startingNumberOfVMs : avg($PendingTasks.GetSample(180 * TimeInterval_Second));
+      cores = $TargetLowPriorityNodes * tasksPerNode;
+      $extraVMs = (pendingTaskSamples - cores) / tasksPerNode;
+      $extraVMs = $extraVMs + (tasksPerNode-1)/tasksPerNode;
+      $extraVMs = min(numAddMax, $extraVMs);
+      $extraVMs = max(-numDelMax, $extraVMs);
+      targetVMs = ($TargetLowPriorityNodes + $extraVMs);
+      $TargetLowPriorityNodes = max(minNumberofVMs,min(maxNumberofVMs, targetVMs));
+    compute_finish_commands: |
+      sg docker -c "docker run -v /datadrive:/datadrive -w /datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype l -delete"
+      sg docker -c "docker run -v /datadrive:/datadrive -w /datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype f -delete"
+    compute_start_commands: |
+      clean_up () {
+        echo "clean_up task executed"
+        find /datadrive/$AZ_BATCH_TASK_WORKING_DIR/ -xtype l -delete
+        exit 0
+      }
+      trap clean_up EXIT
+      mkdir -p /datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+
+      cd /datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+    cpus_per_task: 1
+    create_vm_commands: |
+      sudo gpasswd -a $USER docker
+      sudo mkdir -p /datadrive
+      sudo mkdir -p /mnt/datadrive
+      sudo chmod -R 777 /datadrive
+      sudo chmod -R 777 /mnt/datadrive
+    data_disk_sizes: null
+    dedicated: false
+    disk_per_task: 450
+    max_tasks_per_node: 2
+    mem_per_task: 16
+    node_os_offer: UbuntuServer
+    node_os_publisher: Canonical
+    node_os_sku: batch.node.ubuntu 18.04
+    node_resource_id: /subscriptions/436b89a7-3b73-4644-a97b-949c4d0f19f5/resourceGroups/scdna-prod/providers/Microsoft.Compute/images/docker-production-v3-largedisk
+    pool_vm_size: STANDARD_E4_V3
+    start_resources: null
+  singlecellgrch37highmem_v3:
+    auto_scale_formula: |
+      $NodeDeallocationOption=taskcompletion;
+      tasksPerNode = 2;
+      numAddMax = 20;
+      numDelMax = 20;
+      startingNumberOfVMs = 1;
+      minNumberofVMs = 0;
+      maxNumberofVMs = 1000;
+      pendingTaskSamplePercent = $PendingTasks.GetSamplePercent(180 * TimeInterval_Second);
+      pendingTaskSamples = pendingTaskSamplePercent < 70 ? startingNumberOfVMs : avg($PendingTasks.GetSample(180 * TimeInterval_Second));
+      cores = $TargetLowPriorityNodes * tasksPerNode;
+      $extraVMs = (pendingTaskSamples - cores) / tasksPerNode;
+      $extraVMs = $extraVMs + (tasksPerNode-1)/tasksPerNode;
+      $extraVMs = min(numAddMax, $extraVMs);
+      $extraVMs = max(-numDelMax, $extraVMs);
+      targetVMs = ($TargetLowPriorityNodes + $extraVMs);
+      $TargetLowPriorityNodes = max(minNumberofVMs,min(maxNumberofVMs, targetVMs));
+    compute_finish_commands: |
+      sg docker -c "docker run -v /mnt/datadrive:/mnt/datadrive -w /mnt/datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype l -delete"
+      sg docker -c "docker run -v /mnt/datadrive:/mnt/datadrive -w /mnt/datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype f -delete"
+    compute_start_commands: |
+      clean_up () {
+        echo "clean_up task executed"
+        find /mnt/datadrive/$AZ_BATCH_TASK_WORKING_DIR/ -xtype l -delete
+        exit 0
+      }
+      trap clean_up EXIT
+      mkdir -p /mnt/datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+
+      cd /mnt/datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+    cpus_per_task: 1
+    create_vm_commands: |
+      sudo gpasswd -a $USER docker
+      sudo mkdir -p /datadrive
+      sudo mkdir -p /mnt/datadrive
+      sudo chmod -R 777 /datadrive
+      sudo chmod -R 777 /mnt/datadrive
+    data_disk_sizes: null
+    dedicated: false
+    disk_per_task: 20
+    max_tasks_per_node: 2
+    mem_per_task: 16
+    node_os_offer: UbuntuServer
+    node_os_publisher: Canonical
+    node_os_sku: batch.node.ubuntu 18.04
+    node_resource_id: /subscriptions/436b89a7-3b73-4644-a97b-949c4d0f19f5/resourceGroups/scdna-prod/providers/Microsoft.Compute/images/docker-production-v3-standard
+    pool_vm_size: STANDARD_E4_V3
+    start_resources: null
+  singlecellgrch37multicore_bigdisk_v3:
+    auto_scale_formula: |
+      $NodeDeallocationOption=taskcompletion;
+      tasksPerNode = 1;
+      numAddMax = 20;
+      numDelMax = 20;
+      startingNumberOfVMs = 1;
+      minNumberofVMs = 0;
+      maxNumberofVMs = 1000;
+      pendingTaskSamplePercent = $PendingTasks.GetSamplePercent(180 * TimeInterval_Second);
+      pendingTaskSamples = pendingTaskSamplePercent < 70 ? startingNumberOfVMs : avg($PendingTasks.GetSample(180 * TimeInterval_Second));
+      cores = $TargetLowPriorityNodes * tasksPerNode;
+      $extraVMs = (pendingTaskSamples - cores) / tasksPerNode;
+      $extraVMs = $extraVMs + (tasksPerNode-1)/tasksPerNode;
+      $extraVMs = min(numAddMax, $extraVMs);
+      $extraVMs = max(-numDelMax, $extraVMs);
+      targetVMs = ($TargetLowPriorityNodes + $extraVMs);
+      $TargetLowPriorityNodes = max(minNumberofVMs,min(maxNumberofVMs, targetVMs));
+    compute_finish_commands: |
+      sg docker -c "docker run -v /datadrive:/datadrive -w /datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype l -delete"
+      sg docker -c "docker run -v /datadrive:/datadrive -w /datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype f -delete"
+    compute_start_commands: |
+      clean_up () {
+        echo "clean_up task executed"
+        find /datadrive/$AZ_BATCH_TASK_WORKING_DIR/ -xtype l -delete
+        exit 0
+      }
+      trap clean_up EXIT
+      mkdir -p /datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+
+      cd /datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+    cpus_per_task: 8
+    create_vm_commands: |
+      sudo gpasswd -a $USER docker
+      sudo mkdir -p /datadrive
+      sudo mkdir -p /mnt/datadrive
+      sudo chmod -R 777 /datadrive
+      sudo chmod -R 777 /mnt/datadrive
+    data_disk_sizes: null
+    dedicated: false
+    disk_per_task: 900
+    max_tasks_per_node: 1
+    mem_per_task: 8
+    node_os_offer: UbuntuServer
+    node_os_publisher: Canonical
+    node_os_sku: batch.node.ubuntu 18.04
+    node_resource_id: /subscriptions/436b89a7-3b73-4644-a97b-949c4d0f19f5/resourceGroups/scdna-prod/providers/Microsoft.Compute/images/docker-production-v3-largedisk
+    pool_vm_size: STANDARD_E8_V3
+    start_resources: null
+  singlecellgrch37multicore_v3:
+    auto_scale_formula: |
+      $NodeDeallocationOption=taskcompletion;
+      tasksPerNode = 1;
+      numAddMax = 20;
+      numDelMax = 20;
+      startingNumberOfVMs = 1;
+      minNumberofVMs = 0;
+      maxNumberofVMs = 1000;
+      pendingTaskSamplePercent = $PendingTasks.GetSamplePercent(180 * TimeInterval_Second);
+      pendingTaskSamples = pendingTaskSamplePercent < 70 ? startingNumberOfVMs : avg($PendingTasks.GetSample(180 * TimeInterval_Second));
+      cores = $TargetLowPriorityNodes * tasksPerNode;
+      $extraVMs = (pendingTaskSamples - cores) / tasksPerNode;
+      $extraVMs = $extraVMs + (tasksPerNode-1)/tasksPerNode;
+      $extraVMs = min(numAddMax, $extraVMs);
+      $extraVMs = max(-numDelMax, $extraVMs);
+      targetVMs = ($TargetLowPriorityNodes + $extraVMs);
+      $TargetLowPriorityNodes = max(minNumberofVMs,min(maxNumberofVMs, targetVMs));
+    compute_finish_commands: |
+      sg docker -c "docker run -v /datadrive:/datadrive -w /datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype l -delete"
+      sg docker -c "docker run -v /datadrive:/datadrive -w /datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype f -delete"
+    compute_start_commands: |
+      clean_up () {
+        echo "clean_up task executed"
+        find /datadrive/$AZ_BATCH_TASK_WORKING_DIR/ -xtype l -delete
+        exit 0
+      }
+      trap clean_up EXIT
+      mkdir -p /datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+
+      cd /datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+    cpus_per_task: 8
+    create_vm_commands: |
+      sudo gpasswd -a $USER docker
+      sudo mkdir -p /datadrive
+      sudo mkdir -p /mnt/datadrive
+      sudo chmod -R 777 /datadrive
+      sudo chmod -R 777 /mnt/datadrive
+    data_disk_sizes: null
+    dedicated: false
+    disk_per_task: 200
+    max_tasks_per_node: 1
+    mem_per_task: 8
+    node_os_offer: UbuntuServer
+    node_os_publisher: Canonical
+    node_os_sku: batch.node.ubuntu 18.04
+    node_resource_id: /subscriptions/436b89a7-3b73-4644-a97b-949c4d0f19f5/resourceGroups/scdna-prod/providers/Microsoft.Compute/images/docker-production-v3-largedisk
+    pool_vm_size: STANDARD_E8_V3
+    start_resources: null
+  singlecellgrch37standard_bigdisk_v3:
+    auto_scale_formula: |
+      $NodeDeallocationOption=taskcompletion;
+      tasksPerNode = 4;
+      numAddMax = 20;
+      numDelMax = 20;
+      startingNumberOfVMs = 1;
+      minNumberofVMs = 0;
+      maxNumberofVMs = 1000;
+      pendingTaskSamplePercent = $PendingTasks.GetSamplePercent(180 * TimeInterval_Second);
+      pendingTaskSamples = pendingTaskSamplePercent < 70 ? startingNumberOfVMs : avg($PendingTasks.GetSample(180 * TimeInterval_Second));
+      cores = $TargetLowPriorityNodes * tasksPerNode;
+      $extraVMs = (pendingTaskSamples - cores) / tasksPerNode;
+      $extraVMs = $extraVMs + (tasksPerNode-1)/tasksPerNode;
+      $extraVMs = min(numAddMax, $extraVMs);
+      $extraVMs = max(-numDelMax, $extraVMs);
+      targetVMs = ($TargetLowPriorityNodes + $extraVMs);
+      $TargetLowPriorityNodes = max(minNumberofVMs,min(maxNumberofVMs, targetVMs));
+    compute_finish_commands: |
+      sg docker -c "docker run -v /datadrive:/datadrive -w /datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype l -delete"
+      sg docker -c "docker run -v /datadrive:/datadrive -w /datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype f -delete"
+    compute_start_commands: |
+      clean_up () {
+        echo "clean_up task executed"
+        find /datadrive/$AZ_BATCH_TASK_WORKING_DIR/ -xtype l -delete
+        exit 0
+      }
+      trap clean_up EXIT
+      mkdir -p /datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+
+      cd /datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+    cpus_per_task: 1
+    create_vm_commands: |
+      sudo gpasswd -a $USER docker
+      sudo mkdir -p /datadrive
+      sudo mkdir -p /mnt/datadrive
+      sudo chmod -R 777 /datadrive
+      sudo chmod -R 777 /mnt/datadrive
+    data_disk_sizes: null
+    dedicated: false
+    disk_per_task: 200
+    max_tasks_per_node: 4
+    mem_per_task: 8
+    node_os_offer: UbuntuServer
+    node_os_publisher: Canonical
+    node_os_sku: batch.node.ubuntu 18.04
+    node_resource_id: /subscriptions/436b89a7-3b73-4644-a97b-949c4d0f19f5/resourceGroups/scdna-prod/providers/Microsoft.Compute/images/docker-production-v3-largedisk
+    pool_vm_size: STANDARD_E4_V3
+    start_resources: null
+  singlecellgrch37standard_v3:
+    auto_scale_formula: |
+      $NodeDeallocationOption=taskcompletion;
+      tasksPerNode = 4;
+      numAddMax = 20;
+      numDelMax = 20;
+      startingNumberOfVMs = 1;
+      minNumberofVMs = 0;
+      maxNumberofVMs = 1000;
+      pendingTaskSamplePercent = $PendingTasks.GetSamplePercent(180 * TimeInterval_Second);
+      pendingTaskSamples = pendingTaskSamplePercent < 70 ? startingNumberOfVMs : avg($PendingTasks.GetSample(180 * TimeInterval_Second));
+      cores = $TargetLowPriorityNodes * tasksPerNode;
+      $extraVMs = (pendingTaskSamples - cores) / tasksPerNode;
+      $extraVMs = $extraVMs + (tasksPerNode-1)/tasksPerNode;
+      $extraVMs = min(numAddMax, $extraVMs);
+      $extraVMs = max(-numDelMax, $extraVMs);
+      targetVMs = ($TargetLowPriorityNodes + $extraVMs);
+      $TargetLowPriorityNodes = max(minNumberofVMs,min(maxNumberofVMs, targetVMs));
+    compute_finish_commands: |
+      sg docker -c "docker run -v /mnt/datadrive:/mnt/datadrive -w /mnt/datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype l -delete"
+      sg docker -c "docker run -v /mnt/datadrive:/mnt/datadrive -w /mnt/datadrive/$AZ_BATCH_TASK_WORKING_DIR continuumio/miniconda find . -xtype f -delete"
+    compute_start_commands: |
+      clean_up () {
+        echo "clean_up task executed"
+        find /mnt/datadrive/$AZ_BATCH_TASK_WORKING_DIR/ -xtype l -delete
+        exit 0
+      }
+      trap clean_up EXIT
+      mkdir -p /mnt/datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+
+      cd /mnt/datadrive/$AZ_BATCH_TASK_WORKING_DIR/
+    cpus_per_task: 1
+    create_vm_commands: |
+      sudo gpasswd -a $USER docker
+      sudo mkdir -p /datadrive
+      sudo mkdir -p /mnt/datadrive
+      sudo chmod -R 777 /datadrive
+      sudo chmod -R 777 /mnt/datadrive
+    data_disk_sizes: null
+    dedicated: false
+    disk_per_task: 10
+    max_tasks_per_node: 4
+    mem_per_task: 8
+    node_os_offer: UbuntuServer
+    node_os_publisher: Canonical
+    node_os_sku: batch.node.ubuntu 18.04
+    node_resource_id: /subscriptions/436b89a7-3b73-4644-a97b-949c4d0f19f5/resourceGroups/scdna-prod/providers/Microsoft.Compute/images/docker-production-v3-standard
+    pool_vm_size: STANDARD_E4_V3
+    start_resources: null
+pypeliner_storage_account: singlecellpypeliner
+storage_container_name: tasks-container

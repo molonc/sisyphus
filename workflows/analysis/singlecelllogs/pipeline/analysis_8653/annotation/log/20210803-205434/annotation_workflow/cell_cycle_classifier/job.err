@@ -1,0 +1,16 @@
+2021-08-03 21:05:51,711 - INFO - training a classifier
+2021-08-03 21:05:51,824 - INFO - NumExpr defaulting to 4 threads.
+2021-08-03 21:05:51,890 - INFO - training model
+2021-08-03 21:05:52,687 - INFO - Accuracy of classifier on training set: 0.89
+2021-08-03 21:05:52,715 - INFO - Accuracy of classifier on test set: 0.90
+2021-08-03 21:05:52,740 - INFO - Accuracy: 0.8997020854021847
+2021-08-03 21:05:52,743 - INFO - Precision: 0.9054054054054054
+2021-08-03 21:05:52,789 - INFO - {'accuracy': 0.8997020854021847, 'precision': 0.9054054054054054, 'recall': 0.7153024911032029, 'f1': 0.7992047713717695, 'auc': 0.9190661058988461, 'random_seed': 42}
+2021-08-03 21:06:06,995 - INFO - calculating features
+2021-08-03 21:06:15,055 - INFO - calculating features for A118375B
+2021-08-03 21:06:30,819 - INFO - calculating aggregate features
+2021-08-03 21:06:38,146 - INFO - calculating independent features
+2021-08-03 21:06:46,028 - INFO - Library A118375B, accuracy of Logistic regression classifier on training set: 0.4546
+2021-08-03 21:06:53,635 - INFO - Library A118375B, accuracy of Logistic regression classifier on training set: 0.4294
+2021-08-03 21:06:58,241 - INFO - statistical tests and tabulation
+2021-08-03 21:07:58,941 - INFO - predicting cell cycle

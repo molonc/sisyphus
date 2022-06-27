@@ -243,6 +243,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
                 'row': int(row['row']),
                 'sample_id': str(row['sample_id']),
                 'library_id': str(row['library_id']),
+                'is_control': bool(row['is_control']),
                 'sample_type': 'null' if (row['sample_type'] == 'X') else str(row['sample_type']),
             }
 

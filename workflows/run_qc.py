@@ -6,7 +6,7 @@ import traceback
 import subprocess
 from datetime import datetime, timedelta
 from dateutil import parser
-
+from vm_control import start_vm, stop_vm,check_vm_status
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 from dbclients.slack import SlackClient
@@ -111,6 +111,8 @@ def generate_alhena_loader_projects_cli_args(projects):
         if(project_name in ALHENA_VALID_PROJECTS):
             project_args_list.append(f'--view {ALHENA_VALID_PROJECTS[project_name]}')
 
+    if f'--view {ALHENA_VALID_PROJECTS["DLP"]}' not in project_args_list:
+        project_args_list.append(f'--view {ALHENA_VALID_PROJECTS["DLP"]}')
     project_args = ' '.join(project_args_list)
 
     return project_args if project_args else ''
@@ -327,7 +329,6 @@ def run_viz_alhena(
     if(failed):
         base = f"An error occurred while uploading to Alhena in run_qc.py.\n"
         message = base + '\n'.join(failed)
-
         raise ValueError(message)
 
 def run_align(
@@ -632,9 +633,7 @@ def run_qc(
     if(failed):
         base = f"An error occurred while running Analysis in run_qc.py.\n"
         message = base + '\n'.join(failed)
-
-        raise ValueError(message)    
-
+        raise ValueError(message)
 #    # get annotation analysis completed in last week
 #    analyses = tantalus_api.list(
 #        "analysis",
@@ -679,23 +678,45 @@ def main(aligner):
             slack_client,
             config,
         )
-
-        # update ticket and load to montage
-        run_viz_alhena(
-            tantalus_api,
-            colossus_api,
-            storage_name,
-            _filter=True,
+    except Exception as e:
+        slack_client.post(f"{e}")
+    finally:
+        analyses = colossus_api.list(
+        "analysis_information",
+        montage_status="Pending",
+        analysis_run__run_status="complete",
         )
+        run = 0
+        for analysis in analyses:
+            # get library id
+            library_id = analysis["library"]["pool_id"]
+
+            # skip analyses older than this year
+            # parse off ending time range
+            last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
+            if last_updated_date < get_last_n_days(90):
+                continue
+            else:
+                run += 1
+
+        if (run!=0):
+            try:
+                start_vm("bccrc-pr-loader-vm", "bccrc-pr-cc-alhena-rg")
+            	# update ticket and load to montage
+                run_viz_alhena(
+                tantalus_api,
+                colossus_api,
+                storage_name,
+                _filter=True,
+                )
+                stop_vm("bccrc-pr-loader-vm","bccrc-pr-cc-alhena-rg")
 
 #        run_viz(
 #            tantalus_api,
 #            colossus_api,
 #            storage_name,
 #        )
-    except Exception as e:
-        slack_client.post(f"{e}")
-
-
+            except Exception as e:
+                slack_client.post(f"{e}")
 if __name__ == "__main__":
     main()

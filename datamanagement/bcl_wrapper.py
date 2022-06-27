@@ -1,5 +1,6 @@
 import re
 import click
+import socket
 import os
 @click.command()
 @click.argument('dir_in', nargs=1)
@@ -20,15 +21,11 @@ def main(dir_in, dir_out, orientation, no_bcl2fastq=False):
                 flowcell = line
                 return flowcell[int(flowcell.find("<Flowcell>"))+len("<Flowcell>"):int(flowcell.find("</Flowcell>"))]
 
-<<<<<<< HEAD
+    if socket.gethostname() =="scdna-prod-headnode":
+        raise Exception("wrong machine") 
     script_to_call = "/home/prod/sisyphus/datamanagement/dlp_bcl_fastq_import.py"
-    if orientation == "i7":
-        script_to_call = "/home/prod/sisyphus/datamanagement/dlp_bcl_fastq_import_flip_i7_2022.py"
-=======
-    script_to_call = "/home/sbeatty/sisyphus/datamanagement/dlp_bcl_fastq_import.py"
-    if orientation == "i7":
-        script_to_call = "/home/sbeatty/sisyphus/datamanagement/dlp_bcl_fastq_import_flip_i7_2022.py"
->>>>>>> 3c6d8700328837ab9f54c082a5bcd0b0eda868c0
+    #if orientation == "i7":
+    #    script_to_call = "/home/prod/sisyphus/datamanagement/dlp_bcl_fastq_import_flip_i7_2022.py"
 
     #dir_out = "/projects/molonc/archive/A118390A_210610_VH00387_33_AAAKHTGM5_new_transfer_i7"
     if dir_out[-1] != "/":
@@ -45,11 +42,7 @@ def main(dir_in, dir_out, orientation, no_bcl2fastq=False):
     command = "python " + script_to_call + " singlecellblob " + dir_out + " " + get_flowcell(lines_in) + " " + dir_in #+ " " +  str(get_lanes(lines_in))
 
     if no_bcl2fastq:
-<<<<<<< HEAD
         script_to_call = "/home/prod/sisyphus/datamanagement/dlp_bcl_fastq_import.py"
-=======
-        script_to_call = "/home/sbeatty/sisyphus/datamanagement/dlp_bcl_fastq_import.py"
->>>>>>> 3c6d8700328837ab9f54c082a5bcd0b0eda868c0
         command = "python " + script_to_call + " singlecellblob " + dir_out + " " + get_flowcell(lines_in) + " " + dir_in + " --no_bcl2fastq " #+  str(get_lanes(lines_in))
 
     #command2 = "echo " + command

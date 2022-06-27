@@ -23,8 +23,8 @@ from utils.filecopy import rsync_file
 from utils.utils import make_dirs
 from utils.comment_jira import comment_jira
 import datamanagement.templates as templates
-from datamanagement.utils.qsub_job_submission import submit_qsub_job
-from datamanagement.utils.qsub_jobs import Bcl2FastqJob
+#from datamanagement.utils.qsub_job_submission import submit_qsub_job
+#from datamanagement.utils.qsub_jobs import Bcl2FastqJob
 from datamanagement.utils.constants import DEFAULT_NATIVESPEC
 import datetime
 
