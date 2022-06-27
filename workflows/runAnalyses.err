@@ -1,13 +1,13 @@
-2022-06-27 22:00:51,130 - sisyphus - INFO - checking ticket SC-7658 library A131207A
-2022-06-27 22:00:51,570 - sisyphus - INFO - align has status complete for library A131207A
-2022-06-27 22:00:51,996 - sisyphus - INFO - hmmcopy has status running for library A131207A
-2022-06-27 22:00:51,996 - sisyphus - INFO - checking ticket SC-7670 library A118365A
-2022-06-27 22:00:52,439 - sisyphus - INFO - align has status running for library A118365A
-2022-06-27 22:00:52,440 - sisyphus - INFO - checking ticket SC-7810 library A131231A
-2022-06-27 22:00:52,903 - sisyphus - INFO - align has status complete for library A131231A
-2022-06-27 22:00:53,358 - sisyphus - INFO - hmmcopy has status running for library A131231A
-2022-06-27 22:00:53,358 - sisyphus - INFO - checking ticket SC-7844 library A118347A
-2022-06-27 22:00:53,816 - sisyphus - INFO - align has status complete for library A118347A
-2022-06-27 22:00:54,230 - sisyphus - INFO - hmmcopy has status running for library A118347A
-2022-06-27 22:00:54,231 - sisyphus - INFO - checking ticket SC-7845 library A131143B
-2022-06-27 22:00:54,636 - sisyphus - INFO - align has status running for library A131143B
+2022-06-27 22:20:51,460 - sisyphus - INFO - checking ticket SC-7658 library A131207A
+2022-06-27 22:20:51,899 - sisyphus - INFO - align has status complete for library A131207A
+2022-06-27 22:20:52,331 - sisyphus - INFO - hmmcopy has status running for library A131207A
+2022-06-27 22:20:52,332 - sisyphus - INFO - checking ticket SC-7670 library A118365A
+2022-06-27 22:20:52,728 - sisyphus - INFO - align has status running for library A118365A
+2022-06-27 22:20:52,728 - sisyphus - INFO - checking ticket SC-7810 library A131231A
+2022-06-27 22:20:53,185 - sisyphus - INFO - align has status complete for library A131231A
+2022-06-27 22:20:53,633 - sisyphus - INFO - hmmcopy has status running for library A131231A
+2022-06-27 22:20:53,633 - sisyphus - INFO - checking ticket SC-7844 library A118347A
+2022-06-27 22:20:54,039 - sisyphus - INFO - align has status complete for library A118347A
+2022-06-27 22:20:54,447 - sisyphus - INFO - hmmcopy has status running for library A118347A
+2022-06-27 22:20:54,447 - sisyphus - INFO - checking ticket SC-7845 library A131143B
+2022-06-27 22:20:54,894 - sisyphus - INFO - align has status running for library A131143B
