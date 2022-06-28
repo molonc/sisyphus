@@ -117,3 +117,6 @@ sourceMe
 
 #Error file
 *.err
+
+#Script
+scripts/
