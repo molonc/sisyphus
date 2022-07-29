@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import collections
-
+import time
 from datamanagement.utils.utils import get_lanes_hash, get_lane_str
 import datamanagement.templates as templates
 from dbclients.colossus import ColossusApi
@@ -101,10 +101,17 @@ def create_sequence_dataset_models(
 
     analysis = None
     if analysis_id is not None:
-        analysis = tantalus_api.get('analysis', id=analysis_id)
-
+        try:
+            analysis = tantalus_api.get('analysis', id=analysis_id)
+        except:
+            time.sleep(60)
+            analysis = tantalus_api.get('analysis', id=analysis_id)
     # Get storage and tag PKs
-    storage = tantalus_api.get("storage", name=storage_name)
+    try:
+        storage = tantalus_api.get("storage", name=storage_name)
+    except:
+        time.sleep(60)
+        storage = tantalus_api.get("storage", name=storage_name)
     storage_pk = storage["id"]
 
     # Sort files by dataset
@@ -135,19 +142,35 @@ def create_sequence_dataset_models(
     dataset_ids = set()
     for dataset_name, infos in dataset_info.items():
         # Get library PK
-        library = tantalus_api.get_or_create(
-            "dna_library",
-            library_id=infos[0]["library_id"],
-            library_type=infos[0]["library_type"],
-            index_format=infos[0]["index_format"],
-        )
+        try:
+            library = tantalus_api.get_or_create(
+                "dna_library",
+                library_id=infos[0]["library_id"],
+                library_type=infos[0]["library_type"],
+                index_format=infos[0]["index_format"],
+            )
+        except:
+            time.sleep(60)
+            library = tantalus_api.get_or_create(
+                "dna_library",
+                library_id=infos[0]["library_id"],
+                library_type=infos[0]["library_type"],
+                index_format=infos[0]["index_format"],
+            )
         library_pk = library["id"]
 
         # Get sample PK
-        sample = tantalus_api.get_or_create(
-            "sample",
-            sample_id=infos[0]["sample_id"],
-        )
+        try:
+            sample = tantalus_api.get_or_create(
+                "sample",
+                sample_id=infos[0]["sample_id"],
+            )
+        except:
+            time.sleep(60)
+            sample = tantalus_api.get_or_create(
+                "sample",
+                sample_id=infos[0]["sample_id"],
+            )
         sample_pk = sample["id"]
 
         # Build up sequence dataset attrs; we'll add to this as we
@@ -188,9 +211,15 @@ def create_sequence_dataset_models(
                 sequence_lane["dna_library"] = library_pk
                 sequence_lane["lane_number"] = str(sequence_lane["lane_number"])
 
-                sequence_lane = tantalus_api.get_or_create(
-                    "sequencing_lane", **sequence_lane
-                )
+                try:
+                    sequence_lane = tantalus_api.get_or_create(
+                        "sequencing_lane", **sequence_lane
+                    )
+                except:
+                    time.sleep(60)
+                    sequence_lane = tantalus_api.get_or_create(
+                        "sequencing_lane", **sequence_lane
+                    )
 
                 sequence_dataset["sequence_lanes"].append(sequence_lane["id"])
 
@@ -199,17 +228,33 @@ def create_sequence_dataset_models(
             if "read_end" in info:
                 sequence_file_info["read_end"] = info["read_end"]
 
-            file_resource, file_instance = tantalus_api.add_file(
-                storage_name,
-                info["filepath"],
-                update=update,
-            )
+            try:
+                file_resource, file_instance = tantalus_api.add_file(
+                    storage_name,
+                    info["filepath"],
+                    update=update,
+                )
+            except:
+                time.sleep(60)
+                file_resource, file_instance = tantalus_api.add_file(
+                    storage_name,
+                    info["filepath"],
+                    update=update,
+                )
 
-            sequence_file_info = tantalus_api.get_or_create(
-                "sequence_file_info",
-                file_resource=file_resource["id"],
-                **sequence_file_info
-            )
+            try:
+                sequence_file_info = tantalus_api.get_or_create(
+                    "sequence_file_info",
+                    file_resource=file_resource["id"],
+                    **sequence_file_info
+                )
+            except:
+                time.sleep(60)
+                sequence_file_info = tantalus_api.get_or_create(
+                    "sequence_file_info",
+                    file_resource=file_resource["id"],
+                    **sequence_file_info
+                )
 
             sequence_dataset["file_resources"].append(file_resource["id"])
 
@@ -217,17 +262,31 @@ def create_sequence_dataset_models(
             dataset_id = tantalus_api.get("sequence_dataset", name=sequence_dataset["name"])["id"]
         except NotFoundError:
             dataset_id = None
+        except:
+            time.sleep(60)
+            dataset_id = tantalus_api.get("sequence_dataset", name=sequence_dataset["name"])["id"]
 
         if update and dataset_id is not None:
             log.warning("sequence dataset {} has changed, updating".format(sequence_dataset["name"]))
-            dataset = tantalus_api.update("sequence_dataset", id=dataset_id, **sequence_dataset)
+            try:
+                dataset = tantalus_api.update("sequence_dataset", id=dataset_id, **sequence_dataset)
+            except:
+                time.sleep(60)
+                dataset = tantalus_api.update("sequence_dataset", id=dataset_id, **sequence_dataset)
 
         else:
             log.info("creating sequence dataset {}".format(sequence_dataset["name"]))
-            dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
-
+            try:
+                dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
+            except:
+                time.sleep(60)
+                dataset = tantalus_api.get_or_create("sequence_dataset", **sequence_dataset)
         if tag_name is not None:
-            tantalus_api.tag(tag_name, sequencedataset_set=[dataset['id']]) 
+            try:
+                tantalus_api.tag(tag_name, sequencedataset_set=[dataset['id']])
+            except:
+                time.sleep(60)
+                tantalus_api.tag(tag_name, sequencedataset_set=[dataset['id']])
 
         dataset_ids.add(dataset['id'])
 
