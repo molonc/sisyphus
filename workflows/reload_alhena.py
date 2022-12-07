@@ -25,7 +25,6 @@ from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_
 from common_utils.utils import get_last_n_days
 
 from constants.workflows_constants import ALHENA_VALID_PROJECTS
-from workflows.chasm_run import chasmbot_run, post_to_jira
 
 log = logging.getLogger('sisyphus')
 log.setLevel(logging.DEBUG)
@@ -47,7 +46,7 @@ def attach_qc_report(
             library_id,
         ),
     )
-    qc_filename = "QC_report.html".format(library_id)
+    qc_filename = "{}_QC_report.html".format(library_id)
     jira_qc_filename = "{}_{}_QC_report.html".format(library_id, jira)
     qc_report = list(
         tantalus_api.get_dataset_file_resources(
@@ -210,7 +209,7 @@ def run_viz(
         # skip analyses older than this year
         # parse off ending time range
         last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < get_last_n_days(200):
+        if last_updated_date < get_last_n_days(90):
             continue
 
         jira_ticket = analysis["analysis_jira_ticket"]
@@ -284,7 +283,7 @@ def run_viz_alhena(
         # skip analyses older than this year
         # parse off ending time range
         last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < get_last_n_days(200):
+        if last_updated_date < get_last_n_days(90):
             continue
 
         jira_ticket = analysis["analysis_jira_ticket"]
@@ -325,29 +324,7 @@ def run_viz_alhena(
             log.error(message)
             failed.append(f"{library_id}, {jira_ticket}")
             continue
-        
-        """try:
-            file_object = open('/home/prod/sisyphus/datamanagement/sisyphus/datamanagement/jira.txt', 'a')
 
-            file_object.write(jira_ticket)
-
-            file_object.close()
-        except Exception as e:
-            traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
-            message = f"adding JIRA to jira.txt failed for {library_id}, {jira_ticket}.\n {str(traceback_str)}"
-            log.error(message)
-            failed.append(f"{library_id}, {jira_ticket}")
-            continue"""
-        #Add ChasmBot Analysis to parent Jira ticket
-        try:
-            chasmbot_run(jira_ticket)
-        except Exception as e:
-            traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
-            message = f"Adding ChasmBot to Jira failed for {library_id}, {jira_ticket}.\n {str(traceback_str)}"
-            log.error(message)
-            post_to_jira(jira,f"Failed to run ChasmBot for {library_id}, {jira_ticket}")
-            failed.append(f"{library_id}, {jira_ticket}")
-            continue
     # propagate error after the loop
     if(failed):
         base = f"An error occurred while uploading to Alhena in run_qc.py.\n"
@@ -577,7 +554,7 @@ def run_qc(
         # skip analyses older than this year
         # parse off ending time range
         last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-        if last_updated_date < get_last_n_days(200):
+        if last_updated_date < get_last_n_days(90):
             continue
 
         # get jira ticket
@@ -704,36 +681,35 @@ def main(aligner):
     except Exception as e:
         slack_client.post(f"{e}")
     finally:
-        analyses = colossus_api.list(
-        "analysis_information",
-        montage_status="Pending",
-        analysis_run__run_status="complete",
-        )
-        run = 0
-        for analysis in analyses:
+       # analyses = colossus_api.list(
+       # "analysis_information",
+       # montage_status="Pending",
+       # analysis_run__run_status="complete",
+       # )
+       # run = 0
+       # for analysis in analyses:
             # get library id
-            library_id = analysis["library"]["pool_id"]
+       #     library_id = analysis["library"]["pool_id"]
 
             # skip analyses older than this year
             # parse off ending time range
-            last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
-            if last_updated_date < get_last_n_days(200):
-                continue
-            else:
-                run += 1
+       #     last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
+       #     if last_updated_date < get_last_n_days(90):
+       #         continue
+       #     else:
+       #         run += 1
 
-        if (run!=0):
+       # if (run!=0):
             try:
                 start_vm("bccrc-pr-loader-vm", "bccrc-pr-cc-alhena-rg")
             	# update ticket and load to montage
-                run_viz_alhena(
-                tantalus_api,
-                colossus_api,
-                storage_name,
-                _reload=True,
-                _filter=True,
-                )
-               # load_data_to_alhena(jira="SC-7844", _reload=True, _filter=False)
+       #         run_viz_alhena(
+       #         tantalus_api,
+       #         colossus_api,
+       #         storage_name,
+       #         _filter=True,
+       #         )
+                load_data_to_alhena(jira="SC-7321", _reload=True, _filter=False)
                 stop_vm("bccrc-pr-loader-vm","bccrc-pr-cc-alhena-rg")
 
 #        run_viz(
@@ -742,7 +718,6 @@ def main(aligner):
 #            storage_name,
 #        )
             except Exception as e:
-                log.error(f"{e}")
-                #slack_client.post(f"{e}")
+                slack_client.post(f"{e}")
 if __name__ == "__main__":
     main()

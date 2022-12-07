@@ -24,6 +24,7 @@ import workflows.analysis.dlp.split_wgs_bam
 import workflows.analysis.dlp.variant_calling
 import workflows.analysis.dlp.snv_genotyping
 import workflows.analysis.dlp.microscope
+import workflows.analysis.dlp.germline_calling
 
 import datamanagement.templates as templates
 from datamanagement.transfer_files import transfer_dataset
@@ -90,6 +91,8 @@ def main(
 
     if config_filename is None:
         config_filename = default_config
+    
+    print(workflows.analysis.base.Analysis.analysis_classes)
 
     analysis = workflows.analysis.base.Analysis.get_by_id(tantalus_api, analysis_id)
 
@@ -105,6 +108,7 @@ def main(
     jira_id = analysis.jira
     analysis_name = analysis.name
     analysis_type = analysis.analysis_type
+    analysis_version = analysis.version
 
     if not templates.JIRA_ID_RE.match(jira_id):
         raise Exception(f'Invalid SC ID: {jira_id}')

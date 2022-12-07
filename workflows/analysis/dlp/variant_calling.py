@@ -156,7 +156,7 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
             docker_env_file=docker_env_file,
             docker_server=docker_server,
             output_dirs={
-                'out_dir': out_path,
+                'output_prefix': out_path+"/",
             },
             max_jobs='400',
             dirs=dirs,

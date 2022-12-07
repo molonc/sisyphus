@@ -6,22 +6,20 @@ import sys
 import pandas as pd
 
 import dbclients.tantalus
-import dbclients.colossus
 import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
 import workflows.analysis.dlp.utils
 import datamanagement.templates as templates
 from datamanagement.utils.utils import get_lanes_hash
 from datamanagement.utils.constants import LOGGING_FORMAT
-import workflows.analysis.dlp.preprocessing as preprocessing
 import workflows.analysis.dlp.results_import as results_import
 
 
-class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
-    analysis_type_ = 'breakpoint_calling'
+class GermlineCallingAnalysis(workflows.analysis.base.Analysis):
+    analysis_type_="germline_calling"
 
     def __init__(self, *args, **kwargs):
-        super(BreakpointCallingAnalysis, self).__init__(*args, **kwargs)
+        super(GermlineCallingAnalysis, self).__init__(*args, **kwargs)
         self.out_dir = os.path.join(
             self.jira,
             "results",
@@ -29,47 +27,29 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             'sample_{}'.format(self.args['sample_id']),
         )
 
+    # TODO: Hard coded for now but should be read out of the metadata.yaml files in the future
+    region_split_length = 10000000
+
     @classmethod
     def search_input_datasets(cls, tantalus_api, jira, version, args):
-        tumour_dataset = workflows.analysis.dlp.utils.get_most_recent_dataset(
-            tantalus_api,
+        tumour_dataset = tantalus_api.get(
+            'sequencedataset',
             dataset_type='BAM',
-            #analysis__jira_ticket=jira,
+            analysis__jira_ticket=jira,
             library__library_id=args['library_id'],
             sample__sample_id=args['sample_id'],
             aligner__name__startswith=args['aligner'],
             reference_genome__name=args['ref_genome'],
-            region_split_length=None,
+            region_split_length=cls.region_split_length,
         )
 
-        normal_dataset = workflows.analysis.dlp.utils.get_most_recent_dataset(
-            tantalus_api,
-            dataset_type='BAM',
-            sample__sample_id=args['normal_sample_id'],
-            library__library_id=args['normal_library_id'],
-            aligner__name__startswith=args['aligner'],
-            reference_genome__name=args['ref_genome'],
-            region_split_length=None,
-        )
-
-        return [tumour_dataset['id'], normal_dataset['id']]
-
-    @classmethod
-    def search_input_results(cls, tantalus_api, jira, version, args):
-        results = workflows.analysis.dlp.utils.get_most_recent_result(
-            tantalus_api,
-            #analysis__jira_ticket=jira,
-            libraries__library_id=args['library_id'],
-            results_type='annotation',
-        )
-
-        return [results["id"]]
+        return [tumour_dataset['id']]
 
     @classmethod
     def generate_unique_name(cls, tantalus_api, jira, version, args, input_datasets, input_results):
-        assert len(input_datasets) == 2
+        assert len(input_datasets) == 1
         for dataset_id in input_datasets:
-            dataset = tantalus_api.get('sequence_dataset', id=dataset_id)
+            dataset = tantalus_api.get('sequencedataset', id=dataset_id)
             if dataset['sample']['sample_id'] == args['sample_id'] and dataset['library']['library_id'] == args[
                     'library_id']:
                 tumour_dataset = dataset
@@ -91,56 +71,47 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
         return name
 
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
-        assert len(self.analysis['input_datasets']) == 2
+        assert len(self.analysis['input_datasets']) == 1
 
         storage_client = self.tantalus_api.get_storage_client(storages['working_inputs'])
 
         input_info = {}
         for dataset_id in self.analysis['input_datasets']:
-            dataset = self.tantalus_api.get('sequence_dataset', id=dataset_id)
+            dataset = self.tantalus_api.get('sequencedataset', id=dataset_id)
 
-            if dataset['sample']['sample_id'] == self.args['normal_sample_id']:
-                assert 'normal' not in input_info
+            # Read the metadata yaml file
+            file_instances = self.tantalus_api.get_dataset_file_instances(
+                dataset_id,
+                'sequencedataset',
+                storages['working_inputs'],
+                filters={'filename__endswith': 'metadata.yaml'})
+            assert len(file_instances) == 1
+            file_instance = file_instances[0]
+            metadata = yaml.safe_load(storage_client.open_file(file_instance['file_resource']['filename']))
 
-                input_info['normal'] = {}
+            # All filenames relative to metadata.yaml
+            base_dir = file_instance['file_resource']['filename'].replace('metadata.yaml', '')
 
-                if dataset['library']['library_type'] == 'SC_WGS':
-                    input_info['normal'] = workflows.analysis.dlp.utils.get_cell_bams(
-                        self.tantalus_api,
-                        dataset,
-                        storages,
-                    )
+            bam_info = {}
+            template = metadata['meta']['bams']['template']
+            for instance in metadata['meta']['bams']['instances']:
+                region = instance['region']
 
-                elif dataset['library']['library_type'] == 'WGS':
-                    file_instances = self.tantalus_api.get_dataset_file_instances(
-                        dataset_id,
-                        'sequencedataset',
-                        storages['working_inputs'],
-                        filters={'filename__endswith': '.bam'})
+                bams_filename = template.format(**instance)
+                assert bams_filename in metadata['filenames']
+                assert region not in bam_info
 
-                    assert len(file_instances) == 1
-                    assert storage_client.exists(file_instances[0]['file_resource']['filename'])
-                    input_info['normal']['bam'] = str(file_instances[0]['filepath'])
+                assert storage_client.exists(os.path.join(base_dir, bams_filename))
 
-                else:
-                    raise ValueError(f'unsupported library type for dataset {dataset}')
+                bam_info[region] = {}
+                bam_info[region]['bam'] = os.path.join(storage_client.prefix, base_dir, bams_filename)
 
-            elif dataset['sample']['sample_id'] == self.args['sample_id']:
+            if dataset['sample']['sample_id'] == self.args['sample_id'] and dataset['library'][
+                    'library_id'] == self.args['library_id']:
                 assert 'tumour' not in input_info
-
-                assert len(self.analysis['input_results']) == 1
-                cell_ids = preprocessing.get_passed_cell_ids(
-                    self.tantalus_api,
-                    self.analysis['input_results'][0],
-                    storages['working_results'],
-                )
-
-                input_info['tumour'] = workflows.analysis.dlp.utils.get_cell_bams(
-                    self.tantalus_api,
-                    dataset,
-                    storages,
-                    passed_cell_ids=cell_ids,
-                )
+                input_info['normal'] = bam_info
+            else:
+                raise Exception(f'unrecognized dataset {dataset_id}')
 
         with open(inputs_yaml_filename, 'w') as inputs_yaml:
             yaml.safe_dump(input_info, inputs_yaml, default_flow_style=False)
@@ -160,12 +131,8 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
         storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
         out_path = os.path.join(storage_client.prefix, self.out_dir)
 
-        # get scp configuration i.e. specifies aligner and reference genome
-        scp_config = self.get_config(self.args)
-        run_options['config_override'] = scp_config
-
         return workflows.analysis.dlp.launchsc.run_pipeline(
-            analysis_type='breakpoint_calling',
+            analysis_type='germline_calling',
             version=self.version,
             run_options=run_options,
             scpipeline_dir=scpipeline_dir,
@@ -175,7 +142,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             docker_env_file=docker_env_file,
             docker_server=docker_server,
             output_dirs={
-                'out_dir': out_path,
+                'output_prefix': out_path+"/",
             },
             max_jobs='400',
             dirs=dirs,
@@ -201,7 +168,7 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
             self.get_input_libraries(),
             storages['working_results'],
             update=update,
-            skip_missing=skip_missing,
+            skip_missing=True,
         )
 
         return [results['id']]
@@ -211,15 +178,13 @@ class BreakpointCallingAnalysis(workflows.analysis.base.Analysis):
         cls.create_cli([
             'sample_id',
             'library_id',
-            'normal_sample_id',
-            'normal_library_id',
             'aligner',
             'ref_genome',
         ])
 
 
-workflows.analysis.base.Analysis.register_analysis(BreakpointCallingAnalysis)
+workflows.analysis.base.Analysis.register_analysis(GermlineCallingAnalysis)
 
 if __name__ == '__main__':
     logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
-    BreakpointCallingAnalysis.create_analysis_cli()
+    GermlineCallingAnalysis.create_analysis_cli()

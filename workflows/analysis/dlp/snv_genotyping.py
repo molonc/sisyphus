@@ -4,7 +4,7 @@ import logging
 import click
 import sys
 import pandas as pd
-
+import workflows.analysis.dlp.utils
 import dbclients.tantalus
 import workflows.analysis.base
 import workflows.analysis.dlp.launchsc
@@ -29,20 +29,18 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
             library_id = info['library_id']
             sample_id = info['sample_id']
 
-            results = tantalus_api.get(
-                'resultsdataset',
-                analysis__jira_ticket=library_jira_id,
-                libraries__library_id=library_id,
+            results = workflows.analysis.dlp.utils.get_most_recent_result(
+                tantalus_api,
+                libraries__library_id=info['library_id'],
                 samples__sample_id=sample_id,
-                results_type='variant_calling',
-            )
+                results_type="variant_calling")
+
             results_ids.add(results['id'])
 
-            results = tantalus_api.get(
-                'resultsdataset',
-                analysis__jira_ticket=library_jira_id,
-                libraries__library_id=library_id,
-                results_type='annotation',
+            results = workflows.analysis.dlp.utils.get_most_recent_result(
+                tantalus_api,
+                libraries__library_id=info['library_id'],
+                results_type='annotation'
             )
             results_ids.add(results['id'])
 
@@ -57,13 +55,12 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
             library_id = info['library_id']
             sample_id = info['sample_id']
 
-            dataset = tantalus_api.get(
-                'sequencedataset',
-                analysis__jira_ticket=library_jira_id,
+            dataset = workflows.analysis.dlp.utils.get_most_recent_dataset(
+                tantalus_api,
                 library__library_id=library_id,
                 sample__sample_id=sample_id,
                 dataset_type='BAM',
-                region_split_length=None,
+                region_split_length=None
             )
 
             dataset_ids.append(dataset['id'])
@@ -81,7 +78,7 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
 
     def generate_inputs_yaml(self, storages, inputs_yaml_filename):
         input_info = {
-            'vcf_files': {},
+            'vcf_files':[],
             'tumour_cells': {},
         }
 
@@ -113,8 +110,6 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
             assert len(library_ids) == 1
             library_id = library_ids[0]
 
-            input_info['vcf_files'][sample_id] = input_info['vcf_files'].get(sample_id, {})
-            input_info['vcf_files'][sample_id][library_id] = input_info['vcf_files'][sample_id].get(library_id, {})
 
             snv_inputs = [
                 ('museq.vcf.gz', 'museq_vcf'),
@@ -127,8 +122,9 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
                 assert len(file_instances) == 1
                 file_instance = file_instances[0]
 
-                input_info['vcf_files'][sample_id][library_id][filetype] = file_instance['filepath']
-
+                input_info['vcf_files'].append(file_instance['filepath'])
+	
+        assert len(input_info['vcf_files']) != 0
         colossus_api = dbclients.colossus.ColossusApi()
 
         # Retrieve bam files for input datasets
@@ -183,7 +179,7 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
             docker_env_file=docker_env_file,
             docker_server=docker_server,
             output_dirs={
-                'out_dir': out_path,
+                'output_prefix': out_path+"/"
             },
             max_jobs='400',
             dirs=dirs,
@@ -201,7 +197,7 @@ class SnvGenotypingAnalysis(workflows.analysis.base.Analysis):
             self.get_input_samples(),
             self.get_input_libraries(),
             storages['working_results'],
-            update=update,
+            update=True,
             skip_missing=skip_missing,
         )
 
@@ -228,7 +224,8 @@ def analysis():
 @click.option('--update', is_flag=True)
 def create_single_analysis(jira_id, version, group_id, library_jira_id, library_id, sample_id, normal_library_id, normal_sample_id, update=False):
     tantalus_api = dbclients.tantalus.TantalusApi()
-
+    
+    print(len(library_jira_id) , len(library_id) , len(sample_id) , len(normal_library_id) , len(normal_sample_id)) 
     if not (len(library_jira_id) == len(library_id) == len(sample_id) == len(normal_library_id) == len(normal_sample_id)):
         raise ValueError('library_jira_id, library_id, sample_id normal_library_id, normal_sample_id, must be of the same length')
 

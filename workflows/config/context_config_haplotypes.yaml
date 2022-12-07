@@ -1,5 +1,5 @@
 docker:
-    image: scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_haplotypes:v0.8.0
+    image: scdnaprod.azurecr.io/singlecellpipeline/single_cell_pipeline_haplotypes:v0.8.18
     mounts:
       refdata: /refdata
       datadrive: /datadrive

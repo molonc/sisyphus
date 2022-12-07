@@ -17,6 +17,18 @@ def get_most_recent_dataset(tantalus_api, **kwargs):
 
     return datasets.popitem()[1]
 
+def get_most_recent_result(tantalus_api, **kwargs):
+    datasets = {}
+    id = 0
+    for dataset in tantalus_api.list('resultsdataset', **kwargs):
+        datasets[dataset['id']] = dataset
+        if dataset['id'] > id:
+            id = dataset['id']
+
+    if len(datasets) == 0:
+        raise ValueError(f'no datasets found with search parameters {kwargs}')
+
+    return datasets[id]
 
 def get_cell_bams(tantalus_api, dataset, storages, passed_cell_ids=None):
     colossus_api = dbclients.colossus.ColossusApi()

@@ -16,6 +16,7 @@ DOCKER_IMAGES = {
 	'snv_genotyping': VARIANT_IMAGE,
 	'infer_haps': HAPLOTYPES_IMAGE,
 	'count_haps': HAPLOTYPES_IMAGE,
+        'germline_calling':VARIANT_IMAGE,
 }
 
 # valid projects were obtained from loader VM (bccrc-pr-loader-vm)

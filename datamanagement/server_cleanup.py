@@ -111,7 +111,7 @@ def delete_lanes_by_library(
         delete_sequencing_lane(sequencing_lane_id)
 
 @main.command()
-@click.option('--result-storage-name', '-r', type=str, required=True)
+@click.argument('result-storage-name')
 @click.option('--data-storage-name', '-d', type=str, required=True)
 @click.option('--analysis-id', '-id', type=int, required=True, multiple=True)
 @click.option('--clean-azure', is_flag=True)

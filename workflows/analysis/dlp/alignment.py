@@ -36,6 +36,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
     def __init__(self, *args, **kwargs):
         super(AlignmentAnalysis, self).__init__(*args, **kwargs)
         self.out_dir = os.path.join(self.jira, "results", self.analysis_type)
+        #self.out_dir = os.path.join(self.jira, "results")
         self.bams_dir = self._get_bams_dir(self.jira, self.args)
 
     def _get_lanes(self):
@@ -299,7 +300,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             docker_env_file=docker_env_file,
             docker_server=docker_server,
             output_dirs={
-                'out_dir': out_path,
+                'output_prefix': out_path+"/",
                 'bams_dir': bams_path,
             },
             cli_args=[
@@ -376,7 +377,7 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
 
         logging.info("created sequence datasets {}".format(output_datasets))
 
-    def create_output_results(self, storages, update=False, skip_missing=False):
+    def create_output_results(self, storages,version=1, update=False, skip_missing=False):
         """
         Create the set of output results produced by this analysis.
         """

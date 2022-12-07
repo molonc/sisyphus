@@ -10,7 +10,7 @@ def get_passed_cell_ids(tantalus_api, results_id, storage_name):
     library_id = results['libraries'][0]['library_id']
     file_instances = tantalus_api.get_dataset_file_instances(
         results_id, 'resultsdataset', storage_name,
-        filters={'filename__endswith': f'{library_id}_metrics.csv.gz'})
+        filters={'filename__endswith': 'metrics.csv.gz'})
     assert len(file_instances) == 1
     file_instance = file_instances[0]
 

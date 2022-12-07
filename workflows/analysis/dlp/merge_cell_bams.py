@@ -8,6 +8,7 @@ import pandas as pd
 import dbclients.tantalus
 import dbclients.colossus
 import workflows.analysis.base
+import workflows.analysis.dlp.utils
 import workflows.analysis.dlp.launchsc
 import datamanagement.templates as templates
 from datamanagement.utils.utils import get_lanes_hash, get_datasets_lanes_hash
@@ -32,24 +33,22 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
 
     @classmethod
     def search_input_datasets(cls, tantalus_api, jira, version, args):
-        dataset = tantalus_api.get(
-            'sequence_dataset',
-            analysis__jira_ticket=jira,
-            library__library_id=args['library_id'],
-            sample__sample_id=args['sample_id'],
+        dataset = workflows.analysis.dlp.utils.get_most_recent_dataset(
+            tantalus_api,
+            sample__sample_id=args["sample_id"],
+            library__library_id=args["library_id"],
             aligner__name__startswith=args["aligner"],
             reference_genome__name=args["ref_genome"],
-            dataset_type='BAM',
             region_split_length=None,
+            dataset_type="BAM",
         )
 
         return [dataset["id"]]
 
     @classmethod
     def search_input_results(cls, tantalus_api, jira, version, args):
-        results = tantalus_api.get(
-            'resultsdataset',
-            analysis__jira_ticket=jira,
+        results = workflows.analysis.dlp.utils.get_most_recent_result(
+            tantalus_api,
             libraries__library_id=args['library_id'],
             results_type='annotation',
         )
@@ -149,7 +148,7 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
             docker_env_file=docker_env_file,
             docker_server=docker_server,
             output_dirs={
-                'out_dir': bams_path,
+                'output_prefix': bams_path+"/",
             },
             max_jobs='400',
             dirs=dirs,
@@ -183,7 +182,7 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
             file_resource, file_instance = self.tantalus_api.add_file(
                 storages["working_inputs"],
                 filepath,
-                update=update,
+                update=True,
             )
             file_resources.append(file_resource["id"])
 
@@ -211,7 +210,7 @@ class MergeCellBamsAnalysis(workflows.analysis.base.Analysis):
             data,
             keys,
             get_existing=True,
-            do_update=update,
+            do_update=True,
         )
 
         logging.info("Created sequence dataset {}".format(name))

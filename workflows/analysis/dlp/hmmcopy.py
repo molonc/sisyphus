@@ -21,7 +21,6 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
     def __init__(self, *args, **kwargs):
         super(HMMCopyAnalysis, self).__init__(*args, **kwargs)
         self.out_dir = os.path.join(self.jira, "results", self.analysis_type)
-
     def _check_input_datasets_completeness(tantalus_api, args, input_datasets):
         # get all fastqs datasets of library
         fastq_datasets = tantalus_api.list(
@@ -215,7 +214,7 @@ class HMMCopyAnalysis(workflows.analysis.base.Analysis):
             docker_env_file=docker_env_file,
             docker_server=docker_server,
             output_dirs={
-                'out_dir': out_path,
+                'output_prefix': out_path+"/",
             },
             cli_args=[
                 '--library_id',

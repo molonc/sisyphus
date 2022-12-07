@@ -28,7 +28,7 @@ class HaplotypeCallingAnalysis(workflows.analysis.base.Analysis):
             tantalus_api,
             sample__sample_id=args["sample_id"],
             library__library_id=args["library_id"],
-            aligner__name__startswith=args["aligner"],
+            #aligner__name__startswith=args["aligner"],
             reference_genome__name=args["ref_genome"],
             region_split_length=None,
             dataset_type="BAM",

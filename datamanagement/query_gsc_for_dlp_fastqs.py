@@ -83,7 +83,72 @@ FILENAME_PATTERN_MAP = {
     "*_2_*_adapter_trimmed_*.fastq.gz": (2, True),
 }
 
-def map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos):
+def rev_comp(seq):
+    complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+    return "".join(complement.get(base, base) for base in reversed(seq))
+
+def check_index(colossus_api, data_path, dlp_library_id):
+    indexs={}
+    leftover=[]
+
+    obj=colossus_api.get_colossus_sublibraries_from_library_id(dlp_library_id,True)
+
+    for data in obj:
+        index = data['primer_i7']+"-"+data['primer_i5']
+        if index not in indexs:
+            indexs[index] = 0
+
+    for index in data_path:
+        if index in indexs:
+            indexs[index]+=1
+        else:
+            leftover.append(index)
+
+    missing = []
+    for key in indexs.keys():
+        if indexs[key] == 0:
+            missing.append(key)
+
+    logging.info(f"leftover/total: {len(leftover)/len(data_path)}")
+    logging.info(f"missing/total: {len(missing)/len(data_path)}")
+
+    if (len(leftover)/len(data_path)>0.5):
+        rev_indexs={}
+        rev_leftover=[]
+        rev_missing=[]
+        for data in obj:
+            index = rev_comp(data['primer_i7'])+"-"+rev_comp(data['primer_i5'])
+            if index not in rev_indexs:
+                rev_indexs[index] = 0
+
+        for index in data_path:
+            if index in rev_indexs:
+                rev_indexs[index]+=1
+            else:
+                rev_leftover.append(index)
+
+        for key in rev_indexs.keys():
+            if rev_indexs[key] == 0:
+                rev_missing.append(key)
+
+        #if (len(rev_missing) == 0 and len(rev_leftover) == 0):
+        if (len(rev_missing) == 0):
+            return 0
+        else:
+            logging.info("index is reverse complmented")
+            #logging.info(f"rev Index: {rev_indexs}")
+            logging.info(f"missing Index: {len(rev_missing)}")
+            logging.info(f"leftover Index: {len(rev_leftover)}")
+            return 1
+
+    if (len(missing) ==0):
+        return 0
+    else: 
+        logging.info(f"missing Index:{len(missing)}")
+        logging.info(f"leftover Index: {len(leftover)}")
+        return 1
+
+def map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos, external_identifier, dlp_library_id):
     """
     Initialize flowcell mapping where key will be  flowcell id and value is flowcell code
 
@@ -100,16 +165,27 @@ def map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos):
     
     flowcell_id_mapping = {}
     gsc_lane_fastq_file_infos = defaultdict(list)
+    data_path=[]
 
     # To avoid multiple calls to fetch primer, create dictionary keyed by primer_id
     # with set of libcore ids as expected value. This way we can make a single batch call
     # to fetch primers
     primer_libcore = defaultdict(set)
 
+    #controls = ['SA1015', 'SA039']
+
     for fastq_info in gsc_fastq_infos:
         # check if cell condition start with GSC as we do not have permission to these
-        if gsc_library_id.startswith("IX") and fastq_info["libcore"]["library"]["cell_condition"].startswith("GSC-"):
+        if gsc_library_id.startswith("IX") and fastq_info["libcore"]["library"]["cell_condition"] != None and  fastq_info["libcore"]["library"]["cell_condition"].startswith("GSC-"):
             continue
+
+        try:
+            if ((fastq_info["libcore"]['library']['external_identifier'].split("_")[1] != dlp_library_id)):
+                continue
+        except Exception as e:
+            #if fastq_info["libcore"]['library']['external_identifier'] not in controls:
+            continue
+
 
         # get flowcell id
         flowcell_id = str(fastq_info['libcore']['run']['flowcell_id'])
@@ -143,8 +219,9 @@ def map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos):
 
         # add fastq information to dictionary keyed by set of sequencing information collected above
         gsc_lane_fastq_file_infos[(flowcell_id, lane_number, sequencing_date, sequencing_instrument)].append(fastq_info)
+        data_path.append(fastq_info["data_path"].split("/")[-1].split("_")[3])
 
-    return (gsc_lane_fastq_file_infos, primer_libcore)
+    return (gsc_lane_fastq_file_infos, primer_libcore, data_path)
 
 def map_libcore_id_to_primer(primer_infos, primer_libcore):
     """
@@ -367,10 +444,10 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
 def get_gsc_library_info(library_infos, external_identifier):
 
     if len(library_infos) == 0:
-        logging.error(f'no libraries with external_identifier {external_identifier} in gsc api')
+        logging.error(f'no libraries with ID {external_identifier} in gsc api')
         return None
     elif len(library_infos) > 1:
-        raise Exception(f"multiple libraries with external_identifier {external_identifier} in gsc api")
+        return library_infos[0]
 
     # Querying by external_identifier had exactly one result.
     library_info = library_infos[0]
@@ -440,6 +517,7 @@ def import_gsc_dlp_paired_fastqs(
     '''
 
     # Get Jira ticket and GSC sequencing id associated with the library in order to comment about import status
+    gsc_api = GSCAPI()
     dlp_library_id = sequencing["library"]
     gsc_library_id = sequencing["gsc_library_id"]
     library_info = colossus_api.query_libraries_by_library_id(dlp_library_id)
@@ -477,8 +555,6 @@ def import_gsc_dlp_paired_fastqs(
 
     external_identifier = f"{primary_sample_id}_{dlp_library_id}"
 
-    gsc_api = GSCAPI()
-
     # Query GSC for fastqs and library information. Possibilities:
     # (1) fastqs by parent library (gsc id) has results
     # (2) library by external identifier (<primary_sample_id>_<dlp_library_id>) has results
@@ -500,12 +576,19 @@ def import_gsc_dlp_paired_fastqs(
     # No data is available on the GSC. Either database error or sequencing has not finished.
 
     gsc_fastq_infos = gsc_api.query(f"concat_fastq?parent_library={gsc_library_id}")
-    gsc_library_infos = gsc_api.query(f"library?external_identifier={external_identifier}")
+    if len(gsc_fastq_infos) == 0:
+        gsc_library_id = gsc_api.query(f"concat_fastq?external_identifier={external_identifier}")[0]["data_path"].split("/")[4]
+        gsc_fastq_infos = gsc_api.query(f"concat_fastq?parent_library={gsc_library_id}")
+
+    gsc_library_infos = gsc_api.query(f"library/info?external_identifier={external_identifier}")
     if not gsc_library_infos:
         logging.info("searching by library id")
-        gsc_library_infos = gsc_api.query(f"library?external_identifier={dlp_library_id}")
+        gsc_library_infos = gsc_api.query(f"library/info?external_identifier={dlp_library_id}")
+        gsc_library_info = get_gsc_library_info(gsc_library_infos, dlp_library_id)
+    else:
+        gsc_library_info = get_gsc_library_info(gsc_library_infos, external_identifier)
 
-    gsc_library_info = get_gsc_library_info(gsc_library_infos, external_identifier)
+    
 
     if len(gsc_fastq_infos) == 0:
         logging.warning(f"no fastqs available in gsc database under parent library {gsc_library_id}")
@@ -513,18 +596,6 @@ def import_gsc_dlp_paired_fastqs(
         if gsc_library_info is None:
             return None
 
-    if gsc_library_info is not None:
-        external_identifier = gsc_library_info["external_identifier"]
-        gsc_library_id = check_colossus_gsc_library_id(
-            colossus_api,
-            sequencing,
-            gsc_library_id,
-            gsc_library_info["name"],
-            external_identifier,
-            update=update,
-        )
-        gsc_library_id = gsc_library_info["name"]
-        gsc_fastq_infos = gsc_api.query(f"concat_fastq?parent_library={gsc_library_id}")
 
     if check_library:
         logging.info(f'Checking data for {dlp_library_id}, {gsc_library_id}')
@@ -535,7 +606,17 @@ def import_gsc_dlp_paired_fastqs(
     fastq_file_info = []
     lanes = []
 
-    gsc_lane_fastq_file_infos, primer_libcore = map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos)
+    gsc_lane_fastq_file_infos, primer_libcore, data_path = map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos, external_identifier, dlp_library_id)
+
+    logging.info(f"number of fastq = {len(data_path)}")
+
+    check = check_index(colossus_api,data_path, dlp_library_id)
+
+    if (check==0):
+        logging.info("all fastq index in data path are here")
+    else:
+        logging.info("some fastq index in data path are missing")
+        raise Exception("some index in data path are missing")
 
     # get primer ids
     primer_ids = list(primer_libcore.keys())
@@ -569,7 +650,7 @@ def import_gsc_dlp_paired_fastqs(
         })
 
         # move onto next collection of fastqs if lane already imported
-        if not new:
+        if not new and not update:
             continue
 
         if dry_run:
@@ -700,7 +781,9 @@ def import_gsc_dlp_paired_fastqs(
         return import_info
 
     # check if there exists paired fastqs for each index sequence
+
     fastq_paired_end_check(fastq_file_info)
+
 
     cell_index_sequences = set(cell_samples.keys())
 
@@ -1059,7 +1142,11 @@ def main(storage_name,
             # update lanes in sequencing
             update_colossus_lane(colossus_api, sequencing, import_info['lanes'])
             # get sequencing object again since sequencing may have with new info
-            updated_sequencing = colossus_api.get("sequencing", id=sequencing["id"])
+            try:
+                updated_sequencing = colossus_api.get("sequencing", id=sequencing["id"])
+            except:
+                time.sleep(30)
+                updated_sequencing = colossus_api.get("sequencing", id=sequencing["id"])
             # check if lanes have been imported
             check_lanes(colossus_api, updated_sequencing, len(updated_sequencing["dlplane_set"]))
 
@@ -1069,6 +1156,7 @@ def main(storage_name,
             # add library to list of succesfully imported libraries
             successful_libs.append(import_info)
 
+            logging.info(import_info)
             # create jira ticket and analyses with new lanes and datasets
             create_tickets_and_analyses(import_info)
 
@@ -1099,6 +1187,7 @@ def main(storage_name,
     )
     recent_failed_libs, old_failed_libs = filter_failed_libs_by_date(failed_libs)
     # write import report
+    logging.info("Writing import status")
     write_import_statuses(successful_libs, recent_failed_libs, old_failed_libs)
 
 

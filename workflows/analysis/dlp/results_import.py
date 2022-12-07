@@ -27,11 +27,13 @@ def create_dlp_results(
 
     # Load the metadata.yaml file, assumed to exist in the root of the results directory
     metadata_filename = os.path.join(results_dir, "metadata.yaml")
+    print('metadata: {}'.format(metadata_filename))
     metadata = yaml.safe_load(storage_client.open_file(metadata_filename))
 
     # Add all files to tantalus including the metadata.yaml file
     file_resource_ids = set()
-    for filename in metadata["filenames"] + ['metadata.yaml']:
+    for filename in metadata["filenames"]:
+        #filename = os.path.join(os.path.dirname(results_dir), filename)
         filename = os.path.join(results_dir, filename)
         filepath = os.path.join(storage_client.prefix, filename)
 
@@ -39,6 +41,20 @@ def create_dlp_results(
             logging.warning('skipping missing file: {}'.format(filename))
             continue
 
+        file_resource, _ = tantalus_api.add_file(
+            storage_name=storage_name,
+            filepath=filepath,
+            update=update,
+        )
+
+        file_resource_ids.add(file_resource["id"])
+
+    filename = os.path.join(results_dir, 'metadata.yaml')
+    filepath = os.path.join(storage_client.prefix, filename)
+
+    if not storage_client.exists(filename) and skip_missing:
+        logging.warning('skipping missing file: {}'.format(filename))
+    else:
         file_resource, _ = tantalus_api.add_file(
             storage_name=storage_name,
             filepath=filepath,
@@ -79,7 +95,7 @@ def filter_low_complexity_region(
 
     storage_client = tantalus_api.get_storage_client(storage_name)
 
-    reads_filename = os.path.join(results_dir, "_".join([library_id, "reads.csv.gz"]))
+    reads_filename = os.path.join(results_dir, "reads.csv.gz")
     blob_client = storage_client.blob_service.get_blob_client(storage_client.storage_container, reads_filename)
     reads_data_raw = blob_client.download_blob()
     reads_bytes_io = BytesIO(reads_data_raw.content_as_bytes())
@@ -94,8 +110,8 @@ def filter_low_complexity_region(
     gzipped_filtered_mseg = gzip.compress(bytes(filtered_mseg_out, 'utf-8'))
     gzipped_filtered_masked = gzip.compress(bytes(filtered_masked_out, 'utf-8'))
 
-    filtered_mseg_blobname = os.path.join(results_dir, "_".join([library_id, "segments_filtered.csv.gz"]))
-    filtered_masked_blobname = os.path.join(results_dir, "_".join([library_id, "reads_filtered.csv.gz"]))
+    filtered_mseg_blobname = os.path.join(results_dir, "segments_filtered.csv.gz")
+    filtered_masked_blobname = os.path.join(results_dir, "reads_filtered.csv.gz")
 
     # upload to Azure
     storage_client.write_data_raw(filtered_mseg_blobname, gzipped_filtered_mseg)

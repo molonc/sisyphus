@@ -31,7 +31,7 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
             tantalus_api,
             sample__sample_id=args["sample_id"],
             library__library_id=args["library_id"],
-            aligner__name__startswith=args["aligner"],
+            #aligner__name__startswith=args["aligner"],
             reference_genome__name=args["ref_genome"],
             region_split_length=None,
             dataset_type="BAM",
@@ -130,7 +130,7 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
             filepath = os.path.join(
                 storage_client.prefix, self.bams_dir, filename)
             file_resource, file_instance = self.tantalus_api.add_file(
-                storages["working_inputs"], filepath, update=update)
+                storages["working_inputs"], filepath, update=True)
             file_resources.append(file_resource["id"])
 
         data = {
@@ -153,7 +153,7 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
         ]
 
         output_dataset, _ = self.tantalus_api.create(
-            'sequencedataset', data, keys, get_existing=True, do_update=update)
+            'sequencedataset', data, keys, get_existing=True, do_update=True)
 
         logging.info("Created sequence dataset {}".format(name))
 

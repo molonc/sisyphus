@@ -81,13 +81,13 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
 
         results_suffixes = {
             'hmmcopy': [
-                ('hmmcopy_metrics', '_hmmcopy_metrics.csv.gz'),
-                ('hmmcopy_reads', '_reads.csv.gz'),
-                ('segs_pdf_tar', '_segs.tar.gz'),
+                ('hmmcopy_metrics', 'hmmcopy_metrics.csv.gz'),
+                ('hmmcopy_reads', 'reads.csv.gz'),
+                ('segs_pdf_tar', 'segs.tar.gz'),
             ],
             'alignment': [
-                ('alignment_metrics', '_alignment_metrics.csv.gz'),
-                ('gc_metrics', '_gc_metrics.csv.gz'),
+                ('alignment_metrics', 'alignment_metrics.csv.gz'),
+                ('gc_metrics', 'gc_metrics.csv.gz'),
             ],
         }
 
@@ -141,7 +141,7 @@ class AnnotationAnalysis(workflows.analysis.base.Analysis):
             docker_env_file=docker_env_file,
             docker_server=docker_server,
             output_dirs={
-                'out_dir': out_path,
+                'output_prefix': out_path+"/",
             },
             cli_args=[
                 '--library_id',
