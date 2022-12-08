@@ -24,14 +24,12 @@ def main(dir_in, dir_out, orientation, no_bcl2fastq=False):
     if socket.gethostname() =="scdna-prod-headnode":
         raise Exception("wrong machine") 
     script_to_call = "/home/prod/sisyphus/datamanagement/dlp_bcl_fastq_import.py"
-    #if orientation == "i7":
-    #    script_to_call = "/home/prod/sisyphus/datamanagement/dlp_bcl_fastq_import_flip_i7_2022.py"
+    if orientation == "i7":
+        script_to_call = "/home/prod/sisyphus/datamanagement/dlp_bcl_fastq_import_flip_i7_2022.py"
 
-    #dir_out = "/projects/molonc/archive/A118390A_210610_VH00387_33_AAAKHTGM5_new_transfer_i7"
     if dir_out[-1] != "/":
         dir_out = dir_out + "/"
 
-    #dir_in = "/projects/molonc/archive/sean/210610_VH00387_33_AAAKHTGM5/"
     if dir_in[-1] == "/":
         dir_in = dir_in[0:-1]
 
