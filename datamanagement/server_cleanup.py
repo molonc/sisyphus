@@ -43,7 +43,7 @@ def main():
 # file instance -> file resource -> output result
 # file instance -> file resource -> output sequence
 
-@main.command()
+@main.command("delete_sequencedataset")
 @click.argument('storage_name')
 @click.option('--dataset-id', '-id', type=int, required=True, multiple=True)
 @click.option('--clean-azure', is_flag=True)
@@ -59,6 +59,34 @@ def delete_sequencedataset_recursive(
     for _id in dataset_id:
         sequence_dataset = tantalus_api.get("sequencedataset", id=_id)
         dataset_type = 'sequencedataset'
+
+        file_resource_ids = sequence_dataset['file_resources']
+
+        for file_resource_id in file_resource_ids:
+            delete_file_instances(file_resource_id)
+            if(clean_azure):
+                storage_client = tantalus_api.get_storage_client(storage_name)
+                delete_blob(storage_client, file_resource_id)
+            delete_file_resource(file_resource_id)
+
+        delete_dataset(dataset_type, _id)
+
+@main.command("delete_resultsdataset")
+@click.argument('storage_name')
+@click.option('--dataset-id', '-id', type=int, required=True, multiple=True)
+@click.option('--clean-azure', is_flag=True)
+def delete_resultdataset_recursive(
+    storage_name,
+    dataset_id,
+    clean_azure=False,
+):
+    """
+    Given resultsdataset ID delete the dataset and associated file resources
+    """
+    # output result dataset
+    for _id in dataset_id:
+        sequence_dataset = tantalus_api.get("resultsdataset", id=_id)
+        dataset_type = 'resultsdataset'
 
         file_resource_ids = sequence_dataset['file_resources']
 
