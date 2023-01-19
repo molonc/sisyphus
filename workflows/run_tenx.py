@@ -221,8 +221,12 @@ def start_automation(
     tantalus_analysis.set_complete_status()
 
     library = args['library_id']
+
+    library_filtered = library.replace("MM10_","").replace("HG38_","") 
+    print("yeah")
+    print(os.path.join(runs_dir, library_filtered, f"{library_filtered}.tar.gz"))
     local_results = {
-        "cellranger_filepath": os.path.join(runs_dir, library, f"{library}.tar.gz"),
+        "cellranger_filepath": os.path.join(runs_dir, library_filtered, f"{library_filtered}.tar.gz"),
         "rdata_filepath": os.path.join(runs_dir, ".cache", library, f"{library}_qcd.rdata"),
         "rdataraw_filepath": os.path.join(runs_dir, ".cache", library, f"{library}.rdata"),
         "report_filepath": os.path.join(results_dir, f"{library}.tar.gz"),

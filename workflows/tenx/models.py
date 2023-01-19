@@ -566,17 +566,17 @@ class TenXAnalysis(Analysis):
         if (ref_genome not in ["MM10", "HG38"]):
             raise ValueError(f"Unknown reference genome {self.args['ref_genome']}. Expected one of 'HG38' or 'MM10.")
 
-        cellranger_storage_name = self.hg38_cellranger_storage_name if ref_genome == 'HG38' else self.mm10_cellranger_storage_name
-        rdata_storage_name = self.hg38_rdata_storage_name if ref_genome == 'HG38' else self.mm10_rdata_storage_name
-        rdataraw_storage_name = self.hg38_rdataraw_storage_name if ref_genome == 'HG38' else self.mm10_rdataraw_storage_name
-        report_storage_name = self.hg38_report_storage_name if ref_genome == 'HG38' else self.mm10_report_storage_name
-        bam_storage_name = self.hg38_bam_storage_name if ref_genome == 'HG38' else self.mm10_bam_storage_name
+        cellranger_storage_name = self.hg38_cellranger_storage_name if ref_genome == 'HG38'else self.mm10_cellranger_storage_name
+        rdata_storage_name = self.hg38_rdata_storage_name if ref_genome == 'HG38'else self.mm10_rdata_storage_name
+        rdataraw_storage_name = self.hg38_rdataraw_storage_name if ref_genome == 'HG38'else self.mm10_rdataraw_storage_name
+        report_storage_name = self.hg38_report_storage_name if ref_genome == 'HG38'else self.mm10_report_storage_name
+        bam_storage_name = self.hg38_bam_storage_name if ref_genome == 'HG38'else self.mm10_bam_storage_name
 
-        cellranger_blobname = self.hg38_cellranger_blobname if ref_genome == 'HG38' else self.mm10_cellranger_blobname
+        cellranger_blobname = self.hg38_cellranger_blobname if ref_genome == 'HG38'else self.mm10_cellranger_blobname
         rdata_blobname = self.hg38_rdata_blobname if ref_genome == 'HG38' else self.mm10_rdata_blobname
-        rdataraw_blobname = self.hg38_rdataraw_blobname if ref_genome == 'HG38' else self.mm10_rdataraw_blobname
-        report_blobname = self.hg38_report_blobname if ref_genome == 'HG38' else self.mm10_report_blobname
-        bam_blobname = self.hg38_bam_blobname if ref_genome == 'HG38' else self.mm10_bam_blobname
+        rdataraw_blobname = self.hg38_rdataraw_blobname if ref_genome == 'HG38'else self.mm10_rdataraw_blobname
+        report_blobname = self.hg38_report_blobname if ref_genome == 'HG38'else self.mm10_report_blobname
+        bam_blobname = self.hg38_bam_blobname if ref_genome == 'HG38'else self.mm10_bam_blobname
 
         cellranger_storage_client = tantalus_api.get_storage_client(cellranger_storage_name)
         rdata_storage_client = tantalus_api.get_storage_client(rdata_storage_name)
@@ -585,7 +585,8 @@ class TenXAnalysis(Analysis):
         bam_storage_client = tantalus_api.get_storage_client(bam_storage_name)
 
         log.info(f"Uploading {ref_genome} results to Azure")
-
+        print(cellranger_filepath)
+        print("see above")
         self.upload_blob(cellranger_storage_client, cellranger_blobname, cellranger_filepath, update=update)
         self.upload_blob(rdata_storage_client, rdata_blobname, rdata_filepath, update=update)
         self.upload_blob(rdataraw_storage_client, rdataraw_blobname, rdataraw_filepath, update=update)
