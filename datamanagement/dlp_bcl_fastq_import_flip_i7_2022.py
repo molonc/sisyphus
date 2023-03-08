@@ -16,12 +16,15 @@ import requests
 from dbclients.colossus import get_colossus_sublibraries_from_library_id
 from dbclients.tantalus import TantalusApi
 from dbclients.colossus import ColossusApi
-from utils.constants import LOGGING_FORMAT
-from utils.dlp import create_sequence_dataset_models, fastq_paired_end_check, fastq_dlp_index_check
-from utils.runtime_args import parse_runtime_args
-from utils.filecopy import rsync_file
-from utils.utils import make_dirs
-from utils.comment_jira import comment_jira
+from datamanagement.utils.constants import LOGGING_FORMAT
+from datamanagement.utils.dlp import create_sequence_dataset_models, fastq_paired_end_check, fastq_dlp_index_check
+from datamanagement.fixups.add_fastq_metadata import add_fastq_metadata_yaml
+from datamanagement.utils.qsub_job_submission import submit_qsub_job
+from datamanagement.utils.runtime_args import parse_runtime_args
+from datamanagement.utils.qsub_jobs import Bcl2FastqJob
+from datamanagement.utils.filecopy import rsync_file
+from datamanagement.utils.utils import make_dirs
+from datamanagement.utils.comment_jira import comment_jira
 import datamanagement.templates as templates
 #from datamanagement.utils.qsub_job_submission import submit_qsub_job
 #from datamanagement.utils.qsub_jobs import Bcl2FastqJob
@@ -83,13 +86,18 @@ def load_brc_fastqs(
 
     fastq_dlp_index_check(fastq_file_info)
 
-    create_sequence_dataset_models(
+    # added assignment to var
+    dataset_ids = create_sequence_dataset_models(
         fastq_file_info,
         storage_name,
         tag_name,
         tantalus_api,
         update=update,
     )
+# added this 
+    for dataset_id in dataset_ids:
+        add_fastq_metadata_yaml(dataset_id, storage_name, dry_run=False)
+
 
     update_ticket(flowcell_id)
 
@@ -425,6 +433,8 @@ def make_slurm_script(bcl_dir, samplesheet_path, output_dir, cores=16):
         fh.write("\n")
         fh.write("echo 'Running Bcl2Fastq...'\n\n")
         fh.write(' '.join(bcl2fastq_cmd))
+        fh.write("\n")
+        fh.write("touch /home/daghda/{flowcell_id}_.txt")
 
     logging.info(f"Generated SLURM submission script at {slurm_script_path}")
 
