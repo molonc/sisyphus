@@ -404,11 +404,11 @@ def prep_slurm_submission(flowcell_id, bcl_dir, output_dir):
     samplesheet_filename = os.path.join(output_dir, "SampleSheet.csv")
 
     get_samplesheet(samplesheet_filename, flowcell_id)
-    make_slurm_script(bcl_dir, samplesheet_filename, output_dir)
+    make_slurm_script(flowcell_id, bcl_dir, samplesheet_filename, output_dir)
 
     logging.info("Submit the generated script to run bcl2fastq.")
 
-def make_slurm_script(bcl_dir, samplesheet_path, output_dir, cores=16):
+def make_slurm_script(flowcell_id, bcl_dir, samplesheet_path, output_dir, cores=16):      # add sl
     slurm_script_path = os.path.join(output_dir, "submit.sh")
 
     bcl2fastq_cmd = [
@@ -423,6 +423,8 @@ def make_slurm_script(bcl_dir, samplesheet_path, output_dir, cores=16):
         output_dir,
     ]
 
+    ID = flowcell_id
+
     with open(slurm_script_path, 'w') as fh:
         fh.write("#!/bin/bash\n")
         fh.write("#SBATCH --job-name=BCL2FASTQ\n")
@@ -434,7 +436,7 @@ def make_slurm_script(bcl_dir, samplesheet_path, output_dir, cores=16):
         fh.write("echo 'Running Bcl2Fastq...'\n\n")
         fh.write(' '.join(bcl2fastq_cmd))
         fh.write("\n")
-        fh.write("touch /home/daghda/{flowcell_id}_.txt")
+        fh.write("touch /home/daghda/{ID}_.txt")     # cant differntiate between out n no rev so adjust pt 2 
 
     logging.info(f"Generated SLURM submission script at {slurm_script_path}")
 
