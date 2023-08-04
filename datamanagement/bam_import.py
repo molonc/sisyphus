@@ -468,4 +468,3 @@ def main(storage_name, bam_file_path, **kwargs):
 
 if __name__ == "__main__":
     main()
-
