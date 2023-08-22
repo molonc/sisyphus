@@ -98,7 +98,7 @@ class SplitWGSBamAnalysis(workflows.analysis.base.Analysis):
             docker_env_file=docker_env_file,
             docker_server=docker_server,
             output_dirs={
-                'output_prefix': bams_path,
+                'output_prefix':  bams_path+"/",
             },
             max_jobs='400',
             dirs=dirs,

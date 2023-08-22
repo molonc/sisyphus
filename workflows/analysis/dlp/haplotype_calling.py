@@ -95,7 +95,7 @@ class HaplotypeCallingAnalysis(workflows.analysis.base.Analysis):
             storages,
     ):
         storage_client = self.tantalus_api.get_storage_client(storages["working_results"])
-        out_dir = os.path.join(storage_client.prefix, self.out_dir)
+        out_path = os.path.join(storage_client.prefix, self.out_dir)
 
         # get scp configuration i.e. specifies aligner and reference genome
         scp_config = self.get_config(self.args)
@@ -112,7 +112,7 @@ class HaplotypeCallingAnalysis(workflows.analysis.base.Analysis):
             docker_env_file=docker_env_file,
             docker_server=docker_server,
             output_dirs={
-                'out_dir': out_dir,
+              'output_prefix': out_path+"/",
             },
             max_jobs='400',
             dirs=dirs,
