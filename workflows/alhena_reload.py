@@ -160,7 +160,7 @@ def load_data_to_alhena(jira, _reload=False, _filter=False, es_host="10.1.0.8"):
     Raises:
         Exception: Ticket failed to load
     """
-    log.info(f"Loading {jira} into Alhena")
+    logging.info(f"Loading {jira} into Alhena")
 
     projects = colossus_utils.get_projects_from_jira_id(jira)
 
@@ -182,7 +182,7 @@ def load_data_to_alhena(jira, _reload=False, _filter=False, es_host="10.1.0.8"):
             loader_command,
         ])
 
-        log.info(f"Successfully loaded {jira} into Alhena")
+        logging.info(f"Successfully loaded {jira} into Alhena")
     except Exception as e:
         raise Exception(f"failed to load ticket: {e}") 
 
@@ -669,6 +669,7 @@ def main(aligner):
             'normal_config.json',
         ))
     storage_name = config['storages']['remote_results']
+
     # run qcs
     try:
         run_qc(
