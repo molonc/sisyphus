@@ -20,7 +20,7 @@ from utils.constants import LOGGING_FORMAT
 
 
 def clean_filename(filename):
-    prefix = '=HYPERLINK("'
+    prefix = '=HYPERLINK("'catalog.rename(c
     suffix = '")'
 
     if not filename.startswith(prefix) or not filename.endswith(suffix):
