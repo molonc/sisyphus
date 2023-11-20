@@ -51,6 +51,7 @@ class VariantCallingAnalysis(workflows.analysis.base.Analysis):
             aligner__name__startswith=args['aligner'],
             reference_genome__name=args['ref_genome'],
             region_split_length=cls.region_split_length,
+        
         )
 
         return [tumour_dataset['id'], normal_dataset['id']]
