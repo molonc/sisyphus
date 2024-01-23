@@ -133,6 +133,11 @@ def read_cellenone_isolated_files(source_dir):
 
     # Standardize columns
     catalog = catalog.rename(columns={'Circ': 'Circularity', 'Elong': 'Elongation'})
+
+    # Some datasets have no 'Intensity'
+    if 'Intensity' not in catalog:
+        catalog['Intensity'] = None
+
     columns = [
         'DropNo',
         'X',
@@ -158,6 +163,7 @@ def read_cellenone_isolated_files(source_dir):
         'ejection_zone_boundary',
         'sedimentation_zone_boundary',
     ]
+
     catalog = catalog[columns]
 
     logging.info(f'found {len(catalog.index)} entries for {source_dir}')
@@ -311,6 +317,18 @@ def process_cellenone_images(
         update=False,
         remote_storage_name=None,
     ):
+    """ Catalog cellenone images for a library and add to tantalus.
+
+    Args:
+        library_id (str): library id associated with the images
+        source_dir (str): source cellenone directory
+        storage_name (str): local storage in which to organize the results
+    
+    KwArgs:
+        tag_name (str): tantalus tag
+        update (bool): update and possibly overwrite an existing dataset in tantalus
+        remote_storage_name (str): upload to a remote storage
+    """
 
     tantalus_api = TantalusApi()
 

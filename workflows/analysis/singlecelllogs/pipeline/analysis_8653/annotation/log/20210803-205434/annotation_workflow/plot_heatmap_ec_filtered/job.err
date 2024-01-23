@@ -1,4 +1,0 @@
-/opt/conda/lib/python3.7/site-packages/single_cell/utils/singlecell_copynumber_plot_utils/heatmap.py:42: FutureWarning: Method .as_matrix will be removed in a future version. Use .values instead.
-  self.data = data.as_matrix()
-/opt/conda/lib/python3.7/site-packages/scipy/cluster/hierarchy.py:2861: UserWarning: Attempting to set identical left == right == 0.0 results in singular transformations; automatically expanding.
-  ax.set_xlim([dvw, 0])
