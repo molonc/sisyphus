@@ -124,7 +124,7 @@ remixt==0.5.5
 requests==2.19.1
 requests-oauthlib==1.0.0
 scikit-learn==0.19.1
-scipy==1.1.0
+scipy==1.11.1
 screenutils==0.0.1.6.2
 seaborn==0.8.1
 SecretStorage==2.3.1
