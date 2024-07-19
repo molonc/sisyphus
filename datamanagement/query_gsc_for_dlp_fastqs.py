@@ -555,6 +555,9 @@ def import_gsc_dlp_paired_fastqs(
 
     external_identifier = f"{primary_sample_id}_{dlp_library_id}"
 
+    if sequencing['external_gsc_id'][:3] == "SEQ":
+        external_identifier = sequencing['external_gsc_id']
+
     # Query GSC for fastqs and library information. Possibilities:
     # (1) fastqs by parent library (gsc id) has results
     # (2) library by external identifier (<primary_sample_id>_<dlp_library_id>) has results
