@@ -104,6 +104,7 @@ def prepare_reads_df(reads_file):
 	reads_df = pd.read_csv(reads_file)
 	# add ID column to keep track of unique ids
 	reads_df['id'] = reads_df.index
+	reads_df['chr'] = reads_df['chr'].str.replace("chr", "")
 
 	renamed_reads_df = rename_to_pyrange_compatible_columns(reads_df)
 
