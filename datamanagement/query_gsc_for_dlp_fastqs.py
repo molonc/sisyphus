@@ -91,10 +91,14 @@ def check_index(colossus_api, data_path, dlp_library_id):
     indexs={}
     leftover=[]
 
+    def reverse_complement(seq):
+        complement = str.maketrans('ATCG', 'TAGC')
+        return seq.translate(complement)[::-1]
+
     obj=colossus_api.get_colossus_sublibraries_from_library_id(dlp_library_id,True)
 
     for data in obj:
-        index = data['primer_i7']+"-"+data['primer_i5']
+        index = reverse_complement(data['primer_i7']).str[:16]+"-"+reverse_complement(data['primer_i5']).str[:16]
         if index not in indexs:
             indexs[index] = 0
 
@@ -161,7 +165,7 @@ def map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos, externa
         gsc_lane_fastq_file_infos (dict): dictionary with flowcell information as key and fastq info as value
         primer_libcore (dict): dictionary with primer ID as key and libcore ID as value.
     """
-    sequencing_instrument_map = {'HiSeqX': 'HX', 'HiSeq2500': 'H2500', 'NovaSeq':'NovaSeq'}
+    sequencing_instrument_map = {'HiSeqX': 'HX', 'HiSeq2500': 'H2500', 'NovaSeq':'NovaSeq', 'NovaSeq6000':'NovaSeq6000'}
     
     flowcell_id_mapping = {}
     gsc_lane_fastq_file_infos = defaultdict(list)
