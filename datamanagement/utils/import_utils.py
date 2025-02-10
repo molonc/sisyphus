@@ -38,6 +38,9 @@ def decode_raw_index_sequence(raw_index_sequence, instrument, rev_comp_override)
     elif instrument == "NovaSeq":
         i7 = reverse_complement(i7)
         i5 = reverse_complement(i5)
+    elif instrument == "NovaSeq6000":
+        i7 = reverse_complement(i7).str[:16]
+        i5 = reverse_complement(i5).str[:16]
     elif instrument == "NovaXPlus":
         i7 = reverse_complement(i7)
         i5 = reverse_complement(i5)   

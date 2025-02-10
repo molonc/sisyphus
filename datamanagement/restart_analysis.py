@@ -39,16 +39,16 @@ if __name__ == "__main__":
 
 colossus_api = ColossusApi()
 
-#jira_i = "SC-7632"
-#analysis = colossus_api.get("analysis_information", analysis_jira_ticket=jira_i)
+# jira_i = "SC-9221"
+# analysis = colossus_api.get("analysis_information", analysis_jira_ticket=jira_i)
 
-#analysis_run_id = analysis["analysis_run"]["id"]
-#analysis_run = colossus_api.get(
-#	"analysis_run",
-#	id=analysis_run_id,
-#)
-#colossus_api.update(
-#	"analysis_run",
-#	id=analysis_run_id,
-#	run_status="idle",
-#)
+# analysis_run_id = analysis["analysis_run"]["id"]
+# analysis_run = colossus_api.get(
+# 	"analysis_run",
+# 	id=analysis_run_id,
+# )
+# colossus_api.update(
+# 	"analysis_run",
+# 	id=analysis_run_id,
+# 	run_status="idle",
+# )

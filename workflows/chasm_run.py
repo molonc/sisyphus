@@ -58,4 +58,4 @@ def chasmbot_run(jira):
 	clean_up(jira)
 
 if __name__ == "__main__":
-	chasmbot_run("SC-7995")
+	chasmbot_run("SC-9242")

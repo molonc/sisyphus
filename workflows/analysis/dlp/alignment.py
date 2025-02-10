@@ -218,6 +218,8 @@ class AlignmentAnalysis(workflows.analysis.base.Analysis):
             index_sequence = row['index_sequence']
 
             colossus_index_sequences.add(index_sequence)
+            
+            print(fastq_filepaths)
 
             lane_fastqs = collections.defaultdict(dict)
             for lane_id, lane in lanes.items():
