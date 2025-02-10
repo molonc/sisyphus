@@ -15,7 +15,8 @@ import os
 import shutil
 
 import azure.storage.blob as azureblob
-import azure.storage.blob._shared_access_signature as blob_sas
+#import azure.storage.blob.shared_access_signature as blob_sas
+from azure.storage.blob import generate_blob_sas
 import datetime
 import pandas as pd
 import time
@@ -240,15 +241,25 @@ class BlobStorageClient(object):
             key_expiry_time=expiry_time
         )
 
-        sas_token = blob_sas.generate_blob_sas(
-            self.storage_account,
-            self.storage_container,
-            blobname,
-            user_delegation_key=token,
-            permission=permissions,
-            start=start_time,
-            expiry=expiry_time,
-        )
+        sas_token = generate_blob_sas(
+        account_name=self.storage_account,
+        container_name=self.storage_container,
+        blob_name=blobname,
+        user_delegation_key=token,
+        permission=permissions,
+        start=start_time,
+        expiry=expiry_time,
+)
+
+        #sas_token = blob_sas.generate_blob_sas(
+        #    self.storage_account,
+        #    self.storage_container,
+        #    blobname,
+        #    user_delegation_key=token,
+        #    permission=permissions,
+        #    start=start_time,
+        #    expiry=expiry_time,
+        #)
 
         protocol = "https"
         primary_endpoint = "{}.blob.core.windows.net".format(self.storage_account)
