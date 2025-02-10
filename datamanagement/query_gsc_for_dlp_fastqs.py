@@ -165,7 +165,8 @@ def map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos, externa
         gsc_lane_fastq_file_infos (dict): dictionary with flowcell information as key and fastq info as value
         primer_libcore (dict): dictionary with primer ID as key and libcore ID as value.
     """
-    sequencing_instrument_map = {'HiSeqX': 'HX', 'HiSeq2500': 'H2500', 'NovaSeq':'NovaSeq', 'NovaXPlus':'NovaXPlus','NovaSeq6000':'NovaSeq6000'}
+
+    sequencing_instrument_map = {'HiSeqX': 'HX', 'HiSeq2500': 'H2500', 'NovaSeq':'NovaSeq', 'NovaXPlus':'NovaXPlus'}
     
     flowcell_id_mapping = {}
     gsc_lane_fastq_file_infos = defaultdict(list)
