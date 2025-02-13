@@ -8,7 +8,15 @@ from common_utils.utils import (
 def reverse_complement(sequence):
     return str(sequence[::-1]).translate(str.maketrans("ACTGactg", "TGACtgac"))
 
+def trim_string(s):
+    if len(s) > 16:
+        return s[:16]  # Return the first 16 characters
+    return s  # Return the original string if it's 16 characters or less
+
 def decode_raw_index_sequence(raw_index_sequence, instrument, rev_comp_override):
+ 
+
+
     i7 = raw_index_sequence.split("-")[0]
     i5 = raw_index_sequence.split("-")[1]
 
@@ -39,11 +47,14 @@ def decode_raw_index_sequence(raw_index_sequence, instrument, rev_comp_override)
         i7 = reverse_complement(i7)
         i5 = reverse_complement(i5)
     elif instrument == "NovaXPlus":
-        i7 = reverse_complement(i7)
-        i5 = reverse_complement(i5)   
+        i7 = i7#reverse_complement(i7)#[:16]
+        i5 = i5 #reverse_complement(i5)#[:16]  
+    elif instrument == "NovaSeq6000":
+        i7 = reverse_complement(i7)[:16]
+        i5 = reverse_complement(i5)[:16]
     else:
         raise Exception("unsupported sequencing instrument {}".format(instrument))
-
+    
     return i7 + "-" + i5
 
 def map_index_sequence_to_cell_id(cell_samples, gsc_index_sequence, gsc_library_id, valid_indexes={}, invalid_indexes=[]):

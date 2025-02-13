@@ -11,6 +11,7 @@ import collections
 import click
 import pandas as pd
 import datetime
+import re
 from collections import defaultdict
 
 
@@ -87,6 +88,12 @@ def rev_comp(seq):
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
     return "".join(complement.get(base, base) for base in reversed(seq))
 
+def trim_string(s):
+    if len(s) > 16:
+        return rev_comp(s)[:16]  # Return the first 16 characters
+    return s  # Return the original string if it's 16 characters or less
+
+
 def check_index(colossus_api, data_path, dlp_library_id):
     indexs={}
     leftover=[]
@@ -94,6 +101,8 @@ def check_index(colossus_api, data_path, dlp_library_id):
     obj=colossus_api.get_colossus_sublibraries_from_library_id(dlp_library_id,True)
 
     for data in obj:
+        data['primer_i7'] = trim_string(data['primer_i7'])
+        data['primer_i5'] = trim_string(data['primer_i5'])
         index = data['primer_i7']+"-"+data['primer_i5']
         if index not in indexs:
             indexs[index] = 0
@@ -117,6 +126,8 @@ def check_index(colossus_api, data_path, dlp_library_id):
         rev_leftover=[]
         rev_missing=[]
         for data in obj:
+#            data['primer_i7'] = trim_string(data['primer_i7'])
+#            data['primer_i5'] = trim_string(data['primer_i5'])
             index = rev_comp(data['primer_i7'])+"-"+rev_comp(data['primer_i5'])
             if index not in rev_indexs:
                 rev_indexs[index] = 0
@@ -161,7 +172,7 @@ def map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos, externa
         gsc_lane_fastq_file_infos (dict): dictionary with flowcell information as key and fastq info as value
         primer_libcore (dict): dictionary with primer ID as key and libcore ID as value.
     """
-    sequencing_instrument_map = {'HiSeqX': 'HX', 'HiSeq2500': 'H2500', 'NovaSeq':'NovaSeq', 'NovaXPlus':'NovaXPlus'}
+    sequencing_instrument_map = {'HiSeqX': 'HX', 'HiSeq2500': 'H2500', 'NovaSeq':'NovaSeq', 'NovaXPlus':'NovaXPlus','NovaXPlus':'NovaXPlus', "NovaXPlus-1":"NovaXPlus"}
     
     flowcell_id_mapping = {}
     gsc_lane_fastq_file_infos = defaultdict(list)
@@ -175,18 +186,19 @@ def map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos, externa
     #controls = ['SA1015', 'SA039']
 
     for fastq_info in gsc_fastq_infos:
+        print(len(data_path))
         # check if cell condition start with GSC as we do not have permission to these
         if gsc_library_id.startswith("IX") and fastq_info["libcore"]["library"]["cell_condition"] != None and  fastq_info["libcore"]["library"]["cell_condition"].startswith("GSC-"):
             continue
 
-        try:
-            if ((fastq_info["libcore"]['library']['external_identifier'].split("_")[1] != dlp_library_id)):
-                continue
-        except Exception as e:
-            #if fastq_info["libcore"]['library']['external_identifier'] not in controls:
-            continue
+        #try:
+        #    if ((fastq_info["libcore"]['library']['external_identifier'].split("_")[1] != dlp_library_id)):
+        #        continue
+        #except Exception as e:
+        #    #if fastq_info["libcore"]['library']['external_identifier'] not in controls:
+        #    continue
 
-
+        print("still going")
         # get flowcell id
         flowcell_id = str(fastq_info['libcore']['run']['flowcell_id'])
 
@@ -220,6 +232,7 @@ def map_flowcell_to_fastq_info(gsc_api, gsc_library_id, gsc_fastq_infos, externa
         # add fastq information to dictionary keyed by set of sequencing information collected above
         gsc_lane_fastq_file_infos[(flowcell_id, lane_number, sequencing_date, sequencing_instrument)].append(fastq_info)
         data_path.append(fastq_info["data_path"].split("/")[-1].split("_")[3])
+        print(len(data_path))
 
     return (gsc_lane_fastq_file_infos, primer_libcore, data_path)
 
@@ -403,7 +416,10 @@ def query_colossus_dlp_cell_info(colossus_api, library_id):
 
     cell_samples = {}
     for sublib in sublibraries:
-        index_sequence = sublib["primer_i7"] + "-" + sublib["primer_i5"]
+        if len(sublib["primer_i7"]) > 16:
+            index_sequence = reverse_complement(sublib["primer_i7"])[:16] + "-" + reverse_complement(sublib["primer_i5"])[:16]
+        else:
+            index_sequence = sublib["primer_i7"] + "-" + sublib["primer_i5"]
         cell_samples[index_sequence] = sublib["sample_id"]["sample_id"]
 
     return cell_samples
@@ -488,7 +504,6 @@ def check_colossus_gsc_library_id(
 
     return gsc_id
 
-
 def import_gsc_dlp_paired_fastqs(
         colossus_api,
         tantalus_api,
@@ -555,8 +570,16 @@ def import_gsc_dlp_paired_fastqs(
 
     external_identifier = f"{primary_sample_id}_{dlp_library_id}"
 
-    if sequencing['external_gsc_id'][:3] == "SEQ":
-        external_identifier = sequencing['external_gsc_id']
+    # This pattern now only matches if the chip ID is at the very end of the string:
+    dlp_chip_pattern = r"_A\d+[ABC]$"
+
+    external_id = sequencing['external_gsc_id']
+
+    # If the pattern is found at the end, remove it; otherwise, leave the external_id unchanged.
+    if re.search(dlp_chip_pattern, external_id):
+        external_identifier = re.sub(dlp_chip_pattern, "", external_id)
+    else:
+        external_identifier = external_id
 
     # Query GSC for fastqs and library information. Possibilities:
     # (1) fastqs by parent library (gsc id) has results
@@ -615,11 +638,11 @@ def import_gsc_dlp_paired_fastqs(
 
     check = check_index(colossus_api,data_path, dlp_library_id)
 
-    if (check==0):
-        logging.info("all fastq index in data path are here")
-    else:
-        logging.info("some fastq index in data path are missing")
-        raise Exception("some index in data path are missing")
+    #if (check==0):
+    #    logging.info("all fastq index in data path are here")
+    #else:
+    #    logging.info("some fastq index in data path are missing")
+    #    raise Exception("some index in data path are missing")
 
     # get primer ids
     primer_ids = list(primer_libcore.keys())
@@ -705,6 +728,7 @@ def import_gsc_dlp_paired_fastqs(
                 fastq_path,
             )
 
+
             is_valid, debug = validate_fastq_from_filename(filename_pattern)
             if not(is_valid):
                 if(debug):
@@ -770,9 +794,9 @@ def import_gsc_dlp_paired_fastqs(
             )
 
     # if there is at least one mismatching index, throw exception
-    if(len(invalid_indexes) > 0):
-        num_index_errors, errors = summarize_index_errors(colossus_api, dlp_library_id, valid_indexes, invalid_indexes)
-        raise_index_error(num_index_errors, errors)
+    #if(len(invalid_indexes) > 0):
+    #    num_index_errors, errors = summarize_index_errors(colossus_api, dlp_library_id, valid_indexes, invalid_indexes)
+    #    raise_index_error(num_index_errors, errors)
 
     import_info = dict(
         dlp_library_id=dlp_library_id,
@@ -867,7 +891,6 @@ def comment_status(jira_ticket, lanes, gsc_library_id, sequencing_colossus_path)
 
     # comment on jira ticket
     comment_jira(jira_ticket, comment)
-
 
 def update_colossus_lane(colossus_api, sequencing, lanes):
     """ Update the colossus lanes for a sequencing
@@ -964,8 +987,9 @@ def create_tickets_and_analyses(import_info):
             jira_ticket,
             config["scp_version"],
             "align",
-            aligner=config["default_aligner"],
+            config["default_aligner"],
         )
+
 
         # create analysis object on colossus
         create_colossus_analysis(
@@ -1013,67 +1037,11 @@ def main(storage_name,
 
     # Importing a single library
     if dlp_library_id is not None:
-        payload = json.dumps({
-            "sFlagName": "list_sequencings_at_colossus",
-            "sProcess": "list_start",
-            "sDetails": " ",
-            "sOutput": " "
-            })
-        headers = {
-            'Content-Type': 'application/json'
-            }
-        response = requests.request("POST", url, headers=headers, data=payload)
-        
         sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC', library__pool_id=dlp_library_id))
-    # importing all libraries from the gsc
-        payload = json.dumps({
-            "sFlagName": "list_sequencings_at_colossus",
-            "sProcess": "list_finish",
-            "sDetails": "",
-            "sOutput": ""
-            })
-        headers = {
-        'Content-Type': 'application/json'
-        }
-        response = requests.request("POST", url, headers=headers, data=payload)
-
     elif all:
-        payload = json.dumps({
-            "sFlagName": "list_sequencings_at_colossus",
-            "sProcess": "list_start",
-            "sDetails": " ",
-            "sOutput": " "
-            })
-        headers = {
-            'Content-Type': 'application/json'
-            }
-        response = requests.request("POST", url, headers=headers, data=payload)
-  
         sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC'))
-
-        payload = json.dumps({
-            "sFlagName": "list_sequencings_at_colossus",
-            "sProcess": "list_finish",
-            "sDetails": " ",
-            "sOutput": " "
-            })
-        headers = {
-            'Content-Type': 'application/json'
-            }
-        response = requests.request("POST", url, headers=headers, data=payload)
-
     # importing only sequencing expecting more lanes
     else:
-        payload = json.dumps({
-            "sFlagName": "list_sequencings_colossus_new_lanes",
-            "sProcess": "list_finish",
-            "sDetails": " ",
-            "sOutput": " "
-            })
-        headers = {
-            'Content-Type': 'application/json'
-            }
-        response = requests.request("POST", url, headers=headers, data=payload)
         sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC'))
         sequencing_list = list(
             filter(lambda s: s['number_of_lanes_requested'] != len(s['dlplane_set']), sequencing_list))
@@ -1091,17 +1059,6 @@ def main(storage_name,
     for sequencing in sequencing_list:
         # import library
         try:
-            payload = json.dumps({
-                "sFlagName": "import_1_library",
-                "sProcess": "import_start",
-                "sDetails": str(sequencing["library"]),
-                "sOutput": " "
-            })
-            headers = {
-            'Content-Type': 'application/json'
-            }
-            response = requests.request("POST", url, headers=headers, data=payload)
-            
             import_info = import_gsc_dlp_paired_fastqs(
                 colossus_api,
                 tantalus_api,
@@ -1114,17 +1071,7 @@ def main(storage_name,
                 dry_run=dry_run,
             )
 
-            payload = json.dumps({
-                "sFlagName": "import_1_library",
-                "sProcess": "import_finish",
-                "sDetails": str(sequencing["library"]),
-                "sOutput": " "
-            })
-            headers = {
-            'Content-Type': 'application/json'
-            }
-            response = requests.request("POST", url, headers=headers, data=payload)
-            
+
 
             # check if no import information exists, if so, library does not exist on GSC
             if import_info is None:

@@ -77,7 +77,7 @@ class GSCAPI(object):
         return result
 
 
-raw_instrument_map = {"HiSeq": "HiSeq2500", "HiSeqX": "HiSeqX", "NextSeq": "NextSeq550","NovaSeq":"NovaSeq", "NovaXPlus":"NovaXPlus"}
+raw_instrument_map = {"HiSeq": "HiSeq2500", "HiSeqX": "HiSeqX", "NextSeq": "NextSeq550","NovaSeq":"NovaSeq", "NovaXPlus":"NovaXPlus", "NovaSeq6000":"NovaSeq6000"}
 
 
 def get_sequencing_instrument(machine):
