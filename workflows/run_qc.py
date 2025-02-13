@@ -169,7 +169,7 @@ def load_data_to_alhena(jira, _reload=False, _filter=False, es_host="10.1.0.8"):
     loader_command = generate_loader_command(
         jira=jira,
         project_args=projects_cli_args,
-        _reload=True,
+        _reload=_reload,
         _filter=_filter,
         es_host=es_host,
     )
@@ -338,7 +338,7 @@ def run_viz_alhena(
             log.error(message)
             failed.append(f"{library_id}, {jira_ticket}")
             continue"""
-        #Add ChasmBot Analysis to parent Jira ticket MOVING THIS TO GET IT TO STOP SMPAMMING 
+        #Add ChasmBot Analysis to parent Jira ticket
         try:
             chasmbot_run(jira_ticket)
         except Exception as e:
@@ -645,8 +645,6 @@ def run_qc(
                     id=analysis_run_id,
                     run_status="complete",
                 )
-                chasmbot_run(jira_ticket)
-
             except Exception as e:
                 traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
                 message = f"Updating colossus failed for {library_id}, {jira}.\n {str(traceback_str)}"
@@ -738,7 +736,11 @@ def main(aligner):
                # load_data_to_alhena(jira="SC-7844", _reload=True, _filter=False)
                 stop_vm("bccrc-pr-loader-vm","bccrc-pr-cc-alhena-rg")
 
-
+#        run_viz(
+#            tantalus_api,
+#            colossus_api,
+#            storage_name,
+#        )
             except Exception as e:
                 log.error(f"{e}")
                 #slack_client.post(f"{e}")

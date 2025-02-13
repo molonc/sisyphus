@@ -42,9 +42,9 @@ def start_vm(name, resourcegroupname):
 				"-Name",
 				f"\'{name}\'"
 				])
-			while(status != 0):
-				time.sleep(3)
-				status = check_vm_status(name, resourcegroupname)  
+			while(status!=0):
+                        	time.sleep(3)
+                        	status = check_vm_status(name, resourcegroupname)
 		except Exception as e:
 			raise Exception(f"failed to Start {name} in {resourcegroupname}: {e}")
 

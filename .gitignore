@@ -112,10 +112,6 @@ normal_config_tenx.json
 # qc reports
 qc_reports
 
-# singlecelllogs and singlecelltemp
-singlecelllogs
-singlecelltemp
-
 #sourceMe
 sourceMe
 

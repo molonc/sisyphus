@@ -655,20 +655,69 @@ def run_qc(
 
 
 @click.command()
-@click.argument('sc_id', nargs=1)
-@click.option("--reload", is_flag=True)
 @click.option("--aligner", type=click.Choice(['A', 'M']))
+def main(aligner):
+    tantalus_api = TantalusApi()
+    colossus_api = ColossusApi()
+    slack_client = SlackClient()
 
-def main(sc_id, reload, aligner):
-    
+    # load config file
+    config = file_utils.load_json(
+        os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            'config',
+            'normal_config.json',
+        ))
+    storage_name = config['storages']['remote_results']
+    # run qcs
     try:
-        start_vm("bccrc-pr-loader-vm", "bccrc-pr-cc-alhena-rg")
-        load_data_to_alhena(jira=sc_id, _reload=reload, _filter=True)
-        stop_vm("bccrc-pr-loader-vm","bccrc-pr-cc-alhena-rg")
-        
+        run_qc(
+            aligner,
+            tantalus_api,
+            colossus_api,
+            slack_client,
+            config,
+        )
     except Exception as e:
-        print(f"{e}")
-   
+        slack_client.post(f"{e}")
+    finally:
+       # analyses = colossus_api.list(
+       # "analysis_information",
+       # montage_status="Pending",
+       # analysis_run__run_status="complete",
+       # )
+       # run = 0
+       # for analysis in analyses:
+            # get library id
+       #     library_id = analysis["library"]["pool_id"]
 
+            # skip analyses older than this year
+            # parse off ending time range
+       #     last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
+       #     if last_updated_date < get_last_n_days(90):
+       #         continue
+       #     else:
+       #         run += 1
+
+       # if (run!=0):
+            try:
+                start_vm("bccrc-pr-loader-vm", "bccrc-pr-cc-alhena-rg")
+            	# update ticket and load to montage
+       #         run_viz_alhena(
+       #         tantalus_api,
+       #         colossus_api,
+       #         storage_name,
+       #         _filter=True,
+       #         )
+                load_data_to_alhena(jira="SC-7321", _reload=True, _filter=False)
+                stop_vm("bccrc-pr-loader-vm","bccrc-pr-cc-alhena-rg")
+
+#        run_viz(
+#            tantalus_api,
+#            colossus_api,
+#            storage_name,
+#        )
+            except Exception as e:
+                slack_client.post(f"{e}")
 if __name__ == "__main__":
     main()

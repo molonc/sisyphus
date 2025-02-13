@@ -11,11 +11,30 @@ from dbclients.colossus import ColossusApi
 from workflows import generate_inputs
 import dbclients.tantalus
 from datamanagement.utils.constants import LOGGING_FORMAT
-
+import pandas as pd 
 
 DATASET_TYPE = 'dlpfastqs'
 DATASET_VERSION = 'v.0.0.1'
 
+def reverse_complement(seq):
+    complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
+    return ''.join(complement[base] for base in reversed(seq))
+
+def process_string(s):
+    # Split the string at the hyphen
+    before_hyphen, after_hyphen = s.split('-')
+    
+    # Reverse complement the part before the hyphen
+    before_hyphen_rc = reverse_complement(before_hyphen)[:16]
+    
+    # Reverse complement the part after the hyphen
+    after_hyphen_rc = reverse_complement(after_hyphen)[:16]
+    
+    # Return the shorter string with the hyphen
+    if len(before_hyphen_rc) <= len(after_hyphen_rc):
+        return before_hyphen_rc + '-' + after_hyphen_rc[:len(before_hyphen_rc)]
+    else:
+        return before_hyphen_rc[:len(after_hyphen_rc)] + '-' + after_hyphen_rc
 
 def create_lane_fastq_metadata(tantalus_api, dataset_id):
     """
@@ -29,10 +48,12 @@ def create_lane_fastq_metadata(tantalus_api, dataset_id):
     lane_number = dataset['sequence_lanes'][0]['lane_number']
 
     logging.info(f'retrieving metadata for library {library_id}')
-
+    
     sample_info = generate_inputs.generate_sample_info(library_id)
-    index_sequence_cell_id = sample_info.set_index('index_sequence')['cell_id'].to_dict()
+    if len(sample_info['index_sequence'][0].split("-")[0]) > 16:
+        sample_info['index_sequence'] = sample_info['index_sequence'].apply(process_string)
 
+    index_sequence_cell_id = sample_info.set_index('index_sequence')['cell_id'].to_dict()
     metadata = {'files': {}, 'meta': {}}
 
     metadata['meta']['type'] = DATASET_TYPE
@@ -47,7 +68,6 @@ def create_lane_fastq_metadata(tantalus_api, dataset_id):
     logging.info(f'retrieving file resource info for dataset {dataset["id"]}')
 
     file_resources = list(tantalus_api.list('file_resource', sequencedataset__id=dataset['id']))
-
     for file_resource in file_resources:
         filename = os.path.basename(file_resource['filename'])
         dirname = os.path.dirname(file_resource['filename'])

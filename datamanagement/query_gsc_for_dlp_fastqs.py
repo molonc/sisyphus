@@ -504,7 +504,6 @@ def check_colossus_gsc_library_id(
 
     return gsc_id
 
-
 def import_gsc_dlp_paired_fastqs(
         colossus_api,
         tantalus_api,
@@ -991,6 +990,7 @@ def create_tickets_and_analyses(import_info):
             config["default_aligner"],
         )
 
+
         # create analysis object on colossus
         create_colossus_analysis(
             import_info["dlp_library_id"],
@@ -1042,16 +1042,6 @@ def main(storage_name,
         sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC'))
     # importing only sequencing expecting more lanes
     else:
-        payload = json.dumps({
-            "sFlagName": "list_sequencings_colossus_new_lanes",
-            "sProcess": "list_finish",
-            "sDetails": " ",
-            "sOutput": " "
-            })
-        headers = {
-            'Content-Type': 'application/json'
-            }
-        response = requests.request("POST", url, headers=headers, data=payload)
         sequencing_list = list(colossus_api.list('sequencing', sequencing_center='BCCAGSC'))
         sequencing_list = list(
             filter(lambda s: s['number_of_lanes_requested'] != len(s['dlplane_set']), sequencing_list))
@@ -1069,17 +1059,6 @@ def main(storage_name,
     for sequencing in sequencing_list:
         # import library
         try:
-            payload = json.dumps({
-                "sFlagName": "import_1_library",
-                "sProcess": "import_start",
-                "sDetails": str(sequencing["library"]),
-                "sOutput": " "
-            })
-            headers = {
-            'Content-Type': 'application/json'
-            }
-            response = requests.request("POST", url, headers=headers, data=payload)
-            
             import_info = import_gsc_dlp_paired_fastqs(
                 colossus_api,
                 tantalus_api,

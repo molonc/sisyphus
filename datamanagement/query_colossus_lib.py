@@ -228,13 +228,8 @@ def temp_print():
                 writer.writerow(["", "", "", "", "", "", "", "", ""])
 
 
-def check_colossus_id_jira_match(id_given, ticket):
-    analysis_list = list(colossus_api.list('analysis_information', id=int(id_given)))
-    if analysis_list[0]["analysis_jira_ticket"] != ticket:
-        print(analysis_list[0]["analysis_jira_ticket"])
-        return False
-    return True
 
+    
 
 @click.command()
 @click.option("--pt", is_flag = True, default = False)
@@ -244,16 +239,16 @@ def check_colossus_id_jira_match(id_given, ticket):
 @click.option("--aligner", is_flag = True, default = False) 
 @click.option("--pipeline_d", is_flag = True, default = False) 
 @click.option("--status", is_flag = True, default = False) 
-@click.argument("id_given", nargs=1)
+@click.argument("id", nargs=1)
 @click.argument("ticket", nargs=1)
-def main(pt, bug, pipeline_u, lane, aligner, pipeline_d, status, id_given=None, ticket=None):
-    if id_given is not None and ticket is not None:
-        if not check_colossus_id_jira_match(id_given, ticket):
-            raise Exception("The given colossus analysis id and colossus analysis jira ticket not match! Please Check!")
-        print(f"Deleting analysis with id: {id_given} and jira ticket: {ticket}")
-        duplicate_reasons["others"].append(id_given)
+def main(pt, bug, pipeline_u, lane, aligner, pipeline_d, status, id=None, ticket=None):
+    if id is not None and ticket is not None:
+        print(f"Deleting analysis with id: {id} and jira ticket: {ticket}")
+        duplicate_reasons["others"].append(id)
         duplicate_reasons_jira["others"].append(ticket)
         delete_dup_analysis("others")
+        #print(duplicate_reasons)
+        #print(duplicate_reasons_jira)
         return
     
     list_dup_information()
