@@ -28,7 +28,7 @@ from constants.workflows_constants import ALHENA_VALID_PROJECTS
 from workflows.chasm_run import chasmbot_run, post_to_jira
 
 log = logging.getLogger('sisyphus')
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.ERROR)
 stream_handler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 

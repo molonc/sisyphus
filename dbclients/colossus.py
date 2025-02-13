@@ -36,7 +36,7 @@ class ColossusApi(BasicAPIClient):
         return list(self.list(endpoint, library__pool_id=library_id))
 
     def query_libraries_by_library_id(self, library_id):
-        """ Gets a library by its library_id.
+        """ Gets a library by its library_id. I DONT THINK THIS IS USING LIBRARY ID I THINK THIS IS USING CHIP ID
         """
 
         return self.get("library", pool_id=library_id)
@@ -69,7 +69,6 @@ class ColossusApi(BasicAPIClient):
         """ Get sublibraries in a dictionary keyed by index_sequence.
         """
         return self.get_sublibraries_by_field(library_id, 'index_sequence')
-
 
 _default_client = ColossusApi()
 get_colossus_sublibraries_from_library_id = (
