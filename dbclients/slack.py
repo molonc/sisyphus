@@ -3,7 +3,7 @@ from slack_sdk import WebClient
 
 # User IDs
 SBEATTY_ID = 'UMK7Z7C30'
-DAGHDA_ID = 'U04BYUH7MEU'
+#DAGHDA_ID = 'U04BYUH7MEU'
 class SlackClient(object):
 	"""
 	Initialize Slack Bot Client.
@@ -23,5 +23,5 @@ class SlackClient(object):
 
 	def post(self, text, channel="yvr-production-status"):
 		# Mention people of interest
-		text = " ".join([f"<@{SBEATTY_ID}>",f"<@{DAGHDA_ID}>", text])
+		text = " ".join([f"<@{SBEATTY_ID}>", text])
 		self.client.chat_postMessage(channel=channel, text=text)
