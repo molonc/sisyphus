@@ -118,12 +118,9 @@ sourceMe
 #Error file
 *.err
 singlecelllogs
-singecelltemp
-~/sysphus/singecelltemp
-~/sysphus/singlecelllogs/
+singlecelltemp
 
 #Script
 scripts/
 import_statuses.txt
-
 
