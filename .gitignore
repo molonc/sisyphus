@@ -119,6 +119,8 @@ sourceMe
 *.err
 singlecelllogs
 singecelltemp
+~/sysphus/singecelltemp
+~/sysphus/singlecelllogs/
 
 #Script
 scripts/
