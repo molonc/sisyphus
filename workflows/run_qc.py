@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 import os
+import sys
 import click
 import logging
 import traceback
 import subprocess
 from datetime import datetime, timedelta
 from dateutil import parser
-from vm_control import start_vm, stop_vm,check_vm_status
+from workflows.vm_control import start_vm, stop_vm,check_vm_status
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
 from dbclients.slack import SlackClient
@@ -305,6 +306,17 @@ def run_viz_alhena(
             failed.append(f"{library_id}, {jira_ticket}")
             continue
 
+        #Add ChasmBot Analysis to parent Jira ticket
+        try:
+            chasmbot_run(jira_ticket)
+        except Exception as e:
+            traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
+            message = f"Adding ChasmBot to Jira failed for {library_id}, {jira_ticket}.\n {str(traceback_str)}"
+            log.error(message)
+            post_to_jira(jira_ticket,f"Failed to run ChasmBot for {library_id}, {jira_ticket}")
+            failed.append(f"{library_id}, {jira_ticket}")
+            continue
+
         try:
             # load analysis into alhena
             load_data_to_alhena(jira=jira_ticket, _reload=_reload, _filter=_filter)
@@ -338,16 +350,7 @@ def run_viz_alhena(
             log.error(message)
             failed.append(f"{library_id}, {jira_ticket}")
             continue"""
-        #Add ChasmBot Analysis to parent Jira ticket
-        try:
-            chasmbot_run(jira_ticket)
-        except Exception as e:
-            traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
-            message = f"Adding ChasmBot to Jira failed for {library_id}, {jira_ticket}.\n {str(traceback_str)}"
-            log.error(message)
-            post_to_jira(jira,f"Failed to run ChasmBot for {library_id}, {jira_ticket}")
-            failed.append(f"{library_id}, {jira_ticket}")
-            continue
+
     # propagate error after the loop
     if(failed):
         base = f"An error occurred while uploading to Alhena in run_qc.py.\n"
@@ -684,13 +687,16 @@ def main(aligner):
     colossus_api = ColossusApi()
     slack_client = SlackClient()
 
-    # load config file
-    config = file_utils.load_json(
-        os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            'config',
-            'normal_config.json',
-        ))
+    if hasattr(sys, 'ps1') or sys.flags.interactive:
+        config = file_utils.load_json('/home/prod/sisyphus/workflows/config/normal_config.json')
+    else: 
+        # load config file
+        config = file_utils.load_json(
+            os.path.join(
+                os.path.dirname(os.path.realpath(__file__)),
+                'config',
+                'normal_config.json',
+            ))
     storage_name = config['storages']['remote_results']
     # run qcs
     try:
@@ -733,7 +739,7 @@ def main(aligner):
                 _reload=True,
                 _filter=True,
                 )
-               # load_data_to_alhena(jira="SC-7844", _reload=True, _filter=False)
+            #load_data_to_alhena(jira="SC-9524", _reload=True, _filter=False)
                 stop_vm("bccrc-pr-loader-vm","bccrc-pr-cc-alhena-rg")
 
 #        run_viz(
