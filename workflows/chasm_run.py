@@ -2,7 +2,6 @@ import subprocess
 import os
 import shutil
 import glob
-from workflows.utils.jira_utils import get_parent_issue, comment_jira
 
 #log = logging.getLogger('sisyphus')
 #log.setLevel(logging.DEBUG)
