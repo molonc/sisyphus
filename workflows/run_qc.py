@@ -21,8 +21,8 @@ from workflows.analysis.dlp import (
 from workflows import run_pseudobulk
 
 from workflows.utils import saltant_utils, file_utils, tantalus_utils, colossus_utils
-from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira, update_jira_alhena
-
+#from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira, update_jira_alhena, get_parent_issue
+from workflows.utils.jira_utils import update_jira_dlp#, add_attachment, comment_jira, update_jira_alhena, get_parent_issue
 from common_utils.utils import get_last_n_days
 
 from constants.workflows_constants import ALHENA_VALID_PROJECTS
@@ -306,17 +306,6 @@ def run_viz_alhena(
             failed.append(f"{library_id}, {jira_ticket}")
             continue
 
-        #Add ChasmBot Analysis to parent Jira ticket
-        try:
-            chasmbot_run(jira_ticket)
-        except Exception as e:
-            traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
-            message = f"Adding ChasmBot to Jira failed for {library_id}, {jira_ticket}.\n {str(traceback_str)}"
-            log.error(message)
-            post_to_jira(jira_ticket,f"Failed to run ChasmBot for {library_id}, {jira_ticket}")
-            failed.append(f"{library_id}, {jira_ticket}")
-            continue
-
         try:
             # load analysis into alhena
             load_data_to_alhena(jira=jira_ticket, _reload=_reload, _filter=_filter)
@@ -327,6 +316,17 @@ def run_viz_alhena(
             failed.append(f"{library_id}, {jira_ticket}")
             continue
 
+                #Add ChasmBot Analysis to parent Jira ticket
+        try:
+            chasmbot_run(jira_ticket)
+        except Exception as e:
+            traceback_str = "".join(traceback.format_exception(etype=None, value=e, tb=e.__traceback__))
+            message = f"Adding ChasmBot to Jira failed for {library_id}, {jira_ticket}.\n {str(traceback_str)}"
+            log.error(message)
+            post_to_jira(jira_ticket,f"Failed to run ChasmBot for {library_id}, {jira_ticket}")
+            failed.append(f"{library_id}, {jira_ticket}")
+            continue
+        
         # close jira ticket and update ticket description
         try:
             update_jira_dlp(jira_ticket, analysis["aligner"])
