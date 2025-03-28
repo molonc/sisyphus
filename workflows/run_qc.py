@@ -21,8 +21,8 @@ from workflows.analysis.dlp import (
 from workflows import run_pseudobulk
 
 from workflows.utils import saltant_utils, file_utils, tantalus_utils, colossus_utils
-from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira, update_jira_alhena, get_parent_issue
-
+#from workflows.utils.jira_utils import update_jira_dlp, add_attachment, comment_jira, update_jira_alhena, get_parent_issue
+from workflows.utils.jira_utils import update_jira_dlp#, add_attachment, comment_jira, update_jira_alhena, get_parent_issue
 from common_utils.utils import get_last_n_days
 
 from constants.workflows_constants import ALHENA_VALID_PROJECTS

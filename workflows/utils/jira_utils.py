@@ -130,6 +130,11 @@ def update_jira_dlp(jira_id, aligner):
             project = colossus_utils.get_projects_from_jira_id(str(parent_jira_id))[0]['name']
             if project == 'Structure-Variation':
                 comment_jira(str(parent_jira_id),"[~dyap] pipeline completed")
+                comment_jira(str(parent_jira_id),"[~wdaniels]] pipeline completed")
+            if project == 'Gray Team Project':
+                comment_jira(str(parent_jira_id),"[~coflanagan] pipeline completed")
+            if project == 'Collab-SorensenOS':
+                comment_jira(str(parent_jira_id),"[~bfurman] pipeline completed")
         except:
             pass
 
