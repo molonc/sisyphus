@@ -660,25 +660,6 @@ def run_qc(
         base = f"An error occurred while running Analysis in run_qc.py.\n"
         message = base + '\n'.join(failed)
         raise ValueError(message)
-#    # get annotation analysis completed in last week
-#    analyses = tantalus_api.list(
-#        "analysis",
-#        status="complete",
-#        analysis_type__name="annotation",
-#        last_updated__gte=str(datetime.now() - timedelta(days=21)),
-#    )
-#
-#    for analysis in analyses:
-#        try:
-#            # run pseudobulk
-#            run_pseudobulk.run(
-#                analysis["jira_ticket"],
-#                analysis["args"]["library_id"],
-#            )
-#        except Exception as e:
-#            traceback.print_exc()
-#            log.error(f"Failed to run pseudobulk for {analysis['args']['library_id']}: {e}")
-
 
 @click.command()
 @click.option("--aligner", type=click.Choice(['A', 'M']))
@@ -720,8 +701,7 @@ def main(aligner):
             # get library id
             library_id = analysis["library"]["pool_id"]
 
-            # skip analyses older than this year
-            # parse off ending time range
+            # skip analyses that are older than 200 days
             last_updated_date = parser.parse(analysis["analysis_run"]["last_updated"][:-6])
             if last_updated_date < get_last_n_days(200):
                 continue
@@ -742,13 +722,7 @@ def main(aligner):
             #load_data_to_alhena(jira="SC-9524", _reload=True, _filter=False)
                 stop_vm("bccrc-pr-loader-vm","bccrc-pr-cc-alhena-rg")
 
-#        run_viz(
-#            tantalus_api,
-#            colossus_api,
-#            storage_name,
-#        )
             except Exception as e:
                 log.error(f"{e}")
-                #slack_client.post(f"{e}")
 if __name__ == "__main__":
     main()
