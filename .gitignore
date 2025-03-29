@@ -126,3 +126,4 @@ import_statuses.txt
 
 workflows/chasmbot/SC-*
 runAnalysis.out
+git_untracked/
